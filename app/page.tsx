@@ -3,6 +3,7 @@ import { Hero } from "@/components/home/hero";
 import { DeploymentExperience } from "@/components/home/deployment-experience";
 import { ProductExperience } from "@/components/home/product-experience";
 import { ApplicationStack } from "@/components/home/application-stack";
+import { DeveloperExperience } from "@/components/home/developer-experience";
 
 export default function Home() {
   return (
@@ -13,6 +14,7 @@ export default function Home() {
         <DeploymentExperience />
         <ProductExperience />
         <ApplicationStack />
+        <DeveloperExperience />
       </main>
     </div>
   );
