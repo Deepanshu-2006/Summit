@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import { ApiServicePlayground } from "./api-service-playground";
 
 type ServiceId = "web" | "api" | "db" | "worker";
 
@@ -280,13 +281,13 @@ export function ApplicationStack() {
           )}
 
           {/* =============================================================
-              VIEW 2: API SERVICE — The Request in Motion
-              Endpoint dominant title, 3 lifecycle stages, 3 recent requests
+              VIEW 2: API SERVICE — Real Backend Demonstration
+              Interactive API playground with live Route Handlers
               ============================================================= */}
           {selectedId === "api" && (
-            <div className="w-full h-full flex flex-col justify-between animate-in fade-in duration-200 pb-4 sm:pb-5 lg:pb-5">
+            <div className="w-full h-full flex flex-col justify-between animate-in fade-in duration-200 pb-3 sm:pb-3.5">
               {/* Standardized Header */}
-              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pb-2.5 sm:pb-3 border-b border-border-subtle/70 shrink-0">
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pb-2 sm:pb-2.5 border-b border-border-subtle/70 shrink-0">
                 <div className="space-y-0.5 max-w-xl">
                   <div className="flex items-center gap-2 font-mono text-[10.5px] text-text-muted tracking-[0.14em] uppercase">
                     <span className="text-accent-orange font-medium">02</span>
@@ -297,132 +298,23 @@ export function ApplicationStack() {
                     Logic and application requests.
                   </h3>
                   <p className="font-sans text-[12.5px] sm:text-[13px] text-text-secondary leading-relaxed line-clamp-1">
-                    Zero-cold-start API execution connected across private WireGuard networks.
+                    Live endpoint execution connected to Meridian project Route Handlers.
                   </p>
                 </div>
 
                 <div className="flex items-center gap-2 font-mono text-[11px] self-start sm:self-auto shrink-0 pb-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
-                  <span className="text-semantic-success font-medium">200 OK</span>
+                  <span className="text-semantic-success font-medium">Live Playground</span>
                   <span className="text-border-default text-[10px]">·</span>
-                  <span className="text-text-secondary">18.4ms latency</span>
+                  <span className="text-text-secondary">meridian-api</span>
                   <span className="text-border-default text-[10px]">·</span>
-                  <span className="text-text-muted text-[10.5px]">Live</span>
+                  <span className="text-text-muted text-[10.5px]">v1.0</span>
                 </div>
               </div>
 
-              {/* Middle Area: Endpoint, 3 Lifecycle Stages, Recent Requests */}
-              <div className="flex-1 min-h-0 my-3 flex flex-col justify-between py-1 overflow-hidden">
-                {/* Endpoint Sub-header */}
-                <div className="flex items-baseline gap-2.5 pb-2 border-b border-border-subtle/60 shrink-0">
-                  <span className="font-mono text-accent-orange font-semibold text-[13px]">
-                    POST
-                  </span>
-                  <span className="font-sans text-[17px] sm:text-[19px] font-medium text-[#F1F0EC] tracking-tight">
-                    /api/v2/releases/publish
-                  </span>
-                </div>
-
-                {/* 3 Lifecycle Stages in Sequence */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 py-1.5 shrink-0">
-                  {/* Stage 01 */}
-                  <div className="space-y-1 pr-3">
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
-                      <span className="font-mono text-[10.5px] text-semantic-success font-medium tracking-wider">
-                        01 · Authentication
-                      </span>
-                    </div>
-                    <p className="font-sans text-[11.5px] sm:text-[12px] text-text-secondary leading-snug">
-                      Token validated and request authorized for user{" "}
-                      <span className="font-mono text-[#F1F0EC]">elena_91a</span>.
-                    </p>
-                    <div className="font-mono text-[10px] text-text-muted">
-                      1.2ms latency
-                    </div>
-                  </div>
-
-                  {/* Stage 02 */}
-                  <div className="space-y-1 pr-3 md:border-l md:border-border-subtle md:pl-4">
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
-                      <span className="font-mono text-[10.5px] text-semantic-success font-medium tracking-wider">
-                        02 · Persistence
-                      </span>
-                    </div>
-                    <p className="font-sans text-[11.5px] sm:text-[12px] text-text-secondary leading-snug">
-                      Release record updated in database to{" "}
-                      <span className="font-mono text-semantic-success">published</span>.
-                    </p>
-                    <div className="font-mono text-[10px] text-text-muted">
-                      2.8ms execution
-                    </div>
-                  </div>
-
-                  {/* Stage 03 */}
-                  <div className="space-y-1 md:border-l md:border-border-subtle md:pl-4">
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-accent-orange" />
-                      <span className="font-mono text-[10.5px] text-accent-orange font-medium tracking-wider">
-                        03 · Async dispatch
-                      </span>
-                    </div>
-                    <p className="font-sans text-[11.5px] sm:text-[12px] text-text-secondary leading-snug">
-                      Task dispatched to background worker for edge asset generation.
-                    </p>
-                    <div className="font-mono text-[10px] text-text-muted">
-                      0.8ms broker ACK
-                    </div>
-                  </div>
-                </div>
-
-                {/* Recent Requests Section */}
-                <div className="pt-2 border-t border-border-subtle/80 space-y-1 shrink-0">
-                  <div className="font-mono text-[10px] uppercase tracking-wider text-text-muted">
-                    Recent requests
-                  </div>
-
-                  <div className="divide-y divide-border-subtle/80 font-mono text-[11px] sm:text-[11.5px]">
-                    <div className="py-1 flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-text-muted w-10 font-medium">GET</span>
-                        <span className="text-[#F1F0EC]">/api/v2/releases/v2.4-rc1</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-text-muted">
-                        <span className="text-semantic-success">200 OK</span>
-                        <span>4.2ms</span>
-                      </div>
-                    </div>
-
-                    <div className="py-1 flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-accent-orange w-10 font-medium">POST</span>
-                        <span className="text-[#F1F0EC]">/api/v2/releases/publish</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-text-muted">
-                        <span className="text-semantic-success">200 OK</span>
-                        <span>18.4ms</span>
-                      </div>
-                    </div>
-
-                    <div className="py-1 flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-text-muted w-10 font-medium">GET</span>
-                        <span className="text-[#F1F0EC]">/api/v2/projects/meridian</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-text-muted">
-                        <span className="text-semantic-success">200 OK</span>
-                        <span>8.1ms</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Standardized Footer */}
-              <div className="pt-2.5 border-t border-border-subtle flex items-center justify-between text-[10.5px] font-mono text-text-muted shrink-0">
-                <div>Zero public ports exposed · Internal WireGuard private mesh</div>
-                <div className="text-text-secondary">Mutual TLS 1.3 enforced</div>
+              {/* Functional API Playground */}
+              <div className="flex-1 min-h-0 mt-2 overflow-hidden">
+                <ApiServicePlayground />
               </div>
             </div>
           )}
