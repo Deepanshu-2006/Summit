@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { Check, RefreshCw } from "lucide-react";
+import { motion, useScroll, useTransform } from "motion/react";
 import { BRAND } from "@/lib/brand";
 
 type StageId = "source" | "build" | "production";
@@ -67,6 +68,16 @@ export function Hero() {
     getReducedMotionSnapshot,
     getReducedMotionServerSnapshot
   );
+
+  // Natural scroll-linked progression relative to the hero section's position in the document/viewport
+  const { scrollYProgress } = useScroll({
+    target: heroRef,
+    offset: ["start start", "end start"],
+  });
+
+  // Subtle restrained parallax on right visualization container (moves at 0.35x relative speed)
+  const diagramParallaxY = useTransform(scrollYProgress, [0, 1], [0, 32]);
+  const conduitHeight = useTransform(scrollYProgress, [0.35, 1], ["0%", "100%"]);
 
   // Intersection observer to pause animation when outside viewport
   useEffect(() => {
@@ -347,8 +358,11 @@ export function Hero() {
               ================================================================= */}
           <div className="lg:col-span-7 relative w-full flex items-center justify-center">
             
-            {/* Diagram Container: Unified coordinate space (600x440) */}
-            <div className="w-full relative aspect-[600/440] max-w-[600px] select-none">
+            {/* Diagram Container: Unified coordinate space (600x440) with subtle scroll-linked parallax */}
+            <motion.div
+              style={{ y: isReducedMotion ? 0 : diagramParallaxY }}
+              className="w-full relative aspect-[600/440] max-w-[600px] select-none"
+            >
               
               {/* SVG Infrastructure Circuit Layer (connections, pins, data packets) */}
               <svg
@@ -697,10 +711,25 @@ export function Hero() {
                 </div>
               </div>
 
-            </div>
+            </motion.div>
 
           </div>
 
+        </div>
+      </div>
+
+      {/* Visual Continuity Conduit: Extends from hero diagram directly toward the next section */}
+      <div
+        className="w-full flex justify-end pr-12 sm:pr-24 lg:pr-36 h-8 pointer-events-none"
+        aria-hidden="true"
+      >
+        <div className="w-[1px] h-full bg-border-subtle/40 relative overflow-hidden">
+          <motion.div
+            style={{
+              height: isReducedMotion ? "100%" : conduitHeight,
+            }}
+            className="w-full bg-gradient-to-b from-accent-orange/80 to-accent-orange/20"
+          />
         </div>
       </div>
     </section>
