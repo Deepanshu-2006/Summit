@@ -2,17 +2,11 @@
 
 import React, { useState, useEffect, useRef, useSyncExternalStore } from "react";
 
-type NetworkPhase =
-  | "arrival"  // 700ms: Event arrives on left, travels along incoming path to dispatch junction
-  | "dispatch" // 350ms: Event enters central junction core, routing mechanism activates
-  | "fanout"   // 850ms: Coordinated event markers branch out along the 3 conduits to endpoints
-  | "delivery" // 700ms: Endpoints confirm delivery, conduits transition to sage green
-  | "settle";  // 1200ms: Completed state held cleanly before looping to next event
-
 interface EndpointTarget {
   name: string;
   route: string;
   glyph: "storage" | "purge" | "search";
+  latency: string;
 }
 
 interface DispatchEvent {
@@ -26,27 +20,27 @@ const EVENTS: DispatchEvent[] = [
     name: "asset.transformed",
     source: "media.worker.pool",
     targets: [
-      { name: "S3 Object Store", route: "s3.internal/optimized", glyph: "storage" },
-      { name: "CDN Purge Hook", route: "cloudflare.com/purge", glyph: "purge" },
-      { name: "Search Indexer", route: "algolia.ingress/assets", glyph: "search" },
+      { name: "S3 Object Store", route: "s3.internal/optimized", glyph: "storage", latency: "14ms" },
+      { name: "CDN Purge Hook", route: "cloudflare.com/purge", glyph: "purge", latency: "22ms" },
+      { name: "Search Indexer", route: "algolia.ingress/assets", glyph: "search", latency: "11ms" },
     ],
   },
   {
     name: "payment.succeeded",
     source: "stripe.webhook.ingress",
     targets: [
-      { name: "Billing Ledger", route: "ledger.internal/receipts", glyph: "storage" },
-      { name: "Customer Notifier", route: "resend.com/emails", glyph: "purge" },
-      { name: "Analytics Warehouse", route: "snowflake.ingress/events", glyph: "search" },
+      { name: "Billing Ledger", route: "ledger.internal/receipts", glyph: "storage", latency: "16ms" },
+      { name: "Customer Notifier", route: "resend.com/emails", glyph: "purge", latency: "19ms" },
+      { name: "Analytics Warehouse", route: "snowflake.ingress/events", glyph: "search", latency: "25ms" },
     ],
   },
   {
     name: "release.deployed",
     source: "ci.pipeline.builder",
     targets: [
-      { name: "Edge Cache Invalidation", route: "edge.jetway.internal", glyph: "purge" },
-      { name: "Deployment Monitor", route: "datadog.ingress/deploy", glyph: "storage" },
-      { name: "Team Slack Channel", route: "hooks.slack.com/releases", glyph: "search" },
+      { name: "Edge Cache Invalidation", route: "edge.jetway.internal", glyph: "purge", latency: "8ms" },
+      { name: "Deployment Monitor", route: "datadog.ingress/deploy", glyph: "storage", latency: "18ms" },
+      { name: "Team Slack Channel", route: "hooks.slack.com/releases", glyph: "search", latency: "24ms" },
     ],
   },
 ];
@@ -67,9 +61,85 @@ function getReducedMotionServerSnapshot() {
   return false;
 }
 
+// Parametric evaluation of the stepped incoming conduit from (224, 174) to (414, 184)
+function getIngressPoint(t: number): { x: number; y: number } {
+  const clamped = Math.max(0, Math.min(1, t));
+  // Seg 1: (224, 174) -> (268, 174)
+  if (clamped <= 0.230) {
+    const s = clamped / 0.230;
+    return { x: 224 + s * 44, y: 174 };
+  }
+  // Seg 2: (268, 174) -> (320, 184)
+  else if (clamped <= 0.508) {
+    const s = (clamped - 0.230) / (0.508 - 0.230);
+    return { x: 268 + s * 52, y: 174 + s * 10 };
+  }
+  // Seg 3: (320, 184) -> (414, 184) (Straight horizontal through Node 2 and Node 3)
+  else {
+    const s = Math.min(1, (clamped - 0.508) / (1 - 0.508));
+    return { x: 320 + s * 94, y: 184 };
+  }
+}
+
+// Parametric evaluation of top cubic Bezier: (569, 144) -> (714, 102)
+function getTopEgressPoint(u: number): { x: number; y: number } {
+  const clamped = Math.max(0, Math.min(1, u));
+  const inv = 1 - clamped;
+  const x = inv ** 3 * 569 + 3 * inv ** 2 * clamped * 630 + 3 * inv * clamped ** 2 * 656 + clamped ** 3 * 714;
+  const y = inv ** 3 * 144 + 3 * inv ** 2 * clamped * 144 + 3 * inv * clamped ** 2 * 102 + clamped ** 3 * 102;
+  return { x, y };
+}
+
+// Parametric evaluation of middle cubic Bezier: (577, 168) -> (714, 170)
+function getMidEgressPoint(u: number): { x: number; y: number } {
+  const clamped = Math.max(0, Math.min(1, u));
+  const inv = 1 - clamped;
+  const x = inv ** 3 * 577 + 3 * inv ** 2 * clamped * 625 + 3 * inv * clamped ** 2 * 665 + clamped ** 3 * 714;
+  const y = inv ** 3 * 168 + 3 * inv ** 2 * clamped * 168 + 3 * inv * clamped ** 2 * 170 + clamped ** 3 * 170;
+  return { x, y };
+}
+
+// Parametric evaluation of bottom cubic Bezier: (565, 190) -> (714, 238)
+function getBotEgressPoint(u: number): { x: number; y: number } {
+  const clamped = Math.max(0, Math.min(1, u));
+  const inv = 1 - clamped;
+  const x = inv ** 3 * 565 + 3 * inv ** 2 * clamped * 630 + 3 * inv * clamped ** 2 * 656 + clamped ** 3 * 714;
+  const y = inv ** 3 * 190 + 3 * inv ** 2 * clamped * 190 + 3 * inv * clamped ** 2 * 238 + clamped ** 3 * 238;
+  return { x, y };
+}
+
+function renderTargetGlyph(glyph: "storage" | "purge" | "search") {
+  switch (glyph) {
+    case "storage":
+      return (
+        <g>
+          <polygon points="0,-7 8,-3 0,1 -8,-3" fill="none" stroke="#F0EEE9" strokeWidth="1.1" />
+          <polygon points="-8,-3 0,1 0,9 -8,5" fill="none" stroke="#A5A19A" strokeWidth="1.1" />
+          <polygon points="0,1 8,-3 8,5 0,9" fill="none" stroke="#77736D" strokeWidth="1.1" />
+        </g>
+      );
+    case "purge":
+      return (
+        <path
+          d="M 2,-8 L -4,0 H 1 L -2,8 L 5,-1 H 0 Z"
+          fill="none"
+          stroke="#F0EEE9"
+          strokeWidth="1.2"
+        />
+      );
+    case "search":
+      return (
+        <g>
+          <circle cx="-2" cy="-2" r="4.5" fill="none" stroke="#F0EEE9" strokeWidth="1.2" />
+          <line x1="2" y1="2" x2="6" y2="6" stroke="#F0EEE9" strokeWidth="1.4" />
+        </g>
+      );
+  }
+}
+
 export function WorkerServicePlayground() {
   const [eventIndex, setEventIndex] = useState(0);
-  const [phase, setPhase] = useState<NetworkPhase>("arrival");
+  const [cycleTime, setCycleTime] = useState(0); // 0 to 4200ms
   const [isInViewport, setIsInViewport] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -79,7 +149,7 @@ export function WorkerServicePlayground() {
     getReducedMotionServerSnapshot
   );
 
-  // Pause animation when preview leaves the viewport
+  // Pause when outside viewport
   useEffect(() => {
     const node = containerRef.current;
     if (!node || typeof IntersectionObserver === "undefined") return;
@@ -95,207 +165,452 @@ export function WorkerServicePlayground() {
     return () => observer.disconnect();
   }, []);
 
-  // Coordinated event-dispatch timeline
+  // Continuous high-precision 60fps animation loop using requestAnimationFrame (100% reliable in Safari)
   useEffect(() => {
-    if (isReducedMotion || !isInViewport) {
-      return;
-    }
+    if (isReducedMotion || !isInViewport) return;
 
-    let timeoutId: NodeJS.Timeout;
+    let animationFrameId: number;
+    let startTime = performance.now();
 
-    switch (phase) {
-      case "arrival":
-        // 700ms: Event travels along incoming path
-        timeoutId = setTimeout(() => setPhase("dispatch"), 700);
-        break;
+    const render = (now: number) => {
+      const elapsed = now - startTime;
+      const CYCLE_DURATION = 4200; // 4.2s cycle
 
-      case "dispatch":
-        // 350ms: Core accepts event and activates output ports
-        timeoutId = setTimeout(() => setPhase("fanout"), 350);
-        break;
+      if (elapsed >= CYCLE_DURATION) {
+        startTime = now;
+        setEventIndex((prev) => (prev + 1) % EVENTS.length);
+        setCycleTime(0);
+      } else {
+        setCycleTime(elapsed);
+      }
 
-      case "fanout":
-        // 850ms: Coordinated fan-out along 3 branching paths
-        timeoutId = setTimeout(() => setPhase("delivery"), 850);
-        break;
+      animationFrameId = requestAnimationFrame(render);
+    };
 
-      case "delivery":
-        // 700ms: Success state confirmation
-        timeoutId = setTimeout(() => setPhase("settle"), 700);
-        break;
+    animationFrameId = requestAnimationFrame(render);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [isReducedMotion, isInViewport]);
 
-      case "settle":
-        // 1200ms: Settle and pause, then smoothly cycle to next event
-        timeoutId = setTimeout(() => {
-          setEventIndex((prev) => (prev + 1) % EVENTS.length);
-          setPhase("arrival");
-        }, 1200);
-        break;
-    }
-
-    return () => clearTimeout(timeoutId);
-  }, [phase, isReducedMotion, isInViewport]);
-
-  const activePhase = isReducedMotion ? "delivery" : phase;
   const currentEvent = EVENTS[eventIndex];
 
-  // Stage flags
-  const isArrival = activePhase === "arrival";
-  const isDispatch = activePhase === "dispatch";
-  const isFanout = activePhase === "fanout";
-  const isDelivery = activePhase === "delivery";
-  const isSettle = activePhase === "settle";
+  // Lifecycle phases derived directly from cycleTime
+  // 0ms -> 1000ms: Ingress (orange signal moves along stepped conduit)
+  // 1000ms -> 1800ms: Core (center rotunda & amber vents fully energized)
+  // 1800ms -> 2800ms: Egress (3 sage-green signals fan out to endpoints)
+  // 2800ms -> 4200ms: Delivery confirmation & settle
+  const isIngress = !isReducedMotion && cycleTime < 1000;
+  const isCore = !isReducedMotion && cycleTime >= 1000 && cycleTime < 1800;
+  const isEgress = !isReducedMotion && cycleTime >= 1800 && cycleTime < 2800;
+  const isDelivered = isReducedMotion || cycleTime >= 2800;
 
-  const isJunctionActive = isDispatch || isFanout;
-  const isDeliveredState = isDelivery || isSettle;
+  // Normalized phase progress
+  const ingressProgress = isIngress ? cycleTime / 1000 : isCore || isEgress || isDelivered ? 1 : 0;
+  const egressProgress = isEgress ? (cycleTime - 1800) / 1000 : isDelivered ? 1 : 0;
+
+  // Signal particle coordinates
+  const ingressPos = getIngressPoint(ingressProgress);
+  const egressPosTop = getTopEgressPoint(egressProgress);
+  const egressPosMid = getMidEgressPoint(egressProgress);
+  const egressPosBot = getBotEgressPoint(egressProgress);
+
+  // Active state flags for each node along the network
+  const isNode1Active = ingressProgress >= 0.23;
+  const isNode2Active = ingressProgress >= 0.63;
+  const isNode3Active = ingressProgress >= 0.92;
+
+  const isCenterEnergized = isCore || isEgress || isDelivered;
+  const isConduitsActive = isEgress || isDelivered;
 
   return (
     <div
       ref={containerRef}
       className="w-full h-full flex flex-col justify-center items-center select-none overflow-hidden"
     >
-      <style>{`
-        @keyframes incomingMarkerSlide {
-          0% {
-            transform: translate(250px, 170px);
-            opacity: 0.2;
-          }
-          20% {
-            opacity: 1;
-          }
-          100% {
-            transform: translate(440px, 170px);
-            opacity: 1;
-          }
-        }
-        @keyframes junctionCoreEnter {
-          0% {
-            transform: translate(440px, 170px);
-          }
-          100% {
-            transform: translate(480px, 170px);
-          }
-        }
-        @keyframes branchMarkerTop {
-          0% {
-            transform: translate(520px, 152px);
-            opacity: 0;
-          }
-          15% {
-            opacity: 1;
-          }
-          30% {
-            transform: translate(565px, 145px);
-          }
-          60% {
-            transform: translate(625px, 122px);
-          }
-          85% {
-            transform: translate(680px, 100px);
-          }
-          100% {
-            transform: translate(720px, 95px);
-            opacity: 1;
-          }
-        }
-        @keyframes branchMarkerMid {
-          0% {
-            transform: translate(520px, 170px);
-            opacity: 0;
-          }
-          15% {
-            opacity: 1;
-          }
-          100% {
-            transform: translate(720px, 170px);
-            opacity: 1;
-          }
-        }
-        @keyframes branchMarkerBot {
-          0% {
-            transform: translate(520px, 188px);
-            opacity: 0;
-          }
-          15% {
-            opacity: 1;
-          }
-          30% {
-            transform: translate(565px, 195px);
-          }
-          60% {
-            transform: translate(625px, 218px);
-          }
-          85% {
-            transform: translate(680px, 240px);
-          }
-          100% {
-            transform: translate(720px, 245px);
-            opacity: 1;
-          }
-        }
-      `}</style>
-
-      {/* =================================================================
-          LIVING EVENT-DISPATCH NETWORK
-          - Left: Event Source (asset.transformed)
-          - Center: Geometric Dispatch Junction (angular faceted silhouette)
-          - Right: 3 Integrated Endpoints (S3, CDN Purge, Search Indexer)
-          - The network itself is the visual illustration.
-          ================================================================= */}
       <div className="w-full h-full relative flex items-center justify-center">
         <svg
-          viewBox="0 0 1000 340"
+          viewBox="0 0 1060 320"
           className="w-full h-full select-none"
           preserveAspectRatio="xMidYMid meet"
-          aria-label="Jetway living event-dispatch network illustration"
+          aria-label="Jetway background worker live event dispatch rotunda"
         >
           <defs>
-            {/* Subtle glow gradients for active conduits */}
-            <linearGradient id="net-incoming-glow" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#E58A61" stopOpacity="0.3" />
-              <stop offset="100%" stopColor="#E58A61" stopOpacity="1" />
+            {/* 3D Rotunda Base Cylinder Metallic Wall (Warm charcoal, not cool blue/slate) */}
+            <linearGradient id="warm-rotunda-wall" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#121110" />
+              <stop offset="20%" stopColor="#1A1816" />
+              <stop offset="50%" stopColor="#24201D" />
+              <stop offset="80%" stopColor="#1A1816" />
+              <stop offset="100%" stopColor="#121110" />
             </linearGradient>
 
-            <linearGradient id="net-branch-success" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#82B89D" stopOpacity="0.4" />
-              <stop offset="100%" stopColor="#82B89D" stopOpacity="1" />
+            {/* Stepped Ingress Conduit Beam Gradient */}
+            <linearGradient id="warm-ingress-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#E58A61" stopOpacity="0.3" />
+              <stop offset="100%" stopColor="#FFAA80" stopOpacity="1" />
             </linearGradient>
+
+            {/* Atmospheric Ambient Amber Glow behind diamond core */}
+            <radialGradient id="center-ambient-amber" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#E58A61" stopOpacity="0.45" />
+              <stop offset="60%" stopColor="#E58A61" stopOpacity="0.15" />
+              <stop offset="100%" stopColor="#E58A61" stopOpacity="0" />
+            </radialGradient>
+
+            {/* Soft Glow Filter for active points and diamond */}
+            <filter id="point-amber-glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+
+            <filter id="point-green-glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="3.5" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
           </defs>
 
           {/* =============================================================
-              1. LEFT: COMPACT EVENT SOURCE (No large cards, pure typography & node)
+              1. BACKGROUND ISOMETRIC DOTTED ORBITS & ALIGNMENT AXES
               ============================================================= */}
-          <g id="event-source">
-            {/* Event Category Tag */}
+          <g id="guide-axes">
+            {/* Dotted Orbital Ellipse */}
+            <ellipse
+              cx="490"
+              cy="176"
+              rx="124"
+              ry="58"
+              fill="none"
+              stroke={isCenterEnergized ? "#3D2B20" : "#2A231E"}
+              strokeWidth="1"
+              strokeDasharray="2 4"
+              className="transition-colors duration-400"
+            />
+          </g>
+
+          {/* =============================================================
+              2. 3D ISOMETRIC CYLINDRICAL ROTUNDA (Center: 490, 172)
+              Warm charcoal palette with glowing amber interior vents
+              ============================================================= */}
+          <g id="center-rotunda">
+            {/* Ambient Warm Volumetric Core Glow */}
+            <ellipse
+              cx="490"
+              cy="146"
+              rx={isCenterEnergized ? 75 : 55}
+              ry={isCenterEnergized ? 42 : 30}
+              fill="url(#center-ambient-amber)"
+              opacity={isCenterEnergized ? 1 : 0.4}
+              className="transition-all duration-400"
+            />
+
+            {/* --- Tier 1: Lower Cylinder Base --- */}
+            <path
+              d="M 414,172 V 192 A 76 36 0 0 0 566,192 V 172 A 76 36 0 0 1 414,172 Z"
+              fill="url(#warm-rotunda-wall)"
+              stroke="#302B26"
+              strokeWidth="1"
+            />
+            <path
+              d="M 414,192 A 76 36 0 0 0 566,192"
+              fill="none"
+              stroke="#3D352E"
+              strokeWidth="1"
+            />
+
+            {/* Slotted Recessed Vents with Vibrant Amber Interior Glow */}
+            <g id="amber-vents">
+              {/* Vent 1 */}
+              <rect
+                x="438"
+                y="176"
+                width="6.5"
+                height="12"
+                rx="1.5"
+                fill={isCenterEnergized ? "#FFAA80" : "#6E3821"}
+                filter={isCenterEnergized ? "url(#point-amber-glow)" : undefined}
+                className="transition-all duration-300"
+              />
+              {/* Vent 2 */}
+              <rect
+                x="462"
+                y="181"
+                width="7"
+                height="13"
+                rx="1.5"
+                fill={isCenterEnergized ? "#FFAA80" : "#6E3821"}
+                filter={isCenterEnergized ? "url(#point-amber-glow)" : undefined}
+                className="transition-all duration-300"
+              />
+              {/* Vent 3 (Center) */}
+              <rect
+                x="486.5"
+                y="183"
+                width="7"
+                height="13"
+                rx="1.5"
+                fill={isCenterEnergized ? "#FFBA94" : "#7A3F24"}
+                filter={isCenterEnergized ? "url(#point-amber-glow)" : undefined}
+                className="transition-all duration-300"
+              />
+              {/* Vent 4 */}
+              <rect
+                x="511"
+                y="181"
+                width="7"
+                height="13"
+                rx="1.5"
+                fill={isCenterEnergized ? "#FFAA80" : "#6E3821"}
+                filter={isCenterEnergized ? "url(#point-amber-glow)" : undefined}
+                className="transition-all duration-300"
+              />
+              {/* Vent 5 */}
+              <rect
+                x="535.5"
+                y="176"
+                width="6.5"
+                height="12"
+                rx="1.5"
+                fill={isCenterEnergized ? "#FFAA80" : "#6E3821"}
+                filter={isCenterEnergized ? "url(#point-amber-glow)" : undefined}
+                className="transition-all duration-300"
+              />
+            </g>
+
+            {/* --- Tier 2: Stepped Ring & Bevel --- */}
+            <ellipse
+              cx="490"
+              cy="166"
+              rx="70"
+              ry="33"
+              fill="#141312"
+              stroke="#3D3630"
+              strokeWidth="1.2"
+            />
+
+            {/* --- Tier 3: Upper Cylinder Rotunda --- */}
+            <path
+              d="M 435,148 V 162 A 55 26 0 0 0 545,162 V 148 A 55 26 0 0 1 435,148 Z"
+              fill="#181615"
+              stroke="#332D28"
+              strokeWidth="1"
+            />
+            <ellipse
+              cx="490"
+              cy="148"
+              rx="55"
+              ry="26"
+              fill="#121110"
+              stroke="#4A413A"
+              strokeWidth="1.2"
+            />
+            {/* Recessed Chamber Floor */}
+            <ellipse
+              cx="490"
+              cy="148"
+              rx="46"
+              ry="22"
+              fill="#0A0909"
+              stroke="#24201D"
+              strokeWidth="1"
+            />
+
+            {/* --- Floating Luminous Isometric Diamond Core --- */}
+            <g
+              id="diamond-core"
+              transform={isCenterEnergized ? "translate(0, -2)" : undefined}
+              className="transition-transform duration-500 ease-out"
+            >
+              {/* Diamond Volumetric Ambient Glow Halo */}
+              {isCenterEnergized && (
+                <polygon
+                  points="490,123 521,139 490,155 459,139"
+                  fill="rgba(229, 138, 97, 0.25)"
+                  filter="url(#point-amber-glow)"
+                />
+              )}
+
+              {/* Core Outer Diamond Surface */}
+              <polygon
+                points="490,125 518,139 490,153 462,139"
+                fill={isCenterEnergized ? "rgba(229, 138, 97, 0.24)" : "rgba(229, 138, 97, 0.10)"}
+                stroke={isCenterEnergized ? "#FFAA80" : "#E58A61"}
+                strokeWidth={isCenterEnergized ? "1.8" : "1.4"}
+                strokeLinejoin="round"
+                className="transition-all duration-300"
+              />
+
+              {/* Inner Concentric Isometric Diamond Chip */}
+              <polygon
+                points="490,132 504,139 490,146 476,139"
+                fill={isCenterEnergized ? "rgba(255, 170, 128, 0.18)" : "rgba(229, 138, 97, 0.06)"}
+                stroke={isCenterEnergized ? "#FFAA80" : "#B86642"}
+                strokeWidth="1.1"
+                strokeLinejoin="round"
+                className="transition-all duration-300"
+              />
+
+              {/* Precision Solid Crosshairs (Crisp Solid Lines, Perfectly Contained Inside Diamond) */}
+              <line
+                x1="462"
+                y1="139"
+                x2="518"
+                y2="139"
+                stroke={isCenterEnergized ? "#FFAA80" : "#E58A61"}
+                strokeWidth="1"
+                opacity={isCenterEnergized ? 0.9 : 0.5}
+                className="transition-opacity duration-300"
+              />
+              <line
+                x1="490"
+                y1="125"
+                x2="490"
+                y2="153"
+                stroke={isCenterEnergized ? "#FFAA80" : "#E58A61"}
+                strokeWidth="1"
+                opacity={isCenterEnergized ? 0.9 : 0.5}
+                className="transition-opacity duration-300"
+              />
+
+              {/* Vertex Registration Markers at 4 Cardinal Tips */}
+              <circle cx="462" cy="139" r="1.5" fill={isCenterEnergized ? "#FFAA80" : "#B86642"} />
+              <circle cx="518" cy="139" r="1.5" fill={isCenterEnergized ? "#FFAA80" : "#B86642"} />
+              <circle cx="490" cy="125" r="1.5" fill={isCenterEnergized ? "#FFAA80" : "#B86642"} />
+              <circle cx="490" cy="153" r="1.5" fill={isCenterEnergized ? "#FFAA80" : "#B86642"} />
+
+              {/* Center Luminous Quantum Nucleus */}
+              <circle
+                cx="490"
+                cy="139"
+                r="3"
+                fill={isCenterEnergized ? "#FFAA80" : "#E58A61"}
+                filter={isCenterEnergized ? "url(#point-amber-glow)" : undefined}
+                className="transition-all duration-300"
+              />
+              {isCenterEnergized && (
+                <circle cx="490" cy="139" r="1.4" fill="#FFFFFF" />
+              )}
+            </g>
+
+            {/* --- Right Rim 3 Output Port Rings --- */}
+            {/* Top Port at (564, 144) */}
+            <circle
+              cx="564"
+              cy="144"
+              r="5.5"
+              fill="#121416"
+              stroke={isConduitsActive ? "#82B89D" : "#3D4E44"}
+              strokeWidth="1.5"
+              className="transition-colors duration-300"
+            />
+            <circle
+              cx="564"
+              cy="144"
+              r="2.2"
+              fill={isConduitsActive ? "#82B89D" : "#3D4E44"}
+              filter={isConduitsActive ? "url(#point-green-glow)" : undefined}
+              className="transition-all duration-300"
+            />
+
+            {/* Mid Port at (572, 168) */}
+            <circle
+              cx="572"
+              cy="168"
+              r="5.5"
+              fill="#121416"
+              stroke={isConduitsActive ? "#82B89D" : "#3D4E44"}
+              strokeWidth="1.5"
+              className="transition-colors duration-300"
+            />
+            <circle
+              cx="572"
+              cy="168"
+              r="2.2"
+              fill={isConduitsActive ? "#82B89D" : "#3D4E44"}
+              filter={isConduitsActive ? "url(#point-green-glow)" : undefined}
+              className="transition-all duration-300"
+            />
+
+            {/* Bot Port at (560, 190) */}
+            <circle
+              cx="560"
+              cy="190"
+              r="5.5"
+              fill="#121416"
+              stroke={isConduitsActive ? "#82B89D" : "#3D4E44"}
+              strokeWidth="1.5"
+              className="transition-colors duration-300"
+            />
+            <circle
+              cx="560"
+              cy="190"
+              r="2.2"
+              fill={isConduitsActive ? "#82B89D" : "#3D4E44"}
+              filter={isConduitsActive ? "url(#point-green-glow)" : undefined}
+              className="transition-all duration-300"
+            />
+          </g>
+
+          {/* =============================================================
+              3. LEFT SIDE: QUEUED EVENT & STEPPED CONDUIT
+              Interactive nodes and smooth traveling orange particle
+              ============================================================= */}
+          <g id="left-ingress">
+            {/* QUEUED EVENT Tag */}
             <text
-              x="60"
-              y="136"
+              x="70"
+              y="148"
               fontFamily="var(--font-geist-mono), monospace"
               fontSize="10"
-              fill={isArrival ? "#E58A61" : "#77736D"}
+              fill={isIngress ? "#E58A61" : "#77736D"}
               letterSpacing="0.1em"
               className="transition-colors duration-300"
             >
               QUEUED EVENT
             </text>
 
-            {/* Main Event Name */}
+            {/* Left Event Square Badge */}
+            <rect
+              x="70"
+              y="162"
+              width="24"
+              height="24"
+              rx="4"
+              fill="#14171A"
+              stroke={isIngress ? "#FFAA80" : "#E58A61"}
+              strokeWidth="1.4"
+              className="transition-colors duration-300"
+            />
+            <circle
+              cx="82"
+              cy="174"
+              r="3.5"
+              fill={isIngress ? "#FFAA80" : "#E58A61"}
+              filter={isIngress ? "url(#point-amber-glow)" : undefined}
+              className="transition-all duration-300"
+            />
+
+            {/* Event Name */}
             <text
-              x="60"
-              y="164"
+              x="104"
+              y="172"
               fontFamily="var(--font-space-grotesk), sans-serif"
-              fontSize="20"
-              fontWeight="600"
+              fontSize="15"
+              fontWeight="500"
               fill="#F0EEE9"
-              letterSpacing="-0.015em"
+              letterSpacing="-0.01em"
             >
               {currentEvent.name}
             </text>
 
             {/* Source Subtitle */}
             <text
-              x="60"
-              y="186"
+              x="104"
+              y="188"
               fontFamily="var(--font-geist-mono), monospace"
               fontSize="11"
               fill="#77736D"
@@ -303,522 +618,415 @@ export function WorkerServicePlayground() {
               source: {currentEvent.source}
             </text>
 
-            {/* Compact Origin Terminal Socket at (248, 170) */}
-            <g transform="translate(248, 170)">
-              <rect
-                x="-8"
-                y="-8"
-                width="16"
-                height="16"
-                rx="3"
-                fill="#14171A"
-                stroke={isArrival ? "#E58A61" : "#2B3037"}
-                strokeWidth="1.2"
-                className="transition-colors duration-300"
-              />
-              <circle
-                cx="0"
-                cy="0"
-                r="2.5"
-                fill={isArrival ? "#E58A61" : "#4A525C"}
-                className="transition-colors duration-300"
-              />
-            </g>
-          </g>
-
-          {/* =============================================================
-              2. INCOMING CONDUIT: From (256, 170) to Junction Input (440, 170)
-              ============================================================= */}
-          <g id="incoming-conduit">
-            {/* Passive Baseline Conduit */}
-            <line
-              x1="256"
-              y1="170"
-              x2="440"
-              y2="170"
-              stroke="#24282F"
-              strokeWidth="1.2"
+            {/* Stepped Conduit Base Line: straight horizontal line through Node 2 and Node 3 into cylinder */}
+            <path
+              d="M 224,174 H 268 L 320,184 H 414"
+              fill="none"
+              stroke="#262A30"
+              strokeWidth="1.4"
             />
 
-            {/* Conduit Cross-Tie Guides */}
-            {[290, 330, 370, 410].map((x) => (
-              <line
-                key={`tie-${x}`}
-                x1={x}
-                y1={166}
-                x2={x}
-                y2={174}
-                stroke="#1E2227"
-                strokeWidth="1"
-              />
-            ))}
+            {/* Stepped Conduit Active Highlight Beam */}
+            <path
+              d="M 224,174 H 268 L 320,184 H 414"
+              fill="none"
+              stroke="url(#warm-ingress-gradient)"
+              strokeWidth="1.8"
+              opacity={isIngress ? 1 : 0.25}
+              className="transition-opacity duration-300"
+            />
 
-            {/* Active Highlight Stroke ahead of event */}
-            {(isArrival || isDispatch) && (
-              <line
-                x1="256"
-                y1="170"
-                x2="440"
-                y2="170"
-                stroke="url(#net-incoming-glow)"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                className="transition-all duration-300"
-              />
+            {/* Point 1: Node at (268, 174) */}
+            <circle
+              cx="268"
+              cy="174"
+              r="5"
+              fill="#121416"
+              stroke={isNode1Active ? "#FFAA80" : "#3A424D"}
+              strokeWidth={isNode1Active ? "1.6" : "1.2"}
+              className="transition-all duration-200"
+            />
+            {isNode1Active && (
+              <circle cx="268" cy="174" r="2" fill="#FFAA80" filter="url(#point-amber-glow)" />
+            )}
+
+            {/* Point 2: Orange Node at (344, 184) - Perfectly centered on horizontal segment */}
+            <circle
+              cx="344"
+              cy="184"
+              r="5.5"
+              fill="#121416"
+              stroke={isNode2Active ? "#FFAA80" : "#E58A61"}
+              strokeWidth="1.4"
+              className="transition-colors duration-200"
+            />
+            <circle
+              cx="344"
+              cy="184"
+              r="2.5"
+              fill={isNode2Active ? "#FFAA80" : "#E58A61"}
+              filter={isNode2Active ? "url(#point-amber-glow)" : undefined}
+              className="transition-all duration-200"
+            />
+
+            {/* Point 3: Coupling Double-Ring at (400, 184) - Clean 7.5px spacing from cylinder wall */}
+            <circle
+              cx="400"
+              cy="184"
+              r="6.5"
+              fill="#121416"
+              stroke={isNode3Active ? "#FFAA80" : "#F0EEE9"}
+              strokeWidth="1.4"
+              className="transition-colors duration-200"
+            />
+            <circle
+              cx="400"
+              cy="184"
+              r="3.8"
+              fill="none"
+              stroke={isNode3Active ? "#FFAA80" : "#E58A61"}
+              strokeWidth="1.2"
+            />
+            <circle
+              cx="400"
+              cy="184"
+              r="2"
+              fill={isNode3Active ? "#FFAA80" : "#E58A61"}
+              filter={isNode3Active ? "url(#point-amber-glow)" : undefined}
+            />
+
+            {/* Guaranteed Moving Orange Particle along Stepped Path */}
+            {isIngress && (
+              <g>
+                <circle
+                  cx={ingressPos.x}
+                  cy={ingressPos.y}
+                  r="4.5"
+                  fill="#FFAA80"
+                  filter="url(#point-amber-glow)"
+                />
+                <circle cx={ingressPos.x} cy={ingressPos.y} r="2.2" fill="#FFFFFF" />
+              </g>
             )}
           </g>
 
           {/* =============================================================
-              3. CENTER: GEOMETRIC DISPATCH JUNCTION (No circles, faceted routing core)
-              Center: (480, 170). Angular faceted polygon silhouette.
+              4. RIGHT SIDE: 3 SAGE GREEN CONDUITS & HEXAGONAL ENDPOINTS
+              Moving signals, glowing hexagons, live delivery text
               ============================================================= */}
-          <g id="dispatch-junction">
-            {/* Junction Classification Tag */}
-            <text
-              x="480"
-              y="118"
-              textAnchor="middle"
-              fontFamily="var(--font-geist-mono), monospace"
-              fontSize="9.5"
-              fill={isJunctionActive ? "#E58A61" : "#77736D"}
-              letterSpacing="0.1em"
-              className="transition-colors duration-300"
-            >
-              DISPATCH JUNCTION
-            </text>
-
-            {/* Outer Angular Faceted Chassis */}
-            <polygon
-              points="440,170 464,142 496,142 520,152 520,188 496,198 464,198"
-              fill="#131618"
-              stroke={isJunctionActive ? "#E58A61" : "#2B3037"}
-              strokeWidth="1.2"
-              strokeLinejoin="round"
-              className="transition-colors duration-300"
-            />
-
-            {/* Inner Structural Facet Divisions */}
-            <line x1="464" y1="142" x2="480" y2="160" stroke="#22262C" strokeWidth="1" />
-            <line x1="464" y1="198" x2="480" y2="180" stroke="#22262C" strokeWidth="1" />
-            <line x1="496" y1="142" x2="480" y2="160" stroke="#22262C" strokeWidth="1" />
-            <line x1="496" y1="198" x2="480" y2="180" stroke="#22262C" strokeWidth="1" />
-
-            {/* Internal Routing Logic Micro-Traces (Feeding the 3 output ports) */}
-            <line
-              x1="440"
-              y1="170"
-              x2="470"
-              y2="170"
-              stroke={isArrival || isDispatch ? "#E58A61" : "#24282F"}
-              strokeWidth="1.5"
-              className="transition-colors duration-300"
-            />
-            {/* To Top Port */}
-            <line
-              x1="486"
-              y1="165"
-              x2="520"
-              y2="152"
-              stroke={isJunctionActive || isFanout ? "#E58A61" : isDeliveredState ? "#82B89D" : "#24282F"}
-              strokeWidth="1.5"
-              className="transition-colors duration-300"
-            />
-            {/* To Mid Port */}
-            <line
-              x1="490"
-              y1="170"
-              x2="520"
-              y2="170"
-              stroke={isJunctionActive || isFanout ? "#E58A61" : isDeliveredState ? "#82B89D" : "#24282F"}
-              strokeWidth="1.5"
-              className="transition-colors duration-300"
-            />
-            {/* To Bot Port */}
-            <line
-              x1="486"
-              y1="175"
-              x2="520"
-              y2="188"
-              stroke={isJunctionActive || isFanout ? "#E58A61" : isDeliveredState ? "#82B89D" : "#24282F"}
-              strokeWidth="1.5"
-              className="transition-colors duration-300"
-            />
-
-            {/* Central Diamond Routing Core */}
-            <polygon
-              points="480,161 489,170 480,179 471,170"
-              fill={
-                isDeliveredState
-                  ? "#14241B"
-                  : isJunctionActive
-                  ? "#241812"
-                  : "#181B1E"
-              }
-              stroke={
-                isDeliveredState
-                  ? "#82B89D"
-                  : isJunctionActive
-                  ? "#E58A61"
-                  : "#3A414A"
-              }
-              strokeWidth="1.4"
-              className="transition-colors duration-300"
-            />
-            {/* Center Core Dot */}
-            <circle
-              cx="480"
-              cy="170"
-              r="2.5"
-              fill={
-                isDeliveredState
-                  ? "#82B89D"
-                  : isJunctionActive
-                  ? "#E58A61"
-                  : "#5A616B"
-              }
-              className="transition-colors duration-300"
-            />
-
-            {/* 3 Output Terminal Ports on Right Facet */}
-            <circle cx="520" cy="152" r="2.5" fill={isFanout || isDeliveredState ? "#82B89D" : "#3A414A"} />
-            <circle cx="520" cy="170" r="2.5" fill={isFanout || isDeliveredState ? "#82B89D" : "#3A414A"} />
-            <circle cx="520" cy="188" r="2.5" fill={isFanout || isDeliveredState ? "#82B89D" : "#3A414A"} />
-          </g>
-
-          {/* =============================================================
-              4. BRANCHING FAN-OUT CONDUITS (3 Smooth Cubic Bézier Paths)
-              - Top: (520, 152) -> (720, 95)
-              - Mid: (520, 170) -> (720, 170)
-              - Bot: (520, 188) -> (720, 245)
-              ============================================================= */}
-          <g id="branching-conduits">
-            {/* --- Branch 1: Top (to S3 Object Store) --- */}
-            {/* Inactive Base Track */}
+          <g id="right-egress">
+            {/* Top Conduit: (569, 144) -> (714, 102) */}
             <path
-              d="M 520,152 C 600,152 640,95 720,95"
+              d="M 569,144 C 630,144 656,102 714,102"
               fill="none"
-              stroke="#24282F"
-              strokeWidth="1.2"
+              stroke="#82B89D"
+              strokeWidth={isConduitsActive ? "1.8" : "1.2"}
+              opacity={isConduitsActive ? 1 : 0.35}
+              className="transition-all duration-300"
             />
-            {/* Active Trace */}
+
+            {/* Mid Conduit: (577, 168) -> (714, 170) */}
             <path
-              d="M 520,152 C 600,152 640,95 720,95"
+              d="M 577,168 C 625,168 665,170 714,170"
               fill="none"
-              stroke={isDeliveredState ? "#82B89D" : isFanout ? "#E58A61" : "transparent"}
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              className="transition-all duration-400"
+              stroke="#82B89D"
+              strokeWidth={isConduitsActive ? "1.8" : "1.2"}
+              opacity={isConduitsActive ? 1 : 0.35}
+              className="transition-all duration-300"
             />
 
-            {/* --- Branch 2: Mid (to CDN Purge Hook) --- */}
-            {/* Inactive Base Track */}
-            <line
-              x1="520"
-              y1="170"
-              x2="720"
-              y2="170"
-              stroke="#24282F"
-              strokeWidth="1.2"
-            />
-            {/* Active Trace */}
-            <line
-              x1="520"
-              y1="170"
-              x2="720"
-              y2="170"
-              stroke={isDeliveredState ? "#82B89D" : isFanout ? "#E58A61" : "transparent"}
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              className="transition-all duration-400"
-            />
-
-            {/* --- Branch 3: Bot (to Search Indexer) --- */}
-            {/* Inactive Base Track */}
+            {/* Bot Conduit: (565, 190) -> (714, 238) */}
             <path
-              d="M 520,188 C 600,188 640,245 720,245"
+              d="M 565,190 C 630,190 656,238 714,238"
               fill="none"
-              stroke="#24282F"
-              strokeWidth="1.2"
+              stroke="#82B89D"
+              strokeWidth={isConduitsActive ? "1.8" : "1.2"}
+              opacity={isConduitsActive ? 1 : 0.35}
+              className="transition-all duration-300"
             />
-            {/* Active Trace */}
-            <path
-              d="M 520,188 C 600,188 640,245 720,245"
-              fill="none"
-              stroke={isDeliveredState ? "#82B89D" : isFanout ? "#E58A61" : "transparent"}
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              className="transition-all duration-400"
-            />
-          </g>
 
-          {/* =============================================================
-              5. ANIMATED EVENT MARKERS (Smooth Path-Based Motion)
-              ============================================================= */}
-          {!isReducedMotion && (
-            <g id="animated-markers">
-              {/* Phase A: Incoming Marker traveling along incoming conduit */}
-              {isArrival && (
-                <g style={{ animation: "incomingMarkerSlide 700ms cubic-bezier(0.25, 1, 0.5, 1) forwards" }}>
-                  <rect x="-6" y="-6" width="12" height="12" rx="2.5" fill="#14171A" stroke="#E58A61" strokeWidth="1.4" />
-                  <circle cx="0" cy="0" r="2" fill="#E58A61" />
-                </g>
-              )}
+            {/* Guaranteed Moving Green Signal Particles along the 3 Bezier Paths */}
+            {isEgress && (
+              <g>
+                {/* Top Particle */}
+                <circle
+                  cx={egressPosTop.x}
+                  cy={egressPosTop.y}
+                  r="4"
+                  fill="#82B89D"
+                  filter="url(#point-green-glow)"
+                />
+                <circle cx={egressPosTop.x} cy={egressPosTop.y} r="1.8" fill="#FFFFFF" />
 
-              {/* Phase B: Entering Junction Core */}
-              {isDispatch && (
-                <g style={{ animation: "junctionCoreEnter 350ms cubic-bezier(0.4, 0, 0.2, 1) forwards" }}>
-                  <rect x="-6" y="-6" width="12" height="12" rx="2.5" fill="#14171A" stroke="#E58A61" strokeWidth="1.4" />
-                  <circle cx="0" cy="0" r="2" fill="#E58A61" />
-                </g>
-              )}
+                {/* Mid Particle */}
+                <circle
+                  cx={egressPosMid.x}
+                  cy={egressPosMid.y}
+                  r="4"
+                  fill="#82B89D"
+                  filter="url(#point-green-glow)"
+                />
+                <circle cx={egressPosMid.x} cy={egressPosMid.y} r="1.8" fill="#FFFFFF" />
 
-              {/* Phase C: 3 Coordinated Fan-out Markers along the 3 branches */}
-              {isFanout && (
-                <g>
-                  {/* Top Branch Marker */}
-                  <g style={{ animation: "branchMarkerTop 750ms cubic-bezier(0.25, 1, 0.5, 1) forwards" }}>
-                    <rect x="-5" y="-5" width="10" height="10" rx="2" fill="#14171A" stroke="#E58A61" strokeWidth="1.4" />
-                    <circle cx="0" cy="0" r="1.8" fill="#E58A61" />
-                  </g>
+                {/* Bot Particle */}
+                <circle
+                  cx={egressPosBot.x}
+                  cy={egressPosBot.y}
+                  r="4"
+                  fill="#82B89D"
+                  filter="url(#point-green-glow)"
+                />
+                <circle cx={egressPosBot.x} cy={egressPosBot.y} r="1.8" fill="#FFFFFF" />
+              </g>
+            )}
 
-                  {/* Mid Branch Marker (staggered by 60ms) */}
-                  <g style={{ animation: "branchMarkerMid 750ms 60ms cubic-bezier(0.25, 1, 0.5, 1) forwards" }}>
-                    <rect x="-5" y="-5" width="10" height="10" rx="2" fill="#14171A" stroke="#E58A61" strokeWidth="1.4" />
-                    <circle cx="0" cy="0" r="1.8" fill="#E58A61" />
-                  </g>
-
-                  {/* Bot Branch Marker (staggered by 120ms) */}
-                  <g style={{ animation: "branchMarkerBot 750ms 120ms cubic-bezier(0.25, 1, 0.5, 1) forwards" }}>
-                    <rect x="-5" y="-5" width="10" height="10" rx="2" fill="#14171A" stroke="#E58A61" strokeWidth="1.4" />
-                    <circle cx="0" cy="0" r="1.8" fill="#E58A61" />
-                  </g>
-                </g>
-              )}
-            </g>
-          )}
-
-          {/* =============================================================
-              6. RIGHT: INTEGRATED ENDPOINTS (No bulky cards, clean modules)
-              Terminating precisely at (720, Y)
-              ============================================================= */}
-          <g id="endpoints">
-            {/* Header / Category Tag */}
-            <text
-              x="720"
-              y="52"
-              fontFamily="var(--font-geist-mono), monospace"
-              fontSize="10"
-              fill={isDeliveredState ? "#82B89D" : "#77736D"}
-              letterSpacing="0.1em"
-              className="transition-colors duration-300"
-            >
-              DISPATCH DESTINATIONS
-            </text>
-
-            {/* --- Endpoint 1: Top (S3 Object Store at Y = 95) --- */}
-            <g transform="translate(720, 95)">
-              {/* Terminal Coupling Node */}
+            {/* --- Destination 1: Top (Y = 102) --- */}
+            <g transform="translate(714, 102)">
+              {/* Terminal Coupling Dot */}
               <circle
                 cx="0"
                 cy="0"
-                r="4.5"
-                fill="#131618"
-                stroke={isDeliveredState ? "#82B89D" : "#2B3037"}
-                strokeWidth="1.5"
-                className="transition-colors duration-300"
+                r="3.5"
+                fill="#82B89D"
+                filter={isDelivered ? "url(#point-green-glow)" : undefined}
               />
-              <circle
-                cx="0"
-                cy="0"
-                r="2"
-                fill={isDeliveredState ? "#82B89D" : "#4A525C"}
-                className="transition-colors duration-300"
-              />
+              <line x1="4" y1="0" x2="16" y2="0" stroke="#82B89D" strokeWidth="1.2" />
 
-              {/* Connecting Lead */}
-              <line x1="5" y1="0" x2="24" y2="0" stroke="#2B3037" strokeWidth="1" />
-
-              {/* Storage Icon Glyph */}
-              <g transform="translate(32, -8)">
-                <path d="M 0,4 L 7,0 L 14,4 L 7,8 Z" fill="none" stroke="#A5A19A" strokeWidth="1" />
-                <path d="M 0,4 V 11 L 7,15 L 14,11 V 4" fill="none" stroke="#77736D" strokeWidth="1" />
+              {/* Hexagonal Outlined Badge */}
+              <g transform="translate(32, 0)">
+                <polygon
+                  points="0,-17 15,-8.5 15,8.5 0,17 -15,8.5 -15,-8.5"
+                  fill="#131619"
+                  stroke={isDelivered ? "#82B89D" : "#4A564E"}
+                  strokeWidth={isDelivered ? "1.6" : "1.2"}
+                  filter={isDelivered ? "url(#point-green-glow)" : undefined}
+                  className="transition-all duration-300"
+                />
+                {renderTargetGlyph(currentEvent.targets[0].glyph)}
               </g>
 
-              {/* Destination Name & Route */}
+              {/* Title & Route */}
               <text
-                x="56"
-                y="-1"
+                x="58"
+                y="-3"
                 fontFamily="var(--font-space-grotesk), sans-serif"
-                fontSize="14"
+                fontSize="13"
                 fontWeight="500"
-                fill={isDeliveredState ? "#F0EEE9" : "#C5C1BA"}
+                fill="#F0EEE9"
                 letterSpacing="-0.01em"
-                className="transition-colors duration-300"
               >
                 {currentEvent.targets[0].name}
               </text>
               <text
-                x="56"
-                y="14"
+                x="58"
+                y="12"
                 fontFamily="var(--font-geist-mono), monospace"
                 fontSize="11"
-                fill="#77736D"
+                fill={isDelivered ? "#A5A19A" : "#68645E"}
+                className="transition-colors duration-300"
               >
                 {currentEvent.targets[0].route}
               </text>
 
-              {/* Delivery State Confirmation */}
-              <text
-                x="240"
-                y="6"
-                textAnchor="end"
-                fontFamily="var(--font-geist-mono), monospace"
-                fontSize="11"
-                fontWeight="500"
-                fill={isDeliveredState ? "#82B89D" : "#3D444E"}
-                className="transition-colors duration-300"
-              >
-                {isDeliveredState ? "✓ delivered" : "standby"}
-              </text>
+              {/* Live Delivery Telemetry Pill */}
+              <g transform="translate(236, 0)">
+                <rect
+                  x="0"
+                  y="-9"
+                  width="62"
+                  height="18"
+                  rx="9"
+                  fill={isDelivered ? "#112017" : "#131619"}
+                  stroke={isDelivered ? "#244431" : "#22272E"}
+                  strokeWidth="1"
+                  className="transition-all duration-300"
+                />
+                <circle
+                  cx="10"
+                  cy="0"
+                  r={isDelivered ? "2.5" : "2"}
+                  fill={isDelivered ? "#82B89D" : "#4A5360"}
+                  filter={isDelivered ? "url(#point-green-glow)" : undefined}
+                  className="transition-all duration-300"
+                />
+                <text
+                  x="20"
+                  y="3.5"
+                  fontFamily="var(--font-geist-mono), monospace"
+                  fontSize="10"
+                  fontWeight={isDelivered ? "500" : "400"}
+                  fill={isDelivered ? "#82B89D" : "#5A6472"}
+                  className="transition-colors duration-300"
+                >
+                  {isDelivered ? currentEvent.targets[0].latency : "queue"}
+                </text>
+              </g>
             </g>
 
-            {/* --- Endpoint 2: Mid (CDN Purge Hook at Y = 170) --- */}
-            <g transform="translate(720, 170)">
-              {/* Terminal Coupling Node */}
+            {/* --- Destination 2: Mid (Y = 170) --- */}
+            <g transform="translate(714, 170)">
+              {/* Terminal Coupling Dot */}
               <circle
                 cx="0"
                 cy="0"
-                r="4.5"
-                fill="#131618"
-                stroke={isDeliveredState ? "#82B89D" : "#2B3037"}
-                strokeWidth="1.5"
-                className="transition-colors duration-300"
+                r="3.5"
+                fill="#82B89D"
+                filter={isDelivered ? "url(#point-green-glow)" : undefined}
               />
-              <circle
-                cx="0"
-                cy="0"
-                r="2"
-                fill={isDeliveredState ? "#82B89D" : "#4A525C"}
-                className="transition-colors duration-300"
-              />
+              <line x1="4" y1="0" x2="16" y2="0" stroke="#82B89D" strokeWidth="1.2" />
 
-              {/* Connecting Lead */}
-              <line x1="5" y1="0" x2="24" y2="0" stroke="#2B3037" strokeWidth="1" />
-
-              {/* Lightning Purge Glyph */}
-              <g transform="translate(32, -8)">
-                <path
-                  d="M 8,0 L 3,8 H 8 L 6,15 L 13,7 H 8 Z"
-                  fill="none"
-                  stroke={isDeliveredState ? "#82B89D" : "#A5A19A"}
-                  strokeWidth="1.1"
-                  className="transition-colors duration-300"
+              {/* Hexagonal Outlined Badge */}
+              <g transform="translate(32, 0)">
+                <polygon
+                  points="0,-17 15,-8.5 15,8.5 0,17 -15,8.5 -15,-8.5"
+                  fill="#131619"
+                  stroke={isDelivered ? "#82B89D" : "#4A564E"}
+                  strokeWidth={isDelivered ? "1.6" : "1.2"}
+                  filter={isDelivered ? "url(#point-green-glow)" : undefined}
+                  className="transition-all duration-300"
                 />
+                {renderTargetGlyph(currentEvent.targets[1].glyph)}
               </g>
 
-              {/* Destination Name & Route */}
+              {/* Title & Route */}
               <text
-                x="56"
-                y="-1"
+                x="58"
+                y="-3"
                 fontFamily="var(--font-space-grotesk), sans-serif"
-                fontSize="14"
+                fontSize="13"
                 fontWeight="500"
-                fill={isDeliveredState ? "#F0EEE9" : "#C5C1BA"}
+                fill="#F0EEE9"
                 letterSpacing="-0.01em"
-                className="transition-colors duration-300"
               >
                 {currentEvent.targets[1].name}
               </text>
               <text
-                x="56"
-                y="14"
+                x="58"
+                y="12"
                 fontFamily="var(--font-geist-mono), monospace"
                 fontSize="11"
-                fill="#77736D"
+                fill={isDelivered ? "#A5A19A" : "#68645E"}
+                className="transition-colors duration-300"
               >
                 {currentEvent.targets[1].route}
               </text>
 
-              {/* Delivery State Confirmation */}
-              <text
-                x="240"
-                y="6"
-                textAnchor="end"
-                fontFamily="var(--font-geist-mono), monospace"
-                fontSize="11"
-                fontWeight="500"
-                fill={isDeliveredState ? "#82B89D" : "#3D444E"}
-                className="transition-colors duration-300"
-              >
-                {isDeliveredState ? "✓ delivered" : "standby"}
-              </text>
+              {/* Live Delivery Telemetry Pill */}
+              <g transform="translate(236, 0)">
+                <rect
+                  x="0"
+                  y="-9"
+                  width="62"
+                  height="18"
+                  rx="9"
+                  fill={isDelivered ? "#112017" : "#131619"}
+                  stroke={isDelivered ? "#244431" : "#22272E"}
+                  strokeWidth="1"
+                  className="transition-all duration-300"
+                />
+                <circle
+                  cx="10"
+                  cy="0"
+                  r={isDelivered ? "2.5" : "2"}
+                  fill={isDelivered ? "#82B89D" : "#4A5360"}
+                  filter={isDelivered ? "url(#point-green-glow)" : undefined}
+                  className="transition-all duration-300"
+                />
+                <text
+                  x="20"
+                  y="3.5"
+                  fontFamily="var(--font-geist-mono), monospace"
+                  fontSize="10"
+                  fontWeight={isDelivered ? "500" : "400"}
+                  fill={isDelivered ? "#82B89D" : "#5A6472"}
+                  className="transition-colors duration-300"
+                >
+                  {isDelivered ? currentEvent.targets[1].latency : "queue"}
+                </text>
+              </g>
             </g>
 
-            {/* --- Endpoint 3: Bot (Search Indexer at Y = 245) --- */}
-            <g transform="translate(720, 245)">
-              {/* Terminal Coupling Node */}
+            {/* --- Destination 3: Bot (Y = 238) --- */}
+            <g transform="translate(714, 238)">
+              {/* Terminal Coupling Dot */}
               <circle
                 cx="0"
                 cy="0"
-                r="4.5"
-                fill="#131618"
-                stroke={isDeliveredState ? "#82B89D" : "#2B3037"}
-                strokeWidth="1.5"
-                className="transition-colors duration-300"
+                r="3.5"
+                fill="#82B89D"
+                filter={isDelivered ? "url(#point-green-glow)" : undefined}
               />
-              <circle
-                cx="0"
-                cy="0"
-                r="2"
-                fill={isDeliveredState ? "#82B89D" : "#4A525C"}
-                className="transition-colors duration-300"
-              />
+              <line x1="4" y1="0" x2="16" y2="0" stroke="#82B89D" strokeWidth="1.2" />
 
-              {/* Connecting Lead */}
-              <line x1="5" y1="0" x2="24" y2="0" stroke="#2B3037" strokeWidth="1" />
-
-              {/* Search Indexer Glyph */}
-              <g transform="translate(32, -8)">
-                <circle cx="5" cy="5" r="4.5" fill="none" stroke="#A5A19A" strokeWidth="1" />
-                <line x1="8.5" y1="8.5" x2="13" y2="13" stroke="#77736D" strokeWidth="1.2" />
+              {/* Hexagonal Outlined Badge */}
+              <g transform="translate(32, 0)">
+                <polygon
+                  points="0,-17 15,-8.5 15,8.5 0,17 -15,8.5 -15,-8.5"
+                  fill="#131619"
+                  stroke={isDelivered ? "#82B89D" : "#4A564E"}
+                  strokeWidth={isDelivered ? "1.6" : "1.2"}
+                  filter={isDelivered ? "url(#point-green-glow)" : undefined}
+                  className="transition-all duration-300"
+                />
+                {renderTargetGlyph(currentEvent.targets[2].glyph)}
               </g>
 
-              {/* Destination Name & Route */}
+              {/* Title & Route */}
               <text
-                x="56"
-                y="-1"
+                x="58"
+                y="-3"
                 fontFamily="var(--font-space-grotesk), sans-serif"
-                fontSize="14"
+                fontSize="13"
                 fontWeight="500"
-                fill={isDeliveredState ? "#F0EEE9" : "#C5C1BA"}
+                fill="#F0EEE9"
                 letterSpacing="-0.01em"
-                className="transition-colors duration-300"
               >
                 {currentEvent.targets[2].name}
               </text>
               <text
-                x="56"
-                y="14"
+                x="58"
+                y="12"
                 fontFamily="var(--font-geist-mono), monospace"
                 fontSize="11"
-                fill="#77736D"
+                fill={isDelivered ? "#A5A19A" : "#68645E"}
+                className="transition-colors duration-300"
               >
                 {currentEvent.targets[2].route}
               </text>
 
-              {/* Delivery State Confirmation */}
-              <text
-                x="240"
-                y="6"
-                textAnchor="end"
-                fontFamily="var(--font-geist-mono), monospace"
-                fontSize="11"
-                fontWeight="500"
-                fill={isDeliveredState ? "#82B89D" : "#3D444E"}
-                className="transition-colors duration-300"
-              >
-                {isDeliveredState ? "✓ delivered" : "standby"}
-              </text>
+              {/* Live Delivery Telemetry Pill */}
+              <g transform="translate(236, 0)">
+                <rect
+                  x="0"
+                  y="-9"
+                  width="62"
+                  height="18"
+                  rx="9"
+                  fill={isDelivered ? "#112017" : "#131619"}
+                  stroke={isDelivered ? "#244431" : "#22272E"}
+                  strokeWidth="1"
+                  className="transition-all duration-300"
+                />
+                <circle
+                  cx="10"
+                  cy="0"
+                  r={isDelivered ? "2.5" : "2"}
+                  fill={isDelivered ? "#82B89D" : "#4A5360"}
+                  filter={isDelivered ? "url(#point-green-glow)" : undefined}
+                  className="transition-all duration-300"
+                />
+                <text
+                  x="20"
+                  y="3.5"
+                  fontFamily="var(--font-geist-mono), monospace"
+                  fontSize="10"
+                  fontWeight={isDelivered ? "500" : "400"}
+                  fill={isDelivered ? "#82B89D" : "#5A6472"}
+                  className="transition-colors duration-300"
+                >
+                  {isDelivered ? currentEvent.targets[2].latency : "queue"}
+                </text>
+              </g>
             </g>
           </g>
         </svg>
