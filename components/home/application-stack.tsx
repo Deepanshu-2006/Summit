@@ -285,9 +285,9 @@ export function ApplicationStack() {
               Interactive API playground with live Route Handlers
               ============================================================= */}
           {selectedId === "api" && (
-            <div className="w-full h-full flex flex-col justify-between animate-in fade-in duration-200 pb-3 sm:pb-3.5">
+            <div className="w-full h-full flex flex-col justify-between animate-in fade-in duration-200 pb-4 sm:pb-5 lg:pb-5">
               {/* Standardized Header */}
-              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pb-2 sm:pb-2.5 border-b border-border-subtle/70 shrink-0">
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pb-2.5 sm:pb-3 border-b border-border-subtle/70 shrink-0">
                 <div className="space-y-0.5 max-w-xl">
                   <div className="flex items-center gap-2 font-mono text-[10.5px] text-text-muted tracking-[0.14em] uppercase">
                     <span className="text-accent-orange font-medium">02</span>
@@ -298,22 +298,18 @@ export function ApplicationStack() {
                     Logic and application requests.
                   </h3>
                   <p className="font-sans text-[12.5px] sm:text-[13px] text-text-secondary leading-relaxed line-clamp-1">
-                    Live endpoint execution connected to Meridian project Route Handlers.
+                    From request to response, handled by your deployed API.
                   </p>
                 </div>
 
                 <div className="flex items-center gap-2 font-mono text-[11px] self-start sm:self-auto shrink-0 pb-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
-                  <span className="text-semantic-success font-medium">Live Playground</span>
-                  <span className="text-border-default text-[10px]">·</span>
-                  <span className="text-text-secondary">meridian-api</span>
-                  <span className="text-border-default text-[10px]">·</span>
-                  <span className="text-text-muted text-[10.5px]">v1.0</span>
+                  <span className="text-text-secondary">API online</span>
                 </div>
               </div>
 
               {/* Functional API Playground */}
-              <div className="flex-1 min-h-0 mt-2 overflow-hidden">
+              <div className="flex-1 min-h-0 mt-3 overflow-hidden">
                 <ApiServicePlayground />
               </div>
             </div>
