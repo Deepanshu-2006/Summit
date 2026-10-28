@@ -4,6 +4,8 @@ import { DeploymentExperience } from "@/components/home/deployment-experience";
 import { ProductExperience } from "@/components/home/product-experience";
 import { ApplicationStack } from "@/components/home/application-stack";
 import { DeveloperExperience } from "@/components/home/developer-experience";
+import { ProductionVisibility } from "@/components/home/production-visibility";
+import { GettingStarted } from "@/components/home/getting-started";
 
 export default function Home() {
   return (
@@ -15,6 +17,8 @@ export default function Home() {
         <ProductExperience />
         <ApplicationStack />
         <DeveloperExperience />
+        <ProductionVisibility />
+        <GettingStarted />
       </main>
     </div>
   );
