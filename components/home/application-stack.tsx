@@ -1,68 +1,46 @@
 "use client";
 
 import React, { useState } from "react";
-import { ArrowDown, Check, Lock } from "lucide-react";
+import { Check, ArrowUpRight } from "lucide-react";
 
-interface ServiceComponent {
-  id: "web" | "api" | "db" | "worker";
-  tag: string;
+type ServiceId = "web" | "api" | "db" | "worker";
+
+interface ServiceMetadata {
+  id: ServiceId;
+  index: string;
   name: string;
-  category: string;
-  role: string;
+  tag: string;
   description: string;
-  tech: string;
-  protocol: string;
-  status: string;
 }
 
-const STACK_SERVICES: Record<string, ServiceComponent> = {
+const SERVICES: Record<ServiceId, ServiceMetadata> = {
   web: {
     id: "web",
+    index: "01",
+    name: "Web frontend",
     tag: "web-frontend",
-    name: "Web Frontend",
-    category: "WEB APPLICATION",
-    role: "The experience your users see",
-    description:
-      "Public-facing user interface rendering client requests, static assets, and edge routes.",
-    tech: "Next.js / React SSR",
-    protocol: "HTTPS · Port 443",
-    status: "Active Ingress",
+    description: "The experience your users see.",
   },
   api: {
     id: "api",
+    index: "02",
+    name: "API service",
     tag: "core-api",
-    name: "API Service",
-    category: "COORDINATION CORE",
-    role: "Logic and application requests",
-    description:
-      "Central application backend handling business logic, user authentication, request routing, and service coordination.",
-    tech: "Node.js / Go / Python",
-    protocol: "Private Mesh · gRPC & REST",
-    status: "Connected Core",
+    description: "Logic and application requests.",
   },
   db: {
     id: "db",
-    tag: "primary-db",
+    index: "03",
     name: "Database",
-    category: "PERSISTENT STORAGE",
-    role: "Persistent application data",
-    description:
-      "Managed relational data storage providing transactional integrity, connection pooling, and isolated persistence.",
-    tech: "PostgreSQL 16 Engine",
-    protocol: "Encrypted Internal Wire · Port 5432",
-    status: "Volume Attached",
+    tag: "primary-db",
+    description: "Persistent application data.",
   },
   worker: {
     id: "worker",
+    index: "04",
+    name: "Background worker",
     tag: "queue-worker",
-    name: "Background Worker",
-    category: "ASYNC PROCESSING",
-    role: "Tasks that run behind the scenes",
-    description:
-      "Asynchronous job processor executing heavy computations, scheduled jobs, webhook deliveries, and queue tasks.",
-    tech: "Job Queue Runtime",
-    protocol: "Internal Message Broker",
-    status: "Queue Listening",
+    description: "Tasks that run behind the scenes.",
   },
 };
 
@@ -70,19 +48,19 @@ const STACK_SERVICES: Record<string, ServiceComponent> = {
  * ApplicationStack: Section 04 — The Platform
  * "One platform. Your entire stack."
  *
- * Art-directed, card-less technical cloud topology diagram:
- * - Diagram sits directly on the page background without an outer card container
- * - Hierarchical 4-service topology: Web Frontend -> API Core -> Database & Background Worker
- * - Thin, intentional SVG connectors with integrated annotations (no pill boxes)
- * - Clear visual hierarchy distinguishing the central API coordinator
- * - Editorial two-column component inspector
- * - Three clean editorial value columns beneath the architecture
- * - Fully responsive with clean vertical reflow on mobile/tablet
+ * Refactored to match the warm, editorial visual identity of the Deployment section:
+ * - Warm near-black backgrounds (#111111) and restrained charcoal surfaces (#1D1D1D)
+ * - Minimal horizontal 4-column service index with consistent baselines and burnt-orange active line
+ * - Four distinctly composed service views sharing the single fictional "Meridian" product story:
+ *     01 Web Frontend: Clean application release stage inside an understated browser frame
+ *     02 API Service: Single connected request lifecycle sequence (Auth -> Persistence -> Async Dispatch)
+ *     03 Database: Focused PostgreSQL query and clean key-value entity ledger
+ *     04 Background Worker: Three-stage horizontal lifecycle (Completed -> Processing -> Queued)
+ * - Typography carries the visual hierarchy without card-soup or dashboard widget bloat
+ * - Three understated editorial benefit columns below
  */
 export function ApplicationStack() {
-  const [selectedId, setSelectedId] = useState<"web" | "api" | "db" | "worker">("api");
-
-  const current = STACK_SERVICES[selectedId];
+  const [selectedId, setSelectedId] = useState<ServiceId>("web");
 
   return (
     <section
@@ -93,6 +71,7 @@ export function ApplicationStack() {
       <div className="layout-container w-full">
         {/* =================================================================
             SECTION IDENTIFIER: 04 / THE PLATFORM
+            Understated minimal divider line matching Section 02
             ================================================================= */}
         <div className="w-full border-t border-border-subtle pt-5 mb-8 sm:mb-10">
           <div className="flex items-center gap-2 font-mono text-[11px] text-text-muted tracking-[0.1em] uppercase">
@@ -118,12 +97,12 @@ export function ApplicationStack() {
 
           <h2
             id="stack-heading"
-            className="font-sans text-[36px] sm:text-[44px] lg:text-[50px] xl:text-[54px] font-medium leading-[1.08] tracking-[-0.035em] text-[#F1F0EC] mb-4 sm:mb-5"
+            className="font-sans text-[38px] sm:text-[46px] lg:text-[54px] font-medium leading-[1.08] tracking-[-0.03em] text-[#F1F0EC] mb-4 sm:mb-5"
           >
             One platform. Your entire stack.
           </h2>
 
-          <p className="font-sans text-[16px] sm:text-[17px] text-text-secondary leading-[1.6] max-w-[600px]">
+          <p className="font-sans text-[16px] sm:text-[17px] text-text-secondary leading-[1.65] max-w-[600px]">
             From the interface your users see to the services working behind the
             scenes, bring your application components together in one
             developer-focused workflow.
@@ -131,580 +110,599 @@ export function ApplicationStack() {
         </div>
 
         {/* =================================================================
-            HERO VISUAL: CONNECTED SERVICE TOPOLOGY
-            Card-less, open architectural illustration directly on page background
+            FOUR-SERVICE NAVIGATION: Minimal Horizontal Service Index
+            Equal-width columns, consistent baseline alignment, burnt-orange active line
             ================================================================= */}
-        <div className="w-full relative mb-12 sm:mb-16">
-          
-          {/* -------------------------------------------------------------
-              DESKTOP TOPOLOGY SCHEMATIC (lg and up)
-              Pure vector precision with interactive SVG service nodes
-              ------------------------------------------------------------- */}
-          <div className="hidden lg:block w-full">
-            <svg
-              className="w-full h-auto select-none overflow-visible"
-              viewBox="0 0 1000 450"
-              preserveAspectRatio="xMidYMid meet"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-label="Connected cloud service architecture topology"
-            >
-              <defs>
-                {/* Subtle surface gradient fills */}
-                <linearGradient id="node-base-fill" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#181B1E" />
-                  <stop offset="100%" stopColor="#121416" />
-                </linearGradient>
+        <div className="w-full border-b border-border-subtle mb-10 sm:mb-12">
+          <div
+            role="tablist"
+            aria-label="Application Services"
+            className="grid grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 pb-px"
+          >
+            {(Object.keys(SERVICES) as ServiceId[]).map((id) => {
+              const service = SERVICES[id];
+              const isSelected = selectedId === id;
 
-                <linearGradient id="node-api-fill" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#1C2023" />
-                  <stop offset="100%" stopColor="#14171A" />
-                </linearGradient>
-              </defs>
+              return (
+                <button
+                  key={id}
+                  role="tab"
+                  id={`tab-${id}`}
+                  aria-selected={isSelected}
+                  aria-controls={`panel-${id}`}
+                  onClick={() => setSelectedId(id)}
+                  className="group pb-5 text-left transition-all relative flex flex-col justify-start focus:outline-none cursor-pointer"
+                >
+                  {/* Index & Identifier */}
+                  <div className="flex items-center gap-2 mb-2 font-mono text-[11px]">
+                    <span
+                      className={`font-medium transition-colors ${
+                        isSelected
+                          ? "text-accent-orange"
+                          : "text-text-muted group-hover:text-text-secondary"
+                      }`}
+                    >
+                      {service.index}
+                    </span>
+                    <span className="text-border-default">—</span>
+                    <span className="text-text-muted">{service.tag}</span>
+                  </div>
 
-              {/* =========================================================
-                  CONNECTING TOPOLOGY CONDUITS (Drawn Behind Service Nodes)
-                  ========================================================= */}
+                  {/* Service Name */}
+                  <div
+                    className={`font-sans text-[17px] sm:text-[18px] font-medium tracking-tight mb-1.5 transition-colors ${
+                      isSelected
+                        ? "text-[#F1F0EC]"
+                        : "text-text-secondary group-hover:text-[#F1F0EC]"
+                    }`}
+                  >
+                    {service.name}
+                  </div>
 
-              {/* 1. Ingress Conduit: Web Frontend -> API Core */}
-              <line
-                x1="500"
-                y1="96"
-                x2="500"
-                y2="180"
-                stroke="#343A3D"
-                strokeWidth="1.2"
-                strokeDasharray="3 3"
-              />
-              <line
-                x1="500"
-                y1="96"
-                x2="500"
-                y2="180"
-                stroke="#D88762"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-              />
-              
-              {/* Primary Ingress Motion Signal */}
-              <circle className="motion-reduce:hidden" r="3" fill="#D88762">
-                <animateMotion
-                  path="M 500,96 L 500,180"
-                  dur="2.4s"
-                  repeatCount="indefinite"
-                />
-              </circle>
+                  {/* Description */}
+                  <div className="font-sans text-[13px] text-text-muted leading-relaxed">
+                    {service.description}
+                  </div>
 
-              {/* Ingress Annotation: Text-only alongside wire (No pill capsule) */}
-              <text x="516" y="132" fontFamily="var(--font-geist-mono), monospace" fontSize="10.5" fill="#D88762" letterSpacing="0.08em">
-                HTTPS INGRESS ROUTING
-              </text>
-              <text x="516" y="148" fontFamily="var(--font-geist-mono), monospace" fontSize="9.5" fill="#777D7D">
-                Client requests · Port 443 · Edge TLS
-              </text>
-
-              {/* 2. Left Branch Conduit: API Core -> Database */}
-              <path
-                d="M 400,270 C 400,314 260,314 260,356"
-                stroke="#343A3D"
-                strokeWidth="1.2"
-                strokeDasharray="3 3"
-                fill="none"
-              />
-              <path
-                d="M 400,270 C 400,314 260,314 260,356"
-                stroke={selectedId === "db" || selectedId === "api" ? "#D88762" : "#343A3D"}
-                strokeWidth={selectedId === "db" ? "2" : "1.4"}
-                strokeLinecap="round"
-                fill="none"
-              />
-              
-              {/* Left Branch Node */}
-              <circle cx="330" cy="314" r="3" fill="#121416" stroke={selectedId === "db" || selectedId === "api" ? "#D88762" : "#343A3D"} strokeWidth="1.4" />
-              <circle cx="330" cy="314" r="1.5" fill={selectedId === "db" || selectedId === "api" ? "#D88762" : "#343A3D"} />
-
-              {/* Database Conduit Annotation (Integrated text, no pills) */}
-              <text x="314" y="306" textAnchor="end" fontFamily="var(--font-geist-mono), monospace" fontSize="10" fill="#A6AAA9" letterSpacing="0.08em">
-                SQL CONNECTION POOL
-              </text>
-              <text x="314" y="322" textAnchor="end" fontFamily="var(--font-geist-mono), monospace" fontSize="9" fill="#777D7D">
-                Encrypted wire · Port 5432
-              </text>
-
-              {/* 3. Right Branch Conduit: API Core -> Background Worker */}
-              <path
-                d="M 600,270 C 600,314 740,314 740,356"
-                stroke="#343A3D"
-                strokeWidth="1.2"
-                strokeDasharray="3 3"
-                fill="none"
-              />
-              <path
-                d="M 600,270 C 600,314 740,314 740,356"
-                stroke={selectedId === "worker" || selectedId === "api" ? "#D88762" : "#343A3D"}
-                strokeWidth={selectedId === "worker" ? "2" : "1.4"}
-                strokeLinecap="round"
-                fill="none"
-              />
-
-              {/* Right Branch Node */}
-              <circle cx="670" cy="314" r="3" fill="#121416" stroke={selectedId === "worker" || selectedId === "api" ? "#D88762" : "#343A3D"} strokeWidth="1.4" />
-              <circle cx="670" cy="314" r="1.5" fill={selectedId === "worker" || selectedId === "api" ? "#D88762" : "#343A3D"} />
-
-              {/* Worker Conduit Annotation (Integrated text, no pills) */}
-              <text x="686" y="306" fontFamily="var(--font-geist-mono), monospace" fontSize="10" fill="#A6AAA9" letterSpacing="0.08em">
-                ASYNC JOB DISPATCH
-              </text>
-              <text x="686" y="322" fontFamily="var(--font-geist-mono), monospace" fontSize="9" fill="#777D7D">
-                Message broker · Task queue
-              </text>
-
-              {/* =========================================================
-                  SERVICE NODE 1: WEB FRONTEND (Top Tier)
-                  ========================================================= */}
-              <g
-                id="node-web"
-                tabIndex={0}
-                role="button"
-                aria-pressed={selectedId === "web"}
-                onClick={() => setSelectedId("web")}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    setSelectedId("web");
-                  }
-                }}
-                className="cursor-pointer focus:outline-none group"
-              >
-                {/* Node Framing */}
-                <rect
-                  x="330"
-                  y="20"
-                  width="340"
-                  height="76"
-                  rx="4"
-                  fill="url(#node-base-fill)"
-                  stroke={selectedId === "web" ? "#D88762" : "#2A2E31"}
-                  strokeWidth={selectedId === "web" ? "1.6" : "1"}
-                  className="transition-colors group-hover:stroke-[#454B50]"
-                />
-                
-                {/* Line-Art Glyph: Minimal Ingress Terminal */}
-                <rect x="348" y="36" width="18" height="14" rx="2" stroke="#D88762" strokeWidth="1.2" fill="none" />
-                <line x1="348" y1="41" x2="366" y2="41" stroke="#3D4245" strokeWidth="1" />
-                <circle cx="352" cy="38.5" r="0.8" fill="#D88762" />
-                <circle cx="355" cy="38.5" r="0.8" fill="#A6AAA9" />
-
-                {/* Node Metadata & Typography */}
-                <text x="376" y="40" fontFamily="var(--font-geist-mono), monospace" fontSize="10" fill="#A6AAA9" letterSpacing="0.1em">
-                  WEB FRONTEND
-                </text>
-                <text x="376" y="60" fontFamily="var(--font-space-grotesk), sans-serif" fontSize="17" fontWeight="500" fill="#F1F0EC">
-                  web-frontend
-                </text>
-                <text x="376" y="78" fontFamily="var(--font-sans), sans-serif" fontSize="12" fill="#777D7D">
-                  The experience your users see
-                </text>
-
-                {/* Status Indicator (Inline, No Pill Capsule) */}
-                <circle cx="620" cy="38" r="2.5" fill="#83B69A" />
-                <text x="628" y="41" fontFamily="var(--font-geist-mono), monospace" fontSize="10" fill="#83B69A">
-                  HTTPS · 443
-                </text>
-
-                {/* Outgoing Coupling Node */}
-                <circle cx="500" cy="96" r="4.5" fill="#121416" stroke="#D88762" strokeWidth="1.4" />
-                <circle cx="500" cy="96" r="2" fill="#D88762" />
-              </g>
-
-              {/* =========================================================
-                  SERVICE NODE 2: API SERVICE (Central Coordination Core)
-                  Receives visual emphasis through geometry and central location
-                  ========================================================= */}
-              <g
-                id="node-api"
-                tabIndex={0}
-                role="button"
-                aria-pressed={selectedId === "api"}
-                onClick={() => setSelectedId("api")}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    setSelectedId("api");
-                  }
-                }}
-                className="cursor-pointer focus:outline-none group"
-              >
-                {/* Node Framing */}
-                <rect
-                  x="300"
-                  y="180"
-                  width="400"
-                  height="90"
-                  rx="4"
-                  fill="url(#node-api-fill)"
-                  stroke={selectedId === "api" ? "#D88762" : "#363C40"}
-                  strokeWidth={selectedId === "api" ? "1.8" : "1.2"}
-                  className="transition-colors group-hover:stroke-accent-orange/70"
-                />
-
-                {/* Precision Corner Register Marks */}
-                <line x1="300" y1="188" x2="300" y2="180" stroke="#D88762" strokeWidth="1.6" />
-                <line x1="300" y1="180" x2="308" y2="180" stroke="#D88762" strokeWidth="1.6" />
-                <line x1="700" y1="188" x2="700" y2="180" stroke="#D88762" strokeWidth="1.6" />
-                <line x1="700" y1="180" x2="692" y2="180" stroke="#D88762" strokeWidth="1.6" />
-
-                {/* Line-Art Glyph: Central Logic Core */}
-                <rect x="320" y="198" width="22" height="22" rx="3" stroke="#D88762" strokeWidth="1.5" fill="#1D2023" />
-                <rect x="326" y="204" width="10" height="10" rx="1" stroke="#D88762" strokeWidth="1" fill="#D88762" fillOpacity="0.2" />
-                <line x1="324" y1="195" x2="324" y2="198" stroke="#D88762" strokeWidth="1" />
-                <line x1="338" y1="195" x2="338" y2="198" stroke="#D88762" strokeWidth="1" />
-                <line x1="324" y1="220" x2="324" y2="223" stroke="#D88762" strokeWidth="1" />
-                <line x1="338" y1="220" x2="338" y2="223" stroke="#D88762" strokeWidth="1" />
-
-                {/* Node Metadata & Typography */}
-                <text x="354" y="203" fontFamily="var(--font-geist-mono), monospace" fontSize="10.5" fill="#D88762" fontWeight="600" letterSpacing="0.12em">
-                  API SERVICE · COORDINATION CORE
-                </text>
-                <text x="354" y="226" fontFamily="var(--font-space-grotesk), sans-serif" fontSize="19" fontWeight="500" fill="#F1F0EC">
-                  core-api
-                </text>
-                <text x="354" y="250" fontFamily="var(--font-sans), sans-serif" fontSize="12.5" fill="#A6AAA9">
-                  Logic, authentication, routing & service coordination
-                </text>
-
-                {/* Right-aligned Protocol Info */}
-                <text x="682" y="203" textAnchor="end" fontFamily="var(--font-geist-mono), monospace" fontSize="10" fill="#777D7D">
-                  gRPC & REST · 8080
-                </text>
-                <circle cx="634" cy="223" r="2.5" fill="#83B69A" />
-                <text x="642" y="226" fontFamily="var(--font-geist-mono), monospace" fontSize="10" fill="#83B69A">
-                  Private Mesh
-                </text>
-
-                {/* Top Intake Node (Receives Ingress from Web) */}
-                <circle cx="500" cy="180" r="4.5" fill="#121416" stroke="#D88762" strokeWidth="1.4" />
-                <circle cx="500" cy="180" r="2" fill="#D88762" />
-
-                {/* Bottom Left Branch Flange (To DB) */}
-                <circle cx="400" cy="270" r="4" fill="#121416" stroke={selectedId === "db" || selectedId === "api" ? "#D88762" : "#343A3D"} strokeWidth="1.4" />
-                <circle cx="400" cy="270" r="1.5" fill={selectedId === "db" || selectedId === "api" ? "#D88762" : "#343A3D"} />
-
-                {/* Bottom Right Branch Flange (To Worker) */}
-                <circle cx="600" cy="270" r="4" fill="#121416" stroke={selectedId === "worker" || selectedId === "api" ? "#D88762" : "#343A3D"} strokeWidth="1.4" />
-                <circle cx="600" cy="270" r="1.5" fill={selectedId === "worker" || selectedId === "api" ? "#D88762" : "#343A3D"} />
-              </g>
-
-              {/* =========================================================
-                  SERVICE NODE 3: DATABASE (Bottom Left Tier)
-                  ========================================================= */}
-              <g
-                id="node-db"
-                tabIndex={0}
-                role="button"
-                aria-pressed={selectedId === "db"}
-                onClick={() => setSelectedId("db")}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    setSelectedId("db");
-                  }
-                }}
-                className="cursor-pointer focus:outline-none group"
-              >
-                {/* Node Framing */}
-                <rect
-                  x="100"
-                  y="356"
-                  width="320"
-                  height="76"
-                  rx="4"
-                  fill="url(#node-base-fill)"
-                  stroke={selectedId === "db" ? "#D88762" : "#2A2E31"}
-                  strokeWidth={selectedId === "db" ? "1.6" : "1"}
-                  className="transition-colors group-hover:stroke-[#454B50]"
-                />
-
-                {/* Line-Art Glyph: Relational Cylinder Stacks */}
-                <ellipse cx="120" cy="375" rx="8" ry="3" stroke="#A6AAA9" strokeWidth="1.2" fill="none" />
-                <path d="M 112,375 v 8 c 0 1.6 3.6 3 8 3 s 8 -1.4 8 -3 v -8" stroke="#A6AAA9" strokeWidth="1.2" fill="none" />
-                <path d="M 112,379 v 4 c 0 1.6 3.6 3 8 3 s 8 -1.4 8 -3 v -4" stroke="#A6AAA9" strokeWidth="1" strokeDasharray="1.5 1.5" fill="none" />
-
-                {/* Node Metadata & Typography */}
-                <text x="140" y="376" fontFamily="var(--font-geist-mono), monospace" fontSize="10" fill="#A6AAA9" letterSpacing="0.1em">
-                  DATABASE
-                </text>
-                <text x="140" y="396" fontFamily="var(--font-space-grotesk), sans-serif" fontSize="17" fontWeight="500" fill="#F1F0EC">
-                  primary-db
-                </text>
-                <text x="140" y="414" fontFamily="var(--font-sans), sans-serif" fontSize="12" fill="#777D7D">
-                  Persistent application data
-                </text>
-
-                {/* Tech Metadata (Inline, No Pill Capsule) */}
-                <text x="404" y="376" textAnchor="end" fontFamily="var(--font-geist-mono), monospace" fontSize="10" fill="#777D7D">
-                  PostgreSQL 16
-                </text>
-
-                {/* Top Intake Node */}
-                <circle cx="260" cy="356" r="4" fill="#121416" stroke={selectedId === "db" || selectedId === "api" ? "#D88762" : "#343A3D"} strokeWidth="1.4" />
-                <circle cx="260" cy="356" r="1.5" fill={selectedId === "db" || selectedId === "api" ? "#D88762" : "#343A3D"} />
-              </g>
-
-              {/* =========================================================
-                  SERVICE NODE 4: BACKGROUND WORKER (Bottom Right Tier)
-                  ========================================================= */}
-              <g
-                id="node-worker"
-                tabIndex={0}
-                role="button"
-                aria-pressed={selectedId === "worker"}
-                onClick={() => setSelectedId("worker")}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    setSelectedId("worker");
-                  }
-                }}
-                className="cursor-pointer focus:outline-none group"
-              >
-                {/* Node Framing */}
-                <rect
-                  x="580"
-                  y="356"
-                  width="320"
-                  height="76"
-                  rx="4"
-                  fill="url(#node-base-fill)"
-                  stroke={selectedId === "worker" ? "#D88762" : "#2A2E31"}
-                  strokeWidth={selectedId === "worker" ? "1.6" : "1"}
-                  className="transition-colors group-hover:stroke-[#454B50]"
-                />
-
-                {/* Line-Art Glyph: Async Queue Processing Loop */}
-                <path d="M 598,375 a 5 5 0 1 1 -2 4" stroke="#A6AAA9" strokeWidth="1.2" fill="none" />
-                <polyline points="598,373 598,376 601,376" stroke="#A6AAA9" strokeWidth="1.2" fill="none" />
-                <circle cx="601" cy="379" r="1.2" fill="#D88762" />
-
-                {/* Node Metadata & Typography */}
-                <text x="620" y="376" fontFamily="var(--font-geist-mono), monospace" fontSize="10" fill="#A6AAA9" letterSpacing="0.1em">
-                  BACKGROUND WORKER
-                </text>
-                <text x="620" y="396" fontFamily="var(--font-space-grotesk), sans-serif" fontSize="17" fontWeight="500" fill="#F1F0EC">
-                  queue-worker
-                </text>
-                <text x="620" y="414" fontFamily="var(--font-sans), sans-serif" fontSize="12" fill="#777D7D">
-                  Tasks that run behind the scenes
-                </text>
-
-                {/* Tech Metadata (Inline, No Pill Capsule) */}
-                <text x="884" y="376" textAnchor="end" fontFamily="var(--font-geist-mono), monospace" fontSize="10" fill="#777D7D">
-                  Async Jobs · Queue
-                </text>
-
-                {/* Top Intake Node */}
-                <circle cx="740" cy="356" r="4" fill="#121416" stroke={selectedId === "worker" || selectedId === "api" ? "#D88762" : "#343A3D"} strokeWidth="1.4" />
-                <circle cx="740" cy="356" r="1.5" fill={selectedId === "worker" || selectedId === "api" ? "#D88762" : "#343A3D"} />
-              </g>
-
-            </svg>
+                  {/* Active Underline Indicator */}
+                  {isSelected ? (
+                    <span
+                      className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent-orange"
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <span
+                      className="absolute bottom-0 left-0 right-0 h-[1px] bg-transparent group-hover:bg-border-default transition-colors"
+                      aria-hidden="true"
+                    />
+                  )}
+                </button>
+              );
+            })}
           </div>
-
-          {/* -------------------------------------------------------------
-              MOBILE / TABLET TOPOLOGY (Below lg)
-              Clean, unboxed vertical flow with clear routing connections
-              ------------------------------------------------------------- */}
-          <div className="lg:hidden w-full max-w-xl mx-auto flex flex-col space-y-3">
-            
-            {/* 1. Web Frontend */}
-            <button
-              onClick={() => setSelectedId("web")}
-              className={`w-full p-4.5 rounded-[6px] bg-[#16181B] border transition-all text-left ${
-                selectedId === "web"
-                  ? "border-accent-orange ring-1 ring-accent-orange/40"
-                  : "border-border-default/80 hover:border-border-default"
-              }`}
-            >
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-mono text-[10px] text-text-muted tracking-wider uppercase">
-                  WEB FRONTEND
-                </span>
-                <span className="font-mono text-[10px] text-semantic-success flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
-                  HTTPS · 443
-                </span>
-              </div>
-              <div className="font-sans text-[18px] font-medium text-[#F1F0EC]">
-                web-frontend
-              </div>
-              <p className="font-sans text-[13px] text-text-secondary mt-0.5">
-                The experience your users see
-              </p>
-            </button>
-
-            {/* Vertical Connector: Ingress */}
-            <div className="flex flex-col items-center py-1 select-none text-text-muted">
-              <div className="w-[1.5px] h-4 bg-accent-orange" />
-              <div className="font-mono text-[10px] text-accent-orange my-1 tracking-wider uppercase flex items-center gap-1.5">
-                <Lock className="w-3 h-3" />
-                <span>HTTPS INGRESS ROUTING</span>
-                <ArrowDown className="w-3 h-3" />
-              </div>
-              <div className="w-[1.5px] h-4 bg-accent-orange" />
-            </div>
-
-            {/* 2. API Service (Coordinator) */}
-            <button
-              onClick={() => setSelectedId("api")}
-              className={`w-full p-5 rounded-[6px] bg-[#1A1D20] border transition-all text-left ${
-                selectedId === "api"
-                  ? "border-accent-orange ring-1 ring-accent-orange/50"
-                  : "border-[#343A3D] hover:border-accent-orange/50"
-              }`}
-            >
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-mono text-[10.5px] text-accent-orange font-medium tracking-wider uppercase">
-                  API SERVICE · COORDINATOR
-                </span>
-                <span className="font-mono text-[10px] text-semantic-success flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
-                  Private Mesh
-                </span>
-              </div>
-              <div className="font-sans text-[20px] font-medium text-[#F1F0EC]">
-                core-api
-              </div>
-              <p className="font-sans text-[13px] text-text-secondary mt-0.5">
-                Logic, authentication, routing & service coordination
-              </p>
-            </button>
-
-            {/* Branch Connector */}
-            <div className="flex flex-col items-center py-1 select-none text-text-muted">
-              <div className="w-[1.5px] h-4 bg-border-default" />
-              <div className="font-mono text-[10px] text-text-muted my-1 tracking-wider uppercase flex items-center gap-1">
-                <span>INTERNAL SERVICE DISPATCH</span>
-                <ArrowDown className="w-3 h-3" />
-              </div>
-              <div className="w-[1.5px] h-4 bg-border-default" />
-            </div>
-
-            {/* 3 & 4. Database & Background Worker */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
-              
-              {/* Database */}
-              <button
-                onClick={() => setSelectedId("db")}
-                className={`w-full p-4 rounded-[6px] bg-[#16181B] border transition-all text-left ${
-                  selectedId === "db"
-                    ? "border-accent-orange ring-1 ring-accent-orange/40"
-                    : "border-border-default/80 hover:border-border-default"
-                }`}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-mono text-[10px] text-text-muted tracking-wider uppercase">
-                    DATABASE
-                  </span>
-                  <span className="font-mono text-[10px] text-text-muted">Postgres</span>
-                </div>
-                <div className="font-sans text-[17px] font-medium text-[#F1F0EC]">
-                  primary-db
-                </div>
-                <p className="font-sans text-[12.5px] text-text-secondary mt-0.5">
-                  Persistent application data
-                </p>
-              </button>
-
-              {/* Background Worker */}
-              <button
-                onClick={() => setSelectedId("worker")}
-                className={`w-full p-4 rounded-[6px] bg-[#16181B] border transition-all text-left ${
-                  selectedId === "worker"
-                    ? "border-accent-orange ring-1 ring-accent-orange/40"
-                    : "border-border-default/80 hover:border-border-default"
-                }`}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-mono text-[10px] text-text-muted tracking-wider uppercase">
-                    WORKER
-                  </span>
-                  <span className="font-mono text-[10px] text-text-muted">Async Jobs</span>
-                </div>
-                <div className="font-sans text-[17px] font-medium text-[#F1F0EC]">
-                  queue-worker
-                </div>
-                <p className="font-sans text-[12.5px] text-text-secondary mt-0.5">
-                  Tasks that run behind the scenes
-                </p>
-              </button>
-
-            </div>
-
-          </div>
-
         </div>
 
         {/* =================================================================
-            EDITORIAL COMPONENT INSPECTOR
-            Two-column layout sitting naturally on the page (no enclosing card)
+            MAIN SERVICE STAGE: Distinct, Restrained Compositions
+            Understated primary charcoal surface matching Deployment section
             ================================================================= */}
-        <div className="w-full border-t border-border-subtle pt-8 sm:pt-10 mb-14 sm:mb-20">
-          <div className="w-full flex flex-col md:flex-row md:items-start justify-between gap-6 sm:gap-8">
-            
-            {/* Left Column: Role & Explanatory Sentence */}
-            <div className="space-y-2 max-w-xl">
-              <div className="font-mono text-[11px] uppercase tracking-[0.14em] text-accent-orange flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-accent-orange" />
-                <span>INSPECTING COMPONENT // {current.category}</span>
+        <div
+          id={`panel-${selectedId}`}
+          role="tabpanel"
+          aria-labelledby={`tab-${selectedId}`}
+          className="w-full rounded-[10px] bg-surface-card border border-border-default shadow-2xl p-6 sm:p-8 lg:p-10 mb-16 sm:mb-20 min-h-[460px] flex flex-col justify-between"
+        >
+          {/* =============================================================
+              VIEW 1: WEB FRONTEND — The Live Application
+              Clean, immersive product UI inside an understated browser frame
+              ============================================================= */}
+          {selectedId === "web" && (
+            <div className="w-full space-y-8 animate-in fade-in duration-200">
+              {/* Minimal Understated Browser Header */}
+              <div className="flex items-center justify-between pb-6 border-b border-border-subtle text-xs font-mono">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#353A40]" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#353A40]" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#353A40]" />
+                </div>
+
+                <div className="flex items-center gap-2 px-3 py-1 rounded-[4px] bg-[#171717] border border-border-subtle text-[12px] text-text-secondary truncate max-w-sm sm:max-w-md w-full mx-4 justify-center">
+                  <span className="w-1.5 h-1.5 rounded-full bg-semantic-success shrink-0" />
+                  <span className="text-text-muted">https://</span>
+                  <span className="text-[#F1F0EC] font-medium">meridian.jetway.app</span>
+                  <span className="text-text-muted">/releases/v2.4</span>
+                </div>
+
+                <div className="flex items-center gap-1.5 text-semantic-success text-[11px] shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
+                  <span className="hidden sm:inline">Deployed to Anycast Edge</span>
+                </div>
               </div>
-              <div className="font-sans text-[22px] sm:text-[24px] font-medium text-[#F1F0EC] tracking-[-0.02em]">
-                {current.name}{" "}
-                <span className="font-mono text-[13px] text-text-muted font-normal">
-                  ({current.tag})
-                </span>
+
+              {/* Application Content */}
+              <div className="w-full space-y-8">
+                {/* Product Header */}
+                <div className="flex items-center justify-between pb-6 border-b border-border-subtle">
+                  <div className="flex items-center gap-3">
+                    <div className="w-6 h-6 rounded-[4px] bg-accent-orange flex items-center justify-center text-[#111111] font-mono font-bold text-xs select-none">
+                      M
+                    </div>
+                    <span className="font-sans font-medium text-[17px] text-[#F1F0EC] tracking-tight">
+                      Meridian
+                    </span>
+                    <span className="font-mono text-[11px] text-text-muted">
+                      /
+                    </span>
+                    <span className="font-mono text-[12px] text-text-secondary">
+                      v2.4.0-rc1
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-3 text-xs font-mono text-text-muted">
+                    <span>Author: Elena Rostova</span>
+                    <span className="hidden sm:inline text-border-default">•</span>
+                    <span className="hidden sm:inline">Commit: 8f3a21c</span>
+                  </div>
+                </div>
+
+                {/* Main Release Focal Point & Verification Items */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                  {/* Left: Release Title & Milestone Verification */}
+                  <div className="lg:col-span-8 space-y-4">
+                    <div>
+                      <div className="font-mono text-[11px] text-accent-orange uppercase tracking-wider mb-2 font-medium">
+                        PRODUCTION CANDIDATE
+                      </div>
+                      <h3 className="font-sans text-[28px] sm:text-[34px] font-medium text-[#F1F0EC] tracking-tight leading-tight">
+                        Release v2.4.0
+                      </h3>
+                      <p className="font-sans text-[15px] text-text-secondary leading-relaxed mt-2 max-w-xl">
+                        Automated build verified across isolated test environments. All dependency closures resolved and edge cache warmed.
+                      </p>
+                    </div>
+
+                    {/* Verification Items with Fine Separators */}
+                    <div className="space-y-3 pt-4 border-t border-border-subtle">
+                      <div className="flex items-center gap-3 text-[13.5px] text-[#F1F0EC]">
+                        <Check className="w-4 h-4 text-semantic-success shrink-0" />
+                        <span>Universal search indexing engine compiled</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-[13.5px] text-[#F1F0EC]">
+                        <Check className="w-4 h-4 text-semantic-success shrink-0" />
+                        <span>Realtime collaboration websocket cluster attached</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-[13.5px] text-[#F1F0EC]">
+                        <Check className="w-4 h-4 text-semantic-success shrink-0" />
+                        <span>Database migration 0042_release_manifest verified</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right: One Meaningful Primary Action */}
+                  <div className="lg:col-span-4 pt-2 lg:pt-4 lg:border-l lg:border-border-subtle lg:pl-8 space-y-5">
+                    <div className="space-y-1 font-mono text-[12px]">
+                      <div className="text-text-muted">Target Environment</div>
+                      <div className="text-[#F1F0EC] font-medium">production-anycast</div>
+                    </div>
+
+                    <div className="space-y-1 font-mono text-[12px]">
+                      <div className="text-text-muted">SHA-256 Digest</div>
+                      <div className="text-text-secondary text-[11px] truncate">
+                        7f10b8a4e912c0a4b3d8...
+                      </div>
+                    </div>
+
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        className="w-full py-2.5 px-4 rounded-[6px] bg-accent-orange hover:bg-accent-orange-hover text-[#111111] font-sans font-medium text-[13.5px] flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                      >
+                        <span>Deploy to Production</span>
+                        <ArrowUpRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <p className="font-sans text-[15px] text-text-secondary leading-relaxed">
-                {current.description}
-              </p>
+
+              {/* Single Clean Footer Telemetry */}
+              <div className="pt-6 border-t border-border-subtle flex flex-wrap items-center justify-between gap-4 text-[11px] font-mono text-text-muted">
+                <div>Render Engine: Next.js SSR · Cold start: 0ms</div>
+                <div className="text-text-secondary">12ms edge response time</div>
+              </div>
             </div>
+          )}
 
-            {/* Right Column: Runtime & Diagnostic Metadata */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-6 sm:gap-10 shrink-0 self-start md:self-center font-mono text-[12px] pt-1">
-              <div className="space-y-1">
-                <div className="text-[10px] uppercase text-text-muted tracking-wider">
-                  RUNTIME / ENGINE
+          {/* =============================================================
+              VIEW 2: API SERVICE — The Request in Motion
+              Single connected request trace moving through 3 lifecycle stages
+              ============================================================= */}
+          {selectedId === "api" && (
+            <div className="w-full space-y-8 animate-in fade-in duration-200">
+              {/* Request Header */}
+              <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-4 pb-6 border-b border-border-subtle">
+                <div className="space-y-1">
+                  <div className="font-mono text-[11px] text-accent-orange uppercase tracking-wider font-medium">
+                    INCOMING REQUEST TRACE
+                  </div>
+                  <div className="flex items-baseline gap-3">
+                    <span className="font-mono text-accent-orange font-semibold text-[15px]">
+                      POST
+                    </span>
+                    <h3 className="font-sans text-[24px] sm:text-[30px] font-medium text-[#F1F0EC] tracking-tight">
+                      /api/v2/releases/publish
+                    </h3>
+                  </div>
                 </div>
-                <div className="text-[#F1F0EC]">{current.tech}</div>
-              </div>
-              
-              <div className="space-y-1">
-                <div className="text-[10px] uppercase text-text-muted tracking-wider">
-                  PROTOCOL
+
+                <div className="flex items-center gap-4 font-mono text-[12px] self-start sm:self-auto">
+                  <div className="flex items-center gap-1.5 text-semantic-success font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
+                    <span>200 OK</span>
+                  </div>
+                  <span className="text-border-default">•</span>
+                  <div className="text-text-secondary">
+                    18.4ms total latency
+                  </div>
                 </div>
-                <div className="text-text-secondary">{current.protocol}</div>
               </div>
 
-              <div className="space-y-1">
-                <div className="text-[10px] uppercase text-text-muted tracking-wider">
-                  HEALTH STATUS
+              {/* Connected Request Lifecycle Sequence */}
+              <div className="space-y-4">
+                <div className="font-mono text-[10.5px] uppercase tracking-wider text-text-muted">
+                  REQUEST LIFECYCLE STAGES
                 </div>
-                <div className="flex items-center gap-1.5 text-semantic-success font-medium">
-                  <Check className="w-3.5 h-3.5 text-semantic-success" />
-                  <span>{current.status}</span>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
+                  {/* Stage 01 */}
+                  <div className="space-y-2 pr-4">
+                    <div className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
+                      <span className="font-mono text-[11px] text-semantic-success font-medium tracking-wider">
+                        01 — AUTH & ROUTING
+                      </span>
+                    </div>
+                    <div className="font-sans text-[16px] font-medium text-[#F1F0EC]">
+                      JWT verification
+                    </div>
+                    <p className="font-sans text-[13px] text-text-secondary leading-relaxed">
+                      Token validated and request authorized for user{" "}
+                      <span className="font-mono text-[#F1F0EC]">elena_91a</span>.
+                    </p>
+                    <div className="font-mono text-[11px] text-text-muted pt-1">
+                      1.2ms latency
+                    </div>
+                  </div>
+
+                  {/* Stage 02 */}
+                  <div className="space-y-2 pr-4 md:border-l md:border-border-subtle md:pl-6">
+                    <div className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
+                      <span className="font-mono text-[11px] text-semantic-success font-medium tracking-wider">
+                        02 — PERSISTENCE
+                      </span>
+                    </div>
+                    <div className="font-sans text-[16px] font-medium text-[#F1F0EC]">
+                      Database transaction
+                    </div>
+                    <p className="font-sans text-[13px] text-text-secondary leading-relaxed">
+                      Release record updated to{" "}
+                      <span className="font-mono text-semantic-success">published</span> in{" "}
+                      <span className="font-mono text-[#F1F0EC]">primary-db</span>.
+                    </p>
+                    <div className="font-mono text-[11px] text-text-muted pt-1">
+                      2.8ms execution
+                    </div>
+                  </div>
+
+                  {/* Stage 03 */}
+                  <div className="space-y-2 md:border-l md:border-border-subtle md:pl-6">
+                    <div className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-accent-orange" />
+                      <span className="font-mono text-[11px] text-accent-orange font-medium tracking-wider">
+                        03 — ASYNC DISPATCH
+                      </span>
+                    </div>
+                    <div className="font-sans text-[16px] font-medium text-[#F1F0EC]">
+                      Queue acknowledgement
+                    </div>
+                    <p className="font-sans text-[13px] text-text-secondary leading-relaxed">
+                      Task dispatched to{" "}
+                      <span className="font-mono text-[#F1F0EC]">queue-worker</span> for edge bundle generation.
+                    </p>
+                    <div className="font-mono text-[11px] text-text-muted pt-1">
+                      0.8ms broker ACK
+                    </div>
+                  </div>
                 </div>
+              </div>
+
+              {/* Recent Requests: Clean aligned rows with subtle separators */}
+              <div className="pt-6 border-t border-border-subtle space-y-3">
+                <div className="font-mono text-[10.5px] uppercase tracking-wider text-text-muted">
+                  RECENT SERVICE REQUESTS
+                </div>
+
+                <div className="divide-y divide-border-subtle/80 font-mono text-[12px]">
+                  <div className="py-2.5 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-text-muted w-12 font-medium">GET</span>
+                      <span className="text-[#F1F0EC]">/api/v2/releases/v2.4-rc1</span>
+                    </div>
+                    <div className="flex items-center gap-4 text-text-muted">
+                      <span className="text-semantic-success">200 OK</span>
+                      <span>4.2ms</span>
+                    </div>
+                  </div>
+
+                  <div className="py-2.5 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-accent-orange w-12 font-medium">POST</span>
+                      <span className="text-[#F1F0EC]">/api/v2/releases/publish</span>
+                    </div>
+                    <div className="flex items-center gap-4 text-text-muted">
+                      <span className="text-semantic-success">200 OK</span>
+                      <span>18.4ms</span>
+                    </div>
+                  </div>
+
+                  <div className="py-2.5 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-text-muted w-12 font-medium">GET</span>
+                      <span className="text-[#F1F0EC]">/api/v2/projects/meridian</span>
+                    </div>
+                    <div className="flex items-center gap-4 text-text-muted">
+                      <span className="text-semantic-success">200 OK</span>
+                      <span>8.1ms</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="pt-6 border-t border-border-subtle flex flex-wrap items-center justify-between gap-4 text-[11px] font-mono text-text-muted">
+                <div>Zero public ports exposed · Internal WireGuard private mesh</div>
+                <div className="text-text-secondary">Mutual TLS 1.3 enforced</div>
               </div>
             </div>
+          )}
 
-          </div>
+          {/* =============================================================
+              VIEW 3: DATABASE — Make Data Readable
+              Focused PostgreSQL query & structured record key-value ledger
+              ============================================================= */}
+          {selectedId === "db" && (
+            <div className="w-full space-y-8 animate-in fade-in duration-200">
+              {/* Heading & Secondary Connection Info */}
+              <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 pb-6 border-b border-border-subtle">
+                <div className="space-y-1">
+                  <div className="font-mono text-[11px] text-accent-orange uppercase tracking-wider font-medium">
+                    PERSISTENT DATA LAYER
+                  </div>
+                  <h3 className="font-sans text-[28px] sm:text-[34px] font-medium text-[#F1F0EC] tracking-tight">
+                    PostgreSQL 16.2
+                  </h3>
+                </div>
+
+                <div className="flex items-center gap-2 font-mono text-[12px] text-text-muted">
+                  <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
+                  <span>Pool active · 0.6ms execution</span>
+                </div>
+              </div>
+
+              {/* SQL Query (No heavy editor container, restrained syntax colors) */}
+              <div className="space-y-2">
+                <div className="font-mono text-[10.5px] uppercase tracking-wider text-text-muted">
+                  EXECUTED QUERY
+                </div>
+                <div className="py-3 px-4 rounded-[6px] bg-[#171717] border border-border-subtle font-mono text-[12.5px] overflow-x-auto leading-relaxed">
+                  <span className="text-accent-orange font-medium">SELECT</span>{" "}
+                  <span className="text-[#F1F0EC]">id, slug, version, status, author_id, commit_hash, deployed_at</span>{"\n"}
+                  <span className="text-accent-orange font-medium">FROM</span>{" "}
+                  <span className="text-[#F1F0EC]">releases</span>{"\n"}
+                  <span className="text-accent-orange font-medium">WHERE</span>{" "}
+                  <span className="text-[#F1F0EC]">slug</span> = <span className="text-semantic-success">&apos;v2.4-production&apos;</span>{"\n"}
+                  <span className="text-accent-orange font-medium">ORDER BY</span>{" "}
+                  <span className="text-[#F1F0EC]">deployed_at</span> <span className="text-accent-orange font-medium">DESC</span>{"\n"}
+                  <span className="text-accent-orange font-medium">LIMIT</span>{" "}
+                  <span className="text-accent-orange font-medium">1</span>;
+                </div>
+              </div>
+
+              {/* Returned Record: Clean Field-Value Layout with Subtle Horizontal Dividers */}
+              <div className="space-y-2">
+                <div className="font-mono text-[10.5px] uppercase tracking-wider text-text-muted">
+                  RETURNED RECORD // RELEASES
+                </div>
+
+                <div className="divide-y divide-border-subtle font-mono text-[12px]">
+                  <div className="py-2.5 grid grid-cols-12 items-baseline">
+                    <span className="col-span-4 sm:col-span-3 text-text-muted">id</span>
+                    <span className="col-span-8 sm:col-span-9 text-[#F1F0EC]">rel_01hn8y7p412a9</span>
+                  </div>
+
+                  <div className="py-2.5 grid grid-cols-12 items-baseline">
+                    <span className="col-span-4 sm:col-span-3 text-text-muted">version</span>
+                    <span className="col-span-8 sm:col-span-9 text-[#F1F0EC]">2.4.0-rc1</span>
+                  </div>
+
+                  <div className="py-2.5 grid grid-cols-12 items-baseline">
+                    <span className="col-span-4 sm:col-span-3 text-text-muted">status</span>
+                    <span className="col-span-8 sm:col-span-9 text-semantic-success flex items-center gap-2 font-medium">
+                      <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
+                      published
+                    </span>
+                  </div>
+
+                  <div className="py-2.5 grid grid-cols-12 items-baseline">
+                    <span className="col-span-4 sm:col-span-3 text-text-muted">author</span>
+                    <span className="col-span-8 sm:col-span-9 text-text-secondary">
+                      Elena Rostova &lt;elena@meridian.io&gt;
+                    </span>
+                  </div>
+
+                  <div className="py-2.5 grid grid-cols-12 items-baseline">
+                    <span className="col-span-4 sm:col-span-3 text-text-muted">commit_hash</span>
+                    <span className="col-span-8 sm:col-span-9 text-[#F1F0EC]">8f3a21c</span>
+                  </div>
+
+                  <div className="py-2.5 grid grid-cols-12 items-baseline">
+                    <span className="col-span-4 sm:col-span-3 text-text-muted">deployed_at</span>
+                    <span className="col-span-8 sm:col-span-9 text-text-secondary">
+                      2026-10-28 22:30:14 UTC
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="pt-6 border-t border-border-subtle flex flex-wrap items-center justify-between gap-4 text-[11px] font-mono text-text-muted">
+                <div>Encrypted internal storage · Port 5432</div>
+                <div className="text-text-secondary">Automated hourly volume snapshots</div>
+              </div>
+            </div>
+          )}
+
+          {/* =============================================================
+              VIEW 4: BACKGROUND WORKER — Show the Job Lifecycle
+              Three stages: Completed, Processing (focal point), Queued
+              ============================================================= */}
+          {selectedId === "worker" && (
+            <div className="w-full space-y-8 animate-in fade-in duration-200">
+              {/* Heading */}
+              <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 pb-6 border-b border-border-subtle">
+                <div className="space-y-1">
+                  <div className="font-mono text-[11px] text-accent-orange uppercase tracking-wider font-medium">
+                    ASYNCHRONOUS SYSTEM
+                  </div>
+                  <h3 className="font-sans text-[28px] sm:text-[34px] font-medium text-[#F1F0EC] tracking-tight">
+                    Job Execution Lifecycle
+                  </h3>
+                </div>
+
+                <div className="flex items-center gap-2 font-mono text-[12px] text-text-muted">
+                  <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
+                  <span>Queue active · 0 backlog</span>
+                </div>
+              </div>
+
+              {/* Three Connected Lifecycle Stages (Horizontal on desktop, stacked on mobile) */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+                
+                {/* Stage 1: Completed Jobs */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-border-subtle">
+                    <span className="font-mono text-[11px] text-semantic-success font-medium tracking-wider uppercase">
+                      COMPLETED
+                    </span>
+                    <span className="font-mono text-[11px] text-text-muted">2 jobs</span>
+                  </div>
+
+                  <div className="divide-y divide-border-subtle/80 font-mono text-[12px]">
+                    <div className="py-3 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[#F1F0EC] font-medium">compile_wasm_bundle</span>
+                        <span className="text-semantic-success text-[11px]">340ms</span>
+                      </div>
+                      <div className="text-[11px] text-text-muted">
+                        Worker #02 · Success
+                      </div>
+                    </div>
+
+                    <div className="py-3 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[#F1F0EC] font-medium">generate_release_manifest</span>
+                        <span className="text-semantic-success text-[11px]">115ms</span>
+                      </div>
+                      <div className="text-[11px] text-text-muted">
+                        Worker #01 · Success
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Stage 2: Processing (Focal Point!) */}
+                <div className="space-y-4 lg:border-l lg:border-border-subtle lg:pl-8">
+                  <div className="flex items-center justify-between pb-3 border-b border-border-subtle">
+                    <span className="font-mono text-[11px] text-accent-orange font-medium tracking-wider uppercase flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-accent-orange" />
+                      PROCESSING
+                    </span>
+                    <span className="font-mono text-[11px] text-accent-orange font-medium">ACTIVE</span>
+                  </div>
+
+                  <div className="py-3 space-y-3 font-mono text-[12px]">
+                    <div>
+                      <div className="text-[#F1F0EC] font-semibold text-[14px]">
+                        optimize_edge_assets
+                      </div>
+                      <div className="font-sans text-[12.5px] text-text-secondary leading-snug mt-1">
+                        Compressing Brotli release tarballs for multi-region edge distribution.
+                      </div>
+                    </div>
+
+                    {/* Restrained Progress Bar */}
+                    <div className="space-y-1.5 pt-1">
+                      <div className="h-1 w-full bg-[#252525] rounded-full overflow-hidden">
+                        <div className="h-full bg-accent-orange w-3/5 rounded-full" />
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] text-text-muted">
+                        <span className="text-accent-orange">Worker #03</span>
+                        <span>84ms elapsed</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Stage 3: Queued Jobs */}
+                <div className="space-y-4 lg:border-l lg:border-border-subtle lg:pl-8">
+                  <div className="flex items-center justify-between pb-3 border-b border-border-subtle">
+                    <span className="font-mono text-[11px] text-text-muted font-medium tracking-wider uppercase">
+                      QUEUED
+                    </span>
+                    <span className="font-mono text-[11px] text-text-muted">2 jobs</span>
+                  </div>
+
+                  <div className="divide-y divide-border-subtle/80 font-mono text-[12px]">
+                    <div className="py-3 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[#F1F0EC]">broadcast_webhook_dispatch</span>
+                        <span className="text-text-muted text-[11px]">Priority: High</span>
+                      </div>
+                      <div className="text-[11px] text-text-muted">
+                        Waiting in queue · 24ms
+                      </div>
+                    </div>
+
+                    <div className="py-3 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[#F1F0EC]">purge_stale_cache_keys</span>
+                        <span className="text-text-muted text-[11px]">Scheduled</span>
+                      </div>
+                      <div className="text-[11px] text-text-muted">
+                        Waiting on optimize_edge_assets
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Footer */}
+              <div className="pt-6 border-t border-border-subtle flex flex-wrap items-center justify-between gap-4 text-[11px] font-mono text-text-muted">
+                <div>Decoupled asynchronous worker pool with automatic retry backoff</div>
+                <div className="text-text-secondary">Message broker: Redis memory bus</div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* =================================================================
             THREE BENEFIT DESCRIPTIONS
-            Clean editorial columns beneath the architecture (no card boxes)
+            Understated editorial columns beneath the experience
             ================================================================= */}
         <div className="w-full border-t border-border-subtle pt-10 sm:pt-14">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-12 w-full max-w-6xl">
-            
             {/* Column 01 */}
             <div className="space-y-2.5">
               <div className="font-mono text-[11px] text-accent-orange font-medium tracking-wider">
@@ -743,7 +741,6 @@ export function ApplicationStack() {
                 Start with a single frontend service, then attach background workers, queues, and databases as your application evolves.
               </p>
             </div>
-
           </div>
         </div>
 
