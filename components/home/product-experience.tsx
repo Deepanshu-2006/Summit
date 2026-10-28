@@ -7,13 +7,20 @@ import { ArrowUpRight } from "lucide-react";
 /**
  * ProductExperience: Section 03 — From repository to reality
  *
- * Polished, art-directed technical illustration:
- * - Asymmetrical composition: Source (left) -> Build Core (centerpiece) -> Production (right)
- * - Large visual scale utilizing the full container width with generous negative space
- * - Fine, engineered line work and 3D isometric perspective
- * - One continuous deployment path (Burnt Orange #D88762 -> Restrained Green #83B69A)
- * - Build steps cleanly integrated below the core with zero path overlap
- * - 100% normal document flow, fully responsive.
+ * Art-Directed Diagonal Architectural Infrastructure Illustration:
+ * - 3 stages composed along a deliberate, elegant diagonal journey:
+ *     01 SOURCE (Upper Left) -> 02 BUILD ENGINE (Centerpiece Anchor) -> 03 PRODUCTION (Lower Right)
+ * - Cohesive 30-degree isometric perspective across all stages
+ * - Grounded isometric base slab underneath the production browser
+ * - Cleaned-up Jetway Build Core: removed detached/awkward vertical lines, pure layered plinth geometry
+ * - Meaningful dual-color conduits:
+ *     Source-to-Build: Burnt Orange (#D88762)
+ *     Build-to-Production: Muted Green (#83B69A)
+ * - Precision connection nodes and flange couplings
+ * - Subtle motion packets with motion-reduce:hidden support
+ * - Compact, perfectly aligned build telemetry sequence docked beneath the engine
+ * - Crisp, uncluttered production live viewport with domain & status strip
+ * - Fully responsive with clean vertical reflow on mobile/tablet
  */
 export function ProductExperience() {
   return (
@@ -25,9 +32,8 @@ export function ProductExperience() {
       <div className="layout-container w-full">
         {/* =================================================================
             SECTION IDENTIFIER: 03 / SYSTEM ARCHITECTURE
-            Understated, minimal divider line
             ================================================================= */}
-        <div className="w-full border-t border-border-subtle pt-5 mb-12 sm:mb-16">
+        <div className="w-full border-t border-border-subtle pt-5 mb-8 sm:mb-10">
           <div className="flex items-center gap-2 font-mono text-[11px] text-text-muted tracking-[0.1em] uppercase">
             <span className="text-accent-orange font-medium">03</span>
             <span>/</span>
@@ -37,12 +43,11 @@ export function ProductExperience() {
 
         {/* =================================================================
             EDITORIAL INTRODUCTION
-            Space Grotesk headline, supporting copy, subtle text link
             ================================================================= */}
-        <div className="max-w-3xl mb-12 sm:mb-16">
+        <div className="max-w-3xl mb-6 sm:mb-8">
           <h2
             id="experience-heading"
-            className="font-sans text-[36px] sm:text-[44px] lg:text-[50px] xl:text-[54px] font-medium leading-[1.08] tracking-[-0.035em] text-[#F5F5F3] mb-5"
+            className="font-sans text-[36px] sm:text-[44px] lg:text-[50px] xl:text-[54px] font-medium leading-[1.08] tracking-[-0.035em] text-[#F5F5F3] mb-4 sm:mb-5"
           >
             From repository to reality.
           </h2>
@@ -64,275 +69,316 @@ export function ProductExperience() {
         </div>
 
         {/* =================================================================
-            CUSTOM ILLUSTRATED TECHNICAL DIAGRAM
-            Engineered, open composition with generous negative space.
-            The Build Core is the primary centerpiece.
+            ART-DIRECTED DIAGONAL INFRASTRUCTURE ILLUSTRATION
             ================================================================= */}
         <div className="w-full relative">
           
           {/* -------------------------------------------------------------
-              DESKTOP VIEWPORT (Wide Engineered Architectural Illustration)
+              DESKTOP SCENE: Large Diagonal Engineering Architecture
+              Staggered Upper-Left -> Centerpiece -> Lower-Right Composition
               ------------------------------------------------------------- */}
           <div className="hidden lg:block w-full">
             <svg
               className="w-full h-auto select-none overflow-visible"
-              viewBox="0 0 1140 480"
+              viewBox="0 0 1200 570"
+              preserveAspectRatio="xMidYMid meet"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
-              aria-label="Engineered technical diagram illustrating code deployment journey from Git repository through Jetway build engine to a live application"
+              aria-label="Art-directed architectural illustration of Jetway deployment infrastructure"
             >
               <defs>
-                {/* Active Data Route Gradient: Burnt Orange transitioning to Restrained Green at Production */}
-                <linearGradient
-                  id="desktop-pipeline-gradient"
-                  x1="0%"
-                  y1="0%"
-                  x2="100%"
-                  y2="0%"
-                >
-                  <stop offset="0%" stopColor="#D88762" />
-                  <stop offset="68%" stopColor="#D88762" />
-                  <stop offset="88%" stopColor="#83B69A" />
-                  <stop offset="100%" stopColor="#83B69A" />
+                {/* Precision Volumetric Isometric Shading */}
+                <linearGradient id="iso-top-vol" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#22262A" stopOpacity="0.95" />
+                  <stop offset="100%" stopColor="#131618" stopOpacity="0.95" />
                 </linearGradient>
 
-                {/* Volumetric surface shading for 3D isometric planes */}
-                <linearGradient id="facet-top" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#1C1F22" stopOpacity="0.85" />
-                  <stop offset="100%" stopColor="#121416" stopOpacity="0.85" />
+                <linearGradient id="iso-left-vol" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="#1A1D20" stopOpacity="0.98" />
+                  <stop offset="100%" stopColor="#0E1012" stopOpacity="0.98" />
                 </linearGradient>
 
-                <linearGradient id="facet-left" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#16181B" stopOpacity="0.95" />
-                  <stop offset="100%" stopColor="#0E0F11" stopOpacity="0.95" />
+                <linearGradient id="iso-right-vol" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="#16181B" stopOpacity="0.98" />
+                  <stop offset="100%" stopColor="#0A0B0D" stopOpacity="0.98" />
                 </linearGradient>
 
-                <linearGradient id="facet-right" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#141618" stopOpacity="0.95" />
-                  <stop offset="100%" stopColor="#0B0C0D" stopOpacity="0.95" />
-                </linearGradient>
-
-                <linearGradient id="core-glow" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#D88762" stopOpacity="0.22" />
-                  <stop offset="100%" stopColor="#D88762" stopOpacity="0.05" />
+                <linearGradient id="core-glow-vol" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#D88762" stopOpacity="0.32" />
+                  <stop offset="100%" stopColor="#D88762" stopOpacity="0.06" />
                 </linearGradient>
               </defs>
 
               {/* =========================================================
-                  THE CONTINUOUS CONNECTING PATH (The Storytelling Element)
-                  Deliberate, smooth route passing cleanly through the 3 stages:
-                  Source Head (210, 175) -> Build Core (560, 207) -> Production (850, 202)
+                  CONNECTING INFRASTRUCTURE WIRING (Rendered Behind Geometry)
+                  Leg 1: Source -> Build Engine Conduit (Burnt Orange #D88762)
+                  Leg 2: Build Engine -> Production Conduit (Muted Green #83B69A)
                   ========================================================= */}
               
-              {/* Background structural conduit line */}
+              {/* Leg 1: Source to Build Engine Conduit (Burnt Orange) */}
               <path
-                d="M 210,175 C 310,175 390,205 470,205 L 560,207 L 650,205 C 730,205 800,202 850,202"
-                stroke="#2A2E31"
-                strokeWidth="2.5"
-                strokeDasharray="4 4"
+                d="M 270,205 C 345,205 375,320 450,320"
+                stroke="#3D4245"
+                strokeWidth="1.2"
+                strokeDasharray="3 3"
                 fill="none"
               />
-
-              {/* Active deployment route: Burnt orange transitioning to green */}
               <path
-                d="M 210,175 C 310,175 390,205 470,205 L 560,207 L 650,205 C 730,205 800,202 850,202"
-                stroke="url(#desktop-pipeline-gradient)"
+                id="source-to-build-path"
+                d="M 270,205 C 345,205 375,320 450,320"
+                stroke="#D88762"
                 strokeWidth="2"
                 strokeLinecap="round"
-                strokeLinejoin="round"
                 fill="none"
               />
+              {/* Outlined Junction Node on Leg 1 */}
+              <circle cx="360" cy="262.5" r="3.5" fill="#121416" stroke="#D88762" strokeWidth="1.4" />
+              <circle cx="360" cy="262.5" r="1.5" fill="#D88762" />
+
+              {/* Subtle Signal Motion Packet: Source to Build (respects prefers-reduced-motion) */}
+              <circle className="motion-reduce:hidden" r="3.5" fill="#D88762">
+                <animateMotion
+                  path="M 270,205 C 345,205 375,320 450,320"
+                  dur="3s"
+                  repeatCount="indefinite"
+                />
+              </circle>
+
+              {/* Leg 2: Build Engine to Production Conduit (Muted Green) */}
+              <path
+                d="M 730,320 C 790,320 815,365 875,365"
+                stroke="#3D4245"
+                strokeWidth="1.2"
+                strokeDasharray="3 3"
+                fill="none"
+              />
+              <path
+                id="build-to-prod-path"
+                d="M 730,320 C 790,320 815,365 875,365"
+                stroke="#83B69A"
+                strokeWidth="2"
+                strokeLinecap="round"
+                fill="none"
+              />
+              {/* Outlined Junction Node on Leg 2 */}
+              <circle cx="802.5" cy="342.5" r="3.5" fill="#121416" stroke="#83B69A" strokeWidth="1.4" />
+              <circle cx="802.5" cy="342.5" r="1.5" fill="#83B69A" />
+
+              {/* Subtle Signal Motion Packet: Build to Production (respects prefers-reduced-motion) */}
+              <circle className="motion-reduce:hidden" r="3.5" fill="#83B69A">
+                <animateMotion
+                  path="M 730,320 C 790,320 815,365 875,365"
+                  dur="3s"
+                  repeatCount="indefinite"
+                />
+              </circle>
 
               {/* =========================================================
-                  STAGE 1: SOURCE — THE REPOSITORY (Left)
+                  STAGE 01: SOURCE — THE REPOSITORY MODULE (Upper Left)
                   ========================================================= */}
-              <g id="desktop-source">
-                {/* Stage Header */}
-                <text x="60" y="75" fontFamily="var(--font-geist-mono), monospace" fontSize="11" fill="#777D7D" letterSpacing="0.14em">
+              <g id="scene-source">
+                {/* Stage 1 Heading: Aligned above Source module (X = 70) */}
+                <text x="70" y="48" fontFamily="var(--font-geist-mono), monospace" fontSize="11" fill="#A6AAA9" letterSpacing="0.12em">
                   01 / SOURCE
                 </text>
-                <text x="60" y="102" fontFamily="var(--font-space-grotesk), sans-serif" fontSize="22" fontWeight="500" fill="#F1F0EC">
+                <text x="70" y="74" fontFamily="var(--font-space-grotesk), sans-serif" fontSize="23" fontWeight="500" fill="#F1F0EC" letterSpacing="-0.02em">
                   my-project
                 </text>
-                <text x="60" y="124" fontFamily="var(--font-geist-mono), monospace" fontSize="12" fill="#A6AAA9">
+                <text x="70" y="96" fontFamily="var(--font-geist-mono), monospace" fontSize="12" fill="#777D7D">
                   main · 8f3a21c
                 </text>
 
-                {/* Isometric Chassis Base Plate */}
+                {/* 30-Degree Isometric Repository Chassis Foundation */}
                 <polygon
-                  points="160,180 230,220 160,260 90,220"
-                  fill="url(#facet-top)"
-                  stroke="#343A3D"
-                  strokeWidth="1.2"
-                />
-                {/* Extrusion Rim */}
-                <polygon
-                  points="90,220 160,260 160,270 90,230"
-                  fill="url(#facet-left)"
-                  stroke="#343A3D"
-                  strokeWidth="1.2"
+                  points="175,150 270,205 175,260 80,205"
+                  fill="url(#iso-top-vol)"
+                  stroke="#F1F0EC"
+                  strokeWidth="1.8"
+                  strokeLinejoin="round"
                 />
                 <polygon
-                  points="160,260 230,220 230,230 160,270"
-                  fill="url(#facet-right)"
-                  stroke="#343A3D"
+                  points="80,205 175,260 175,310 80,255"
+                  fill="url(#iso-left-vol)"
+                  stroke="#F1F0EC"
+                  strokeWidth="1.8"
+                  strokeLinejoin="round"
+                />
+                <polygon
+                  points="175,260 270,205 270,255 175,310"
+                  fill="url(#iso-right-vol)"
+                  stroke="#F1F0EC"
+                  strokeWidth="1.8"
+                  strokeLinejoin="round"
+                />
+
+                {/* Recessed Top Bay */}
+                <polygon
+                  points="175,164 256,205 175,246 94,205"
+                  fill="#0D0F11"
+                  stroke="#A6AAA9"
                   strokeWidth="1.2"
                 />
 
-                {/* Chassis Internal Grid & Alignment Brackets */}
-                <line x1="125" y1="200" x2="195" y2="240" stroke="#222629" strokeWidth="1" />
-                <line x1="195" y1="200" x2="125" y2="240" stroke="#222629" strokeWidth="1" />
+                {/* Front Panel Cooling Ventilation Micro-Slits */}
+                <line x1="95" y1="222" x2="162" y2="260" stroke="#3D4245" strokeWidth="1.2" />
+                <line x1="95" y1="232" x2="162" y2="270" stroke="#3D4245" strokeWidth="1.2" />
+                <line x1="95" y1="242" x2="162" y2="280" stroke="#3D4245" strokeWidth="1.2" />
 
-                {/* Rising Git Commit Tree Linework */}
-                {/* Base commit */}
-                <circle cx="140" cy="225" r="3" fill="#121416" stroke="#44494C" strokeWidth="1.5" />
+                {/* Precision Corner Screws */}
+                <circle cx="94" cy="205" r="1.5" fill="#A6AAA9" />
+                <circle cx="256" cy="205" r="1.5" fill="#A6AAA9" />
+                <circle cx="175" cy="246" r="1.5" fill="#A6AAA9" />
+                <circle cx="175" cy="164" r="1.5" fill="#A6AAA9" />
+
+                {/* Main Branch Bus Circuit */}
+                <path d="M 115,205 L 155,195 L 195,185 L 270,205" stroke="#D88762" strokeWidth="1.6" fill="none" />
                 
-                {/* Feature branch (muted dashed) */}
-                <path d="M 140,225 C 120,215 120,200 135,190" stroke="#343A3D" strokeWidth="1" strokeDasharray="2 2" fill="none" />
-                <circle cx="135" cy="190" r="2.5" fill="#121416" stroke="#777D7D" strokeWidth="1" />
+                {/* Commit Pads */}
+                <circle cx="115" cy="205" r="3.5" fill="#121416" stroke="#A6AAA9" strokeWidth="1.2" />
+                <circle cx="155" cy="195" r="4" fill="#121416" stroke="#D88762" strokeWidth="1.4" />
+                
+                {/* HEAD Commit Node with Subtle Halo */}
+                <circle cx="195" cy="185" r="5.5" fill="#D88762" stroke="#F1F0EC" strokeWidth="1.8" />
+                <circle cx="195" cy="185" r="9.5" stroke="#D88762" strokeOpacity="0.4" strokeWidth="1" strokeDasharray="2 2" fill="none" />
 
-                {/* Main branch (active burnt orange) */}
-                <path d="M 140,225 C 160,215 160,195 160,185 L 210,175" stroke="#D88762" strokeWidth="1.6" fill="none" />
-                <circle cx="160" cy="185" r="3.5" fill="#121416" stroke="#D88762" strokeWidth="1.5" />
+                {/* Output Coupling Flange at Chassis Vertex (270, 205) */}
+                <ellipse cx="270" cy="205" rx="4.5" ry="7" fill="#1A1D20" stroke="#F1F0EC" strokeWidth="1.8" />
+                <circle cx="270" cy="205" r="2.5" fill="#D88762" />
 
-                {/* Head Commit Node (Origin Connection Port) */}
-                <circle cx="210" cy="175" r="4.5" fill="#D88762" stroke="#F1F0EC" strokeWidth="1.4" />
-                <circle cx="210" cy="175" r="8" stroke="#D88762" strokeOpacity="0.3" strokeWidth="1" fill="none" />
-
-                {/* Technical Callout Bracket */}
-                <line x1="218" y1="175" x2="235" y2="175" stroke="#44494C" strokeWidth="1" />
-                <text x="242" y="172" fontFamily="var(--font-geist-mono), monospace" fontSize="11" fill="#F1F0EC" fontWeight="500">
+                {/* HEAD & Commit Metadata Annotation (Positioned Cleanly Outside Geometry) */}
+                <text x="195" y="130" textAnchor="middle" fontFamily="var(--font-space-grotesk), sans-serif" fontSize="11" fontWeight="600" fill="#F1F0EC" letterSpacing="0.06em">
                   HEAD
                 </text>
-                <text x="242" y="186" fontFamily="var(--font-geist-mono), monospace" fontSize="10" fill="#777D7D">
-                  git push
+                <text x="195" y="145" textAnchor="middle" fontFamily="var(--font-geist-mono), monospace" fontSize="9.5" fill="#A6AAA9" letterSpacing="0.04em">
+                  COMMIT 8F3A21C
                 </text>
+                <line x1="195" y1="151" x2="195" y2="172" stroke="#45494B" strokeWidth="1" />
               </g>
 
               {/* =========================================================
-                  STAGE 2: BUILD — JETWAY BUILD CORE (The Centerpiece)
-                  Substantially larger visual weight, commanding silhouette
+                  STAGE 02: BUILD ENGINE — JETWAY BUILD CORE (Monumental Anchor)
                   ========================================================= */}
-              <g id="desktop-build">
-                {/* Centerpiece Header */}
-                <text x="560" y="60" textAnchor="middle" fontFamily="var(--font-geist-mono), monospace" fontSize="11" fill="#D88762" letterSpacing="0.14em">
+              <g id="scene-build">
+                {/* Stage 2 Heading: Centered above Build Core (X = 590) */}
+                <text x="590" y="75" textAnchor="middle" fontFamily="var(--font-geist-mono), monospace" fontSize="11" fill="#D88762" letterSpacing="0.12em">
                   02 / BUILD ENGINE
                 </text>
-                <text x="560" y="88" textAnchor="middle" fontFamily="var(--font-space-grotesk), sans-serif" fontSize="24" fontWeight="500" fill="#F1F0EC">
+                <text x="590" y="102" textAnchor="middle" fontFamily="var(--font-space-grotesk), sans-serif" fontSize="25" fontWeight="500" fill="#F1F0EC" letterSpacing="-0.02em">
                   Jetway Build Core
                 </text>
-                <text x="560" y="108" textAnchor="middle" fontFamily="var(--font-geist-mono), monospace" fontSize="12" fill="#777D7D">
+                <text x="590" y="124" textAnchor="middle" fontFamily="var(--font-geist-mono), monospace" fontSize="12" fill="#777D7D">
                   Hermetic container pipeline
                 </text>
 
-                {/* Foundation Base Platform (Level 1) */}
+                {/* Base Level: Substructure Foundation Platform (30° Isometric) */}
                 <polygon
-                  points="560,240 650,280 560,320 470,280"
-                  fill="url(#facet-top)"
-                  stroke="#343A3D"
-                  strokeWidth="1.2"
-                />
-                <polygon
-                  points="470,280 560,320 560,332 470,292"
-                  fill="url(#facet-left)"
-                  stroke="#343A3D"
-                  strokeWidth="1.2"
-                />
-                <polygon
-                  points="560,320 650,280 650,292 560,332"
-                  fill="url(#facet-right)"
-                  stroke="#343A3D"
-                  strokeWidth="1.2"
-                />
-
-                {/* Base Platform Structural Grid */}
-                <line x1="515" y1="260" x2="605" y2="300" stroke="#222629" strokeWidth="1" />
-                <line x1="605" y1="260" x2="515" y2="300" stroke="#222629" strokeWidth="1" />
-
-                {/* Central Transformation Core Chamber (Level 2) */}
-                <polygon
-                  points="560,175 615,205 560,235 505,205"
-                  fill="url(#facet-top)"
-                  stroke="#44494C"
-                  strokeWidth="1.5"
-                />
-                <polygon
-                  points="505,205 560,235 560,265 505,235"
-                  fill="url(#facet-left)"
-                  stroke="#44494C"
-                  strokeWidth="1.5"
-                />
-                <polygon
-                  points="560,235 615,205 615,235 560,265"
-                  fill="url(#facet-right)"
-                  stroke="#44494C"
-                  strokeWidth="1.5"
-                />
-
-                {/* Active Transformation Core Aperture in Burnt Orange */}
-                <polygon
-                  points="560,190 595,207 560,224 525,207"
-                  fill="url(#core-glow)"
-                  stroke="#D88762"
+                  points="590,240 730,320 590,400 450,320"
+                  fill="url(#iso-top-vol)"
+                  stroke="#F1F0EC"
                   strokeWidth="1.8"
+                  strokeLinejoin="round"
                 />
-                {/* Precision Core Crosshair */}
-                <line x1="545" y1="207" x2="575" y2="207" stroke="#D88762" strokeWidth="1.2" />
-                <line x1="560" y1="198" x2="560" y2="216" stroke="#D88762" strokeWidth="1.2" />
-                <circle cx="560" cy="207" r="2.5" fill="#D88762" />
-
-                {/* Pipeline Entry Port (470, 205) & Exit Port (650, 205) */}
-                <circle cx="470" cy="205" r="4.5" fill="#121416" stroke="#D88762" strokeWidth="1.5" />
-                <circle cx="650" cy="205" r="4.5" fill="#121416" stroke="#D88762" strokeWidth="1.5" />
-
-                {/* Floating Upper Alignment Canopy (Level 3) */}
                 <polygon
-                  points="560,130 600,150 560,170 520,150"
-                  fill="#181B1E"
-                  fillOpacity="0.8"
-                  stroke="#FFFFFF"
-                  strokeOpacity="0.45"
-                  strokeWidth="1.2"
+                  points="450,320 590,400 590,445 450,365"
+                  fill="url(#iso-left-vol)"
+                  stroke="#F1F0EC"
+                  strokeWidth="1.8"
+                  strokeLinejoin="round"
                 />
-                {/* Vertical Laser / Precision Guide Rays */}
-                <line x1="520" y1="150" x2="505" y2="205" stroke="#343A3D" strokeWidth="0.8" strokeDasharray="2 3" />
-                <line x1="600" y1="150" x2="615" y2="205" stroke="#343A3D" strokeWidth="0.8" strokeDasharray="2 3" />
-                <line x1="560" y1="170" x2="560" y2="235" stroke="#343A3D" strokeWidth="0.8" strokeDasharray="2 3" />
+                <polygon
+                  points="590,400 730,320 730,365 590,445"
+                  fill="url(#iso-right-vol)"
+                  stroke="#F1F0EC"
+                  strokeWidth="1.8"
+                  strokeLinejoin="round"
+                />
+
+                {/* Substructure Cooling Ventilation Micro-Fins */}
+                <line x1="476" y1="342" x2="476" y2="378" stroke="#3D4245" strokeWidth="1.2" />
+                <line x1="506" y1="358" x2="506" y2="395" stroke="#3D4245" strokeWidth="1.2" />
+                <line x1="536" y1="375" x2="536" y2="412" stroke="#3D4245" strokeWidth="1.2" />
+                <line x1="644" y1="375" x2="644" y2="412" stroke="#3D4245" strokeWidth="1.2" />
+                <line x1="674" y1="358" x2="674" y2="395" stroke="#3D4245" strokeWidth="1.2" />
+                <line x1="704" y1="342" x2="704" y2="378" stroke="#3D4245" strokeWidth="1.2" />
+
+                {/* Mid Level: Upper Integrated Core Plinth (No awkward detached lines) */}
+                <polygon
+                  points="590,215 680,267 590,319 500,267"
+                  fill="url(#iso-top-vol)"
+                  stroke="#F1F0EC"
+                  strokeWidth="1.6"
+                  strokeLinejoin="round"
+                />
+                <polygon
+                  points="500,267 590,319 590,354 500,302"
+                  fill="url(#iso-left-vol)"
+                  stroke="#A6AAA9"
+                  strokeWidth="1.2"
+                  strokeLinejoin="round"
+                />
+                <polygon
+                  points="590,319 680,267 680,302 590,354"
+                  fill="url(#iso-right-vol)"
+                  stroke="#A6AAA9"
+                  strokeWidth="1.2"
+                  strokeLinejoin="round"
+                />
+
+                {/* Core Level: Active Burnt-Orange Central Processor Nucleus */}
+                <polygon
+                  points="590,235 645,267 590,299 535,267"
+                  fill="url(#core-glow-vol)"
+                  stroke="#D88762"
+                  strokeWidth="2"
+                  strokeLinejoin="round"
+                />
+                <line x1="560" y1="267" x2="620" y2="267" stroke="#D88762" strokeWidth="1.2" />
+                <line x1="590" y1="250" x2="590" y2="284" stroke="#D88762" strokeWidth="1.2" />
+                <circle cx="590" cy="267" r="3" fill="#D88762" />
+
+                {/* Internal Pipeline Trace (Connecting Left Flange -> Core -> Right Flange) */}
+                <path d="M 450,320 L 535,267 L 645,267 L 730,320" stroke="#D88762" strokeWidth="1.4" strokeDasharray="2.5 2.5" fill="none" />
+
+                {/* Flange Couplings at Platform Vertices */}
+                <circle cx="450" cy="320" r="5.5" fill="#121416" stroke="#F1F0EC" strokeWidth="1.8" />
+                <circle cx="450" cy="320" r="2.5" fill="#D88762" />
+                
+                <circle cx="730" cy="320" r="5.5" fill="#121416" stroke="#F1F0EC" strokeWidth="1.8" />
+                <circle cx="730" cy="320" r="2.5" fill="#83B69A" />
 
                 {/* =====================================================
-                    ORDERED BUILD STEPS SEQUENCE (Cleanly Integrated Below)
-                    Completely clear of the connecting path, no overlap!
+                    BUILD ENGINE TELEMETRY SEQUENCE (Docked Directly Beneath)
                     ===================================================== */}
-                <g transform="translate(425, 360)">
+                <g id="build-timing-list">
                   {/* Step 1: Dependencies resolved */}
-                  <g transform="translate(0, 0)">
-                    <circle cx="6" cy="7" r="3" fill="#121416" stroke="#83B69A" strokeWidth="1.5" />
-                    <text x="18" y="11" fontFamily="var(--font-geist-mono), monospace" fontSize="12" fill="#F1F0EC">
+                  <g>
+                    <circle cx="450" cy="471" r="3" fill="#121416" stroke="#83B69A" strokeWidth="1.6" />
+                    <text x="466" y="475" fontFamily="var(--font-geist-mono), monospace" fontSize="12" fill="#F1F0EC">
                       Dependencies resolved
                     </text>
-                    <text x="220" y="11" fontFamily="var(--font-geist-mono), monospace" fontSize="11" fill="#777D7D">
+                    <text x="730" y="475" textAnchor="end" fontFamily="var(--font-geist-mono), monospace" fontSize="12" fill="#A6AAA9">
                       1.1s
                     </text>
                   </g>
 
-                  {/* Step 2: Application compiled */}
-                  <g transform="translate(0, 24)">
-                    <circle cx="6" cy="7" r="3" fill="#D88762" stroke="#D88762" strokeWidth="1.5" />
-                    <text x="18" y="11" fontFamily="var(--font-geist-mono), monospace" fontSize="12" fill="#F1F0EC">
+                  {/* Step 2: Application compiled (Active Highlighted Step) */}
+                  <g>
+                    <circle cx="450" cy="498" r="3" fill="#D88762" stroke="#D88762" strokeWidth="1.6" />
+                    <text x="466" y="502" fontFamily="var(--font-geist-mono), monospace" fontSize="12" fill="#F1F0EC">
                       Application compiled
                     </text>
-                    <text x="220" y="11" fontFamily="var(--font-geist-mono), monospace" fontSize="11" fill="#D88762">
+                    <text x="730" y="502" textAnchor="end" fontFamily="var(--font-geist-mono), monospace" fontSize="12" fill="#D88762">
                       2.4s
                     </text>
                   </g>
 
                   {/* Step 3: Release prepared */}
-                  <g transform="translate(0, 48)">
-                    <circle cx="6" cy="7" r="3" fill="#121416" stroke="#83B69A" strokeWidth="1.5" />
-                    <text x="18" y="11" fontFamily="var(--font-geist-mono), monospace" fontSize="12" fill="#F1F0EC">
+                  <g>
+                    <circle cx="450" cy="525" r="3" fill="#121416" stroke="#83B69A" strokeWidth="1.6" />
+                    <text x="466" y="529" fontFamily="var(--font-geist-mono), monospace" fontSize="12" fill="#F1F0EC">
                       Release prepared
                     </text>
-                    <text x="220" y="11" fontFamily="var(--font-geist-mono), monospace" fontSize="11" fill="#777D7D">
+                    <text x="730" y="529" textAnchor="end" fontFamily="var(--font-geist-mono), monospace" fontSize="12" fill="#A6AAA9">
                       0.6s
                     </text>
                   </g>
@@ -340,96 +386,177 @@ export function ProductExperience() {
               </g>
 
               {/* =========================================================
-                  STAGE 3: PRODUCTION — LIVE APPLICATION (Right)
-                  Refined 2.5D perspective browser canvas, clean geometry
+                  STAGE 03: PRODUCTION — LIVE APPLICATION & ISOMETRIC BASE
                   ========================================================= */}
-              <g id="desktop-production">
-                {/* Stage Header */}
-                <text x="850" y="75" fontFamily="var(--font-geist-mono), monospace" fontSize="11" fill="#83B69A" letterSpacing="0.14em">
+              <g id="scene-production">
+                {/* Stage 3 Heading: Aligned above Production illustration (X = 875) */}
+                <text x="875" y="195" fontFamily="var(--font-geist-mono), monospace" fontSize="11" fill="#83B69A" letterSpacing="0.12em">
                   03 / PRODUCTION
                 </text>
-                <text x="850" y="102" fontFamily="var(--font-space-grotesk), sans-serif" fontSize="22" fontWeight="500" fill="#F5F5F3">
+                <text x="875" y="222" fontFamily="var(--font-space-grotesk), sans-serif" fontSize="23" fontWeight="500" fill="#F1F0EC" letterSpacing="-0.02em">
                   my-project.jetway.app
                 </text>
-                <text x="850" y="124" fontFamily="var(--font-geist-mono), monospace" fontSize="12" fill="#A6AAA9">
+                <text x="875" y="244" fontFamily="var(--font-geist-mono), monospace" fontSize="12" fill="#777D7D">
                   Live endpoint · Anycast Edge
                 </text>
 
-                {/* Perspective Browser Window Frame */}
+                {/* Preserved Isometric Geometric Base Underneath Production Browser */}
                 <polygon
-                  points="850,170 1070,190 1070,335 850,315"
-                  fill="url(#facet-top)"
-                  stroke="#44494C"
-                  strokeWidth="1.5"
+                  points="1000,420 1135,470 1000,520 865,470"
+                  fill="url(#iso-top-vol)"
+                  stroke="#A6AAA9"
+                  strokeWidth="1.2"
+                  strokeLinejoin="round"
                 />
-                {/* 3D Depth Extrusion Edge */}
                 <polygon
-                  points="1070,190 1076,186 1076,331 1070,335"
-                  fill="#0E1012"
+                  points="865,470 1000,520 1000,542 865,492"
+                  fill="url(#iso-left-vol)"
+                  stroke="#A6AAA9"
+                  strokeWidth="1.2"
+                  strokeLinejoin="round"
+                />
+                <polygon
+                  points="1000,520 1135,470 1135,492 1000,542"
+                  fill="url(#iso-right-vol)"
+                  stroke="#A6AAA9"
+                  strokeWidth="1.2"
+                  strokeLinejoin="round"
+                />
+
+                {/* Upright Front-Facing Application Viewport Glass Display */}
+                {/* Top Depth Face */}
+                <polygon
+                  points="875,270 888,260 1138,260 1125,270"
+                  fill="#24282B"
+                  stroke="#A6AAA9"
+                  strokeWidth="1.2"
+                  strokeLinejoin="round"
+                />
+                {/* Right Depth Face */}
+                <polygon
+                  points="1125,270 1138,260 1138,430 1125,440"
+                  fill="#0D0F11"
+                  stroke="#A6AAA9"
+                  strokeWidth="1.2"
+                  strokeLinejoin="round"
+                />
+                {/* Front Window Face */}
+                <rect
+                  x="875"
+                  y="270"
+                  width="250"
+                  height="170"
+                  rx="4"
+                  fill="url(#iso-top-vol)"
+                  stroke="#F1F0EC"
+                  strokeWidth="1.8"
+                />
+
+                {/* Window Header Bar */}
+                <line x1="875" y1="304" x2="1125" y2="304" stroke="#343A3D" strokeWidth="1.2" />
+
+                {/* Window Control Dots */}
+                <circle cx="890" cy="287" r="2.5" fill="#A6AAA9" />
+                <circle cx="900" cy="287" r="2.5" fill="#A6AAA9" />
+                <circle cx="910" cy="287" r="2.5" fill="#A6AAA9" />
+
+                {/* Recessed Horizontal URL Address Bar */}
+                <rect
+                  x="926"
+                  y="278"
+                  width="188"
+                  height="20"
+                  rx="3"
+                  fill="#0F1113"
                   stroke="#343A3D"
                   strokeWidth="1"
                 />
-
-                {/* Perspective Header Bar Line */}
-                <line x1="850" y1="202" x2="1070" y2="222" stroke="#2B3033" strokeWidth="1" />
-
-                {/* Window Controls */}
-                <circle cx="865" cy="188" r="2.5" fill="#555A5D" />
-                <circle cx="875" cy="189" r="2.5" fill="#555A5D" />
-                <circle cx="885" cy="190" r="2.5" fill="#555A5D" />
-
-                {/* URL in Perspective Header */}
-                <text x="900" y="194" fontFamily="var(--font-geist-mono), monospace" fontSize="10.5" fill="#A6AAA9">
+                {/* Green TLS Lock Indicator Dot */}
+                <circle cx="939" cy="288" r="2.5" fill="#83B69A" />
+                {/* Deployed Domain Text */}
+                <text x="949" y="292" fontFamily="var(--font-geist-mono), monospace" fontSize="11" fill="#F1F0EC">
                   my-project.jetway.app
                 </text>
 
-                {/* Interface Wireframe: Heading bar */}
-                <line x1="870" y1="230" x2="945" y2="237" stroke="#F1F0EC" strokeWidth="2.5" strokeLinecap="round" />
+                {/* Interface Content: Clean, Purposeful Minimal Elements */}
+                <line x1="892" y1="324" x2="956" y2="324" stroke="#F1F0EC" strokeWidth="2.5" strokeLinecap="round" />
+                <line x1="892" y1="337" x2="936" y2="337" stroke="#45494B" strokeWidth="1.5" strokeLinecap="round" />
 
-                {/* Interface Wireframe: Restrained content rules */}
-                <line x1="870" y1="248" x2="990" y2="259" stroke="#3E4447" strokeWidth="1.5" strokeLinecap="round" />
-                <line x1="870" y1="262" x2="960" y2="270" stroke="#3E4447" strokeWidth="1.5" strokeLinecap="round" />
-
-                {/* Compact Deployment Status Indicator */}
-                <polygon
-                  points="870,282 1010,295 1010,312 870,299"
-                  fill="#131E18"
-                  stroke="#22382C"
+                {/* Content Cards */}
+                <rect
+                  x="892"
+                  y="352"
+                  width="108"
+                  height="42"
+                  rx="3"
+                  fill="#16191C"
+                  stroke="#303438"
                   strokeWidth="1"
                 />
-                <circle cx="884" cy="291" r="3" fill="#83B69A" />
-                <circle cx="884" cy="291" r="6" stroke="#83B69A" strokeOpacity="0.4" strokeWidth="1" fill="none" />
+                <line x1="904" y1="367" x2="948" y2="367" stroke="#F1F0EC" strokeWidth="1.5" strokeLinecap="round" />
+                <line x1="904" y1="379" x2="972" y2="379" stroke="#45494B" strokeWidth="1.2" strokeLinecap="round" />
+
+                <rect
+                  x="1010"
+                  y="352"
+                  width="103"
+                  height="42"
+                  rx="3"
+                  fill="#16191C"
+                  stroke="#303438"
+                  strokeWidth="1"
+                />
+                <line x1="1022" y1="367" x2="1066" y2="367" stroke="#F1F0EC" strokeWidth="1.5" strokeLinecap="round" />
+                <line x1="1022" y1="379" x2="1088" y2="379" stroke="#45494B" strokeWidth="1.2" strokeLinecap="round" />
+
+                {/* Live Status Strip with Unified Horizontal Baseline */}
+                <rect
+                  x="892"
+                  y="405"
+                  width="221"
+                  height="22"
+                  rx="3"
+                  fill="#0F1813"
+                  stroke="#83B69A"
+                  strokeWidth="1"
+                />
+                <circle cx="906" cy="416" r="3" fill="#83B69A" />
+                <circle cx="906" cy="416" r="6" stroke="#83B69A" strokeOpacity="0.4" strokeWidth="1" fill="none" />
                 
-                <text x="896" y="295" fontFamily="var(--font-geist-mono), monospace" fontSize="10" fill="#83B69A" fontWeight="500">
+                <text x="918" y="419" fontFamily="var(--font-geist-mono), monospace" fontSize="10" fill="#83B69A" fontWeight="600" letterSpacing="0.08em">
                   LIVE
                 </text>
-                <text x="930" y="298" fontFamily="var(--font-geist-mono), monospace" fontSize="9.5" fill="#777D7D">
-                  · TLS 1.3 ACTIVE
+                <text x="950" y="419" fontFamily="var(--font-geist-mono), monospace" fontSize="9.5" fill="#F1F0EC">
+                  · TLS ACTIVE
+                </text>
+                <text x="1032" y="419" fontFamily="var(--font-geist-mono), monospace" fontSize="9.5" fill="#A6AAA9">
+                  · ANYCAST
                 </text>
 
-                {/* Route Destination Terminal Anchor Node */}
-                <circle cx="850" cy="202" r="5" fill="#121416" stroke="#83B69A" strokeWidth="1.5" />
-                <circle cx="850" cy="202" r="2" fill="#83B69A" />
+                {/* Destination Intake Flange (Receives Leg 2 Conduit at 875, 365) */}
+                <circle cx="875" cy="365" r="5.5" fill="#121416" stroke="#83B69A" strokeWidth="1.8" />
+                <circle cx="875" cy="365" r="2.5" fill="#83B69A" />
               </g>
 
             </svg>
           </div>
 
           {/* -------------------------------------------------------------
-              MOBILE VIEWPORT (Vertical Sequential 3D Isometric Journey)
-              Reflowed cleanly to avoid horizontal shrinkage or overflow
+              MOBILE / TABLET SCENE: Vertical Reflow Architecture
+              Continuous vertical deployment pipeline with crisp legibility
               ------------------------------------------------------------- */}
-          <div className="lg:hidden w-full relative">
+          <div className="lg:hidden w-full max-w-[460px] mx-auto relative">
             <svg
               className="w-full h-auto select-none overflow-visible"
-              viewBox="0 0 360 680"
+              viewBox="0 0 380 720"
+              preserveAspectRatio="xMidYMid meet"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
-              aria-label="Technical diagram illustrating code deployment journey"
+              aria-label="Vertical technical diagram illustrating code deployment journey"
             >
               <defs>
                 <linearGradient
-                  id="mobile-pipeline-vert"
+                  id="mobile-vert-gradient"
                   x1="0%"
                   y1="0%"
                   x2="0%"
@@ -442,75 +569,87 @@ export function ProductExperience() {
                 </linearGradient>
               </defs>
 
-              {/* Continuous Vertical Connecting Route */}
+              {/* Continuous Vertical Route */}
               <path
-                d="M 40,110 L 40,240 L 40,430 L 40,530"
-                stroke="#24282B"
-                strokeWidth="2"
-                strokeDasharray="4 4"
+                d="M 36,95 L 36,260 L 36,440 L 36,585"
+                stroke="#3D4245"
+                strokeWidth="1.2"
+                strokeDasharray="3 3"
                 fill="none"
               />
               <path
-                d="M 40,110 L 40,240 L 40,430 L 40,530"
-                stroke="url(#mobile-pipeline-vert)"
+                d="M 36,95 L 36,260 L 36,440 L 36,585"
+                stroke="url(#mobile-vert-gradient)"
                 strokeWidth="2"
                 strokeLinecap="round"
                 fill="none"
               />
 
+              {/* Mobile Motion Signal (respects prefers-reduced-motion) */}
+              <circle className="motion-reduce:hidden" r="3.5" fill="#D88762">
+                <animateMotion
+                  path="M 36,95 L 36,260 L 36,440 L 36,585"
+                  dur="4s"
+                  repeatCount="indefinite"
+                />
+              </circle>
+
               {/* STAGE 1: SOURCE */}
-              <g transform="translate(30, 20)">
-                <circle cx="10" cy="90" r="4.5" fill="#D88762" stroke="#FFFFFF" strokeWidth="1.2" />
-                <text x="35" y="45" fontFamily="var(--font-geist-mono), monospace" fontSize="10" fill="#777D7D" letterSpacing="0.1em">
+              <g transform="translate(26, 20)">
+                <circle cx="10" cy="75" r="5" fill="#D88762" stroke="#F1F0EC" strokeWidth="1.5" />
+                <text x="35" y="32" fontFamily="var(--font-geist-mono), monospace" fontSize="10.5" fill="#A6AAA9" letterSpacing="0.1em">
                   01 / SOURCE
                 </text>
-                <text x="35" y="68" fontFamily="var(--font-space-grotesk), sans-serif" fontSize="19" fontWeight="500" fill="#F1F0EC">
+                <text x="35" y="56" fontFamily="var(--font-space-grotesk), sans-serif" fontSize="21" fontWeight="500" fill="#F1F0EC">
                   my-project
                 </text>
-                <text x="35" y="88" fontFamily="var(--font-geist-mono), monospace" fontSize="12" fill="#A6AAA9">
+                <text x="35" y="78" fontFamily="var(--font-geist-mono), monospace" fontSize="12" fill="#777D7D">
                   main · 8f3a21c
                 </text>
-                <text x="35" y="106" fontFamily="var(--font-geist-mono), monospace" fontSize="10.5" fill="#777D7D">
-                  Push to deploy
+                <text x="35" y="98" fontFamily="var(--font-geist-mono), monospace" fontSize="10.5" fill="#D88762">
+                  HEAD · COMMIT 8F3A21C
                 </text>
               </g>
 
               {/* STAGE 2: BUILD ENGINE */}
-              <g transform="translate(30, 230)">
-                <circle cx="10" cy="30" r="4.5" fill="#D88762" />
-                <text x="35" y="15" fontFamily="var(--font-geist-mono), monospace" fontSize="10" fill="#D88762" letterSpacing="0.1em">
+              <g transform="translate(26, 240)">
+                <circle cx="10" cy="20" r="5" fill="#D88762" />
+                <text x="35" y="10" fontFamily="var(--font-geist-mono), monospace" fontSize="10.5" fill="#D88762" letterSpacing="0.1em">
                   02 / BUILD ENGINE
                 </text>
-                <text x="35" y="38" fontFamily="var(--font-space-grotesk), sans-serif" fontSize="19" fontWeight="500" fill="#F1F0EC">
+                <text x="35" y="34" fontFamily="var(--font-space-grotesk), sans-serif" fontSize="21" fontWeight="500" fill="#F1F0EC">
                   Jetway Build Core
                 </text>
+                <text x="35" y="54" fontFamily="var(--font-geist-mono), monospace" fontSize="12" fill="#777D7D">
+                  Hermetic container pipeline
+                </text>
                 
-                {/* Concise Build Steps Sequence */}
-                <g transform="translate(35, 60)">
+                {/* Build Steps */}
+                <g transform="translate(35, 74)">
                   <g transform="translate(0, 0)">
                     <circle cx="5" cy="6" r="3" fill="#121416" stroke="#83B69A" strokeWidth="1.5" />
-                    <text x="16" y="10" fontFamily="var(--font-geist-mono), monospace" fontSize="12" fill="#F1F0EC">
+                    <text x="18" y="10" fontFamily="var(--font-geist-mono), monospace" fontSize="12" fill="#F1F0EC">
                       Dependencies resolved
                     </text>
-                    <text x="210" y="10" fontFamily="var(--font-geist-mono), monospace" fontSize="11" fill="#777D7D">
+                    <text x="235" y="10" textAnchor="end" fontFamily="var(--font-geist-mono), monospace" fontSize="11.5" fill="#A6AAA9">
                       1.1s
                     </text>
                   </g>
-                  <g transform="translate(0, 26)">
+                  <g transform="translate(0, 28)">
                     <circle cx="5" cy="6" r="3" fill="#D88762" stroke="#D88762" strokeWidth="1.5" />
-                    <text x="16" y="10" fontFamily="var(--font-geist-mono), monospace" fontSize="12" fill="#F1F0EC">
+                    <text x="18" y="10" fontFamily="var(--font-geist-mono), monospace" fontSize="12" fill="#F1F0EC">
                       Application compiled
                     </text>
-                    <text x="210" y="10" fontFamily="var(--font-geist-mono), monospace" fontSize="11" fill="#D88762">
+                    <text x="235" y="10" textAnchor="end" fontFamily="var(--font-geist-mono), monospace" fontSize="11.5" fill="#D88762">
                       2.4s
                     </text>
                   </g>
-                  <g transform="translate(0, 52)">
+                  <g transform="translate(0, 56)">
                     <circle cx="5" cy="6" r="3" fill="#121416" stroke="#83B69A" strokeWidth="1.5" />
-                    <text x="16" y="10" fontFamily="var(--font-geist-mono), monospace" fontSize="12" fill="#F1F0EC">
+                    <text x="18" y="10" fontFamily="var(--font-geist-mono), monospace" fontSize="12" fill="#F1F0EC">
                       Release prepared
                     </text>
-                    <text x="210" y="10" fontFamily="var(--font-geist-mono), monospace" fontSize="11" fill="#777D7D">
+                    <text x="235" y="10" textAnchor="end" fontFamily="var(--font-geist-mono), monospace" fontSize="11.5" fill="#A6AAA9">
                       0.6s
                     </text>
                   </g>
@@ -518,19 +657,19 @@ export function ProductExperience() {
               </g>
 
               {/* STAGE 3: PRODUCTION */}
-              <g transform="translate(30, 480)">
-                <circle cx="10" cy="50" r="5" fill="#83B69A" stroke="#FFFFFF" strokeWidth="1.2" />
-                <text x="35" y="15" fontFamily="var(--font-geist-mono), monospace" fontSize="10" fill="#83B69A" letterSpacing="0.1em">
+              <g transform="translate(26, 510)">
+                <circle cx="10" cy="75" r="5" fill="#83B69A" stroke="#F1F0EC" strokeWidth="1.5" />
+                <text x="35" y="24" fontFamily="var(--font-geist-mono), monospace" fontSize="10.5" fill="#83B69A" letterSpacing="0.1em">
                   03 / PRODUCTION
                 </text>
-                <text x="35" y="38" fontFamily="var(--font-space-grotesk), sans-serif" fontSize="19" fontWeight="500" fill="#F5F5F3">
+                <text x="35" y="48" fontFamily="var(--font-space-grotesk), sans-serif" fontSize="21" fontWeight="500" fill="#F1F0EC">
                   my-project.jetway.app
                 </text>
-                <text x="35" y="58" fontFamily="var(--font-geist-mono), monospace" fontSize="11.5" fill="#83B69A">
-                  ● Live · Anycast Edge
+                <text x="35" y="70" fontFamily="var(--font-geist-mono), monospace" fontSize="12" fill="#777D7D">
+                  Live endpoint · Anycast Edge
                 </text>
-                <text x="35" y="76" fontFamily="var(--font-geist-mono), monospace" fontSize="10.5" fill="#777D7D">
-                  TLS 1.3 Active · 0ms cutover
+                <text x="35" y="94" fontFamily="var(--font-geist-mono), monospace" fontSize="11" fill="#83B69A" fontWeight="500">
+                  ● LIVE · TLS ACTIVE · ANYCAST
                 </text>
               </g>
             </svg>
