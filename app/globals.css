@@ -1,0 +1,307 @@
+@import "tailwindcss";
+
+/* -------------------------------------------------------------------------
+   Design System Tokens & Theme Configuration
+   Visual Identity: Dark Slate + Soft White + Burnt Orange
+   ------------------------------------------------------------------------- */
+
+@theme {
+  /* Fonts */
+  --font-sans: var(--font-space-grotesk), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Background Colors */
+  --color-bg-main: #121416;
+  --color-bg-secondary: #191C1F;
+
+  /* Surface Colors */
+  --color-surface-card: #202427;
+  --color-surface-elevated: #292E32;
+
+  /* Typography Colors */
+  --color-text-primary: #F1F0EC;
+  --color-text-secondary: #A6AAA9;
+  --color-text-muted: #777D7D;
+
+  /* Border Colors */
+  --color-border-default: #343A3D;
+  --color-border-subtle: #292E31;
+
+  /* Brand Accent Colors (Burnt Orange) */
+  --color-accent-orange: #D88762;
+  --color-accent-orange-hover: #E39A76;
+
+  /* Semantic Colors */
+  --color-semantic-success: #83B69A;
+  --color-semantic-warning: #D6AD72;
+  --color-semantic-error: #D77D7D;
+
+  /* Aliased Color Convenience Tokens */
+  --color-card: #202427;
+  --color-elevated: #292E32;
+  --color-primary: #F1F0EC;
+  --color-secondary: #A6AAA9;
+  --color-muted: #777D7D;
+  --color-accent: #D88762;
+  --color-accent-hover: #E39A76;
+  --color-success: #83B69A;
+  --color-warning: #D6AD72;
+  --color-error: #D77D7D;
+
+  /* Component Radius Tokens */
+  --radius-control: 6px;
+  --radius-button: 8px;
+  --radius-input: 8px;
+  --radius-card: 10px;
+  --radius-panel: 14px;
+  --radius-pill: 9999px;
+
+  /* Layout Constants */
+  --width-container: 1200px;
+  --height-navbar: 72px;
+
+  /* Spacing Scale Tokens */
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-6: 24px;
+  --spacing-8: 32px;
+  --spacing-12: 48px;
+  --spacing-16: 64px;
+  --spacing-24: 96px;
+  --spacing-32: 128px;
+}
+
+/* -------------------------------------------------------------------------
+   CSS Custom Properties (Accessible directly across plain CSS & JS)
+   ------------------------------------------------------------------------- */
+:root {
+  /* Colors */
+  --bg-main: #121416;
+  --bg-secondary: #191C1F;
+  --surface-card: #202427;
+  --surface-elevated: #292E32;
+
+  --text-primary: #F1F0EC;
+  --text-secondary: #A6AAA9;
+  --text-muted: #777D7D;
+
+  --border-default: #343A3D;
+  --border-subtle: #292E31;
+
+  --accent-orange: #D88762;
+  --accent-orange-hover: #E39A76;
+
+  --color-success: #83B69A;
+  --color-warning: #D6AD72;
+  --color-error: #D77D7D;
+
+  /* Component Radii */
+  --radius-control: 6px;
+  --radius-button: 8px;
+  --radius-input: 8px;
+  --radius-card: 10px;
+  --radius-panel: 14px;
+  --radius-pill: 9999px;
+
+  /* Layout Conventions */
+  --max-content-width: 1200px;
+  --navbar-height: 72px;
+  --pad-desktop: 48px;
+  --pad-tablet: 32px;
+  --pad-mobile: 20px;
+
+  /* Spacing Scale */
+  --space-4: 4px;
+  --space-8: 8px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-48: 48px;
+  --space-64: 64px;
+  --space-96: 96px;
+  --space-128: 128px;
+
+  /* Color Scheme */
+  color-scheme: dark;
+}
+
+/* -------------------------------------------------------------------------
+   Global Reset & Base Defaults
+   ------------------------------------------------------------------------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  font-family: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  font-family: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Selection */
+::selection {
+  background-color: rgba(216, 135, 98, 0.28);
+  color: #F1F0EC;
+}
+
+/* Accessible Focus-Visible */
+:focus-visible {
+  outline: 2px solid var(--accent-orange);
+  outline-offset: 2px;
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Typography Tokens & Conventions
+   ------------------------------------------------------------------------- */
+
+/* Hero headline: 76px, weight 500 */
+.type-hero {
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-size: clamp(40px, 6vw, 76px);
+  line-height: 1.06;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+}
+
+/* Section heading: 48px, weight 500 */
+.type-section {
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-size: clamp(30px, 4vw, 48px);
+  line-height: 1.15;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+}
+
+/* Page heading: 32px, weight 600 */
+.type-page {
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-size: 32px;
+  line-height: 1.25;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* Subsection heading: 24px, weight 500 */
+.type-subsection {
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-size: 24px;
+  line-height: 1.3;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+}
+
+/* Card heading: 18px, weight 600 */
+.type-card {
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-size: 18px;
+  line-height: 1.4;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* Large body text: 16px, weight 400 */
+.type-body-lg {
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  font-weight: 400;
+  letter-spacing: normal;
+}
+
+/* Standard body text: 14–15px, weight 400 */
+.type-body {
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  font-weight: 400;
+  letter-spacing: normal;
+}
+
+/* Navigation: 14px, weight 500 */
+.type-nav {
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+}
+
+/* Button text: 13px, weight 600 */
+.type-btn {
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+  font-weight: 600;
+  letter-spacing: 0.005em;
+}
+
+/* Technical metadata: 11–12px */
+.type-meta {
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
+/* Code and deployment logs: 12–13px in Geist Mono */
+.type-code {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 12.5px;
+  line-height: 1.5;
+  font-weight: 400;
+  letter-spacing: -0.005em;
+}
+
+/* -------------------------------------------------------------------------
+   Layout Conventions
+   ------------------------------------------------------------------------- */
+.layout-container {
+  width: 100%;
+  max-width: var(--max-content-width);
+  margin-inline: auto;
+  padding-inline: var(--pad-mobile);
+}
+
+@media (min-width: 768px) {
+  .layout-container {
+    padding-inline: var(--pad-tablet);
+  }
+}
+
+@media (min-width: 1024px) {
+  .layout-container {
+    padding-inline: var(--pad-desktop);
+  }
+}
