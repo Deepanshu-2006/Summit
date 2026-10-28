@@ -62,7 +62,7 @@ export function GettingStarted() {
           {/* Section Headline */}
           <h2
             id="getting-started-heading"
-            className="font-sans text-[36px] sm:text-[46px] lg:text-[54px] font-medium leading-[1.06] tracking-[-0.035em] text-[#F1F0EC] mb-5"
+            className="font-sans text-[36px] sm:text-[46px] lg:text-[54px] font-medium leading-[1.06] tracking-[-0.035em] text-[#F5F5F3] mb-5"
           >
             From first commit to first deploy.
           </h2>
@@ -90,12 +90,12 @@ export function GettingStarted() {
             {/* -------------------------------------------------------------
                 STEP 01: Connect your code
                 ------------------------------------------------------------- */}
-            <div className="rounded-[12px] bg-[#16181B] border border-border-default p-6 sm:p-7 flex flex-col justify-between shadow-xl">
+            <div className="rounded-[12px] bg-[#171717] border border-border-default p-6 sm:p-7 flex flex-col justify-between shadow-xl">
               
               {/* Step Header */}
               <div className="space-y-3 mb-6">
                 <div className="flex items-center justify-between">
-                  <div className="w-8 h-8 rounded-[6px] bg-[#191C1F] border border-accent-orange/40 flex items-center justify-center font-mono text-[12px] font-semibold text-accent-orange shadow-sm">
+                  <div className="w-8 h-8 rounded-[6px] bg-[#1D1D1D] border border-accent-orange/40 flex items-center justify-center font-mono text-[12px] font-semibold text-accent-orange shadow-sm">
                     01
                   </div>
                   <span className="font-mono text-[10.5px] text-text-muted uppercase">
@@ -103,7 +103,7 @@ export function GettingStarted() {
                   </span>
                 </div>
 
-                <h3 className="font-sans text-[20px] font-medium text-[#F1F0EC] tracking-tight">
+                <h3 className="font-sans text-[20px] font-medium text-[#F5F5F3] tracking-tight">
                   Start with your repository.
                 </h3>
 
@@ -113,7 +113,7 @@ export function GettingStarted() {
               </div>
 
               {/* Visual Preview: Repository Selector */}
-              <div className="rounded-[9px] bg-[#191C1F] border border-border-default p-4 space-y-3">
+              <div className="rounded-[9px] bg-[#1D1D1D] border border-border-default p-4 space-y-3">
                 <div className="flex items-center justify-between text-[11px] font-mono text-text-muted pb-2 border-b border-border-subtle/70">
                   <span>Import Source</span>
                   <span className="text-semantic-success flex items-center gap-1 font-medium">
@@ -122,10 +122,10 @@ export function GettingStarted() {
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2.5 p-2 rounded-[6px] bg-[#121416] border border-border-subtle">
+                <div className="flex items-center gap-2.5 p-2 rounded-[6px] bg-[#111111] border border-border-subtle">
                   <FolderGit2 className="w-4 h-4 text-accent-orange shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <div className="font-mono text-[12px] font-medium text-[#F1F0EC] truncate">
+                    <div className="font-mono text-[12px] font-medium text-[#F5F5F3] truncate">
                       acme/web-app
                     </div>
                     <div className="flex items-center gap-1.5 text-[10px] font-mono text-text-muted mt-0.5">
@@ -137,7 +137,7 @@ export function GettingStarted() {
 
                 <div className="text-[10px] font-mono text-text-muted flex items-center justify-between pt-1">
                   <span>Latest commit: 8f3a21c</span>
-                  <span className="text-[#F1F0EC]">Ready</span>
+                  <span className="text-[#F5F5F3]">Ready</span>
                 </div>
               </div>
 
@@ -146,12 +146,12 @@ export function GettingStarted() {
             {/* -------------------------------------------------------------
                 STEP 02: Configure your application
                 ------------------------------------------------------------- */}
-            <div className="rounded-[12px] bg-[#16181B] border border-border-default p-6 sm:p-7 flex flex-col justify-between shadow-xl">
+            <div className="rounded-[12px] bg-[#171717] border border-border-default p-6 sm:p-7 flex flex-col justify-between shadow-xl">
               
               {/* Step Header */}
               <div className="space-y-3 mb-6">
                 <div className="flex items-center justify-between">
-                  <div className="w-8 h-8 rounded-[6px] bg-[#191C1F] border border-accent-orange/40 flex items-center justify-center font-mono text-[12px] font-semibold text-accent-orange shadow-sm">
+                  <div className="w-8 h-8 rounded-[6px] bg-[#1D1D1D] border border-accent-orange/40 flex items-center justify-center font-mono text-[12px] font-semibold text-accent-orange shadow-sm">
                     02
                   </div>
                   <span className="font-mono text-[10.5px] text-text-muted uppercase">
@@ -159,7 +159,7 @@ export function GettingStarted() {
                   </span>
                 </div>
 
-                <h3 className="font-sans text-[20px] font-medium text-[#F1F0EC] tracking-tight">
+                <h3 className="font-sans text-[20px] font-medium text-[#F5F5F3] tracking-tight">
                   Set up the essentials.
                 </h3>
 
@@ -169,30 +169,30 @@ export function GettingStarted() {
               </div>
 
               {/* Visual Preview: Configuration Fields */}
-              <div className="rounded-[9px] bg-[#191C1F] border border-border-default p-4 space-y-2.5">
+              <div className="rounded-[9px] bg-[#1D1D1D] border border-border-default p-4 space-y-2.5">
                 <div className="flex items-center justify-between text-[11px] font-mono text-text-muted pb-2 border-b border-border-subtle/70">
                   <div className="flex items-center gap-1.5">
                     <Settings2 className="w-3.5 h-3.5 text-accent-orange" />
-                    <span className="text-[#F1F0EC] font-medium">Build Settings</span>
+                    <span className="text-[#F5F5F3] font-medium">Build Settings</span>
                   </div>
                   <span>Defaults</span>
                 </div>
 
                 {/* Key-Value Config Entries */}
                 <div className="space-y-1.5 font-mono text-[11px]">
-                  <div className="flex items-center justify-between p-1.5 rounded bg-[#121416] border border-border-subtle/70">
+                  <div className="flex items-center justify-between p-1.5 rounded bg-[#111111] border border-border-subtle/70">
                     <span className="text-text-muted">Runtime</span>
-                    <span className="text-[#F1F0EC] font-medium">Next.js / Node 20</span>
+                    <span className="text-[#F5F5F3] font-medium">Next.js / Node 20</span>
                   </div>
 
-                  <div className="flex items-center justify-between p-1.5 rounded bg-[#121416] border border-border-subtle/70">
+                  <div className="flex items-center justify-between p-1.5 rounded bg-[#111111] border border-border-subtle/70">
                     <span className="text-text-muted">Build Command</span>
                     <span className="text-accent-orange">npm run build</span>
                   </div>
 
-                  <div className="flex items-center justify-between p-1.5 rounded bg-[#121416] border border-border-subtle/70">
+                  <div className="flex items-center justify-between p-1.5 rounded bg-[#111111] border border-border-subtle/70">
                     <span className="text-text-muted">Start Command</span>
-                    <span className="text-[#F1F0EC]">npm run start</span>
+                    <span className="text-[#F5F5F3]">npm run start</span>
                   </div>
                 </div>
 
@@ -207,12 +207,12 @@ export function GettingStarted() {
             {/* -------------------------------------------------------------
                 STEP 03: Deploy your application
                 ------------------------------------------------------------- */}
-            <div className="rounded-[12px] bg-[#16181B] border border-border-default p-6 sm:p-7 flex flex-col justify-between shadow-xl">
+            <div className="rounded-[12px] bg-[#171717] border border-border-default p-6 sm:p-7 flex flex-col justify-between shadow-xl">
               
               {/* Step Header */}
               <div className="space-y-3 mb-6">
                 <div className="flex items-center justify-between">
-                  <div className="w-8 h-8 rounded-[6px] bg-[#191C1F] border border-accent-orange/40 flex items-center justify-center font-mono text-[12px] font-semibold text-accent-orange shadow-sm">
+                  <div className="w-8 h-8 rounded-[6px] bg-[#1D1D1D] border border-accent-orange/40 flex items-center justify-center font-mono text-[12px] font-semibold text-accent-orange shadow-sm">
                     03
                   </div>
                   <span className="font-mono text-[10.5px] text-text-muted uppercase">
@@ -220,7 +220,7 @@ export function GettingStarted() {
                   </span>
                 </div>
 
-                <h3 className="font-sans text-[20px] font-medium text-[#F1F0EC] tracking-tight">
+                <h3 className="font-sans text-[20px] font-medium text-[#F5F5F3] tracking-tight">
                   Get ready to go live.
                 </h3>
 
@@ -230,16 +230,16 @@ export function GettingStarted() {
               </div>
 
               {/* Visual Preview: Deployment Cutover & Domain */}
-              <div className="rounded-[9px] bg-[#191C1F] border border-border-default p-4 space-y-3">
+              <div className="rounded-[9px] bg-[#1D1D1D] border border-border-default p-4 space-y-3">
                 <div className="flex items-center justify-between text-[11px] font-mono text-text-muted pb-2 border-b border-border-subtle/70">
                   <div className="flex items-center gap-1.5">
                     <Rocket className="w-3.5 h-3.5 text-accent-orange" />
-                    <span className="text-[#F1F0EC] font-medium">Cutover Ready</span>
+                    <span className="text-[#F5F5F3] font-medium">Cutover Ready</span>
                   </div>
                   <span className="text-semantic-success font-medium">LIVE</span>
                 </div>
 
-                <div className="p-2.5 rounded-[6px] bg-[#121416] border border-border-subtle space-y-1">
+                <div className="p-2.5 rounded-[6px] bg-[#111111] border border-border-subtle space-y-1">
                   <div className="flex items-center justify-between text-[10.5px] font-mono">
                     <span className="text-text-muted">Target Domain</span>
                     <span className="text-semantic-success flex items-center gap-1">
@@ -247,7 +247,7 @@ export function GettingStarted() {
                       <span>200 OK</span>
                     </span>
                   </div>
-                  <div className="font-mono text-[12px] font-medium text-[#F1F0EC] truncate">
+                  <div className="font-mono text-[12px] font-medium text-[#F5F5F3] truncate">
                     web-app.jetway.demo
                   </div>
                 </div>

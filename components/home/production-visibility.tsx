@@ -164,7 +164,7 @@ export function ProductionVisibility() {
           {/* Section Headline */}
           <h2
             id="visibility-heading"
-            className="font-sans text-[36px] sm:text-[46px] lg:text-[54px] font-medium leading-[1.06] tracking-[-0.035em] text-[#F1F0EC] mb-5"
+            className="font-sans text-[36px] sm:text-[46px] lg:text-[54px] font-medium leading-[1.06] tracking-[-0.035em] text-[#F5F5F3] mb-5"
           >
             Know what’s happening. Keep moving forward.
           </h2>
@@ -181,26 +181,26 @@ export function ProductionVisibility() {
             PRIMARY VISUAL: Application Health and Activity Product Interface
             Connected areas: Status Header + Recent Activity + Diagnostic Details
             ================================================================= */}
-        <div className="w-full rounded-[14px] bg-[#16181B] border border-border-default shadow-2xl overflow-hidden">
+        <div className="w-full rounded-[14px] bg-[#171717] border border-border-default shadow-2xl overflow-hidden">
           
           {/* ---------------------------------------------------------------
               AREA A: APPLICATION STATUS HEADER
               Identity, Environment, Operational State, and Latest Release
               --------------------------------------------------------------- */}
-          <div className="px-5 py-4 sm:px-8 sm:py-5 bg-[#191C1F] border-b border-border-subtle flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="px-5 py-4 sm:px-8 sm:py-5 bg-[#1D1D1D] border-b border-border-subtle flex flex-col md:flex-row md:items-center justify-between gap-4">
             
             {/* Application Identifier & Environment */}
             <div className="flex items-center gap-3.5">
-              <div className="w-9 h-9 rounded-[8px] bg-[#202427] border border-border-default flex items-center justify-center text-accent-orange shrink-0">
+              <div className="w-9 h-9 rounded-[8px] bg-[#252525] border border-border-default flex items-center justify-center text-accent-orange shrink-0">
                 <Server className="w-4.5 h-4.5" />
               </div>
               
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-[14px] font-semibold text-[#F1F0EC]">
+                  <span className="font-mono text-[14px] font-semibold text-[#F5F5F3]">
                     my-project
                   </span>
-                  <span className="px-2 py-0.5 rounded-[4px] bg-[#202427] border border-border-subtle text-[10.5px] font-mono text-text-secondary">
+                  <span className="px-2 py-0.5 rounded-[4px] bg-[#252525] border border-border-subtle text-[10.5px] font-mono text-text-secondary">
                     Production
                   </span>
                 </div>
@@ -214,7 +214,7 @@ export function ProductionVisibility() {
 
             {/* Health & Operational Indicator */}
             <div className="flex items-center gap-3 font-mono text-[11.5px] self-start md:self-auto">
-              <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-[5px] bg-[#202427] border border-border-subtle text-text-secondary text-[11px]">
+              <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-[5px] bg-[#252525] border border-border-subtle text-text-secondary text-[11px]">
                 <ShieldCheck className="w-3.5 h-3.5 text-text-muted" />
                 <span>SSL Validated</span>
               </div>
@@ -241,7 +241,7 @@ export function ProductionVisibility() {
               <div className="flex items-center justify-between pb-3 border-b border-border-subtle/70">
                 <div className="flex items-center gap-2">
                   <Activity className="w-4 h-4 text-accent-orange" />
-                  <span className="font-mono text-[12px] font-medium text-[#F1F0EC]">
+                  <span className="font-mono text-[12px] font-medium text-[#F5F5F3]">
                     Recent Activity Timeline
                   </span>
                 </div>
@@ -255,10 +255,10 @@ export function ProductionVisibility() {
                 {RECENT_EVENTS.map((event) => (
                   <div
                     key={event.id}
-                    className="flex items-start gap-3 p-3 rounded-[8px] bg-[#191C1F]/60 border border-border-subtle/60 hover:border-border-default transition-colors"
+                    className="flex items-start gap-3 p-3 rounded-[8px] bg-[#1D1D1D]/60 border border-border-subtle/60 hover:border-border-default transition-colors"
                   >
                     {/* Event Status Dot / Icon */}
-                    <div className="w-6 h-6 rounded-[5px] bg-[#202427] border border-border-subtle flex items-center justify-center shrink-0 mt-0.5">
+                    <div className="w-6 h-6 rounded-[5px] bg-[#252525] border border-border-subtle flex items-center justify-center shrink-0 mt-0.5">
                       {event.type === "release" ? (
                         <CheckCircle2 className="w-3.5 h-3.5 text-semantic-success" />
                       ) : event.type === "health" ? (
@@ -271,7 +271,7 @@ export function ProductionVisibility() {
                     {/* Event Details */}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="font-sans text-[13.5px] font-medium text-[#F1F0EC] truncate">
+                        <span className="font-sans text-[13.5px] font-medium text-[#F5F5F3] truncate">
                           {event.title}
                         </span>
                         <span className="font-mono text-[10.5px] text-text-muted shrink-0">
@@ -292,12 +292,12 @@ export function ProductionVisibility() {
                 AREA C: DIAGNOSTIC DETAILS PANEL (5 cols)
                 Subordinate structured request inspector
                 ------------------------------------------------------------- */}
-            <div className="lg:col-span-5 p-5 sm:p-7 space-y-4 bg-[#141618]">
+            <div className="lg:col-span-5 p-5 sm:p-7 space-y-4 bg-[#171717]">
               
               <div className="flex items-center justify-between pb-3 border-b border-border-subtle/70">
                 <div className="flex items-center gap-2">
                   <FileText className="w-4 h-4 text-accent-orange" />
-                  <span className="font-mono text-[12px] font-medium text-[#F1F0EC]">
+                  <span className="font-mono text-[12px] font-medium text-[#F5F5F3]">
                     Diagnostic Details
                   </span>
                 </div>
@@ -308,7 +308,7 @@ export function ProductionVisibility() {
                     onClick={() => setLogFilter("all")}
                     className={`px-1.5 py-0.5 rounded transition-colors ${
                       logFilter === "all"
-                        ? "bg-[#202427] text-accent-orange font-medium"
+                        ? "bg-[#252525] text-accent-orange font-medium"
                         : "text-text-muted hover:text-text-primary"
                     }`}
                   >
@@ -319,7 +319,7 @@ export function ProductionVisibility() {
                     onClick={() => setLogFilter("http")}
                     className={`px-1.5 py-0.5 rounded transition-colors ${
                       logFilter === "http"
-                        ? "bg-[#202427] text-accent-orange font-medium"
+                        ? "bg-[#252525] text-accent-orange font-medium"
                         : "text-text-muted hover:text-text-primary"
                     }`}
                   >
@@ -330,7 +330,7 @@ export function ProductionVisibility() {
                     onClick={() => setLogFilter("sys")}
                     className={`px-1.5 py-0.5 rounded transition-colors ${
                       logFilter === "sys"
-                        ? "bg-[#202427] text-accent-orange font-medium"
+                        ? "bg-[#252525] text-accent-orange font-medium"
                         : "text-text-muted hover:text-text-primary"
                     }`}
                   >
@@ -344,7 +344,7 @@ export function ProductionVisibility() {
                 {filteredLogs.map((log) => (
                   <div
                     key={log.id}
-                    className="p-2.5 rounded-[6px] bg-[#191C1F] border border-border-subtle/70 flex items-center justify-between gap-2"
+                    className="p-2.5 rounded-[6px] bg-[#1D1D1D] border border-border-subtle/70 flex items-center justify-between gap-2"
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="text-text-muted text-[10px]">
@@ -356,12 +356,12 @@ export function ProductionVisibility() {
                             ? "bg-teal-500/15 text-teal-400"
                             : log.method === "POST"
                             ? "bg-accent-orange/15 text-accent-orange"
-                            : "bg-[#292E31] text-text-muted"
+                            : "bg-[#303030] text-text-muted"
                         }`}
                       >
                         {log.method}
                       </span>
-                      <span className="text-[#F1F0EC] truncate">
+                      <span className="text-[#F5F5F3] truncate">
                         {log.path}
                       </span>
                     </div>
@@ -390,7 +390,7 @@ export function ProductionVisibility() {
           {/* ---------------------------------------------------------------
               PANEL FOOTER: Disclose Sample Data
               --------------------------------------------------------------- */}
-          <div className="px-5 py-3 bg-[#131517] border-t border-border-subtle/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[10.5px] font-mono text-text-muted">
+          <div className="px-5 py-3 bg-[#111111] border-t border-border-subtle/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[10.5px] font-mono text-text-muted">
             <div className="flex items-center gap-1.5">
               <span className="text-accent-orange">◆</span>
               <span>Illustrative production state interface</span>

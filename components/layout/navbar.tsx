@@ -22,7 +22,7 @@ function JetwayLogo({ className = "w-5 h-5" }: { className?: string }) {
       {/* Trailing guide blade in muted tone */}
       <path
         d="M3 4.5L10.5 12L3 19.5H7.5L15 12L7.5 4.5H3Z"
-        fill="#A6AAA9"
+        fill="#B0B0AE"
         fillOpacity="0.4"
       />
       {/* Leading supersonic speed blade in burnt orange */}
@@ -58,7 +58,7 @@ function DropdownPanel({ dropdown, isOpen, onClose, panelId }: DropdownPanelProp
           transition={{ duration: 0.16, ease: "easeOut" }}
           className="absolute top-full left-1/2 -translate-x-1/2 pt-3 z-50 w-[560px] pointer-events-auto"
         >
-          <div className="bg-[#202427] border border-[#292E31] rounded-[9px] shadow-xl shadow-black/40 p-5 overflow-hidden">
+          <div className="bg-[#1D1D1D] border border-[#303030] rounded-[9px] shadow-xl shadow-black/40 p-5 overflow-hidden">
             <div className="grid grid-cols-2 gap-6">
               {dropdown.sections.map((section, sIdx) => (
                 <div key={sIdx} className="space-y-2.5">
@@ -71,9 +71,9 @@ function DropdownPanel({ dropdown, isOpen, onClose, panelId }: DropdownPanelProp
                         <Link
                           href={item.href}
                           onClick={onClose}
-                          className="group block p-2 rounded-[6px] hover:bg-[#292E32]/70 transition-colors duration-[160ms] focus-visible:outline-2 focus-visible:outline-accent-orange"
+                          className="group block p-2 rounded-[6px] hover:bg-[#252525] transition-colors duration-[160ms] focus-visible:outline-2 focus-visible:outline-accent-orange"
                         >
-                          <div className="text-[13.5px] font-medium text-[#F1F0EC] group-hover:text-accent-orange transition-colors duration-[160ms]">
+                          <div className="text-[13.5px] font-medium text-[#F5F5F3] group-hover:text-accent-orange transition-colors duration-[160ms]">
                             {item.label}
                           </div>
                           <p className="text-[12px] text-text-muted group-hover:text-text-secondary mt-0.5 leading-snug line-clamp-1 transition-colors duration-[160ms]">
@@ -89,12 +89,12 @@ function DropdownPanel({ dropdown, isOpen, onClose, panelId }: DropdownPanelProp
 
             {/* Optional Featured Callout */}
             {dropdown.featured && (
-              <div className="mt-4 pt-3.5 border-t border-[#292E31]/60 flex items-center justify-between px-2">
+              <div className="mt-4 pt-3.5 border-t border-[#303030]/60 flex items-center justify-between px-2">
                 <div className="flex items-center gap-2">
                   <span className="px-1.5 py-0.5 rounded-[4px] bg-accent-orange/15 border border-accent-orange/30 text-accent-orange font-mono text-[10px] font-medium">
                     {dropdown.featured.tag}
                   </span>
-                  <span className="text-[12px] font-medium text-[#F1F0EC]">
+                  <span className="text-[12px] font-medium text-[#F5F5F3]">
                     {dropdown.featured.title}
                   </span>
                   <span className="text-[12px] text-text-muted hidden sm:inline">
@@ -155,7 +155,7 @@ function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -4 }}
           transition={{ duration: 0.16, ease: "easeOut" }}
-          className="fixed inset-x-0 top-[72px] bottom-0 bg-[#121416]/98 backdrop-blur-md z-40 lg:hidden overflow-y-auto border-t border-[#292E31] flex flex-col justify-between p-5"
+          className="fixed inset-x-0 top-[72px] bottom-0 bg-[#111111]/98 backdrop-blur-md z-40 lg:hidden overflow-y-auto border-t border-[#303030] flex flex-col justify-between p-5"
         >
           {/* Mobile Links */}
           <div className="space-y-2">
@@ -164,18 +164,18 @@ function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
               return (
                 <div
                   key={item.id}
-                  className="border-b border-[#292E31]/50 pb-2"
+                  className="border-b border-[#303030]/50 pb-2"
                 >
                   <button
                     type="button"
                     onClick={() => toggleSection(item.id)}
                     aria-expanded={isExpanded}
-                    className="w-full flex items-center justify-between py-2.5 text-[15px] font-medium text-[#F1F0EC] focus-visible:outline-2 focus-visible:outline-accent-orange rounded-[6px] text-left"
+                    className="w-full flex items-center justify-between py-2.5 text-[15px] font-medium text-[#F5F5F3] focus-visible:outline-2 focus-visible:outline-accent-orange rounded-[6px] text-left"
                   >
                     <span>{item.label}</span>
                     <ChevronDown
-                      className={`w-4 h-4 text-[#A6AAA9] transition-transform duration-[160ms] ${
-                        isExpanded ? "rotate-180 text-[#F1F0EC]" : ""
+                      className={`w-4 h-4 text-[#B0B0AE] transition-transform duration-[160ms] ${
+                        isExpanded ? "rotate-180 text-[#F5F5F3]" : ""
                       }`}
                       aria-hidden="true"
                     />
@@ -200,7 +200,7 @@ function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
                                 key={subIdx}
                                 href={subItem.href}
                                 onClick={onClose}
-                                className="block py-1.5 text-[13px] text-[#A6AAA9] hover:text-[#F1F0EC] transition-colors duration-[160ms] focus-visible:outline-accent-orange"
+                                className="block py-1.5 text-[13px] text-[#B0B0AE] hover:text-[#F5F5F3] transition-colors duration-[160ms] focus-visible:outline-accent-orange"
                               >
                                 {subItem.label}
                               </Link>
@@ -215,11 +215,11 @@ function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
             })}
 
             {/* Direct Pricing Link */}
-            <div className="border-b border-[#292E31]/50 py-2.5">
+            <div className="border-b border-[#303030]/50 py-2.5">
               <Link
                 href={BRAND.links.pricing}
                 onClick={onClose}
-                className="block text-[15px] font-medium text-[#F1F0EC] hover:text-accent-orange transition-colors duration-[160ms]"
+                className="block text-[15px] font-medium text-[#F5F5F3] hover:text-accent-orange transition-colors duration-[160ms]"
               >
                 Pricing
               </Link>
@@ -227,19 +227,19 @@ function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
           </div>
 
           {/* Bottom Actions */}
-          <div className="pt-6 border-t border-[#292E31] space-y-3 mt-4">
+          <div className="pt-6 border-t border-[#303030] space-y-3 mt-4">
             <div className="flex items-center justify-between gap-4">
               <Link
                 href={BRAND.links.docs}
                 onClick={onClose}
-                className="text-[13px] font-medium text-[#A6AAA9] hover:text-[#F1F0EC] transition-colors duration-[160ms]"
+                className="text-[13px] font-medium text-[#B0B0AE] hover:text-[#F5F5F3] transition-colors duration-[160ms]"
               >
                 Documentation
               </Link>
               <Link
                 href={BRAND.links.login}
                 onClick={onClose}
-                className="text-[13px] font-medium text-[#A6AAA9] hover:text-[#F1F0EC] transition-colors duration-[160ms]"
+                className="text-[13px] font-medium text-[#B0B0AE] hover:text-[#F5F5F3] transition-colors duration-[160ms]"
               >
                 Sign in
               </Link>
@@ -248,7 +248,7 @@ function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
             <Link
               href={BRAND.links.signup}
               onClick={onClose}
-              className="w-full h-[40px] px-4 rounded-[7px] bg-[#D88762] hover:bg-[#E39A76] text-[#121416] text-[13px] font-semibold flex items-center justify-center transition-colors duration-[160ms]"
+              className="w-full h-[40px] px-4 rounded-[7px] bg-[#D88762] hover:bg-[#E39A76] text-[#111111] text-[13px] font-semibold flex items-center justify-center transition-colors duration-[160ms]"
             >
               Get started
             </Link>
@@ -320,8 +320,8 @@ export function Navbar() {
       ref={navContainerRef}
       className={`sticky top-0 z-50 w-full h-[72px] transition-colors duration-[160ms] select-none ${
         isScrolled || isMobileOpen
-          ? "bg-[#121416]/95 border-b border-[#292E31]/70 backdrop-blur-sm"
-          : "bg-[#121416] border-b border-transparent"
+          ? "bg-[#111111]/95 border-b border-[#303030] backdrop-blur-sm"
+          : "bg-[#111111] border-b border-transparent"
       }`}
     >
       <div className="layout-container h-full flex items-center justify-between">
@@ -333,7 +333,7 @@ export function Navbar() {
             aria-label={`${BRAND.name} home`}
           >
             <JetwayLogo className="w-5 h-5 shrink-0" />
-            <span className="text-[20px] font-semibold text-[#F1F0EC] tracking-[-0.02em] font-sans lowercase">
+            <span className="text-[20px] font-semibold text-[#F5F5F3] tracking-[-0.02em] font-sans lowercase">
               {BRAND.name}
             </span>
           </Link>
@@ -360,14 +360,14 @@ export function Navbar() {
                   aria-controls={panelId}
                   className={`inline-flex items-center gap-1.5 text-[13.5px] font-medium transition-colors duration-[160ms] focus-visible:outline-2 focus-visible:outline-accent-orange rounded-[6px] ${
                     isOpen
-                      ? "text-[#F1F0EC]"
-                      : "text-[#A6AAA9] hover:text-[#F1F0EC]"
+                      ? "text-[#F5F5F3]"
+                      : "text-[#B0B0AE] hover:text-[#F5F5F3]"
                   }`}
                 >
                   <span>{dropdown.label}</span>
                   <ChevronDown
                     className={`w-3 h-3 transition-transform duration-[160ms] text-text-muted ${
-                      isOpen ? "rotate-180 text-[#F1F0EC]" : ""
+                      isOpen ? "rotate-180 text-[#F5F5F3]" : ""
                     }`}
                     aria-hidden="true"
                   />
@@ -387,7 +387,7 @@ export function Navbar() {
           {/* Direct Pricing Link */}
           <Link
             href={BRAND.links.pricing}
-            className="text-[13.5px] font-medium text-[#A6AAA9] hover:text-[#F1F0EC] transition-colors duration-[160ms] focus-visible:outline-2 focus-visible:outline-accent-orange rounded-[6px]"
+            className="text-[13.5px] font-medium text-[#B0B0AE] hover:text-[#F5F5F3] transition-colors duration-[160ms] focus-visible:outline-2 focus-visible:outline-accent-orange rounded-[6px]"
           >
             Pricing
           </Link>
@@ -397,21 +397,21 @@ export function Navbar() {
         <div className="hidden lg:flex items-center gap-6 shrink-0">
           <Link
             href={BRAND.links.docs}
-            className="text-[13px] font-medium text-[#A6AAA9] hover:text-[#F1F0EC] transition-colors duration-[160ms] focus-visible:outline-2 focus-visible:outline-accent-orange rounded-[6px]"
+            className="text-[13px] font-medium text-[#B0B0AE] hover:text-[#F5F5F3] transition-colors duration-[160ms] focus-visible:outline-2 focus-visible:outline-accent-orange rounded-[6px]"
           >
             Documentation
           </Link>
 
           <Link
             href={BRAND.links.login}
-            className="text-[13px] font-medium text-[#A6AAA9] hover:text-[#F1F0EC] transition-colors duration-[160ms] focus-visible:outline-2 focus-visible:outline-accent-orange rounded-[6px]"
+            className="text-[13px] font-medium text-[#B0B0AE] hover:text-[#F5F5F3] transition-colors duration-[160ms] focus-visible:outline-2 focus-visible:outline-accent-orange rounded-[6px]"
           >
             Sign in
           </Link>
 
           <Link
             href={BRAND.links.signup}
-            className="inline-flex items-center justify-center h-[40px] px-4 rounded-[7px] bg-[#D88762] hover:bg-[#E39A76] text-[#121416] text-[13px] font-semibold transition-colors duration-[160ms] focus-visible:outline-2 focus-visible:outline-accent-orange focus-visible:outline-offset-2"
+            className="inline-flex items-center justify-center h-[40px] px-4 rounded-[7px] bg-[#D88762] hover:bg-[#E39A76] text-[#111111] text-[13px] font-semibold transition-colors duration-[160ms] focus-visible:outline-2 focus-visible:outline-accent-orange focus-visible:outline-offset-2"
           >
             Get started
           </Link>
@@ -422,7 +422,7 @@ export function Navbar() {
           {/* Accessible primary CTA on tablets (>= 640px) */}
           <Link
             href={BRAND.links.signup}
-            className="hidden sm:inline-flex items-center justify-center h-[38px] px-3.5 rounded-[7px] bg-[#D88762] hover:bg-[#E39A76] text-[#121416] text-[13px] font-semibold transition-colors duration-[160ms]"
+            className="hidden sm:inline-flex items-center justify-center h-[38px] px-3.5 rounded-[7px] bg-[#D88762] hover:bg-[#E39A76] text-[#111111] text-[13px] font-semibold transition-colors duration-[160ms]"
           >
             Get started
           </Link>
@@ -434,7 +434,7 @@ export function Navbar() {
             aria-expanded={isMobileOpen}
             aria-controls="mobile-navigation"
             aria-label={isMobileOpen ? "Close navigation menu" : "Open navigation menu"}
-            className="inline-flex items-center justify-center w-9 h-9 rounded-[7px] text-[#A6AAA9] hover:text-[#F1F0EC] hover:bg-[#202427] border border-[#292E31] transition-colors duration-[160ms] focus-visible:outline-2 focus-visible:outline-accent-orange"
+            className="inline-flex items-center justify-center w-9 h-9 rounded-[7px] text-[#B0B0AE] hover:text-[#F5F5F3] hover:bg-[#1D1D1D] border border-[#303030] transition-colors duration-[160ms] focus-visible:outline-2 focus-visible:outline-accent-orange"
           >
             {isMobileOpen ? (
               <X className="w-4 h-4" aria-hidden="true" />

@@ -67,7 +67,7 @@ export function DeveloperExperience() {
           {/* Section Headline */}
           <h2
             id="devex-heading"
-            className="font-sans text-[36px] sm:text-[46px] lg:text-[54px] font-medium leading-[1.06] tracking-[-0.035em] text-[#F1F0EC] mb-5"
+            className="font-sans text-[36px] sm:text-[46px] lg:text-[54px] font-medium leading-[1.06] tracking-[-0.035em] text-[#F5F5F3] mb-5"
           >
             Built for the way you work.
           </h2>
@@ -90,7 +90,7 @@ export function DeveloperExperience() {
               PILLAR 01: Work with your workflow
               Wide horizontal repository-to-deployment interface
               ------------------------------------------------------------- */}
-          <div className="w-full rounded-[12px] bg-[#16181B] border border-border-default shadow-xl p-6 sm:p-8 lg:p-10 relative overflow-hidden">
+          <div className="w-full rounded-[12px] bg-[#171717] border border-border-default shadow-xl p-6 sm:p-8 lg:p-10 relative overflow-hidden">
             
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
               
@@ -106,7 +106,7 @@ export function DeveloperExperience() {
                   </span>
                 </div>
 
-                <h3 className="font-sans text-[22px] sm:text-[26px] font-medium tracking-tight text-[#F1F0EC]">
+                <h3 className="font-sans text-[22px] sm:text-[26px] font-medium tracking-tight text-[#F5F5F3]">
                   Start with the code you already have.
                 </h3>
 
@@ -118,19 +118,19 @@ export function DeveloperExperience() {
 
               {/* Visual: Horizontal Repository-to-Deployment Action */}
               <div className="lg:col-span-7 w-full">
-                <div className="rounded-[10px] bg-[#191C1F] border border-border-default p-4 sm:p-5 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="rounded-[10px] bg-[#1D1D1D] border border-border-default p-4 sm:p-5 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
                   
                   {/* Repo Details */}
                   <div className="flex items-start gap-3 min-w-0">
-                    <div className="w-8 h-8 rounded-[6px] bg-[#202427] border border-border-subtle flex items-center justify-center shrink-0 mt-0.5">
+                    <div className="w-8 h-8 rounded-[6px] bg-[#252525] border border-border-subtle flex items-center justify-center shrink-0 mt-0.5">
                       <GitBranch className="w-4 h-4 text-accent-orange" />
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-[13px] font-semibold text-[#F1F0EC] truncate">
+                        <span className="font-mono text-[13px] font-semibold text-[#F5F5F3] truncate">
                           acme/jetway-app
                         </span>
-                        <span className="px-1.5 py-0.5 rounded bg-[#202427] border border-border-subtle text-[10px] font-mono text-text-muted">
+                        <span className="px-1.5 py-0.5 rounded bg-[#252525] border border-border-subtle text-[10px] font-mono text-text-muted">
                           main
                         </span>
                       </div>
@@ -152,7 +152,7 @@ export function DeveloperExperience() {
                       <div className="text-[10px] font-mono text-text-muted uppercase">
                         Action
                       </div>
-                      <div className="text-[11.5px] font-mono text-[#F1F0EC] font-medium">
+                      <div className="text-[11.5px] font-mono text-[#F5F5F3] font-medium">
                         Automatic Build
                       </div>
                     </div>
@@ -177,7 +177,7 @@ export function DeveloperExperience() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
             
             {/* PILLAR 02: Understand what happened */}
-            <div className="rounded-[12px] bg-[#16181B] border border-border-default shadow-xl p-6 sm:p-8 flex flex-col justify-between">
+            <div className="rounded-[12px] bg-[#171717] border border-border-default shadow-xl p-6 sm:p-8 flex flex-col justify-between">
               
               <div className="space-y-3 mb-6">
                 <div className="flex items-center gap-2">
@@ -190,7 +190,7 @@ export function DeveloperExperience() {
                   </span>
                 </div>
 
-                <h3 className="font-sans text-[22px] sm:text-[24px] font-medium tracking-tight text-[#F1F0EC]">
+                <h3 className="font-sans text-[22px] sm:text-[24px] font-medium tracking-tight text-[#F5F5F3]">
                   Know where every deployment stands.
                 </h3>
 
@@ -201,11 +201,11 @@ export function DeveloperExperience() {
               </div>
 
               {/* Visual: Clean Activity Timeline Panel */}
-              <div className="rounded-[10px] bg-[#191C1F] border border-border-default p-4 space-y-3">
+              <div className="rounded-[10px] bg-[#1D1D1D] border border-border-default p-4 space-y-3">
                 <div className="flex items-center justify-between pb-2 border-b border-border-subtle text-[11px] font-mono text-text-muted">
                   <div className="flex items-center gap-1.5">
                     <Activity className="w-3.5 h-3.5 text-accent-orange" />
-                    <span className="text-[#F1F0EC] font-medium">Recent Activity</span>
+                    <span className="text-[#F5F5F3] font-medium">Recent Activity</span>
                   </div>
                   <span>Illustrative Events</span>
                 </div>
@@ -215,7 +215,7 @@ export function DeveloperExperience() {
                   <div className="flex items-start gap-2 min-w-0">
                     <span className="w-2 h-2 rounded-full bg-semantic-success mt-1.5 shrink-0" />
                     <div className="min-w-0">
-                      <div className="text-[#F1F0EC] font-medium truncate">
+                      <div className="text-[#F5F5F3] font-medium truncate">
                         Production cutover completed
                       </div>
                       <div className="text-[11px] text-text-muted truncate">
@@ -234,7 +234,7 @@ export function DeveloperExperience() {
                   <div className="flex items-start gap-2 min-w-0">
                     <span className="w-2 h-2 rounded-full bg-teal-400 mt-1.5 shrink-0" />
                     <div className="min-w-0">
-                      <div className="text-[#F1F0EC] font-medium truncate">
+                      <div className="text-[#F5F5F3] font-medium truncate">
                         Branch preview online
                       </div>
                       <div className="text-[11px] text-text-muted truncate">
@@ -253,7 +253,7 @@ export function DeveloperExperience() {
                   <div className="flex items-start gap-2 min-w-0">
                     <span className="w-2 h-2 rounded-full bg-border-default mt-1.5 shrink-0" />
                     <div className="min-w-0">
-                      <div className="text-[#F1F0EC] font-medium truncate">
+                      <div className="text-[#F5F5F3] font-medium truncate">
                         Hermetic build artifact cached
                       </div>
                       <div className="text-[11px] text-text-muted truncate">
@@ -272,7 +272,7 @@ export function DeveloperExperience() {
             </div>
 
             {/* PILLAR 03: Stay in control */}
-            <div className="rounded-[12px] bg-[#16181B] border border-border-default shadow-xl p-6 sm:p-8 flex flex-col justify-between">
+            <div className="rounded-[12px] bg-[#171717] border border-border-default shadow-xl p-6 sm:p-8 flex flex-col justify-between">
               
               <div className="space-y-3 mb-6">
                 <div className="flex items-center gap-2">
@@ -285,7 +285,7 @@ export function DeveloperExperience() {
                   </span>
                 </div>
 
-                <h3 className="font-sans text-[22px] sm:text-[24px] font-medium tracking-tight text-[#F1F0EC]">
+                <h3 className="font-sans text-[22px] sm:text-[24px] font-medium tracking-tight text-[#F5F5F3]">
                   Keep the essentials within reach.
                 </h3>
 
@@ -296,11 +296,11 @@ export function DeveloperExperience() {
               </div>
 
               {/* Visual: Simplified Application Settings Controls */}
-              <div className="rounded-[10px] bg-[#191C1F] border border-border-default p-4 space-y-3">
+              <div className="rounded-[10px] bg-[#1D1D1D] border border-border-default p-4 space-y-3">
                 <div className="flex items-center justify-between pb-2 border-b border-border-subtle text-[11px] font-mono text-text-muted">
                   <div className="flex items-center gap-1.5">
                     <Sliders className="w-3.5 h-3.5 text-accent-orange" />
-                    <span className="text-[#F1F0EC] font-medium">Project Settings</span>
+                    <span className="text-[#F5F5F3] font-medium">Project Settings</span>
                   </div>
                   <span>Conceptual Controls</span>
                 </div>
@@ -309,7 +309,7 @@ export function DeveloperExperience() {
                 <div className="flex items-center justify-between gap-3 text-[12px] font-mono">
                   <div className="flex items-center gap-2 min-w-0">
                     <Globe className="w-3.5 h-3.5 text-text-muted shrink-0" />
-                    <span className="text-[#F1F0EC] font-medium truncate">
+                    <span className="text-[#F5F5F3] font-medium truncate">
                       Custom Domain
                     </span>
                   </div>
@@ -322,7 +322,7 @@ export function DeveloperExperience() {
                 {/* Setting 2: Preview Deployments Toggle */}
                 <div className="flex items-center justify-between gap-3 text-[12px] font-mono pt-2 border-t border-border-subtle/50">
                   <div>
-                    <div className="text-[#F1F0EC] font-medium">
+                    <div className="text-[#F5F5F3] font-medium">
                       Branch Previews
                     </div>
                     <div className="text-[10.5px] text-text-muted">
@@ -332,7 +332,7 @@ export function DeveloperExperience() {
                   <button
                     onClick={() => setPreviewToggled(!previewToggled)}
                     className={`w-9 h-5 rounded-full p-0.5 transition-colors ${
-                      previewToggled ? "bg-accent-orange" : "bg-[#292E31]"
+                      previewToggled ? "bg-accent-orange" : "bg-[#303030]"
                     }`}
                     role="switch"
                     aria-checked={previewToggled}
@@ -349,14 +349,14 @@ export function DeveloperExperience() {
                 {/* Setting 3: Environment Variables */}
                 <div className="flex items-center justify-between gap-3 text-[12px] font-mono pt-2 border-t border-border-subtle/50">
                   <div>
-                    <div className="text-[#F1F0EC] font-medium">
+                    <div className="text-[#F5F5F3] font-medium">
                       Environment Target
                     </div>
                     <div className="text-[10.5px] text-text-muted">
                       3 production keys configured
                     </div>
                   </div>
-                  <span className="px-2 py-0.5 rounded-[4px] bg-[#202427] border border-border-subtle text-[10.5px] text-text-secondary">
+                  <span className="px-2 py-0.5 rounded-[4px] bg-[#252525] border border-border-subtle text-[10.5px] text-text-secondary">
                     Isolated
                   </span>
                 </div>

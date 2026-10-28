@@ -38,13 +38,13 @@ export function FinalCta() {
             {/* Converging side paths */}
             <path
               d="M 50 20 L 250 140 L 400 140"
-              stroke="#343A3D"
+              stroke="#303030"
               strokeWidth="1"
               strokeDasharray="4 6"
             />
             <path
               d="M 750 20 L 550 140 L 400 140"
-              stroke="#343A3D"
+              stroke="#303030"
               strokeWidth="1"
               strokeDasharray="4 6"
             />
@@ -58,12 +58,12 @@ export function FinalCta() {
             />
 
             {/* Circuit Pin Junctions */}
-            <circle cx="250" cy="140" r="3" fill="#202427" stroke="#343A3D" />
-            <circle cx="550" cy="140" r="3" fill="#202427" stroke="#343A3D" />
+            <circle cx="250" cy="140" r="3" fill="#1D1D1D" stroke="#303030" />
+            <circle cx="550" cy="140" r="3" fill="#1D1D1D" stroke="#303030" />
             <circle cx="400" cy="140" r="4" fill="#D88762" />
 
             {/* Subtle Technical Grid Coordinates */}
-            <g fontFamily="var(--font-geist-mono), monospace" fontSize="8" fill="#777D7D">
+            <g fontFamily="var(--font-geist-mono), monospace" fontSize="8" fill="#777777">
               <text x="210" y="132">[NODE // READY]</text>
               <text x="500" y="132">[NODE // SHIP]</text>
             </g>
@@ -77,7 +77,7 @@ export function FinalCta() {
         <div className="relative z-10 max-w-3xl mx-auto text-center flex flex-col items-center">
           
           {/* Eyebrow Label */}
-          <div className="inline-flex items-center gap-2 mb-4 px-3 py-1 rounded-full bg-[#191C1F] border border-border-subtle">
+          <div className="inline-flex items-center gap-2 mb-4 px-3 py-1 rounded-full bg-[#171717] border border-border-subtle">
             <span
               className="w-1.5 h-1.5 rounded-[1px] bg-accent-orange"
               aria-hidden="true"
@@ -90,7 +90,7 @@ export function FinalCta() {
           {/* Focal Headline */}
           <h2
             id="cta-heading"
-            className="font-sans text-[38px] sm:text-[50px] lg:text-[60px] font-medium leading-[1.05] tracking-[-0.035em] text-[#F1F0EC] mb-5 max-w-2xl"
+            className="font-sans text-[38px] sm:text-[50px] lg:text-[60px] font-medium leading-[1.05] tracking-[-0.035em] text-[#F5F5F3] mb-5 max-w-2xl"
           >
             Your code. Ready for what’s next.
           </h2>
@@ -106,7 +106,7 @@ export function FinalCta() {
             {/* Primary Action: Direct jump to the working Getting Started on-page onboarding */}
             <Link
               href="#getting-started"
-              className="inline-flex items-center justify-center h-[46px] px-7 rounded-[7px] bg-accent-orange hover:bg-accent-orange-hover text-[#121416] text-[14px] font-semibold transition-colors shadow-lg shadow-accent-orange/20 w-full sm:w-auto"
+              className="inline-flex items-center justify-center h-[46px] px-7 rounded-[7px] bg-accent-orange hover:bg-accent-orange-hover text-[#111111] text-[14px] font-semibold transition-colors shadow-lg shadow-accent-orange/20 w-full sm:w-auto"
             >
               Get started
             </Link>
@@ -116,7 +116,7 @@ export function FinalCta() {
               href="https://github.com/Deepanshu-2006/jetway"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-1.5 h-[46px] px-6 rounded-[7px] bg-[#191C1F] hover:bg-[#202427] border border-border-default hover:border-accent-orange/40 text-text-primary text-[13.5px] font-medium transition-colors w-full sm:w-auto group"
+              className="inline-flex items-center justify-center gap-1.5 h-[46px] px-6 rounded-[7px] bg-[#171717] hover:bg-[#1D1D1D] border border-border-default hover:border-accent-orange/40 text-text-primary text-[13.5px] font-medium transition-colors w-full sm:w-auto group"
             >
               <span>GitHub repository</span>
               <ExternalLink className="w-3.5 h-3.5 text-text-muted group-hover:text-accent-orange transition-colors" />

@@ -253,7 +253,7 @@ export function Hero() {
             </div>
 
             {/* Main Headline - exactly 2 lines, never wraps into 4 lines */}
-            <h1 className="font-sans text-[42px] sm:text-[50px] lg:text-[56px] xl:text-[64px] font-medium leading-[1.04] tracking-[-0.035em] text-[#F1F0EC] mb-4">
+            <h1 className="font-sans text-[42px] sm:text-[50px] lg:text-[56px] xl:text-[64px] font-medium leading-[1.04] tracking-[-0.035em] text-[#F5F5F3] mb-4">
               <span className="block whitespace-nowrap">Your code.</span>
               <span className="block whitespace-nowrap">
                 In <span className="text-accent-orange">motion</span>.
@@ -261,7 +261,7 @@ export function Hero() {
             </h1>
 
             {/* Supporting Copy */}
-            <p className="font-sans text-[15px] sm:text-[16px] text-[#A6AAA9] leading-[1.55] max-w-[420px] mb-6">
+            <p className="font-sans text-[15px] sm:text-[16px] text-[#B0B0AE] leading-[1.55] max-w-[420px] mb-6">
               From your first deploy to production infrastructure, everything moves forward.
             </p>
 
@@ -269,14 +269,14 @@ export function Hero() {
             <div className="flex flex-wrap items-center gap-3.5 mb-6">
               <Link
                 href={BRAND.links.signup}
-                className="inline-flex items-center justify-center h-[38px] px-5 rounded-[7px] bg-[#D88762] hover:bg-[#E39A76] text-[#121416] text-[13.5px] font-semibold transition-colors duration-[160ms] focus-visible:outline-2 focus-visible:outline-accent-orange focus-visible:outline-offset-2"
+                className="inline-flex items-center justify-center h-[38px] px-5 rounded-[7px] bg-[#D88762] hover:bg-[#E39A76] text-[#111111] text-[13.5px] font-semibold transition-colors duration-[160ms] focus-visible:outline-2 focus-visible:outline-accent-orange focus-visible:outline-offset-2"
               >
                 Start building
               </Link>
 
               <Link
                 href="/product"
-                className="inline-flex items-center justify-center h-[38px] px-5 rounded-[7px] bg-transparent border border-[#343A3D] hover:border-[#777D7D] text-[#F1F0EC] text-[13.5px] font-medium transition-colors duration-[160ms] focus-visible:outline-2 focus-visible:outline-accent-orange"
+                className="inline-flex items-center justify-center h-[38px] px-5 rounded-[7px] bg-transparent border border-[#303030] hover:border-[#777777] text-[#F5F5F3] text-[13.5px] font-medium transition-colors duration-[160ms] focus-visible:outline-2 focus-visible:outline-accent-orange"
               >
                 Explore the platform
               </Link>
@@ -320,7 +320,7 @@ export function Hero() {
                       onClick={() => handleStageSelect(stage.id)}
                       className={`h-[30px] px-2 rounded-[6px] border text-[11px] font-mono transition-all duration-[160ms] flex items-center justify-center gap-1.5 focus-visible:outline-2 focus-visible:outline-accent-orange ${
                         isSelected
-                          ? "bg-[#202427] border-accent-orange/80 text-[#F1F0EC] shadow-sm"
+                          ? "bg-[#1D1D1D] border-accent-orange/80 text-[#F5F5F3] shadow-sm"
                           : "bg-transparent border-border-subtle/60 text-text-muted hover:text-text-secondary hover:border-border-default"
                       }`}
                     >
@@ -364,7 +364,7 @@ export function Hero() {
                 {/* CONNECTION 1: Source bottom (134, 114) -> Build top (324, 164) */}
                 <path
                   d="M 134 114 C 134 148, 324 130, 324 164"
-                  stroke="#292E31"
+                  stroke="#303030"
                   strokeWidth="1.5"
                 />
 
@@ -400,8 +400,8 @@ export function Hero() {
 
                 {/* Intermediate Artifact Tag 1 */}
                 <g transform="translate(229, 139)">
-                  <rect x="-24" y="-8" width="48" height="15" rx="3" fill="#121416" stroke="#292E31" strokeWidth="1" />
-                  <text x="0" y="3" fill="#777D7D" fontSize="8.5" fontFamily="var(--font-geist-mono)" textAnchor="middle">
+                  <rect x="-24" y="-8" width="48" height="15" rx="3" fill="#111111" stroke="#303030" strokeWidth="1" />
+                  <text x="0" y="3" fill="#777777" fontSize="8.5" fontFamily="var(--font-geist-mono)" textAnchor="middle">
                     git:sha256
                   </text>
                 </g>
@@ -409,7 +409,7 @@ export function Hero() {
                 {/* CONNECTION 2: Build bottom (324, 290) -> Production top (496, 334) */}
                 <path
                   d="M 324 290 C 324 322, 496 302, 496 334"
-                  stroke="#292E31"
+                  stroke="#303030"
                   strokeWidth="1.5"
                 />
 
@@ -451,8 +451,8 @@ export function Hero() {
 
                 {/* Intermediate Artifact Tag 2 */}
                 <g transform="translate(410, 312)">
-                  <rect x="-24" y="-8" width="48" height="15" rx="3" fill="#121416" stroke="#292E31" strokeWidth="1" />
-                  <text x="0" y="3" fill="#777D7D" fontSize="8.5" fontFamily="var(--font-geist-mono)" textAnchor="middle">
+                  <rect x="-24" y="-8" width="48" height="15" rx="3" fill="#111111" stroke="#303030" strokeWidth="1" />
+                  <text x="0" y="3" fill="#777777" fontSize="8.5" fontFamily="var(--font-geist-mono)" textAnchor="middle">
                     release:v2.4
                   </text>
                 </g>
@@ -460,26 +460,26 @@ export function Hero() {
                 {/* Hardware Terminal Ports (Connection Pins) */}
                 {/* Source Output Pin (134, 114) */}
                 <g transform="translate(134, 114)">
-                  <rect x="-3.5" y="-3.5" width="7" height="7" rx="1.5" fill="#191C1F" stroke={isPath1Active ? "#D88762" : "#343A3D"} strokeWidth="1.5" />
-                  <circle r="1.5" fill={isPath1Active ? "#D88762" : "#777D7D"} />
+                  <rect x="-3.5" y="-3.5" width="7" height="7" rx="1.5" fill="#1D1D1D" stroke={isPath1Active ? "#D88762" : "#303030"} strokeWidth="1.5" />
+                  <circle r="1.5" fill={isPath1Active ? "#D88762" : "#777777"} />
                 </g>
 
                 {/* Build Input Pin (324, 164) */}
                 <g transform="translate(324, 164)">
-                  <rect x="-3.5" y="-3.5" width="7" height="7" rx="1.5" fill="#191C1F" stroke={isPath1Active ? "#D88762" : "#343A3D"} strokeWidth="1.5" />
-                  <circle r="1.5" fill={isPath1Active ? "#D88762" : "#777D7D"} />
+                  <rect x="-3.5" y="-3.5" width="7" height="7" rx="1.5" fill="#1D1D1D" stroke={isPath1Active ? "#D88762" : "#303030"} strokeWidth="1.5" />
+                  <circle r="1.5" fill={isPath1Active ? "#D88762" : "#777777"} />
                 </g>
 
                 {/* Build Output Pin (324, 290) */}
                 <g transform="translate(324, 290)">
-                  <rect x="-3.5" y="-3.5" width="7" height="7" rx="1.5" fill="#191C1F" stroke={isPath2Active ? (isProductionRunning ? "#83B69A" : "#D88762") : "#343A3D"} strokeWidth="1.5" />
-                  <circle r="1.5" fill={isPath2Active ? (isProductionRunning ? "#83B69A" : "#D88762") : "#777D7D"} />
+                  <rect x="-3.5" y="-3.5" width="7" height="7" rx="1.5" fill="#1D1D1D" stroke={isPath2Active ? (isProductionRunning ? "#83B69A" : "#D88762") : "#303030"} strokeWidth="1.5" />
+                  <circle r="1.5" fill={isPath2Active ? (isProductionRunning ? "#83B69A" : "#D88762") : "#777777"} />
                 </g>
 
                 {/* Production Input Pin (496, 334) */}
                 <g transform="translate(496, 334)">
-                  <rect x="-3.5" y="-3.5" width="7" height="7" rx="1.5" fill="#191C1F" stroke={isPath2Active ? (isProductionRunning ? "#83B69A" : "#D88762") : "#343A3D"} strokeWidth="1.5" />
-                  <circle r="1.5" fill={isProductionRunning ? "#83B69A" : isPath2Active ? "#D88762" : "#777D7D"} />
+                  <rect x="-3.5" y="-3.5" width="7" height="7" rx="1.5" fill="#1D1D1D" stroke={isPath2Active ? (isProductionRunning ? "#83B69A" : "#D88762") : "#303030"} strokeWidth="1.5" />
+                  <circle r="1.5" fill={isProductionRunning ? "#83B69A" : isPath2Active ? "#D88762" : "#777777"} />
                 </g>
               </svg>
 
@@ -493,7 +493,7 @@ export function Hero() {
                   top: 16,
                   width: 236,
                 }}
-                className={`absolute rounded-[8px] bg-[#191C1F] border p-3 transition-colors duration-200 cursor-pointer shadow-md ${
+                className={`absolute rounded-[8px] bg-[#1D1D1D] border p-3 transition-colors duration-200 cursor-pointer shadow-md ${
                   activeStage === "source"
                     ? "border-accent-orange/90 shadow-accent-orange/5"
                     : "border-border-subtle hover:border-border-default"
@@ -511,7 +511,7 @@ export function Hero() {
                       SOURCE
                     </span>
                   </div>
-                  <span className="font-mono text-[9px] px-1.5 py-0.5 rounded-[3px] bg-[#202427] border border-border-subtle text-text-secondary">
+                  <span className="font-mono text-[9px] px-1.5 py-0.5 rounded-[3px] bg-[#252525] border border-border-subtle text-text-secondary">
                     main
                   </span>
                 </div>
@@ -519,7 +519,7 @@ export function Hero() {
                 {/* Node Body: Commit & Diff Details */}
                 <div className="space-y-0.5 font-mono text-[10.5px]">
                   <div className="flex items-center justify-between">
-                    <span className="text-[#F1F0EC] font-medium">commit 8f3a21c</span>
+                    <span className="text-[#F5F5F3] font-medium">commit 8f3a21c</span>
                     <span className="text-semantic-success text-[9.5px]">+142 -18</span>
                   </div>
                   <p className="text-[10px] text-text-muted truncate">
@@ -544,7 +544,7 @@ export function Hero() {
                   top: 164,
                   width: 256,
                 }}
-                className={`absolute rounded-[8px] bg-[#191C1F] border p-3 transition-colors duration-200 cursor-pointer shadow-md ${
+                className={`absolute rounded-[8px] bg-[#1D1D1D] border p-3 transition-colors duration-200 cursor-pointer shadow-md ${
                   activeStage === "build"
                     ? "border-accent-orange/90 shadow-accent-orange/10"
                     : "border-border-subtle hover:border-border-default"
@@ -568,7 +568,7 @@ export function Hero() {
                       BUILD ENGINE
                     </span>
                   </div>
-                  <span className="font-mono text-[9px] px-1.5 py-0.5 rounded-[3px] bg-[#202427] border border-border-subtle text-text-secondary">
+                  <span className="font-mono text-[9px] px-1.5 py-0.5 rounded-[3px] bg-[#252525] border border-border-subtle text-text-secondary">
                     turbopack
                   </span>
                 </div>
@@ -577,7 +577,7 @@ export function Hero() {
                 <div className="space-y-1 font-mono text-[10.5px]">
                   <div className="flex items-center gap-1.5">
                     <span className="text-text-muted text-[9.5px]">01</span>
-                    <span className={buildStep >= 1 ? "text-[#F1F0EC]" : "text-text-muted"}>
+                    <span className={buildStep >= 1 ? "text-[#F5F5F3]" : "text-text-muted"}>
                       pnpm install --frozen
                     </span>
                     {buildStep >= 1 && <Check className="w-2.5 h-2.5 text-semantic-success ml-auto" />}
@@ -590,7 +590,7 @@ export function Hero() {
                         buildStep === 2
                           ? "text-accent-orange font-medium"
                           : buildStep >= 3
-                          ? "text-[#F1F0EC]"
+                          ? "text-[#F5F5F3]"
                           : "text-text-muted"
                       }
                     >
@@ -600,7 +600,7 @@ export function Hero() {
                   </div>
 
                   {/* Progress bar line */}
-                  <div className="w-full h-1 bg-[#202427] rounded-full overflow-hidden mt-1">
+                  <div className="w-full h-1 bg-[#252525] rounded-full overflow-hidden mt-1">
                     <div
                       className={`h-full transition-all duration-500 ${
                         buildStep === 0
@@ -642,7 +642,7 @@ export function Hero() {
                   top: 334,
                   width: 256,
                 }}
-                className={`absolute rounded-[8px] bg-[#191C1F] border p-3 transition-colors duration-200 cursor-pointer shadow-md ${
+                className={`absolute rounded-[8px] bg-[#1D1D1D] border p-3 transition-colors duration-200 cursor-pointer shadow-md ${
                   activeStage === "production"
                     ? "border-semantic-success/80 shadow-semantic-success/5"
                     : "border-border-subtle hover:border-border-default"
@@ -668,7 +668,7 @@ export function Hero() {
                     className={`font-mono text-[9px] px-1.5 py-0.5 rounded-[3px] border font-medium ${
                       isProductionRunning
                         ? "bg-semantic-success/15 border-semantic-success/30 text-semantic-success"
-                        : "bg-[#202427] border-border-subtle text-text-muted"
+                        : "bg-[#252525] border-border-subtle text-text-muted"
                     }`}
                   >
                     {isProductionRunning ? "RUNNING" : "DEPLOYING"}
@@ -677,7 +677,7 @@ export function Hero() {
 
                 {/* Production Body: Service details */}
                 <div className="space-y-0.5 font-mono text-[10.5px]">
-                  <div className="text-[#F1F0EC] font-medium truncate flex items-center justify-between">
+                  <div className="text-[#F5F5F3] font-medium truncate flex items-center justify-between">
                     <span>app.jetway.demo</span>
                     <span className="text-[9px] text-text-muted">https</span>
                   </div>

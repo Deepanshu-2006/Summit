@@ -2,298 +2,165 @@
 
 import React from "react";
 import Link from "next/link";
-import { Check, ExternalLink, Terminal, GitBranch, ShieldCheck } from "lucide-react";
+import { Check, ArrowUpRight } from "lucide-react";
 
-interface WorkflowStep {
-  id: string;
-  label: string;
-  detail: string;
-  duration: string;
-}
+const BUILD_SEQUENCE = [
+  "Repository connected",
+  "Dependencies installed",
+  "Application built",
+  "Deployment completed",
+];
 
-const WORKFLOW_STEPS: WorkflowStep[] = [
-  {
-    id: "connect",
-    label: "Repository connected",
-    detail: "github.com/jetway/app @ main",
-    duration: "120ms",
-  },
-  {
-    id: "install",
-    label: "Dependencies installed",
-    detail: "142 packages via pnpm-lock",
-    duration: "380ms",
-  },
-  {
-    id: "compile",
-    label: "Application compiled",
-    detail: "4 static, 1 edge route generated",
-    duration: "410ms",
-  },
-  {
-    id: "artifacts",
-    label: "Build artifacts prepared",
-    detail: "manifest dist/12.4 MB ready",
-    duration: "190ms",
-  },
-  {
-    id: "deploy",
-    label: "Deployment completed",
-    detail: "atomic cutover in 35 regions",
-    duration: "84ms",
-  },
+const BENEFITS = [
+  "Connect your repository.",
+  "Build your application.",
+  "Deploy with confidence.",
 ];
 
 /**
  * DeploymentExperience: Section 02 — Deployment Pipeline
- * Stable, static presentation in normal document flow.
+ * Redesigned in a sophisticated, editorial grayscale visual language.
+ * Deep charcoal surfaces, soft-white typography, thin understated borders,
+ * generous negative space, and minimal technical details.
+ * 100% stable, normal document flow.
  */
 export function DeploymentExperience() {
   return (
     <section
       id="deployment-experience"
-      className="relative w-full pt-12 pb-20 sm:pt-16 sm:pb-24 lg:pt-20 lg:pb-28 bg-bg-main text-text-primary overflow-hidden"
+      className="relative w-full pt-16 pb-24 sm:pt-20 sm:pb-28 lg:pt-24 lg:pb-36 bg-bg-main text-text-primary overflow-hidden"
       aria-labelledby="deployment-heading"
     >
       <div className="layout-container w-full">
-        
         {/* =================================================================
-            SECTION MARKER: 02 — DEPLOYMENT PIPELINE
+            SECTION IDENTIFIER: 02 / DEPLOYMENT
+            Understated, minimal divider line
             ================================================================= */}
-        <div className="w-full flex items-center justify-between border-t border-border-subtle/70 pt-5 mb-10 sm:mb-14">
-          <div className="flex items-center gap-3 font-mono text-[11px] text-text-muted tracking-wider">
+        <div className="w-full border-t border-border-subtle pt-5 mb-12 sm:mb-16">
+          <div className="flex items-center gap-2 font-mono text-[11px] text-text-muted tracking-[0.1em] uppercase">
             <span className="text-accent-orange font-medium">02</span>
-            <div className="w-8 h-[1px] bg-accent-orange" aria-hidden="true" />
-            <span>DEPLOYMENT PIPELINE</span>
-          </div>
-          <div className="hidden sm:flex items-center gap-2 font-mono text-[10.5px] text-text-muted">
-            <span>ZERO CONFIGURATION</span>
-            <span className="text-border-default">•</span>
-            <span>GLOBAL EDGE RUNWAY</span>
+            <span>/</span>
+            <span>DEPLOYMENT</span>
           </div>
         </div>
 
         {/* =================================================================
-            TWO-COLUMN SECTION LAYOUT: Editorial (5 cols) + Terminal (7 cols)
-            Normal document flow with stable positioning
+            TWO-COLUMN EDITORIAL COMPOSITION (~40/60 Split)
             ================================================================= */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-start">
           
           {/* -------------------------------------------------------------
-              LEFT COLUMN: Editorial Heading, Copy, Architectural Highlights
+              LEFT COLUMN: Restrained Editorial Story
+              Headline receives the strongest visual emphasis
               ------------------------------------------------------------- */}
           <div className="lg:col-span-5 flex flex-col justify-start">
             
-            {/* Technical Eyebrow */}
-            <div className="flex items-center gap-2 mb-4">
-              <span className="w-1.5 h-1.5 rounded-[1px] bg-accent-orange" aria-hidden="true" />
-              <span className="font-mono text-[11px] font-medium tracking-[0.14em] uppercase text-text-muted">
-                FROM COMMIT TO PRODUCTION
-              </span>
-            </div>
-
-            {/* Section Heading */}
+            {/* Main Headline */}
             <h2
               id="deployment-heading"
-              className="font-sans text-[34px] sm:text-[42px] lg:text-[48px] font-medium leading-[1.08] tracking-[-0.03em] text-[#F1F0EC] mb-5"
+              className="font-sans text-[38px] sm:text-[48px] lg:text-[54px] font-medium leading-[1.08] tracking-[-0.03em] text-[#F5F5F3] mb-6"
             >
               Ship without the ceremony.
             </h2>
 
-            {/* Supporting Copy */}
-            <p className="font-sans text-[15.5px] sm:text-[16px] text-text-secondary leading-[1.6] max-w-[460px] mb-8">
-              Connect your code, build your application, and bring it online through a deployment workflow designed to stay out of your way.
+            {/* Supporting Paragraph */}
+            <p className="font-sans text-[16px] sm:text-[17px] text-text-secondary leading-[1.65] max-w-[440px] mb-10">
+              Connect your code. Build your application. Get it ready for
+              production without the unnecessary complexity.
             </p>
 
-            {/* Architectural Highlights */}
-            <div className="space-y-4 pt-6 border-t border-border-subtle/80 max-w-[460px]">
-              
-              {/* Feature 1 */}
-              <div className="flex items-start gap-3.5">
-                <div className="w-6 h-6 rounded-[5px] bg-[#191C1F] border border-border-subtle flex items-center justify-center shrink-0 mt-0.5">
-                  <span className="font-mono text-[10px] text-accent-orange font-medium">01</span>
-                </div>
-                <div>
-                  <h3 className="text-[14px] font-semibold text-[#F1F0EC] font-sans">
-                    Zero-friction connection
-                  </h3>
-                  <p className="text-[12.5px] text-text-muted leading-relaxed mt-0.5">
-                    Automatic Git push detection on any provider. No YAML bureaucracy or complex pipelines.
-                  </p>
-                </div>
-              </div>
-
-              {/* Feature 2 */}
-              <div className="flex items-start gap-3.5">
-                <div className="w-6 h-6 rounded-[5px] bg-[#191C1F] border border-accent-orange/40 flex items-center justify-center shrink-0 mt-0.5">
-                  <span className="font-mono text-[10px] text-accent-orange font-medium">02</span>
-                </div>
-                <div>
-                  <h3 className="text-[14px] font-semibold text-[#F1F0EC] font-sans">
-                    Hermetic edge builds
-                  </h3>
-                  <p className="text-[12.5px] text-text-muted leading-relaxed mt-0.5">
-                    Turbopack caching and isolated sandboxes compile bundles in fractions of a second.
-                  </p>
-                </div>
-              </div>
-
-              {/* Feature 3 */}
-              <div className="flex items-start gap-3.5">
-                <div className="w-6 h-6 rounded-[5px] bg-[#191C1F] border border-border-subtle flex items-center justify-center shrink-0 mt-0.5">
-                  <span className="font-mono text-[10px] text-accent-orange font-medium">03</span>
-                </div>
-                <div>
-                  <h3 className="text-[14px] font-semibold text-[#F1F0EC] font-sans">
-                    Atomic global cutover
-                  </h3>
-                  <p className="text-[12.5px] text-text-muted leading-relaxed mt-0.5">
-                    Instant zero-downtime traffic switching across 35+ edge regions with single-click rollbacks.
-                  </p>
-                </div>
-              </div>
-
-            </div>
+            {/* Three Concise Benefits (No numbered square badges, no filler icons) */}
+            <ul className="space-y-4 pt-8 border-t border-border-subtle list-none p-0 m-0 max-w-[440px]">
+              {BENEFITS.map((benefit, index) => (
+                <li
+                  key={benefit}
+                  className="flex items-center gap-3 text-[14.5px] sm:text-[15px] text-[#F5F5F3] font-medium"
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      index === 2 ? "bg-accent-orange" : "bg-[#777777]"
+                    }`}
+                    aria-hidden="true"
+                  />
+                  <span>{benefit}</span>
+                </li>
+              ))}
+            </ul>
 
           </div>
 
           {/* -------------------------------------------------------------
-              RIGHT COLUMN: Deployment Demonstration Interface (Terminal Panel)
-              Standard static dimensions, unclipped and properly aligned
+              RIGHT COLUMN: Minimal, Believable Product Interface
+              One primary surface with subtle border, generous internal padding
               ------------------------------------------------------------- */}
-          <div className="lg:col-span-7 w-full relative">
-            <div className="w-full rounded-[10px] bg-[#191C1F] border border-border-default shadow-2xl shadow-black/60 overflow-hidden">
+          <div className="lg:col-span-7 w-full">
+            <div className="w-full rounded-[10px] bg-surface-card border border-border-default shadow-2xl p-6 sm:p-8 lg:p-9 font-mono">
               
-              {/* Panel Header */}
-              <div className="px-4 py-3 bg-[#16181B] border-b border-border-subtle flex items-center justify-between gap-3">
-                
-                {/* Left: Service identifier & indicator */}
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="flex items-center gap-1.5 shrink-0" aria-hidden="true">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#292E31]" />
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#292E31]" />
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#292E31]" />
-                  </div>
-                  
-                  <div className="h-3 w-[1px] bg-border-subtle mx-1 hidden sm:block" />
-
-                  <div className="flex items-center gap-1.5 text-[11px] font-mono text-text-secondary truncate">
-                    <Terminal className="w-3.5 h-3.5 text-accent-orange shrink-0" />
-                    <span className="text-[#F1F0EC] font-medium truncate">jetway-app</span>
-                    <span className="text-text-muted hidden sm:inline">/ service</span>
-                  </div>
+              {/* Interface Header */}
+              <div className="flex items-center justify-between pb-6 border-b border-border-subtle">
+                <div className="flex items-center gap-2">
+                  <span className="text-[13px] font-semibold text-[#F5F5F3]">
+                    jetway-app
+                  </span>
+                  <span className="text-[13px] text-text-muted">/</span>
+                  <span className="text-[12.5px] text-text-muted">
+                    service
+                  </span>
                 </div>
 
-                {/* Right: Branch label & Deployment State badge */}
-                <div className="flex items-center gap-2 sm:gap-3 shrink-0 font-mono text-[11px]">
-                  
-                  {/* Branch label */}
-                  <div className="hidden sm:flex items-center gap-1 px-2 py-0.5 rounded-[4px] bg-[#202427] border border-border-subtle text-text-secondary text-[10.5px]">
-                    <GitBranch className="w-3 h-3 text-text-muted" />
-                    <span>main</span>
-                  </div>
-
-                  {/* Deployment State Badge */}
-                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-[4px] border border-semantic-success/30 bg-semantic-success/15 text-semantic-success text-[10.5px] font-medium">
-                    <span className="w-1.5 h-1.5 rounded-full bg-semantic-success animate-pulse" />
-                    <span>LIVE</span>
-                  </div>
-
+                <div className="px-2.5 py-1 rounded-[4px] bg-surface-elevated border border-border-default text-text-secondary text-[11px]">
+                  Production
                 </div>
-
               </div>
 
-              {/* Progress Bar Line */}
-              <div className="w-full h-[2px] bg-[#202427] overflow-hidden" role="progressbar" aria-label="Deployment status complete">
-                <div className="h-full w-full bg-semantic-success" />
+              {/* Command Execution */}
+              <div className="py-6 flex items-center gap-2.5 text-[13px] text-[#F5F5F3]">
+                <span className="text-text-muted select-none font-medium">$</span>
+                <span className="font-medium">git push origin main</span>
               </div>
 
-              {/* Terminal Console Stream */}
-              <div className="p-4 sm:p-5 font-mono text-[12px] sm:text-[12.5px] leading-relaxed space-y-3 bg-[#121416]/95 min-h-[300px]">
-                
-                {/* Prompt & Command */}
-                <div className="flex items-center gap-2 text-[#F1F0EC]">
-                  <span className="text-accent-orange font-semibold select-none">$</span>
-                  <span className="font-medium">git push origin main</span>
-                </div>
-
-                {/* Remote git sync metadata */}
-                <div className="text-[11px] text-text-muted pl-3.5 border-l border-border-subtle/60 py-0.5 space-y-0.5">
-                  <div>[remote] commit 8f3a21c received (2.4 KB)</div>
-                  <div>[remote] ephemeral edge builder container initialized (iad1)</div>
-                </div>
-
-                {/* Pipeline Step Events */}
-                <div className="space-y-2 pt-2 border-t border-border-subtle/40">
-                  {WORKFLOW_STEPS.map((step) => (
-                    <div
-                      key={step.id}
-                      className="flex items-start sm:items-center justify-between gap-2"
-                    >
-                      <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
-                        <span className="w-4 h-4 flex items-center justify-center shrink-0">
-                          <Check className="w-3.5 h-3.5 text-semantic-success" />
-                        </span>
-
-                        <span className="text-[12px] sm:text-[12.5px] truncate text-[#F1F0EC] font-medium">
-                          {step.label}
-                        </span>
-                      </div>
-
-                      {/* Technical metadata / duration */}
-                      <div className="flex items-center gap-2 shrink-0 text-[10.5px] sm:text-[11px] text-text-muted">
-                        <span className="hidden md:inline">{step.detail}</span>
-                        <span className="text-semantic-success font-medium">
-                          {step.duration}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Production Preview Card */}
-                <div className="mt-4 pt-3.5 border-t border-border-subtle/60">
-                  <div className="rounded-[7px] bg-[#191C1F] border border-semantic-success/35 p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg shadow-black/40">
-                    
-                    <div className="space-y-0.5">
-                      <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase text-text-muted font-medium">
-                        <ShieldCheck className="w-3 h-3 text-semantic-success" />
-                        <span>PRODUCTION PREVIEW // SSL ACTIVE</span>
-                      </div>
-                      
-                      <Link
-                        href="https://app.jetway.demo"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-[13px] sm:text-[13.5px] font-mono font-medium text-text-primary hover:text-accent-orange transition-colors"
-                      >
-                        <span>app.jetway.demo</span>
-                        <ExternalLink className="w-3 h-3 text-text-muted" />
-                      </Link>
-                    </div>
-
-                    {/* Edge Latency and Status Badge */}
-                    <div className="flex items-center gap-2 self-start sm:self-center font-mono text-[10.5px]">
-                      <span className="px-2 py-0.5 rounded-[4px] bg-[#202427] border border-border-subtle text-text-secondary">
-                        14ms edge
-                      </span>
-                      <span className="px-2 py-0.5 rounded-[4px] bg-semantic-success/15 border border-semantic-success/30 text-semantic-success font-medium">
-                        200 OK
-                      </span>
-                    </div>
-
+              {/* Build Sequence */}
+              <div className="space-y-3.5 pb-8">
+                {BUILD_SEQUENCE.map((step) => (
+                  <div
+                    key={step}
+                    className="flex items-center gap-3 text-[12.5px] text-text-secondary"
+                  >
+                    <span className="w-4 h-4 flex items-center justify-center text-text-secondary shrink-0">
+                      <Check className="w-3.5 h-3.5" />
+                    </span>
+                    <span>{step}</span>
                   </div>
-                </div>
-
+                ))}
               </div>
 
-              {/* Terminal Footer Annotation */}
-              <div className="px-4 py-2 bg-[#16181B] border-t border-border-subtle/80 flex items-center justify-between text-[10.5px] font-mono text-text-muted">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-accent-orange">◆</span>
-                  <span>edge-cluster: iad1-node-04</span>
+              {/* Single Clear Completion State */}
+              <div className="pt-6 border-t border-border-subtle flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="w-1.5 h-1.5 rounded-full bg-semantic-success"
+                      aria-hidden="true"
+                    />
+                    <span className="text-[11px] uppercase tracking-wider text-text-secondary font-medium">
+                      Deployment ready
+                    </span>
+                  </div>
+
+                  <Link
+                    href="https://app.jetway.demo"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-[14px] text-[#F5F5F3] hover:text-accent-orange transition-colors group"
+                  >
+                    <span>app.jetway.demo</span>
+                    <ArrowUpRight className="w-3.5 h-3.5 text-text-muted group-hover:text-accent-orange transition-colors" />
+                  </Link>
                 </div>
-                <span className="hidden sm:inline">turbopack engine v2.4</span>
+
+                <div className="text-[11px] text-text-muted font-mono self-start sm:self-center">
+                  Latest release
+                </div>
               </div>
 
             </div>

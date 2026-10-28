@@ -128,7 +128,7 @@ export function ApplicationStack() {
           {/* Section Headline */}
           <h2
             id="stack-heading"
-            className="font-sans text-[36px] sm:text-[46px] lg:text-[54px] font-medium leading-[1.06] tracking-[-0.035em] text-[#F1F0EC] mb-5"
+            className="font-sans text-[36px] sm:text-[46px] lg:text-[54px] font-medium leading-[1.06] tracking-[-0.035em] text-[#F5F5F3] mb-5"
           >
             One platform. Your entire stack.
           </h2>
@@ -145,13 +145,13 @@ export function ApplicationStack() {
             MAIN VISUAL: The Application Stack Topology Diagram
             Connected services showing relationships rather than a generic grid
             ================================================================= */}
-        <div className="w-full rounded-[14px] bg-[#16181B] border border-border-default shadow-2xl p-5 sm:p-8 lg:p-12 mb-12 sm:mb-16 relative overflow-hidden">
+        <div className="w-full rounded-[14px] bg-[#171717] border border-border-default shadow-2xl p-5 sm:p-8 lg:p-12 mb-12 sm:mb-16 relative overflow-hidden">
           
           {/* Subtle Ambient Dot Grid */}
           <div
             className="absolute inset-0 opacity-20 pointer-events-none"
             style={{
-              backgroundImage: "radial-gradient(#343A3D 1px, transparent 1px)",
+              backgroundImage: "radial-gradient(#303030 1px, transparent 1px)",
               backgroundSize: "24px 24px",
             }}
             aria-hidden="true"
@@ -161,7 +161,7 @@ export function ApplicationStack() {
           <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-6 sm:pb-8 border-b border-border-subtle/80 mb-8 sm:mb-10 text-[11px] font-mono text-text-muted">
             <div className="flex items-center gap-2">
               <Network className="w-3.5 h-3.5 text-accent-orange" />
-              <span className="text-[#F1F0EC] font-medium">
+              <span className="text-[#F5F5F3] font-medium">
                 stack-topology // service mesh
               </span>
               <span className="text-border-default">•</span>
@@ -169,7 +169,7 @@ export function ApplicationStack() {
             </div>
 
             <div className="flex items-center gap-3">
-              <span className="hidden sm:inline-block px-2 py-0.5 rounded-[4px] bg-[#202427] border border-border-subtle text-text-muted text-[10px]">
+              <span className="hidden sm:inline-block px-2 py-0.5 rounded-[4px] bg-[#252525] border border-border-subtle text-text-muted text-[10px]">
                 CONCEPTUAL STACK
               </span>
               <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-[4px] border border-semantic-success/30 bg-semantic-success/15 text-semantic-success text-[10.5px]">
@@ -189,7 +189,7 @@ export function ApplicationStack() {
             <div className="flex justify-center mb-6">
               <button
                 onClick={() => setSelectedId("web")}
-                className={`w-[360px] p-4 rounded-[10px] bg-[#191C1F] border transition-all text-left group ${
+                className={`w-[360px] p-4 rounded-[10px] bg-[#1D1D1D] border transition-all text-left group ${
                   selectedId === "web"
                     ? "border-accent-orange shadow-lg shadow-accent-orange/10 ring-1 ring-accent-orange/30"
                     : "border-border-default hover:border-border-default/80"
@@ -199,14 +199,14 @@ export function ApplicationStack() {
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-[5px] bg-[#202427] border border-border-subtle flex items-center justify-center text-accent-orange">
+                    <div className="w-7 h-7 rounded-[5px] bg-[#252525] border border-border-subtle flex items-center justify-center text-accent-orange">
                       <AppWindow className="w-4 h-4" />
                     </div>
                     <div>
                       <div className="font-mono text-[10px] text-accent-orange font-medium">
                         WEB APP
                       </div>
-                      <div className="font-mono text-[12px] font-semibold text-[#F1F0EC]">
+                      <div className="font-mono text-[12px] font-semibold text-[#F5F5F3]">
                         web-frontend
                       </div>
                     </div>
@@ -225,7 +225,7 @@ export function ApplicationStack() {
             {/* Connector 1: Web App -> API Service */}
             <div className="flex flex-col items-center justify-center my-1 select-none">
               <div className="w-[1.5px] h-6 bg-border-default" />
-              <div className="px-2.5 py-0.5 rounded-[4px] bg-[#121416] border border-border-subtle text-[9.5px] font-mono text-text-muted my-0.5 flex items-center gap-1.5">
+              <div className="px-2.5 py-0.5 rounded-[4px] bg-[#111111] border border-border-subtle text-[9.5px] font-mono text-text-muted my-0.5 flex items-center gap-1.5">
                 <Lock className="w-2.5 h-2.5 text-accent-orange" />
                 <span>HTTPS / Public Ingress Routing</span>
                 <ArrowDown className="w-2.5 h-2.5 text-text-muted" />
@@ -237,7 +237,7 @@ export function ApplicationStack() {
             <div className="flex justify-center mb-6">
               <button
                 onClick={() => setSelectedId("api")}
-                className={`w-[420px] p-4.5 rounded-[10px] bg-[#1C2023] border transition-all text-left relative ${
+                className={`w-[420px] p-4.5 rounded-[10px] bg-[#1D1D1D] border transition-all text-left relative ${
                   selectedId === "api"
                     ? "border-accent-orange shadow-xl shadow-accent-orange/15 ring-1 ring-accent-orange/40"
                     : "border-border-default hover:border-accent-orange/40"
@@ -247,19 +247,19 @@ export function ApplicationStack() {
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-[6px] bg-[#23282C] border border-accent-orange/40 flex items-center justify-center text-accent-orange">
+                    <div className="w-8 h-8 rounded-[6px] bg-[#252525] border border-accent-orange/40 flex items-center justify-center text-accent-orange">
                       <Cpu className="w-4.5 h-4.5" />
                     </div>
                     <div>
                       <div className="font-mono text-[10.5px] text-accent-orange font-semibold">
                         API SERVICE
                       </div>
-                      <div className="font-mono text-[13px] font-semibold text-[#F1F0EC]">
+                      <div className="font-mono text-[13px] font-semibold text-[#F5F5F3]">
                         core-api
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5 text-[10px] font-mono text-[#F1F0EC] bg-[#292E32] px-2 py-0.5 rounded-[4px] border border-border-subtle">
+                  <div className="flex items-center gap-1.5 text-[10px] font-mono text-[#F5F5F3] bg-[#252525] px-2 py-0.5 rounded-[4px] border border-border-subtle">
                     <span>Private Mesh</span>
                   </div>
                 </div>
@@ -285,12 +285,12 @@ export function ApplicationStack() {
                 aria-hidden="true"
               >
                 {/* Center Stem */}
-                <path d="M 320 0 L 320 18" stroke="#343A3D" strokeWidth="1.5" />
+                <path d="M 320 0 L 320 18" stroke="#303030" strokeWidth="1.5" />
 
                 {/* Left Branch to Database */}
                 <path
                   d="M 320 18 L 170 18 L 170 50"
-                  stroke={selectedId === "db" || selectedId === "api" ? "#D88762" : "#343A3D"}
+                  stroke={selectedId === "db" || selectedId === "api" ? "#D88762" : "#303030"}
                   strokeWidth="1.5"
                   strokeDasharray={selectedId === "db" ? "none" : "3 3"}
                 />
@@ -298,20 +298,20 @@ export function ApplicationStack() {
                 {/* Right Branch to Background Worker */}
                 <path
                   d="M 320 18 L 470 18 L 470 50"
-                  stroke={selectedId === "worker" || selectedId === "api" ? "#D88762" : "#343A3D"}
+                  stroke={selectedId === "worker" || selectedId === "api" ? "#D88762" : "#303030"}
                   strokeWidth="1.5"
                   strokeDasharray={selectedId === "worker" ? "none" : "3 3"}
                 />
 
                 {/* Left Branch Label */}
-                <rect x="180" y="8" width="115" height="18" rx="3" fill="#121416" stroke="#292E31" />
-                <text x="186" y="20" fill="#777D7D" fontFamily="var(--font-geist-mono)" fontSize="8.5">
+                <rect x="180" y="8" width="115" height="18" rx="3" fill="#111111" stroke="#303030" />
+                <text x="186" y="20" fill="#777777" fontFamily="var(--font-geist-mono)" fontSize="8.5">
                   SQL Connection Pool
                 </text>
 
                 {/* Right Branch Label */}
-                <rect x="345" y="8" width="115" height="18" rx="3" fill="#121416" stroke="#292E31" />
-                <text x="351" y="20" fill="#777D7D" fontFamily="var(--font-geist-mono)" fontSize="8.5">
+                <rect x="345" y="8" width="115" height="18" rx="3" fill="#111111" stroke="#303030" />
+                <text x="351" y="20" fill="#777777" fontFamily="var(--font-geist-mono)" fontSize="8.5">
                   Async Job Dispatch
                 </text>
               </svg>
@@ -323,7 +323,7 @@ export function ApplicationStack() {
               {/* Component C: Database */}
               <button
                 onClick={() => setSelectedId("db")}
-                className={`p-4 rounded-[10px] bg-[#191C1F] border transition-all text-left ${
+                className={`p-4 rounded-[10px] bg-[#1D1D1D] border transition-all text-left ${
                   selectedId === "db"
                     ? "border-accent-orange shadow-lg shadow-accent-orange/10 ring-1 ring-accent-orange/30"
                     : "border-border-default hover:border-border-default/80"
@@ -333,19 +333,19 @@ export function ApplicationStack() {
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-[5px] bg-[#202427] border border-border-subtle flex items-center justify-center text-accent-orange">
+                    <div className="w-7 h-7 rounded-[5px] bg-[#252525] border border-border-subtle flex items-center justify-center text-accent-orange">
                       <Database className="w-4 h-4" />
                     </div>
                     <div>
                       <div className="font-mono text-[10px] text-accent-orange font-medium">
                         DATABASE
                       </div>
-                      <div className="font-mono text-[12px] font-semibold text-[#F1F0EC]">
+                      <div className="font-mono text-[12px] font-semibold text-[#F5F5F3]">
                         primary-db
                       </div>
                     </div>
                   </div>
-                  <span className="text-[10px] font-mono text-text-muted bg-[#141618] px-2 py-0.5 rounded border border-border-subtle">
+                  <span className="text-[10px] font-mono text-text-muted bg-[#111111] px-2 py-0.5 rounded border border-border-subtle">
                     Postgres
                   </span>
                 </div>
@@ -357,7 +357,7 @@ export function ApplicationStack() {
               {/* Component D: Background Worker */}
               <button
                 onClick={() => setSelectedId("worker")}
-                className={`p-4 rounded-[10px] bg-[#191C1F] border transition-all text-left ${
+                className={`p-4 rounded-[10px] bg-[#1D1D1D] border transition-all text-left ${
                   selectedId === "worker"
                     ? "border-accent-orange shadow-lg shadow-accent-orange/10 ring-1 ring-accent-orange/30"
                     : "border-border-default hover:border-border-default/80"
@@ -367,19 +367,19 @@ export function ApplicationStack() {
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-[5px] bg-[#202427] border border-border-subtle flex items-center justify-center text-accent-orange">
+                    <div className="w-7 h-7 rounded-[5px] bg-[#252525] border border-border-subtle flex items-center justify-center text-accent-orange">
                       <RefreshCw className="w-4 h-4" />
                     </div>
                     <div>
                       <div className="font-mono text-[10px] text-accent-orange font-medium">
                         BACKGROUND WORKER
                       </div>
-                      <div className="font-mono text-[12px] font-semibold text-[#F1F0EC]">
+                      <div className="font-mono text-[12px] font-semibold text-[#F5F5F3]">
                         queue-worker
                       </div>
                     </div>
                   </div>
-                  <span className="text-[10px] font-mono text-text-muted bg-[#141618] px-2 py-0.5 rounded border border-border-subtle">
+                  <span className="text-[10px] font-mono text-text-muted bg-[#111111] px-2 py-0.5 rounded border border-border-subtle">
                     Async Jobs
                   </span>
                 </div>
@@ -401,7 +401,7 @@ export function ApplicationStack() {
             {/* Mobile Web App */}
             <button
               onClick={() => setSelectedId("web")}
-              className={`p-4 rounded-[10px] bg-[#191C1F] border text-left transition-all ${
+              className={`p-4 rounded-[10px] bg-[#1D1D1D] border text-left transition-all ${
                 selectedId === "web" ? "border-accent-orange" : "border-border-default"
               }`}
             >
@@ -411,7 +411,7 @@ export function ApplicationStack() {
                 </div>
                 <span className="text-[10px] font-mono text-semantic-success">HTTPS 443</span>
               </div>
-              <div className="font-mono text-[13px] font-semibold text-[#F1F0EC] mb-0.5">
+              <div className="font-mono text-[13px] font-semibold text-[#F5F5F3] mb-0.5">
                 web-frontend
               </div>
               <p className="text-[12px] text-text-secondary">The experience your users see</p>
@@ -425,7 +425,7 @@ export function ApplicationStack() {
             {/* Mobile API */}
             <button
               onClick={() => setSelectedId("api")}
-              className={`p-4 rounded-[10px] bg-[#1C2023] border text-left transition-all ${
+              className={`p-4 rounded-[10px] bg-[#1D1D1D] border text-left transition-all ${
                 selectedId === "api" ? "border-accent-orange" : "border-border-default"
               }`}
             >
@@ -435,7 +435,7 @@ export function ApplicationStack() {
                 </div>
                 <span className="text-[10px] font-mono text-text-muted">Private Mesh</span>
               </div>
-              <div className="font-mono text-[13px] font-semibold text-[#F1F0EC] mb-0.5">
+              <div className="font-mono text-[13px] font-semibold text-[#F5F5F3] mb-0.5">
                 core-api
               </div>
               <p className="text-[12px] text-text-secondary">Logic and application requests</p>
@@ -449,7 +449,7 @@ export function ApplicationStack() {
             {/* Mobile Database */}
             <button
               onClick={() => setSelectedId("db")}
-              className={`p-4 rounded-[10px] bg-[#191C1F] border text-left transition-all ${
+              className={`p-4 rounded-[10px] bg-[#1D1D1D] border text-left transition-all ${
                 selectedId === "db" ? "border-accent-orange" : "border-border-default"
               }`}
             >
@@ -459,7 +459,7 @@ export function ApplicationStack() {
                 </div>
                 <span className="text-[10px] font-mono text-text-muted">Postgres</span>
               </div>
-              <div className="font-mono text-[13px] font-semibold text-[#F1F0EC] mb-0.5">
+              <div className="font-mono text-[13px] font-semibold text-[#F5F5F3] mb-0.5">
                 primary-db
               </div>
               <p className="text-[12px] text-text-secondary">Persistent application data</p>
@@ -473,7 +473,7 @@ export function ApplicationStack() {
             {/* Mobile Background Worker */}
             <button
               onClick={() => setSelectedId("worker")}
-              className={`p-4 rounded-[10px] bg-[#191C1F] border text-left transition-all ${
+              className={`p-4 rounded-[10px] bg-[#1D1D1D] border text-left transition-all ${
                 selectedId === "worker" ? "border-accent-orange" : "border-border-default"
               }`}
             >
@@ -483,7 +483,7 @@ export function ApplicationStack() {
                 </div>
                 <span className="text-[10px] font-mono text-text-muted">Async Jobs</span>
               </div>
-              <div className="font-mono text-[13px] font-semibold text-[#F1F0EC] mb-0.5">
+              <div className="font-mono text-[13px] font-semibold text-[#F5F5F3] mb-0.5">
                 queue-worker
               </div>
               <p className="text-[12px] text-text-secondary">Tasks that run behind the scenes</p>
@@ -500,7 +500,7 @@ export function ApplicationStack() {
               <div className="text-[10px] uppercase text-text-muted tracking-wider">
                 INSPECTING COMPONENT // {current.category}
               </div>
-              <div className="text-[#F1F0EC] font-medium text-[13px] font-sans">
+              <div className="text-[#F5F5F3] font-medium text-[13px] font-sans">
                 {current.name} — <span className="text-text-secondary font-normal">{current.role}</span>
               </div>
               <p className="text-[12px] text-text-muted max-w-xl font-sans mt-0.5">
@@ -509,7 +509,7 @@ export function ApplicationStack() {
             </div>
 
             <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 shrink-0 self-start sm:self-center">
-              <span className="px-2.5 py-1 rounded-[4px] bg-[#191C1F] border border-border-subtle text-text-secondary">
+              <span className="px-2.5 py-1 rounded-[4px] bg-[#1D1D1D] border border-border-subtle text-text-secondary">
                 {current.tech}
               </span>
               <span className="px-2.5 py-1 rounded-[4px] bg-semantic-success/15 border border-semantic-success/30 text-semantic-success font-medium">
@@ -533,7 +533,7 @@ export function ApplicationStack() {
                 01
               </span>
               <div className="w-4 h-[1px] bg-accent-orange/60" aria-hidden="true" />
-              <h3 className="font-sans text-[15px] font-semibold text-[#F1F0EC]">
+              <h3 className="font-sans text-[15px] font-semibold text-[#F5F5F3]">
                 Connected services
               </h3>
             </div>
@@ -549,7 +549,7 @@ export function ApplicationStack() {
                 02
               </span>
               <div className="w-4 h-[1px] bg-accent-orange/60" aria-hidden="true" />
-              <h3 className="font-sans text-[15px] font-semibold text-[#F1F0EC]">
+              <h3 className="font-sans text-[15px] font-semibold text-[#F5F5F3]">
                 One developer workflow
               </h3>
             </div>
@@ -565,7 +565,7 @@ export function ApplicationStack() {
                 03
               </span>
               <div className="w-4 h-[1px] bg-accent-orange/60" aria-hidden="true" />
-              <h3 className="font-sans text-[15px] font-semibold text-[#F1F0EC]">
+              <h3 className="font-sans text-[15px] font-semibold text-[#F5F5F3]">
                 Room to grow
               </h3>
             </div>

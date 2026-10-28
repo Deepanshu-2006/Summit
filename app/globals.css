@@ -11,21 +11,22 @@
   --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   /* Background Colors */
-  --color-bg-main: #121416;
-  --color-bg-secondary: #191C1F;
+  --color-bg-main: #111111;
+  --color-bg-secondary: #171717;
 
   /* Surface Colors */
-  --color-surface-card: #202427;
-  --color-surface-elevated: #292E32;
+  --color-surface-card: #1D1D1D;
+  --color-surface-elevated: #252525;
 
   /* Typography Colors */
-  --color-text-primary: #F1F0EC;
-  --color-text-secondary: #A6AAA9;
-  --color-text-muted: #777D7D;
+  --color-text-primary: #F5F5F3;
+  --color-text-secondary: #B0B0AE;
+  --color-text-muted: #777777;
 
   /* Border Colors */
-  --color-border-default: #343A3D;
-  --color-border-subtle: #292E31;
+  --color-border-default: #303030;
+  --color-border-subtle: #303030;
+  --color-border-strong: #444444;
 
   /* Brand Accent Colors (Burnt Orange) */
   --color-accent-orange: #D88762;
@@ -37,11 +38,11 @@
   --color-semantic-error: #D77D7D;
 
   /* Aliased Color Convenience Tokens */
-  --color-card: #202427;
-  --color-elevated: #292E32;
-  --color-primary: #F1F0EC;
-  --color-secondary: #A6AAA9;
-  --color-muted: #777D7D;
+  --color-card: #1D1D1D;
+  --color-elevated: #252525;
+  --color-primary: #F5F5F3;
+  --color-secondary: #B0B0AE;
+  --color-muted: #777777;
   --color-accent: #D88762;
   --color-accent-hover: #E39A76;
   --color-success: #83B69A;
@@ -78,17 +79,18 @@
    ------------------------------------------------------------------------- */
 :root {
   /* Colors */
-  --bg-main: #121416;
-  --bg-secondary: #191C1F;
-  --surface-card: #202427;
-  --surface-elevated: #292E32;
+  --bg-main: #111111;
+  --bg-secondary: #171717;
+  --surface-card: #1D1D1D;
+  --surface-elevated: #252525;
 
-  --text-primary: #F1F0EC;
-  --text-secondary: #A6AAA9;
-  --text-muted: #777D7D;
+  --text-primary: #F5F5F3;
+  --text-secondary: #B0B0AE;
+  --text-muted: #777777;
 
-  --border-default: #343A3D;
-  --border-subtle: #292E31;
+  --border-default: #303030;
+  --border-subtle: #303030;
+  --border-strong: #444444;
 
   --accent-orange: #D88762;
   --accent-orange-hover: #E39A76;
@@ -160,7 +162,7 @@ body {
 /* Selection */
 ::selection {
   background-color: rgba(216, 135, 98, 0.28);
-  color: #F1F0EC;
+  color: #F5F5F3;
 }
 
 /* Accessible Focus-Visible */

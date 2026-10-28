@@ -5,21 +5,22 @@
 
 export const COLORS = {
   background: {
-    main: "#121416",
-    secondary: "#191C1F",
+    main: "#111111",
+    secondary: "#171717",
   },
   surfaces: {
-    card: "#202427",
-    elevated: "#292E32",
+    card: "#1D1D1D",
+    elevated: "#252525",
   },
   typography: {
-    primary: "#F1F0EC",
-    secondary: "#A6AAA9",
-    muted: "#777D7D",
+    primary: "#F5F5F3",
+    secondary: "#B0B0AE",
+    muted: "#777777",
   },
   borders: {
-    default: "#343A3D",
-    subtle: "#292E31",
+    subtle: "#303030",
+    default: "#303030",
+    strong: "#444444",
   },
   accent: {
     orange: "#D88762",

@@ -16,7 +16,7 @@ function JetwayLogo({ className = "w-5 h-5" }: { className?: string }) {
     >
       <path
         d="M3 4.5L10.5 12L3 19.5H7.5L15 12L7.5 4.5H3Z"
-        fill="#A6AAA9"
+        fill="#B0B0AE"
         fillOpacity="0.4"
       />
       <path
@@ -30,7 +30,7 @@ function JetwayLogo({ className = "w-5 h-5" }: { className?: string }) {
 export function Footer() {
   return (
     <footer
-      className="w-full bg-[#0E1012] border-t border-border-subtle/80 text-text-primary pt-14 pb-12 sm:pt-16 sm:pb-14 select-none"
+      className="w-full bg-[#111111] border-t border-border-subtle/80 text-text-primary pt-14 pb-12 sm:pt-16 sm:pb-14 select-none"
       role="contentinfo"
       aria-label="Site footer"
     >
@@ -47,7 +47,7 @@ export function Footer() {
               aria-label="Jetway home"
             >
               <JetwayLogo className="w-5 h-5 shrink-0" />
-              <span className="text-[20px] font-semibold text-[#F1F0EC] tracking-[-0.02em] font-sans lowercase">
+              <span className="text-[20px] font-semibold text-[#F5F5F3] tracking-[-0.02em] font-sans lowercase">
                 {BRAND.name}
               </span>
             </Link>
