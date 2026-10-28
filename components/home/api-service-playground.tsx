@@ -5,10 +5,10 @@ import React, { useState, useEffect, useRef } from "react";
 type RequestType = "GET" | "POST";
 
 type LifecyclePhase =
-  | "setup"       // 400ms: Request initiation at client origin
-  | "outgoing"    // 900ms: Burnt-orange signal travels along architectural path to API junction
-  | "processing"  // 500ms: Central geometric junction transitions to processing state
-  | "returning"   // 900ms: Sage-green signal travels along return path to response destination
+  | "setup"       // 400ms: Request initiation at client origin window
+  | "outgoing"    // 900ms: Burnt-orange signal travels through illustrated pathway to API
+  | "processing"  // 500ms: Central API structure reorganizes and executes
+  | "returning"   // 900ms: Sage-green signal travels along egress pathway to destination
   | "reveal"      // 600ms: Response status & JSON properties materialize line by line
   | "completed";  // 1600ms: Completed state held for reading
 
@@ -101,7 +101,7 @@ export function ApiServicePlayground() {
   return (
     <div
       ref={containerRef}
-      className="w-full h-full flex flex-col justify-center overflow-hidden text-[12px] font-sans select-none relative py-2 sm:py-4"
+      className="w-full h-full flex items-center justify-center overflow-hidden select-none relative py-1 sm:py-2"
     >
       <style>{`
         @keyframes outgoingSignalDesktop {
@@ -109,14 +109,14 @@ export function ApiServicePlayground() {
             stroke-dashoffset: 40;
             opacity: 0;
           }
-          15% {
+          12% {
             opacity: 1;
           }
-          85% {
+          88% {
             opacity: 1;
           }
           100% {
-            stroke-dashoffset: -230;
+            stroke-dashoffset: -170;
             opacity: 0;
           }
         }
@@ -125,41 +125,53 @@ export function ApiServicePlayground() {
             stroke-dashoffset: 40;
             opacity: 0;
           }
-          15% {
+          12% {
             opacity: 1;
           }
-          85% {
+          88% {
             opacity: 1;
           }
           100% {
-            stroke-dashoffset: -230;
+            stroke-dashoffset: -170;
             opacity: 0;
           }
         }
-        @keyframes signalTravelVertical {
+        @keyframes signalTravelVerticalTop {
           0% {
-            top: 0%;
+            stroke-dashoffset: 30;
             opacity: 0;
-            transform: translateX(-50%) scaleY(0.4);
           }
           15% {
             opacity: 1;
-            transform: translateX(-50%) scaleY(1);
           }
           85% {
             opacity: 1;
-            transform: translateX(-50%) scaleY(1);
           }
           100% {
-            top: 100%;
+            stroke-dashoffset: -70;
             opacity: 0;
-            transform: translateX(-50%) scaleY(0.4);
           }
         }
-        @keyframes jsonLineFade {
+        @keyframes signalTravelVerticalBottom {
+          0% {
+            stroke-dashoffset: 30;
+            opacity: 0;
+          }
+          15% {
+            opacity: 1;
+          }
+          85% {
+            opacity: 1;
+          }
+          100% {
+            stroke-dashoffset: -70;
+            opacity: 0;
+          }
+        }
+        @keyframes jsonFadeIn {
           from {
             opacity: 0;
-            transform: translateY(4px);
+            transform: translateY(3px);
           }
           to {
             opacity: 1;
@@ -169,360 +181,870 @@ export function ApiServicePlayground() {
       `}</style>
 
       {/* =================================================================
-          THE LIVING REQUEST: One Continuous Visual Flow
-          No Three-Card Containers. Data Itself Streaming Through Infrastructure.
-          Request (Origin) ────[Continuous Architectural Path]────> Junction ────[Return Path]────> Response (Destination)
+          DESKTOP & TABLET: The Complete Infrastructure Illustration
+          A cohesive, balanced horizontal composition spanning the preview area
+          viewBox="0 0 960 340"
           ================================================================= */}
-      <div className="w-full flex flex-col lg:flex-row items-center justify-between gap-6 lg:gap-4 my-auto">
-        {/* ===============================================================
-            1. REQUEST: Origin & Concise Endpoint
-            Restrained typography, method distinguished without a badge
-            =============================================================== */}
-        <div className="w-full lg:w-[280px] flex flex-col justify-center shrink-0 min-h-[140px]">
-          {/* Method and Endpoint */}
-          <div className="flex items-baseline gap-2.5 font-mono">
-            <span
-              className={`text-[13.5px] font-bold tracking-wide transition-colors duration-300 ${
-                isGet ? "text-semantic-success" : "text-accent-orange"
-              }`}
-            >
-              {isGet ? "GET" : "POST"}
-            </span>
-            <span className="text-[15px] sm:text-[16px] font-medium text-[#F1F0EC] tracking-tight truncate">
-              {isGet ? "/api/v1/projects" : "/api/v1/resources"}
-            </span>
-          </div>
+      <div className="hidden md:flex w-full h-full items-center justify-center">
+        <svg
+          className="w-full h-full max-h-[380px] overflow-visible"
+          viewBox="0 0 960 340"
+          preserveAspectRatio="xMidYMid meet"
+          fill="none"
+        >
+          {/* =============================================================
+              1. REQUEST ORIGIN: Client Application Window Glyph
+              Understated terminal/window outline, HTTP method & endpoint
+              ============================================================= */}
+          <g id="request-origin-window">
+            {/* Outer Window Chassis */}
+            <rect
+              x="30"
+              y="60"
+              width="240"
+              height="215"
+              rx="7"
+              fill="#131416"
+              stroke="#24262B"
+              strokeWidth="1.2"
+            />
 
-          {/* Content: GET descriptor or POST real request payload */}
-          <div className="min-h-[90px] flex flex-col justify-start">
+            {/* Window Header Line */}
+            <line x1="30" y1="92" x2="270" y2="92" stroke="#1F2126" strokeWidth="1" />
+
+            {/* Application Window Glyph Dots */}
+            <circle cx="48" cy="76" r="3" fill="#383B42" />
+            <circle cx="60" cy="76" r="3" fill="#383B42" />
+            <circle cx="72" cy="76" r="3" fill="#383B42" />
+
+            {/* Application Window Title */}
+            <text
+              x="90"
+              y="79.5"
+              fill="#6A6F7C"
+              fontFamily="var(--font-geist-mono), monospace"
+              fontSize="10"
+              letterSpacing="0.08em"
+              fontWeight="500"
+            >
+              CLIENT ORIGIN
+            </text>
+
+            {/* Client Status Indicator */}
+            <circle
+              cx="250"
+              cy="76"
+              r="2.5"
+              fill={activePhase === "outgoing" ? "#D88762" : "#383B42"}
+              className="transition-colors duration-300"
+            />
+
+            {/* Active Request Method & Endpoint */}
             {isGet ? (
-              <div className="font-mono text-[11.5px] text-text-muted mt-3 leading-relaxed">
-                Query project state &amp; deployment status
-              </div>
+              <g>
+                <text
+                  x="48"
+                  y="132"
+                  fill="#83B69A"
+                  fontFamily="var(--font-geist-mono), monospace"
+                  fontSize="13.5"
+                  fontWeight="700"
+                  letterSpacing="0.02em"
+                >
+                  GET
+                </text>
+                <text
+                  x="88"
+                  y="132"
+                  fill="#F1F0EC"
+                  fontFamily="var(--font-geist-mono), monospace"
+                  fontSize="14"
+                  fontWeight="500"
+                  letterSpacing="-0.01em"
+                >
+                  /api/v1/projects
+                </text>
+                <text
+                  x="48"
+                  y="162"
+                  fill="#6B707C"
+                  fontFamily="var(--font-geist-mono), monospace"
+                  fontSize="11"
+                  letterSpacing="-0.01em"
+                >
+                  Fetch project state &amp; deployment status
+                </text>
+              </g>
             ) : (
-              <div className="mt-3 font-mono text-[12px] leading-relaxed select-text">
-                <div className="text-[#4E525A]">{"{"}</div>
-                <div className="pl-4">
-                  <span className="text-text-muted">&quot;name&quot;:</span>{" "}
-                  <span className="text-accent-orange">&quot;Production resource&quot;</span>,
-                </div>
-                <div className="pl-4">
-                  <span className="text-text-muted">&quot;type&quot;:</span>{" "}
-                  <span className="text-accent-orange">&quot;web&quot;</span>
-                </div>
-                <div className="text-[#4E525A]">{"}"}</div>
-              </div>
+              <g>
+                <text
+                  x="48"
+                  y="124"
+                  fill="#D88762"
+                  fontFamily="var(--font-geist-mono), monospace"
+                  fontSize="13.5"
+                  fontWeight="700"
+                  letterSpacing="0.02em"
+                >
+                  POST
+                </text>
+                <text
+                  x="96"
+                  y="124"
+                  fill="#F1F0EC"
+                  fontFamily="var(--font-geist-mono), monospace"
+                  fontSize="14"
+                  fontWeight="500"
+                  letterSpacing="-0.01em"
+                >
+                  /api/v1/resources
+                </text>
+
+                {/* POST Request Payload */}
+                <text
+                  x="48"
+                  y="152"
+                  fontFamily="var(--font-geist-mono), monospace"
+                  fontSize="11.5"
+                  fill="#4A4E57"
+                  xmlSpace="preserve"
+                >
+                  <tspan x="48" dy="0">&#123;</tspan>
+                  <tspan x="62" dy="20" fill="#8A8F98">&quot;name&quot;: <tspan fill="#D88762">&quot;Production resource&quot;</tspan><tspan fill="#4A4E57">,</tspan></tspan>
+                  <tspan x="62" dy="20" fill="#8A8F98">&quot;type&quot;: <tspan fill="#D88762">&quot;web&quot;</tspan></tspan>
+                  <tspan x="48" dy="20" fill="#4A4E57">&#125;</tspan>
+                </text>
+              </g>
             )}
-          </div>
-        </div>
 
-        {/* ===============================================================
-            2. THE LIVING PATH & CENTRAL PROCESSING JUNCTION (Desktop)
-            Single Continuous Architectural SVG with Precision 45° Chamfers
-            and Engineered Geometric Junction
-            =============================================================== */}
-        <div className="hidden lg:flex flex-1 flex-col items-center justify-center relative min-w-[320px] max-w-[520px] px-2 shrink-0">
-          {/* Understated Processing Identity */}
-          <div className="font-sans text-[15px] sm:text-[16px] font-medium text-[#F1F0EC] tracking-tight mb-1">
-            Jetway API
-          </div>
-
-          {/* Unified SVG Canvas: Path + Junction + Return Trace */}
-          <div className="w-full h-[120px] flex items-center justify-center relative">
-            <svg
-              className="w-full h-full overflow-visible"
-              viewBox="0 0 460 120"
+            {/* Output Port Connector on Right Edge */}
+            <rect x="268" y="159" width="4" height="12" rx="1" fill="#25272C" />
+            <circle
+              cx="270"
+              cy="165"
+              r="5"
               fill="none"
-            >
-              {/* --- Left Terminal Node (Request Origin Anchor) --- */}
-              <circle
-                cx="6"
-                cy="38"
-                r="3"
-                fill={activePhase === "outgoing" ? "#D88762" : "#3D4046"}
-                className="transition-colors duration-300"
-              />
-              <circle
-                cx="6"
-                cy="38"
-                r="6"
-                fill="none"
-                stroke={activePhase === "outgoing" ? "#D88762" : "#2E3136"}
-                strokeWidth="1"
-                opacity="0.5"
-                className="transition-colors duration-300"
-              />
+              stroke={activePhase === "outgoing" ? "#D88762" : "#383B42"}
+              strokeWidth="1"
+              opacity="0.6"
+              className="transition-colors duration-300"
+            />
+            <circle
+              cx="270"
+              cy="165"
+              r="2.5"
+              fill={activePhase === "outgoing" ? "#D88762" : "#383B42"}
+              className="transition-colors duration-300"
+            />
+          </g>
 
-              {/* --- Base Outgoing Architectural Path with 45° Chamfer --- */}
+          {/* =============================================================
+              CONNECTOR 1: Outgoing Illustrated Pathway
+              From Client Window (270, 165) → API Gateway Ingress (390, 190)
+              ============================================================= */}
+          <g id="pathway-outgoing">
+            {/* Base Neutral Conduit */}
+            <path
+              d="M 270 165 H 330 L 355 190 H 390"
+              stroke={activePhase === "outgoing" ? "#3D4046" : "#26292E"}
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="transition-colors duration-300"
+            />
+
+            {/* Micro Conduit Tick */}
+            <circle cx="330" cy="165" r="1.5" fill="#3D4046" />
+
+            {/* Traveling Burnt-Orange Signal */}
+            {activePhase === "outgoing" && (
               <path
-                d="M 6 38 H 110 L 132 60 H 170"
-                stroke={activePhase === "outgoing" ? "#3D4046" : "#2B2D31"}
-                strokeWidth="1.5"
+                d="M 270 165 H 330 L 355 190 H 390"
+                stroke="#D88762"
+                strokeWidth="2.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="transition-colors duration-300"
+                strokeDasharray="36 200"
+                style={{
+                  animation: "outgoingSignalDesktop 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards",
+                }}
               />
+            )}
+          </g>
 
-              {/* --- Outgoing Burnt-Orange Signal Trace --- */}
-              {activePhase === "outgoing" && (
-                <path
-                  d="M 6 38 H 110 L 132 60 H 170 L 230 20"
-                  stroke="#D88762"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeDasharray="40 280"
-                  style={{
-                    animation: "outgoingSignalDesktop 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards",
-                  }}
-                />
-              )}
+          {/* =============================================================
+              2. API INFRASTRUCTURE: Distinctive Engineered Architecture
+              One clear central processing point with reorganizing gates
+              ============================================================= */}
+          <g id="api-infrastructure" transform="translate(0, 0)">
+            {/* Precision Technical Registration Corners */}
+            <path d="M 380 60 H 390 M 385 55 V 65" stroke="#33373E" strokeWidth="1" />
+            <path d="M 570 60 H 580 M 575 55 V 65" stroke="#33373E" strokeWidth="1" />
+            <path d="M 380 275 H 390 M 385 270 V 280" stroke="#33373E" strokeWidth="1" />
+            <path d="M 570 275 H 580 M 575 270 V 280" stroke="#33373E" strokeWidth="1" />
 
-              {/* --- Central Geometric Junction Structure --- */}
-              {/* Centerline Axis */}
-              <line
-                x1="170"
-                y1="60"
-                x2="290"
-                y2="60"
-                stroke="#2A2C30"
-                strokeWidth="1"
-                strokeDasharray="2 3"
-              />
+            {/* Infrastructure Bounding Guide Frame */}
+            <rect
+              x="385"
+              y="60"
+              width="190"
+              height="215"
+              rx="6"
+              fill="#101113"
+              stroke="#222429"
+              strokeWidth="1"
+            />
 
-              {/* Dual Diamond Rails (Upper & Lower) */}
-              <path
-                d="M 170 60 L 230 20 L 290 60"
-                stroke={
-                  activePhase === "processing"
-                    ? "#D88762"
-                    : isResponseActive
-                    ? "#83B69A"
-                    : "#2E3136"
-                }
-                strokeWidth={activePhase === "processing" || isResponseActive ? "2" : "1.5"}
-                strokeLinejoin="round"
-                className="transition-colors duration-300"
-              />
-              <path
-                d="M 170 60 L 230 100 L 290 60"
-                stroke={
-                  activePhase === "processing"
-                    ? "#D88762"
-                    : isResponseActive
-                    ? "#83B69A"
-                    : "#2E3136"
-                }
-                strokeWidth={activePhase === "processing" || isResponseActive ? "2" : "1.5"}
-                strokeLinejoin="round"
-                className="transition-colors duration-300"
-              />
+            {/* Header Identity */}
+            <text
+              x="480"
+              y="82"
+              textAnchor="middle"
+              fill="#7A808D"
+              fontFamily="var(--font-geist-mono), monospace"
+              fontSize="10"
+              letterSpacing="0.14em"
+              fontWeight="600"
+            >
+              JETWAY API RUNTIME
+            </text>
 
-              {/* Precision Technical Crosshair Ticks */}
-              <path d="M 220 60 H 240" stroke="#3A3D42" strokeWidth="1" />
-              <path d="M 230 50 V 70" stroke="#3A3D42" strokeWidth="1" />
+            {/* Upper Architectural Bus Track */}
+            <line x1="405" y1="108" x2="555" y2="108" stroke="#1F2126" strokeWidth="1" />
+            <circle cx="430" cy="108" r="1.5" fill="#3D4046" />
+            <circle cx="530" cy="108" r="1.5" fill="#3D4046" />
 
-              {/* Precision Geometric Diamond Core */}
+            {/* Lower Architectural Bus Track */}
+            <line x1="405" y1="228" x2="555" y2="228" stroke="#1F2126" strokeWidth="1" />
+            <circle cx="430" cy="228" r="1.5" fill="#3D4046" />
+            <circle cx="530" cy="228" r="1.5" fill="#3D4046" />
+
+            {/* Ingress Gateway Stub on Left (Y = 190) */}
+            <line x1="385" y1="190" x2="415" y2="190" stroke="#2B2E33" strokeWidth="1.5" />
+            <circle cx="415" cy="190" r="2" fill="#3D4046" />
+
+            {/* Internal Ingress Channel (Chamfers up to Central Core at Y = 168) */}
+            <path
+              d="M 415 190 H 430 L 442 168 H 455"
+              stroke={activePhase === "processing" ? "#D88762" : "#24272D"}
+              strokeWidth="1.2"
+              fill="none"
+              strokeLinejoin="round"
+              className="transition-colors duration-300"
+            />
+
+            {/* Reorganizing Processing Gates (Sliding Brackets) */}
+            {/* Left Gate Bracket */}
+            <path
+              d="M 448 144 H 462 V 192 H 448"
+              stroke={
+                activePhase === "processing"
+                  ? "#D88762"
+                  : isResponseActive
+                  ? "#83B69A"
+                  : "#2E3238"
+              }
+              strokeWidth={activePhase === "processing" || isResponseActive ? "1.8" : "1.2"}
+              fill="none"
+              strokeLinejoin="round"
+              className="transition-all duration-300"
+              transform={
+                activePhase === "processing"
+                  ? "translate(5, 0)"
+                  : isResponseActive
+                  ? "translate(3, 0)"
+                  : "translate(0, 0)"
+              }
+            />
+
+            {/* Right Gate Bracket */}
+            <path
+              d="M 512 144 H 498 V 192 H 512"
+              stroke={
+                activePhase === "processing"
+                  ? "#D88762"
+                  : isResponseActive
+                  ? "#83B69A"
+                  : "#2E3238"
+              }
+              strokeWidth={activePhase === "processing" || isResponseActive ? "1.8" : "1.2"}
+              fill="none"
+              strokeLinejoin="round"
+              className="transition-all duration-300"
+              transform={
+                activePhase === "processing"
+                  ? "translate(-5, 0)"
+                  : isResponseActive
+                  ? "translate(-3, 0)"
+                  : "translate(0, 0)"
+              }
+            />
+
+            {/* Central Execution Core (Precision Hex/Diamond Matrix) */}
+            <g id="central-execution-core" transform="translate(480, 168)">
+              {/* Outer Matrix Frame */}
               <rect
-                x="223"
-                y="53"
+                x="-18"
+                y="-18"
+                width="36"
+                height="36"
+                rx="4"
+                fill="#141518"
+                stroke={
+                  activePhase === "processing"
+                    ? "#D88762"
+                    : isResponseActive
+                    ? "#83B69A"
+                    : "#2B2E33"
+                }
+                strokeWidth="1.2"
+                className="transition-colors duration-300"
+              />
+
+              {/* Crosshair Registration Ticks */}
+              <line x1="-10" y1="0" x2="10" y2="0" stroke="#383C44" strokeWidth="1" />
+              <line x1="0" y1="-10" x2="0" y2="10" stroke="#383C44" strokeWidth="1" />
+
+              {/* Core Execution Cell */}
+              <rect
+                x="-7"
+                y="-7"
                 width="14"
                 height="14"
-                transform={
-                  activePhase === "processing"
-                    ? "rotate(90 230 60) scale(1.15)"
-                    : "rotate(45 230 60)"
-                }
-                style={{ transformOrigin: "230px 60px" }}
+                rx="2"
                 fill={
                   activePhase === "processing"
                     ? "#D88762"
                     : isResponseActive
                     ? "#83B69A"
-                    : "#151618"
+                    : "#1C1E22"
                 }
                 stroke={
                   activePhase === "processing"
                     ? "#D88762"
                     : isResponseActive
                     ? "#83B69A"
-                    : "#3D4046"
+                    : "#3E424B"
                 }
                 strokeWidth="1.5"
+                transform={activePhase === "processing" ? "rotate(45)" : "rotate(0)"}
                 className="transition-all duration-300"
               />
+            </g>
 
-              {/* --- Base Returning Architectural Path with 45° Chamfer --- */}
+            {/* Internal Egress Channel (From Core at Y = 168 to Egress at Y = 150) */}
+            <path
+              d="M 505 168 H 518 L 530 150 H 545"
+              stroke={isResponseActive ? "#83B69A" : "#24272D"}
+              strokeWidth="1.2"
+              fill="none"
+              strokeLinejoin="round"
+              className="transition-colors duration-300"
+            />
+
+            {/* Egress Gateway Stub on Right (Y = 150) */}
+            <circle cx="545" cy="150" r="2" fill="#3D4046" />
+            <line x1="545" y1="150" x2="575" y2="150" stroke="#2B2E33" strokeWidth="1.5" />
+
+            {/* Dynamic Processing Status Indicator */}
+            <g id="processing-status-label">
+              {activePhase === "setup" || activePhase === "outgoing" ? (
+                <text
+                  x="480"
+                  y="256"
+                  textAnchor="middle"
+                  fill="#636874"
+                  fontFamily="var(--font-geist-mono), monospace"
+                  fontSize="11.5"
+                >
+                  Awaiting request
+                </text>
+              ) : activePhase === "processing" ? (
+                <g>
+                  <circle cx="418" cy="252" r="2" fill="#D88762" />
+                  <text
+                    x="480"
+                    y="256"
+                    textAnchor="middle"
+                    fill="#D88762"
+                    fontFamily="var(--font-geist-mono), monospace"
+                    fontSize="11.5"
+                    fontWeight="600"
+                  >
+                    {isGet ? "Resolving project..." : "Allocating resource..."}
+                  </text>
+                </g>
+              ) : (
+                <g>
+                  <circle cx="410" cy="252" r="2.5" fill="#83B69A" />
+                  <text
+                    x="480"
+                    y="256"
+                    textAnchor="middle"
+                    fill="#83B69A"
+                    fontFamily="var(--font-geist-mono), monospace"
+                    fontSize="11.5"
+                    fontWeight="600"
+                  >
+                    {isGet ? "200 OK — Resolved" : "201 Created — Allocated"}
+                  </text>
+                </g>
+              )}
+            </g>
+          </g>
+
+          {/* =============================================================
+              CONNECTOR 2: Returning Illustrated Pathway
+              From API Gateway Egress (575, 150) → Response Destination (690, 175)
+              ============================================================= */}
+          <g id="pathway-returning">
+            {/* Base Neutral Conduit */}
+            <path
+              d="M 575 150 H 615 L 640 175 H 690"
+              stroke={activePhase === "returning" ? "#3D4046" : "#26292E"}
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="transition-colors duration-300"
+            />
+
+            {/* Micro Conduit Tick */}
+            <circle cx="615" cy="150" r="1.5" fill="#3D4046" />
+
+            {/* Traveling Sage-Green Signal */}
+            {activePhase === "returning" && (
               <path
-                d="M 290 60 H 328 L 350 82 H 454"
-                stroke={activePhase === "returning" ? "#3D4046" : "#2B2D31"}
-                strokeWidth="1.5"
+                d="M 575 150 H 615 L 640 175 H 690"
+                stroke="#83B69A"
+                strokeWidth="2.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="transition-colors duration-300"
-              />
-
-              {/* --- Returning Sage-Green Signal Trace --- */}
-              {activePhase === "returning" && (
-                <path
-                  d="M 230 20 L 290 60 H 328 L 350 82 H 454"
-                  stroke="#83B69A"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeDasharray="40 280"
-                  style={{
-                    animation: "returningSignalDesktop 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards",
-                  }}
-                />
-              )}
-
-              {/* --- Right Terminal Node (Response Destination Anchor) --- */}
-              <circle
-                cx="454"
-                cy="82"
-                r="3"
-                fill={isResponseActive ? "#83B69A" : "#3D4046"}
-                className="transition-colors duration-300"
-              />
-              <circle
-                cx="454"
-                cy="82"
-                r="6"
-                fill="none"
-                stroke={isResponseActive ? "#83B69A" : "#2E3136"}
-                strokeWidth="1"
-                opacity="0.5"
-                className="transition-colors duration-300"
-              />
-            </svg>
-          </div>
-
-          {/* Dynamic Processing State Indicator */}
-          <div className="font-mono text-[11.5px] mt-1 transition-colors">
-            {activePhase === "setup" || activePhase === "outgoing" ? (
-              <span className="text-text-muted">Awaiting request</span>
-            ) : activePhase === "processing" ? (
-              <span className="text-accent-orange font-medium flex items-center justify-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-accent-orange animate-ping" />
-                {isGet ? "Resolving project..." : "Allocating resource..."}
-              </span>
-            ) : (
-              <span className="text-semantic-success font-semibold flex items-center justify-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
-                {isGet ? "200 OK" : "201 Created"}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Mobile Vertical Circuit Layout (< lg) */}
-        <div className="flex lg:hidden flex-col items-center justify-center w-full my-1">
-          {/* Top Outgoing Trace */}
-          <div className="h-6 w-[1.5px] bg-border-subtle/70 relative">
-            {activePhase === "outgoing" && (
-              <span
-                className="absolute left-1/2 -translate-x-1/2 h-5 w-[2px] bg-gradient-to-b from-transparent via-accent-orange to-accent-orange rounded-full pointer-events-none"
+                strokeDasharray="36 200"
                 style={{
-                  animation: "signalTravelVertical 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards",
+                  animation: "returningSignalDesktop 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards",
                 }}
               />
             )}
-          </div>
+          </g>
 
-          {/* Central Mobile Node */}
-          <div className="my-1 flex flex-col items-center text-center">
-            <span className="font-sans text-[14px] font-medium text-[#F1F0EC]">Jetway API</span>
-            <div className="font-mono text-[11px] mt-0.5">
-              {activePhase === "processing" ? (
-                <span className="text-accent-orange font-medium">Processing...</span>
-              ) : isResponseActive ? (
-                <span className="text-semantic-success font-semibold">{isGet ? "200 OK" : "201 Created"}</span>
-              ) : (
-                <span className="text-text-muted">Ready</span>
-              )}
-            </div>
-          </div>
+          {/* =============================================================
+              3. RESPONSE DESTINATION: Clean Typographic Emergence
+              Real JSON revealed line by line connected directly to egress conduit
+              ============================================================= */}
+          <g id="response-destination">
+            {/* Destination Receiver Port */}
+            <rect x="688" y="169" width="4" height="12" rx="1" fill="#25272C" />
+            <circle
+              cx="690"
+              cy="175"
+              r="5"
+              fill="none"
+              stroke={isResponseActive ? "#83B69A" : "#383B42"}
+              strokeWidth="1"
+              opacity="0.6"
+              className="transition-colors duration-300"
+            />
+            <circle
+              cx="690"
+              cy="175"
+              r="2.5"
+              fill={isResponseActive ? "#83B69A" : "#383B42"}
+              className="transition-colors duration-300"
+            />
 
-          {/* Bottom Return Trace */}
-          <div className="h-6 w-[1.5px] bg-border-subtle/70 relative">
-            {activePhase === "returning" && (
-              <span
-                className="absolute left-1/2 -translate-x-1/2 h-5 w-[2px] bg-gradient-to-b from-transparent via-semantic-success to-semantic-success rounded-full pointer-events-none"
-                style={{
-                  animation: "signalTravelVertical 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards",
-                }}
-              />
-            )}
-          </div>
-        </div>
+            {/* Vertical Alignment Datum Trace */}
+            <line
+              x1="706"
+              y1="96"
+              x2="706"
+              y2="245"
+              stroke="#1C1E22"
+              strokeWidth="1"
+              strokeDasharray="3 3"
+            />
 
-        {/* ===============================================================
-            3. RESPONSE: Readable Destination (Natural Emergence, No Box)
-            Real JSON revealed line by line as response signal arrives
-            =============================================================== */}
-        <div className="w-full lg:w-[280px] flex flex-col justify-center shrink-0 min-h-[140px]">
-          {/* Status Indicator */}
-          <div className="font-mono text-[14px] sm:text-[15px] font-semibold transition-colors flex items-center gap-2">
+            {/* Response Status Header */}
             {isResponseActive ? (
-              <>
-                <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
-                <span className="text-semantic-success">{isGet ? "200 OK" : "201 Created"}</span>
-              </>
+              <g>
+                <circle cx="724" cy="76" r="3" fill="#83B69A" />
+                <text
+                  x="736"
+                  y="80"
+                  fill="#83B69A"
+                  fontFamily="var(--font-geist-mono), monospace"
+                  fontSize="14.5"
+                  fontWeight="600"
+                  letterSpacing="-0.01em"
+                >
+                  {isGet ? "200 OK" : "201 Created"}
+                </text>
+              </g>
             ) : (
-              <span className="text-text-muted/40 font-normal text-[13px]">Response</span>
+              <text
+                x="720"
+                y="80"
+                fill="#4E535E"
+                fontFamily="var(--font-geist-mono), monospace"
+                fontSize="12.5"
+                letterSpacing="-0.01em"
+              >
+                Response destination
+              </text>
             )}
-          </div>
 
-          {/* Emergent JSON Payload (Pure Typography, No Bordered Container) */}
-          <div className="min-h-[90px] flex flex-col justify-start">
+            {/* Progressive JSON Content */}
             {!isResponseActive ? (
-              <div className="mt-3 font-mono text-[11.5px] text-text-muted/30">
-                Awaiting response...
-              </div>
+              <text
+                x="720"
+                y="135"
+                fill="#3E424B"
+                fontFamily="var(--font-geist-mono), monospace"
+                fontSize="11.5"
+              >
+                Waiting for request stream...
+              </text>
+            ) : isGet ? (
+              <text
+                x="720"
+                y="126"
+                fontFamily="var(--font-geist-mono), monospace"
+                fontSize="12.5"
+                fill="#4A4E57"
+                xmlSpace="preserve"
+              >
+                <tspan x="720" dy="0">&#123;</tspan>
+                <tspan
+                  x="736"
+                  dy="22"
+                  fill="#8A8F98"
+                  style={{ animation: "jsonFadeIn 0.25s ease-out 0.05s both" }}
+                >
+                  &quot;name&quot;: <tspan fill="#83B69A">&quot;Meridian&quot;</tspan><tspan fill="#4A4E57">,</tspan>
+                </tspan>
+                <tspan
+                  x="736"
+                  dy="22"
+                  fill="#8A8F98"
+                  style={{ animation: "jsonFadeIn 0.25s ease-out 0.18s both" }}
+                >
+                  &quot;status&quot;: <tspan fill="#83B69A">&quot;healthy&quot;</tspan>
+                </tspan>
+                <tspan
+                  x="720"
+                  dy="22"
+                  fill="#4A4E57"
+                  style={{ animation: "jsonFadeIn 0.25s ease-out 0.28s both" }}
+                >
+                  &#125;
+                </tspan>
+              </text>
             ) : (
-              <div className="mt-3 font-mono text-[12px] leading-relaxed select-text">
-                <div className="text-[#4E525A]">{"{"}</div>
-                {isGet ? (
-                  <>
-                    <div
-                      className="pl-4"
-                      style={{ animation: "jsonLineFade 0.25s ease-out 0.05s both" }}
-                    >
-                      <span className="text-text-muted">&quot;name&quot;:</span>{" "}
-                      <span className="text-semantic-success">&quot;Meridian&quot;</span>,
-                    </div>
-                    <div
-                      className="pl-4"
-                      style={{ animation: "jsonLineFade 0.25s ease-out 0.18s both" }}
-                    >
-                      <span className="text-text-muted">&quot;status&quot;:</span>{" "}
-                      <span className="text-semantic-success">&quot;healthy&quot;</span>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div
-                      className="pl-4"
-                      style={{ animation: "jsonLineFade 0.25s ease-out 0.05s both" }}
-                    >
-                      <span className="text-text-muted">&quot;id&quot;:</span>{" "}
-                      <span className="text-[#F1F0EC]">&quot;resource_08&quot;</span>,
-                    </div>
-                    <div
-                      className="pl-4"
-                      style={{ animation: "jsonLineFade 0.25s ease-out 0.18s both" }}
-                    >
-                      <span className="text-text-muted">&quot;created&quot;:</span>{" "}
-                      <span className="text-accent-orange">true</span>
-                    </div>
-                  </>
-                )}
-                <div className="text-[#4E525A]">{"}"}</div>
-              </div>
+              <text
+                x="720"
+                y="126"
+                fontFamily="var(--font-geist-mono), monospace"
+                fontSize="12.5"
+                fill="#4A4E57"
+                xmlSpace="preserve"
+              >
+                <tspan x="720" dy="0">&#123;</tspan>
+                <tspan
+                  x="736"
+                  dy="22"
+                  fill="#8A8F98"
+                  style={{ animation: "jsonFadeIn 0.25s ease-out 0.05s both" }}
+                >
+                  &quot;id&quot;: <tspan fill="#F1F0EC">&quot;resource_08&quot;</tspan><tspan fill="#4A4E57">,</tspan>
+                </tspan>
+                <tspan
+                  x="736"
+                  dy="22"
+                  fill="#8A8F98"
+                  style={{ animation: "jsonFadeIn 0.25s ease-out 0.18s both" }}
+                >
+                  &quot;created&quot;: <tspan fill="#D88762">true</tspan>
+                </tspan>
+                <tspan
+                  x="720"
+                  dy="22"
+                  fill="#4A4E57"
+                  style={{ animation: "jsonFadeIn 0.25s ease-out 0.28s both" }}
+                >
+                  &#125;
+                </tspan>
+              </text>
             )}
-          </div>
-        </div>
+          </g>
+        </svg>
+      </div>
+
+      {/* =================================================================
+          MOBILE COMPOSITION (< md): Optimized Vertical Technical Circuit
+          Preserves generous typography and identical 3-region lifecycle
+          viewBox="0 0 340 400"
+          ================================================================= */}
+      <div className="flex md:hidden w-full h-full items-center justify-center">
+        <svg
+          className="w-full h-full max-h-[380px] overflow-visible"
+          viewBox="0 0 340 400"
+          preserveAspectRatio="xMidYMid meet"
+          fill="none"
+        >
+          {/* 1. Mobile Request Origin Window */}
+          <g id="mobile-request-origin">
+            <rect
+              x="20"
+              y="15"
+              width="300"
+              height={isGet ? "95" : "120"}
+              rx="6"
+              fill="#131416"
+              stroke="#24262B"
+              strokeWidth="1.2"
+            />
+            <line x1="20" y1="42" x2="320" y2="42" stroke="#1F2126" strokeWidth="1" />
+            <circle cx="36" cy="28" r="2.5" fill="#383B42" />
+            <circle cx="46" cy="28" r="2.5" fill="#383B42" />
+            <circle cx="56" cy="28" r="2.5" fill="#383B42" />
+            <text
+              x="70"
+              y="31"
+              fill="#6A6F7C"
+              fontFamily="var(--font-geist-mono), monospace"
+              fontSize="9.5"
+              letterSpacing="0.08em"
+            >
+              CLIENT ORIGIN
+            </text>
+
+            {/* Method & Endpoint */}
+            <text
+              x="36"
+              y="68"
+              fill={isGet ? "#83B69A" : "#D88762"}
+              fontFamily="var(--font-geist-mono), monospace"
+              fontSize="12.5"
+              fontWeight="700"
+            >
+              {isGet ? "GET" : "POST"}
+            </text>
+            <text
+              x={isGet ? "70" : "78"}
+              y="68"
+              fill="#F1F0EC"
+              fontFamily="var(--font-geist-mono), monospace"
+              fontSize="12.5"
+              fontWeight="500"
+            >
+              {isGet ? "/api/v1/projects" : "/api/v1/resources"}
+            </text>
+
+            {isGet ? (
+              <text
+                x="36"
+                y="90"
+                fill="#6B707C"
+                fontFamily="var(--font-geist-mono), monospace"
+                fontSize="10"
+              >
+                Fetch project state &amp; deployment status
+              </text>
+            ) : (
+              <text
+                x="36"
+                y="88"
+                fill="#8A8F98"
+                fontFamily="var(--font-geist-mono), monospace"
+                fontSize="10"
+              >
+                payload: &#123; name: &quot;Production resource&quot;, type: &quot;web&quot; &#125;
+              </text>
+            )}
+          </g>
+
+          {/* Vertical Conduit 1: Window to API Gateway */}
+          <g id="mobile-conduit-top">
+            <line
+              x1="170"
+              y1={isGet ? 110 : 135}
+              x2="170"
+              y2="175"
+              stroke={activePhase === "outgoing" ? "#3D4046" : "#24262B"}
+              strokeWidth="1.5"
+            />
+            {activePhase === "outgoing" && (
+              <line
+                x1="170"
+                y1={isGet ? 110 : 135}
+                x2="170"
+                y2="175"
+                stroke="#D88762"
+                strokeWidth="2.5"
+                strokeDasharray="20 60"
+                style={{
+                  animation: "signalTravelVerticalTop 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards",
+                }}
+              />
+            )}
+          </g>
+
+          {/* 2. Mobile Central API Gateway */}
+          <g id="mobile-api-gateway" transform="translate(0, 175)">
+            <rect
+              x="50"
+              y="0"
+              width="240"
+              height="80"
+              rx="6"
+              fill="#101113"
+              stroke="#222429"
+              strokeWidth="1"
+            />
+            <text
+              x="170"
+              y="22"
+              textAnchor="middle"
+              fill="#7A808D"
+              fontFamily="var(--font-geist-mono), monospace"
+              fontSize="9.5"
+              letterSpacing="0.12em"
+              fontWeight="600"
+            >
+              JETWAY API RUNTIME
+            </text>
+
+            {/* Core Node */}
+            <circle
+              cx="170"
+              cy="46"
+              r="10"
+              fill={
+                activePhase === "processing"
+                  ? "#D88762"
+                  : isResponseActive
+                  ? "#83B69A"
+                  : "#1A1C20"
+              }
+              stroke={
+                activePhase === "processing"
+                  ? "#D88762"
+                  : isResponseActive
+                  ? "#83B69A"
+                  : "#383C44"
+              }
+              strokeWidth="1.5"
+              className="transition-colors duration-300"
+            />
+
+            {/* Status Line */}
+            <text
+              x="170"
+              y="70"
+              textAnchor="middle"
+              fontFamily="var(--font-geist-mono), monospace"
+              fontSize="10"
+            >
+              {activePhase === "setup" || activePhase === "outgoing" ? (
+                <tspan fill="#636874">Awaiting request</tspan>
+              ) : activePhase === "processing" ? (
+                <tspan fill="#D88762" fontWeight="600">Processing...</tspan>
+              ) : (
+                <tspan fill="#83B69A" fontWeight="600">{isGet ? "200 OK" : "201 Created"}</tspan>
+              )}
+            </text>
+          </g>
+
+          {/* Vertical Conduit 2: Gateway to Response Destination */}
+          <g id="mobile-conduit-bottom">
+            <line
+              x1="170"
+              y1="255"
+              x2="170"
+              y2="285"
+              stroke={activePhase === "returning" ? "#3D4046" : "#24262B"}
+              strokeWidth="1.5"
+            />
+            {activePhase === "returning" && (
+              <line
+                x1="170"
+                y1="255"
+                x2="170"
+                y2="285"
+                stroke="#83B69A"
+                strokeWidth="2.5"
+                strokeDasharray="20 60"
+                style={{
+                  animation: "signalTravelVerticalBottom 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards",
+                }}
+              />
+            )}
+          </g>
+
+          {/* 3. Mobile Response Destination */}
+          <g id="mobile-response-destination" transform="translate(0, 285)">
+            <rect
+              x="20"
+              y="0"
+              width="300"
+              height="95"
+              rx="6"
+              fill="#101113"
+              stroke="#202227"
+              strokeWidth="1"
+            />
+
+            <circle
+              cx="36"
+              cy="20"
+              r="2.5"
+              fill={isResponseActive ? "#83B69A" : "#383B42"}
+            />
+            <text
+              x="46"
+              y="24"
+              fill={isResponseActive ? "#83B69A" : "#555A64"}
+              fontFamily="var(--font-geist-mono), monospace"
+              fontSize="12"
+              fontWeight="600"
+            >
+              {isResponseActive ? (isGet ? "200 OK" : "201 Created") : "Response destination"}
+            </text>
+
+            {isResponseActive ? (
+              isGet ? (
+                <text
+                  x="36"
+                  y="50"
+                  fontFamily="var(--font-geist-mono), monospace"
+                  fontSize="10.5"
+                  fill="#8A8F98"
+                >
+                  &#123; &quot;name&quot;: &quot;Meridian&quot;, &quot;status&quot;: &quot;healthy&quot; &#125;
+                </text>
+              ) : (
+                <text
+                  x="36"
+                  y="50"
+                  fontFamily="var(--font-geist-mono), monospace"
+                  fontSize="10.5"
+                  fill="#8A8F98"
+                >
+                  &#123; &quot;id&quot;: &quot;resource_08&quot;, &quot;created&quot;: true &#125;
+                </text>
+              )
+            ) : (
+              <text
+                x="36"
+                y="50"
+                fill="#3E424B"
+                fontFamily="var(--font-geist-mono), monospace"
+                fontSize="10.5"
+              >
+                Waiting for response stream...
+              </text>
+            )}
+          </g>
+        </svg>
       </div>
     </div>
   );
