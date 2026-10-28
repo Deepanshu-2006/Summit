@@ -1,4 +1,5 @@
 import { Navbar } from "@/components/layout/navbar";
+import { Footer } from "@/components/layout/footer";
 import { Hero } from "@/components/home/hero";
 import { DeploymentExperience } from "@/components/home/deployment-experience";
 import { ProductExperience } from "@/components/home/product-experience";
@@ -6,6 +7,7 @@ import { ApplicationStack } from "@/components/home/application-stack";
 import { DeveloperExperience } from "@/components/home/developer-experience";
 import { ProductionVisibility } from "@/components/home/production-visibility";
 import { GettingStarted } from "@/components/home/getting-started";
+import { FinalCta } from "@/components/home/final-cta";
 
 export default function Home() {
   return (
@@ -19,7 +21,9 @@ export default function Home() {
         <DeveloperExperience />
         <ProductionVisibility />
         <GettingStarted />
+        <FinalCta />
       </main>
+      <Footer />
     </div>
   );
 }
