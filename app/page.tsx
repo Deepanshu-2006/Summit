@@ -2,6 +2,7 @@ import { Navbar } from "@/components/layout/navbar";
 import { Hero } from "@/components/home/hero";
 import { DeploymentExperience } from "@/components/home/deployment-experience";
 import { ProductExperience } from "@/components/home/product-experience";
+import { ApplicationStack } from "@/components/home/application-stack";
 
 export default function Home() {
   return (
@@ -11,6 +12,7 @@ export default function Home() {
         <Hero />
         <DeploymentExperience />
         <ProductExperience />
+        <ApplicationStack />
       </main>
     </div>
   );
