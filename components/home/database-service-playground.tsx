@@ -2,14 +2,11 @@
 
 import React, { useState, useEffect, useRef } from "react";
 
-type QueryType = "SELECT" | "UPDATE";
-
-type LifecyclePhase =
-  | "query_activation" // 450ms: Query condition highlighted in burnt orange
-  | "index_lookup"     // 750ms: Index node activates, burnt-orange signal traces to matching storage slots
-  | "record_matching"  // 700ms: Matching storage slots transition to sage green (or write pulse for UPDATE)
-  | "retrieval"        // 900ms: Records projected to result area, rows reveal progressively
-  | "completed";       // 2200ms: Hold completed state for reading before smooth transition
+type AnimationPhase =
+  | "query"        // 700ms: Emphasize active SQL condition WHERE id = 'rel_024'
+  | "lookup"       // 900ms: rel_024 key in index highlights in burnt orange, connector traces smoothly to Page 01
+  | "update"       // 800ms: rel_024 slot is selected, status transitions from draft to published, settling to sage green
+  | "confirmation" // 2600ms: Execution summary confirms stages, returned result row settles in full clarity
 
 function subscribeReducedMotion(callback: () => void) {
   if (typeof window === "undefined") return () => {};
@@ -28,8 +25,7 @@ function getReducedMotionServerSnapshot() {
 }
 
 export function DatabaseServicePlayground() {
-  const [queryType, setQueryType] = useState<QueryType>("SELECT");
-  const [phase, setPhase] = useState<LifecyclePhase>("query_activation");
+  const [phase, setPhase] = useState<AnimationPhase>("query");
   const [isInViewport, setIsInViewport] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -55,7 +51,7 @@ export function DatabaseServicePlayground() {
     return () => observer.disconnect();
   }, []);
 
-  // Coordinated animation state machine
+  // Single coordinated animation timeline
   useEffect(() => {
     if (isReducedMotion || !isInViewport) {
       return;
@@ -64,56 +60,31 @@ export function DatabaseServicePlayground() {
     let timeoutId: NodeJS.Timeout;
 
     switch (phase) {
-      case "query_activation":
-        timeoutId = setTimeout(() => setPhase("index_lookup"), 500);
+      case "query":
+        timeoutId = setTimeout(() => setPhase("lookup"), 700);
         break;
-      case "index_lookup":
-        timeoutId = setTimeout(() => setPhase("record_matching"), 800);
+      case "lookup":
+        timeoutId = setTimeout(() => setPhase("update"), 900);
         break;
-      case "record_matching":
-        timeoutId = setTimeout(() => setPhase("retrieval"), 750);
+      case "update":
+        timeoutId = setTimeout(() => setPhase("confirmation"), 800);
         break;
-      case "retrieval":
-        timeoutId = setTimeout(() => setPhase("completed"), 950);
-        break;
-      case "completed":
-        // Hold completed state, then smoothly cycle between SELECT and UPDATE
-        timeoutId = setTimeout(() => {
-          setQueryType((prev) => (prev === "SELECT" ? "UPDATE" : "SELECT"));
-          setPhase("query_activation");
-        }, 2200);
+      case "confirmation":
+        // Hold completed state, then restart smoothly
+        timeoutId = setTimeout(() => setPhase("query"), 2600);
         break;
     }
 
     return () => clearTimeout(timeoutId);
   }, [phase, isReducedMotion, isInViewport]);
 
-  const activePhase: LifecyclePhase = isReducedMotion ? "completed" : phase;
-  const isSelect = queryType === "SELECT";
+  const activePhase: AnimationPhase = isReducedMotion ? "confirmation" : phase;
 
-  // Phase flags
-  const isQueryActive = activePhase !== "completed";
-  const isIndexLookup =
-    activePhase === "index_lookup" ||
-    activePhase === "record_matching" ||
-    activePhase === "retrieval" ||
-    activePhase === "completed";
-  const isRecordsMatched =
-    activePhase === "record_matching" ||
-    activePhase === "retrieval" ||
-    activePhase === "completed";
-  const isRetrieving =
-    activePhase === "retrieval" || activePhase === "completed";
-  const isCompleted = activePhase === "completed";
-
-  // Step completion flags
-  const isIndexDone = isRecordsMatched;
-  const isMatchingDone = isRetrieving;
-
-  // Progressive row reveals in Results
-  const isRow1Visible = isRetrieving || isCompleted;
-  const isRow2Visible = isSelect && ((activePhase === "retrieval") || isCompleted);
-  const isRow3Visible = isSelect && isCompleted;
+  // State flags for coordinated transitions
+  const isConditionActive = activePhase === "query" || activePhase === "lookup";
+  const isLookup = activePhase === "lookup" || activePhase === "update" || activePhase === "confirmation";
+  const isUpdate = activePhase === "update" || activePhase === "confirmation";
+  const isConfirmation = activePhase === "confirmation";
 
   return (
     <div
@@ -121,164 +92,115 @@ export function DatabaseServicePlayground() {
       className="w-full h-full flex flex-col justify-between select-none overflow-hidden"
     >
       {/* =================================================================
-          AREA 1: UPPER AREA — COMPACT TYPESET SQL QUERY & PLAN INFO
-          Warm neutral palette: #E58A61 for keywords, #F0EEE9 for identifiers, #82B89D for strings.
+          1. SQL QUERY: COMPACT, CAREFULLY TYPESET CODE BLOCK
+          Geist Mono, burnt orange keywords, warm off-white identifiers, sage strings.
           ================================================================= */}
-      <div className="flex items-start justify-between gap-4 pb-1 shrink-0">
-        {/* Left: Compact SQL Query */}
-        <div className="font-mono text-[11px] leading-[1.4] tracking-tight">
-          {isSelect ? (
-            <div className="space-y-0.5">
-              <div>
-                <span className="text-[#E58A61] font-medium">SELECT</span>{" "}
-                <span className="text-[#F0EEE9]">id, slug, status</span>
-              </div>
-              <div>
-                <span className="text-[#E58A61] font-medium">FROM</span>{" "}
-                <span className="text-[#F0EEE9]">releases</span>
-              </div>
-              <div
-                className={`transition-all duration-300 inline-block px-1 -mx-1 rounded ${
-                  isQueryActive
-                    ? "bg-[#E58A61]/15 text-[#F0EEE9]"
-                    : "text-[#A5A19A]"
-                }`}
-              >
-                <span className="text-[#E58A61] font-medium">WHERE</span>{" "}
-                <span className="text-[#F0EEE9]">status</span> ={" "}
-                <span className="text-[#82B89D]">&apos;published&apos;</span>
-              </div>
-              <div>
-                <span className="text-[#E58A61] font-medium">ORDER BY</span>{" "}
-                <span className="text-[#F0EEE9]">deployed_at</span>{" "}
-                <span className="text-[#E58A61] font-medium">DESC</span>{" "}
-                <span className="text-[#E58A61] font-medium">LIMIT</span>{" "}
-                <span className="text-[#F0EEE9]">3</span>;
-              </div>
+      <div className="pb-1 shrink-0">
+        <div className="font-mono text-[11.5px] leading-[1.42] tracking-tight">
+          <div className="space-y-0.5">
+            <div>
+              <span className="text-[#E58A61] font-medium">UPDATE</span>{" "}
+              <span className="text-[#F0EEE9]">releases</span>
             </div>
-          ) : (
-            <div className="space-y-0.5">
-              <div>
-                <span className="text-[#E58A61] font-medium">UPDATE</span>{" "}
-                <span className="text-[#F0EEE9]">releases</span>
-              </div>
-              <div>
-                <span className="text-[#E58A61] font-medium">SET</span>{" "}
-                <span className="text-[#F0EEE9]">status</span> ={" "}
-                <span className="text-[#82B89D]">&apos;published&apos;</span>
-              </div>
-              <div
-                className={`transition-all duration-300 inline-block px-1 -mx-1 rounded ${
-                  isQueryActive
-                    ? "bg-[#E58A61]/15 text-[#F0EEE9]"
-                    : "text-[#A5A19A]"
-                }`}
-              >
-                <span className="text-[#E58A61] font-medium">WHERE</span>{" "}
-                <span className="text-[#F0EEE9]">id</span> ={" "}
-                <span className="text-[#82B89D]">&apos;rel_024&apos;</span>
-              </div>
-              <div>
-                <span className="text-[#E58A61] font-medium">RETURNING</span>{" "}
-                <span className="text-[#F0EEE9]">id, status</span>;
-              </div>
+            <div>
+              <span className="text-[#E58A61] font-medium">SET</span>{" "}
+              <span className="text-[#F0EEE9]">status</span> ={" "}
+              <span className="text-[#82B89D]">&apos;published&apos;</span>
             </div>
-          )}
-        </div>
-
-        {/* Right: Restrained PostgreSQL Access Specification */}
-        <div className="hidden sm:flex flex-col items-end font-mono text-[10px] text-[#A5A19A] leading-tight shrink-0 pt-0.5">
-          <div className="flex items-center gap-1.5 text-[#F0EEE9] font-medium">
-            <span
-              className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${
-                isIndexLookup ? "bg-[#E58A61]" : "bg-[#303030]"
+            <div
+              className={`transition-all duration-300 inline-block px-1.5 -mx-1.5 py-0.5 rounded ${
+                isConditionActive
+                  ? "bg-[#E58A61]/15 text-[#F0EEE9]"
+                  : "text-[#A5A19A]"
               }`}
-            />
-            <span>{isSelect ? "idx_releases_status" : "releases_pkey"}</span>
-            <span className="text-[#303030]">·</span>
-            <span className="text-[#77736D] font-normal">B-Tree</span>
-          </div>
-          <div className="text-[9.5px] text-[#77736D] mt-1">
-            {isSelect
-              ? "Storage pages: Heap 8KB · Filter: status = 'published'"
-              : "Point lookup: Heap 8KB · Tuple slot update"}
+            >
+              <span className="text-[#E58A61] font-medium">WHERE</span>{" "}
+              <span className="text-[#F0EEE9]">id</span> ={" "}
+              <span className="text-[#82B89D]">&apos;rel_024&apos;</span>
+            </div>
+            <div>
+              <span className="text-[#E58A61] font-medium">RETURNING</span>{" "}
+              <span className="text-[#F0EEE9]">id, status</span>;
+            </div>
           </div>
         </div>
       </div>
 
       {/* =================================================================
-          AREA 2: CENTRAL AREA — THE INDEXED STORAGE FIELD (HERO SVG)
+          2. THE HERO: THE INDEXED STORAGE FIELD
           Architectural technical illustration: neutral charcoal & warm gray.
+          The storage pages and rel_024 are the primary visual focal point.
+          NO vertical dotted lines.
           ================================================================= */}
       <div className="flex-1 w-full min-h-0 my-1 relative flex items-center justify-center overflow-hidden">
         <svg
-          viewBox="0 0 940 196"
-          className="w-full h-full max-h-[210px] select-none"
+          viewBox="0 0 940 190"
+          className="w-full h-full max-h-[225px] select-none"
           preserveAspectRatio="xMidYMid meet"
           aria-label="Database indexed storage pages illustration"
         >
           {/* -------------------------------------------------------------
-              PART A: B-TREE INDEX STRUCTURE (Left Region, X: 15 to 205)
+              PART A: PRIMARY-KEY INDEX (Left Region, X: 15 to 200)
+              Consistent node dimensions, understated root, neutral inactive keys.
               ------------------------------------------------------------- */}
-          <g id="index-structure">
-            {/* Index Section Title */}
+          <g id="index-tree">
             <text
               x="20"
               y="16"
               fill="#77736D"
-              fontSize="9"
+              fontSize="8.5"
               fontFamily="monospace"
-              letterSpacing="0.06em"
+              letterSpacing="0.08em"
             >
-              {isSelect ? "INDEX: idx_releases_status" : "INDEX: releases_pkey"}
+              INDEX
             </text>
 
-            {/* Root Node */}
+            {/* Root Node: primary_key */}
             <rect
-              x="35"
+              x="30"
               y="24"
-              width="130"
-              height="22"
+              width="140"
+              height="24"
               rx="3"
               fill="#151515"
-              stroke={isIndexLookup ? "#E58A61" : "#262626"}
+              stroke={isLookup ? "#E58A61" : "#262626"}
               strokeWidth="1"
               className="transition-colors duration-300"
             />
             <text
               x="100"
-              y="38"
-              fill={isIndexLookup ? "#F0EEE9" : "#A5A19A"}
+              y="39"
+              fill={isLookup ? "#F0EEE9" : "#A5A19A"}
               fontSize="8.5"
               fontFamily="monospace"
               textAnchor="middle"
               className="transition-colors duration-300"
             >
-              ROOT NODE
+              primary_key
             </text>
 
-            {/* Tree Branch Lines from Root to Leaf Keys */}
+            {/* Tree Branch Lines */}
             <path
-              d="M 100 46 L 60 68"
+              d="M 100 48 L 50 72"
               fill="none"
-              stroke={isIndexLookup ? "#E58A61" : "#262626"}
+              stroke={isLookup ? "#E58A61" : "#262626"}
               strokeWidth="1"
               className="transition-colors duration-300"
             />
             <path
-              d="M 100 46 L 140 68"
+              d="M 100 48 L 150 72"
               fill="none"
-              stroke={isIndexLookup ? "#E58A61" : "#262626"}
+              stroke={isLookup ? "#E58A61" : "#262626"}
               strokeWidth="1"
               className="transition-colors duration-300"
             />
 
-            {/* Leaf Key 1 (Inactive) */}
+            {/* Leaf Key 1: rel_020 (Inactive) */}
             <rect
               x="20"
-              y="68"
+              y="72"
               width="160"
-              height="22"
+              height="24"
               rx="3"
               fill="#151515"
               stroke="#262626"
@@ -286,51 +208,51 @@ export function DatabaseServicePlayground() {
             />
             <text
               x="30"
-              y="82"
+              y="87"
               fill="#77736D"
               fontSize="8.5"
               fontFamily="monospace"
             >
-              {isSelect ? "'draft'" : "'rel_020'"}
+              rel_020
             </text>
 
-            {/* Leaf Key 2 (ACTIVE TARGET KEY!) */}
+            {/* Leaf Key 2: rel_024 (SELECTED KEY) */}
             <rect
               x="20"
-              y="96"
+              y="103"
               width="160"
-              height="26"
+              height="24"
               rx="3"
-              fill={isIndexLookup ? "#1A1614" : "#151515"}
-              stroke={isIndexLookup ? "#E58A61" : "#2A2A2A"}
-              strokeWidth={isIndexLookup ? "1.2" : "1"}
+              fill={isLookup ? "#1A1614" : "#151515"}
+              stroke={isLookup ? (isUpdate ? "#82B89D" : "#E58A61") : "#262626"}
+              strokeWidth={isLookup ? "1.2" : "1"}
               className="transition-all duration-300"
             />
             <text
               x="30"
-              y="112"
-              fill={isIndexLookup ? "#F0EEE9" : "#A5A19A"}
+              y="118"
+              fill={isLookup ? "#F0EEE9" : "#A5A19A"}
               fontSize="9"
               fontFamily="monospace"
-              fontWeight={isIndexLookup ? "500" : "400"}
+              fontWeight={isLookup ? "500" : "400"}
               className="transition-colors duration-300"
             >
-              {isSelect ? "'published'" : "'rel_024'"}
+              rel_024
             </text>
             <circle
               cx="172"
-              cy="109"
+              cy="115"
               r="2.5"
-              fill={isIndexLookup ? "#E58A61" : "#303030"}
+              fill={isLookup ? (isUpdate ? "#82B89D" : "#E58A61") : "#303030"}
               className="transition-colors duration-300"
             />
 
-            {/* Leaf Key 3 (Inactive) */}
+            {/* Leaf Key 3: rel_028 (Inactive) */}
             <rect
               x="20"
-              y="128"
+              y="134"
               width="160"
-              height="22"
+              height="24"
               rx="3"
               fill="#151515"
               stroke="#262626"
@@ -338,117 +260,76 @@ export function DatabaseServicePlayground() {
             />
             <text
               x="30"
-              y="142"
+              y="149"
               fill="#77736D"
               fontSize="8.5"
               fontFamily="monospace"
             >
-              {isSelect ? "'archived'" : "'rel_028'"}
+              rel_028
             </text>
           </g>
 
           {/* -------------------------------------------------------------
-              PART B: PRECISE CONNECTOR PATHS (Index -> Storage Slots)
-              Crisp right-angle bus lines in burnt orange or sage green.
+              PART B: PRECISE CONTINUOUS CONNECTOR PATH
+              From rel_024 index entry directly terminating at Page 01, Slot 1.
+              Smooth stroke-dashoffset transition.
               ------------------------------------------------------------- */}
           <g id="index-connections">
-            {/* Connection 1: Index Leaf -> Page 1, Slot 1 (rel_024) */}
+            {/* Base inactive guide line */}
             <path
-              d="M 180 109 H 215 V 45 H 455"
+              d="M 180 115 H 220 V 46 H 457"
               fill="none"
-              stroke={
-                isIndexLookup
-                  ? (isSelect && isRecordsMatched ? "#82B89D" : "#E58A61")
-                  : "#262626"
-              }
-              strokeWidth={isIndexLookup ? "1.2" : "1"}
-              strokeDasharray={isIndexLookup ? "none" : "2 2"}
+              stroke="#262626"
+              strokeWidth="1"
+              strokeDasharray="2 2"
+            />
+
+            {/* Active animated trace line */}
+            <path
+              d="M 180 115 H 220 V 46 H 457"
+              fill="none"
+              stroke={isUpdate ? "#82B89D" : "#E58A61"}
+              strokeWidth="1.2"
+              style={{
+                strokeDasharray: 346,
+                strokeDashoffset: isLookup ? 0 : 346,
+                transition: "stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.4s ease",
+              }}
+            />
+
+            {/* Terminal node at the entrance of slot rel_024 */}
+            <circle
+              cx="457"
+              cy="46"
+              r="2"
+              fill={isLookup ? (isUpdate ? "#82B89D" : "#E58A61") : "#262626"}
               className="transition-colors duration-300"
             />
-            <circle
-              cx="455"
-              cy="45"
-              r="2"
-              fill={
-                isIndexLookup
-                  ? (isSelect && isRecordsMatched ? "#82B89D" : "#E58A61")
-                  : "#262626"
-              }
-            />
-
-            {/* Connection 2 (SELECT only): Index Leaf -> Page 2, Slot 0 (rel_023) */}
-            {isSelect && (
-              <>
-                <path
-                  d="M 180 109 H 225 V 101 H 308"
-                  fill="none"
-                  stroke={
-                    isIndexLookup
-                      ? (isRecordsMatched ? "#82B89D" : "#E58A61")
-                      : "#262626"
-                  }
-                  strokeWidth={isIndexLookup ? "1.2" : "1"}
-                  strokeDasharray={isIndexLookup ? "none" : "2 2"}
-                  className="transition-colors duration-300"
-                />
-                <circle
-                  cx="308"
-                  cy="101"
-                  r="2"
-                  fill={isIndexLookup ? (isRecordsMatched ? "#82B89D" : "#E58A61") : "#262626"}
-                />
-              </>
-            )}
-
-            {/* Connection 3 (SELECT only): Index Leaf -> Page 3, Slot 2 (rel_022) */}
-            {isSelect && (
-              <>
-                <path
-                  d="M 180 109 H 215 V 157 H 602"
-                  fill="none"
-                  stroke={
-                    isIndexLookup
-                      ? (isRecordsMatched ? "#82B89D" : "#E58A61")
-                      : "#262626"
-                  }
-                  strokeWidth={isIndexLookup ? "1.2" : "1"}
-                  strokeDasharray={isIndexLookup ? "none" : "2 2"}
-                  className="transition-colors duration-300"
-                />
-                <circle
-                  cx="602"
-                  cy="157"
-                  r="2"
-                  fill={isIndexLookup ? (isRecordsMatched ? "#82B89D" : "#E58A61") : "#262626"}
-                />
-              </>
-            )}
           </g>
 
           {/* -------------------------------------------------------------
-              PART C: STORAGE PAGES (Right Region, X: 235 to 925)
-              Three horizontal 8KB pages with consistent slots and clear hierarchy.
+              PART C: STORAGE PAGES (The Hero Visual Structure)
+              Three horizontal pages. Only rel_024 is the focal point.
+              NO unwanted vertical lines.
               ------------------------------------------------------------- */}
           <g id="storage-field">
-            {/* Storage Header Label */}
             <text
-              x="238"
+              x="235"
               y="16"
               fill="#77736D"
-              fontSize="9"
+              fontSize="8.5"
               fontFamily="monospace"
-              letterSpacing="0.06em"
+              letterSpacing="0.08em"
             >
-              STORAGE PAGES (8KB HEAP)
+              STORAGE PAGES
             </text>
 
             {/* =========================================================
-                PAGE 1: Heap Page 01 (Contains rel_024 in Slot 1)
+                PAGE 1: Heap Page 01 (Contains the Hero Slot rel_024)
                 ========================================================= */}
             <g id="page-01">
-              {/* Outer Page Boundary */}
               <rect
-                x="238"
+                x="235"
                 y="24"
                 width="686"
                 height="44"
@@ -458,9 +339,9 @@ export function DatabaseServicePlayground() {
                 strokeWidth="1"
               />
 
-              {/* Page Identifier Tab */}
+              {/* Page Identifier */}
               <rect
-                x="238"
+                x="235"
                 y="24"
                 width="66"
                 height="44"
@@ -470,138 +351,131 @@ export function DatabaseServicePlayground() {
                 rx="4"
               />
               <text
-                x="247"
-                y="42"
+                x="245"
+                y="49"
                 fill="#A5A19A"
                 fontSize="9"
                 fontFamily="monospace"
                 fontWeight="500"
               >
-                PAGE 01
-              </text>
-              <text
-                x="247"
-                y="55"
-                fill="#77736D"
-                fontSize="7.5"
-                fontFamily="monospace"
-              >
-                8KB HEAP
+                Page 01
               </text>
 
               {/* Slot 0: rel_018 (Inactive) */}
               <rect
-                x="310"
+                x="307"
                 y="28"
-                width="142"
+                width="144"
                 height="36"
                 rx="3"
                 fill="#111111"
                 stroke="#222222"
                 strokeWidth="1"
               />
-              <text x="318" y="42" fill="#A5A19A" fontSize="8.5" fontFamily="monospace">
+              <text x="315" y="43" fill="#A5A19A" fontSize="8.5" fontFamily="monospace">
                 rel_018
               </text>
-              <text x="318" y="55" fill="#77736D" fontSize="7.5" fontFamily="monospace">
+              <text x="315" y="56" fill="#77736D" fontSize="7.5" fontFamily="monospace">
                 draft
               </text>
 
-              {/* Slot 1: rel_024 (MATCH / TARGET RECORD!) */}
+              {/* Slot 1: rel_024 — THE PRIMARY VISUAL FOCAL POINT */}
               <rect
-                x="458"
+                x="457"
                 y="28"
-                width="142"
+                width="144"
                 height="36"
                 rx="3"
                 fill={
-                  isRecordsMatched
-                    ? (isSelect ? "#131815" : "#1A1614")
-                    : isIndexLookup ? "#1A1614" : "#111111"
+                  isUpdate
+                    ? "#131815"
+                    : isLookup
+                    ? "#1A1614"
+                    : "#111111"
                 }
                 stroke={
-                  isRecordsMatched
-                    ? (isSelect ? "#82B89D" : "#E58A61")
-                    : isIndexLookup ? "#E58A61" : "#222222"
+                  isUpdate
+                    ? "#82B89D"
+                    : isLookup
+                    ? "#E58A61"
+                    : "#222222"
                 }
-                strokeWidth={isRecordsMatched || isIndexLookup ? "1.2" : "1"}
+                strokeWidth={isLookup || isUpdate ? "1.5" : "1"}
                 className="transition-all duration-300"
               />
               <text
-                x="466"
-                y="42"
-                fill={isRecordsMatched ? "#F0EEE9" : "#A5A19A"}
+                x="465"
+                y="43"
+                fill={isLookup || isUpdate ? "#F0EEE9" : "#A5A19A"}
                 fontSize="8.5"
                 fontFamily="monospace"
-                fontWeight={isRecordsMatched ? "500" : "400"}
+                fontWeight={isLookup || isUpdate ? "600" : "400"}
                 className="transition-colors duration-300"
               >
                 rel_024
               </text>
               <text
-                x="466"
-                y="55"
+                x="465"
+                y="56"
                 fill={
-                  isRecordsMatched
-                    ? (isSelect
-                        ? "#82B89D"
-                        : (activePhase === "completed" ? "#82B89D" : "#E58A61"))
+                  isUpdate
+                    ? "#82B89D"
+                    : isLookup
+                    ? "#E58A61"
                     : "#77736D"
                 }
                 fontSize="7.5"
                 fontFamily="monospace"
-                fontWeight="medium"
+                fontWeight={isUpdate ? "500" : "400"}
                 className="transition-colors duration-300"
               >
-                {isSelect
-                  ? "● published"
-                  : (activePhase === "completed" ? "✔ published" : "updating...")}
+                {isUpdate ? "● published" : isLookup ? "draft → updating" : "draft"}
               </text>
 
               {/* Slot 2: rel_011 (Inactive) */}
               <rect
-                x="606"
+                x="607"
                 y="28"
-                width="142"
+                width="144"
                 height="36"
                 rx="3"
                 fill="#111111"
                 stroke="#222222"
                 strokeWidth="1"
               />
-              <text x="614" y="42" fill="#A5A19A" fontSize="8.5" fontFamily="monospace">
+              <text x="615" y="43" fill="#A5A19A" fontSize="8.5" fontFamily="monospace">
                 rel_011
               </text>
-              <text x="614" y="55" fill="#77736D" fontSize="7.5" fontFamily="monospace">
+              <text x="615" y="56" fill="#77736D" fontSize="7.5" fontFamily="monospace">
                 archived
               </text>
 
               {/* Slot 3: rel_019 (Inactive) */}
               <rect
-                x="754"
+                x="757"
                 y="28"
-                width="164"
+                width="158"
                 height="36"
                 rx="3"
                 fill="#111111"
                 stroke="#222222"
                 strokeWidth="1"
               />
-              <text x="762" y="42" fill="#A5A19A" fontSize="8.5" fontFamily="monospace">
+              <text x="765" y="43" fill="#A5A19A" fontSize="8.5" fontFamily="monospace">
                 rel_019
               </text>
-              <text x="762" y="55" fill="#77736D" fontSize="7.5" fontFamily="monospace">
+              <text x="765" y="56" fill="#77736D" fontSize="7.5" fontFamily="monospace">
                 draft
               </text>
             </g>
 
             {/* =========================================================
-                PAGE 2: Heap Page 02 (Contains rel_023 in Slot 0 for SELECT)
+                PAGE 2: Heap Page 02 (Subdued Inactive Records)
                 ========================================================= */}
             <g id="page-02">
               <rect
-                x="238"
-                y="76"
+                x="235"
+                y="79"
                 width="686"
                 height="44"
                 rx="4"
@@ -611,8 +485,8 @@ export function DatabaseServicePlayground() {
               />
 
               <rect
-                x="238"
-                y="76"
+                x="235"
+                y="79"
                 width="66"
                 height="44"
                 fill="#181818"
@@ -621,126 +495,96 @@ export function DatabaseServicePlayground() {
                 rx="4"
               />
               <text
-                x="247"
-                y="94"
+                x="245"
+                y="104"
                 fill="#A5A19A"
                 fontSize="9"
                 fontFamily="monospace"
                 fontWeight="500"
               >
-                PAGE 02
-              </text>
-              <text
-                x="247"
-                y="107"
-                fill="#77736D"
-                fontSize="7.5"
-                fontFamily="monospace"
-              >
-                8KB HEAP
+                Page 02
               </text>
 
-              {/* Slot 0: rel_023 (MATCH FOR SELECT) */}
+              {/* Slot 0: rel_023 (Inactive) */}
               <rect
-                x="310"
-                y="80"
-                width="142"
-                height="36"
-                rx="3"
-                fill={isSelect && isRecordsMatched ? "#131815" : (isSelect && isIndexLookup ? "#1A1614" : "#111111")}
-                stroke={
-                  isSelect && isRecordsMatched
-                    ? "#82B89D"
-                    : isSelect && isIndexLookup ? "#E58A61" : "#222222"
-                }
-                strokeWidth={isSelect && (isRecordsMatched || isIndexLookup) ? "1.2" : "1"}
-                className="transition-all duration-300"
-              />
-              <text
-                x="318"
-                y="94"
-                fill={isSelect && isRecordsMatched ? "#F0EEE9" : "#A5A19A"}
-                fontSize="8.5"
-                fontFamily="monospace"
-                fontWeight={isSelect && isRecordsMatched ? "500" : "400"}
-                className="transition-colors duration-300"
-              >
-                rel_023
-              </text>
-              <text
-                x="318"
-                y="107"
-                fill={isSelect && isRecordsMatched ? "#82B89D" : "#77736D"}
-                fontSize="7.5"
-                fontFamily="monospace"
-                fontWeight="medium"
-                className="transition-colors duration-300"
-              >
-                {isSelect && isRecordsMatched ? "● published" : "draft"}
-              </text>
-
-              {/* Slot 1: rel_015 (Inactive) */}
-              <rect
-                x="458"
-                y="80"
-                width="142"
+                x="307"
+                y="83"
+                width="144"
                 height="36"
                 rx="3"
                 fill="#111111"
                 stroke="#222222"
                 strokeWidth="1"
               />
-              <text x="466" y="94" fill="#A5A19A" fontSize="8.5" fontFamily="monospace">
+              <text x="315" y="98" fill="#A5A19A" fontSize="8.5" fontFamily="monospace">
+                rel_023
+              </text>
+              <text x="315" y="111" fill="#77736D" fontSize="7.5" fontFamily="monospace">
+                draft
+              </text>
+
+              {/* Slot 1: rel_015 (Inactive) */}
+              <rect
+                x="457"
+                y="83"
+                width="144"
+                height="36"
+                rx="3"
+                fill="#111111"
+                stroke="#222222"
+                strokeWidth="1"
+              />
+              <text x="465" y="98" fill="#A5A19A" fontSize="8.5" fontFamily="monospace">
                 rel_015
               </text>
-              <text x="466" y="107" fill="#77736D" fontSize="7.5" fontFamily="monospace">
+              <text x="465" y="111" fill="#77736D" fontSize="7.5" fontFamily="monospace">
                 draft
               </text>
 
               {/* Slot 2: rel_009 (Inactive) */}
               <rect
-                x="606"
-                y="80"
-                width="142"
+                x="607"
+                y="83"
+                width="144"
                 height="36"
                 rx="3"
                 fill="#111111"
                 stroke="#222222"
                 strokeWidth="1"
               />
-              <text x="614" y="94" fill="#A5A19A" fontSize="8.5" fontFamily="monospace">
+              <text x="615" y="98" fill="#A5A19A" fontSize="8.5" fontFamily="monospace">
                 rel_009
               </text>
-              <text x="614" y="107" fill="#77736D" fontSize="7.5" fontFamily="monospace">
+              <text x="615" y="111" fill="#77736D" fontSize="7.5" fontFamily="monospace">
                 archived
               </text>
 
               {/* Slot 3: rel_014 (Inactive) */}
               <rect
-                x="754"
-                y="80"
-                width="164"
+                x="757"
+                y="83"
+                width="158"
                 height="36"
                 rx="3"
                 fill="#111111"
                 stroke="#222222"
                 strokeWidth="1"
               />
-              <text x="762" y="94" fill="#A5A19A" fontSize="8.5" fontFamily="monospace">
+              <text x="765" y="98" fill="#A5A19A" fontSize="8.5" fontFamily="monospace">
                 rel_014
               </text>
-              <text x="762" y="107" fill="#77736D" fontSize="7.5" fontFamily="monospace">
+              <text x="765" y="111" fill="#77736D" fontSize="7.5" fontFamily="monospace">
                 draft
               </text>
             </g>
 
             {/* =========================================================
-                PAGE 3: Heap Page 03 (Contains rel_022 in Slot 2 for SELECT)
+                PAGE 3: Heap Page 03 (Subdued Inactive Records)
                 ========================================================= */}
             <g id="page-03">
               <rect
-                x="238"
-                y="128"
+                x="235"
+                y="134"
                 width="686"
                 height="44"
                 rx="4"
@@ -750,8 +594,8 @@ export function DatabaseServicePlayground() {
               />
 
               <rect
-                x="238"
-                y="128"
+                x="235"
+                y="134"
                 width="66"
                 height="44"
                 fill="#181818"
@@ -760,176 +604,115 @@ export function DatabaseServicePlayground() {
                 rx="4"
               />
               <text
-                x="247"
-                y="146"
+                x="245"
+                y="159"
                 fill="#A5A19A"
                 fontSize="9"
                 fontFamily="monospace"
                 fontWeight="500"
               >
-                PAGE 03
-              </text>
-              <text
-                x="247"
-                y="159"
-                fill="#77736D"
-                fontSize="7.5"
-                fontFamily="monospace"
-              >
-                8KB HEAP
+                Page 03
               </text>
 
               {/* Slot 0: rel_007 (Inactive) */}
               <rect
-                x="310"
-                y="132"
-                width="142"
+                x="307"
+                y="138"
+                width="144"
                 height="36"
                 rx="3"
                 fill="#111111"
                 stroke="#222222"
                 strokeWidth="1"
               />
-              <text x="318" y="146" fill="#A5A19A" fontSize="8.5" fontFamily="monospace">
+              <text x="315" y="153" fill="#A5A19A" fontSize="8.5" fontFamily="monospace">
                 rel_007
               </text>
-              <text x="318" y="159" fill="#77736D" fontSize="7.5" fontFamily="monospace">
+              <text x="315" y="166" fill="#77736D" fontSize="7.5" fontFamily="monospace">
                 archived
               </text>
 
               {/* Slot 1: rel_016 (Inactive) */}
               <rect
-                x="458"
-                y="132"
-                width="142"
+                x="457"
+                y="138"
+                width="144"
                 height="36"
                 rx="3"
                 fill="#111111"
                 stroke="#222222"
                 strokeWidth="1"
               />
-              <text x="466" y="146" fill="#A5A19A" fontSize="8.5" fontFamily="monospace">
+              <text x="465" y="153" fill="#A5A19A" fontSize="8.5" fontFamily="monospace">
                 rel_016
               </text>
-              <text x="466" y="159" fill="#77736D" fontSize="7.5" fontFamily="monospace">
+              <text x="465" y="166" fill="#77736D" fontSize="7.5" fontFamily="monospace">
                 draft
               </text>
 
-              {/* Slot 2: rel_022 (MATCH FOR SELECT) */}
+              {/* Slot 2: rel_022 (Inactive) */}
               <rect
-                x="606"
-                y="132"
-                width="142"
+                x="607"
+                y="138"
+                width="144"
                 height="36"
                 rx="3"
-                fill={isSelect && isRecordsMatched ? "#131815" : (isSelect && isIndexLookup ? "#1A1614" : "#111111")}
-                stroke={
-                  isSelect && isRecordsMatched
-                    ? "#82B89D"
-                    : isSelect && isIndexLookup ? "#E58A61" : "#222222"
-                }
-                strokeWidth={isSelect && (isRecordsMatched || isIndexLookup) ? "1.2" : "1"}
-                className="transition-all duration-300"
+                fill="#111111"
+                stroke="#222222"
+                strokeWidth="1"
               />
-              <text
-                x="614"
-                y="146"
-                fill={isSelect && isRecordsMatched ? "#F0EEE9" : "#A5A19A"}
-                fontSize="8.5"
-                fontFamily="monospace"
-                fontWeight={isSelect && isRecordsMatched ? "500" : "400"}
-                className="transition-colors duration-300"
-              >
+              <text x="615" y="153" fill="#A5A19A" fontSize="8.5" fontFamily="monospace">
                 rel_022
               </text>
-              <text
-                x="614"
-                y="159"
-                fill={isSelect && isRecordsMatched ? "#82B89D" : "#77736D"}
-                fontSize="7.5"
-                fontFamily="monospace"
-                fontWeight="medium"
-                className="transition-colors duration-300"
-              >
-                {isSelect && isRecordsMatched ? "● published" : "draft"}
+              <text x="615" y="166" fill="#77736D" fontSize="7.5" fontFamily="monospace">
+                draft
               </text>
 
               {/* Slot 3: rel_013 (Inactive) */}
               <rect
-                x="754"
-                y="132"
-                width="164"
+                x="757"
+                y="138"
+                width="158"
                 height="36"
                 rx="3"
                 fill="#111111"
                 stroke="#222222"
                 strokeWidth="1"
               />
-              <text x="762" y="146" fill="#A5A19A" fontSize="8.5" fontFamily="monospace">
+              <text x="765" y="153" fill="#A5A19A" fontSize="8.5" fontFamily="monospace">
                 rel_013
               </text>
-              <text x="762" y="159" fill="#77736D" fontSize="7.5" fontFamily="monospace">
+              <text x="765" y="166" fill="#77736D" fontSize="7.5" fontFamily="monospace">
                 draft
               </text>
             </g>
-
-            {/* Projection Indicators downward from Matching Slots during retrieval */}
-            {isRetrieving && (
-              <g id="retrieval-projections" className="animate-in fade-in duration-300">
-                <path
-                  d="M 529 64 V 186"
-                  stroke="#82B89D"
-                  strokeWidth="1"
-                  strokeDasharray="2 3"
-                  opacity="0.5"
-                />
-                {isSelect && (
-                  <>
-                    <path
-                      d="M 381 116 V 186"
-                      stroke="#82B89D"
-                      strokeWidth="1"
-                      strokeDasharray="2 3"
-                      opacity="0.5"
-                    />
-                    <path
-                      d="M 677 168 V 186"
-                      stroke="#82B89D"
-                      strokeWidth="1"
-                      strokeDasharray="2 3"
-                      opacity="0.5"
-                    />
-                  </>
-                )}
-              </g>
-            )}
           </g>
         </svg>
       </div>
 
       {/* =================================================================
-          AREA 3: LOWER AREA — COHERENT RESULT SUMMARY
-          Single integrated summary with 3 concise stages and structured table.
-          No fabricated execution times, no empty gaps, zero layout shift.
+          3. EXECUTION SUMMARY & CONCISE CONFIRMATION RESULT
+          Compact, single-line lifecycle + concise returned record.
+          No dotted vertical lines. No RETURNING id, status label on right.
           ================================================================= */}
       <div className="pt-2 border-t border-[#262626] shrink-0 space-y-2">
-        {/* Concise Query Execution Stages Strip */}
+        {/* Single-line Lifecycle */}
         <div className="flex items-center justify-between text-[11px] font-mono pb-1 border-b border-[#222222]">
-          <div className="flex items-center gap-4 sm:gap-6">
+          <div className="flex items-center gap-3 sm:gap-5">
             {/* Stage 1: Index lookup */}
             <div className="flex items-center gap-1.5">
               <span
                 className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${
-                  isIndexDone
+                  isUpdate
                     ? "bg-[#82B89D]"
-                    : isIndexLookup
+                    : isLookup
                     ? "bg-[#E58A61]"
                     : "bg-[#303030]"
                 }`}
               />
               <span
                 className={`transition-colors duration-300 ${
-                  isIndexLookup ? "text-[#F0EEE9] font-medium" : "text-[#77736D]"
+                  isLookup ? "text-[#F0EEE9] font-medium" : "text-[#77736D]"
                 }`}
               >
                 Index lookup
@@ -938,138 +721,65 @@ export function DatabaseServicePlayground() {
 
             <span className="text-[#303030] text-[10px]">→</span>
 
-            {/* Stage 2: 3 records matched / 1 record updated */}
+            {/* Stage 2: Record updated */}
             <div className="flex items-center gap-1.5">
               <span
                 className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${
-                  isMatchingDone
+                  isConfirmation
                     ? "bg-[#82B89D]"
-                    : isRecordsMatched
-                    ? (isSelect ? "bg-[#82B89D]" : "bg-[#E58A61]")
+                    : isUpdate
+                    ? "bg-[#E58A61]"
                     : "bg-[#303030]"
                 }`}
               />
               <span
                 className={`transition-colors duration-300 ${
-                  isRecordsMatched ? "text-[#F0EEE9] font-medium" : "text-[#77736D]"
+                  isUpdate ? "text-[#F0EEE9] font-medium" : "text-[#77736D]"
                 }`}
               >
-                {isSelect ? "3 records matched" : "1 record updated"}
+                Record updated
               </span>
             </div>
 
             <span className="text-[#303030] text-[10px]">→</span>
 
-            {/* Stage 3: Results returned */}
+            {/* Stage 3: Result returned */}
             <div className="flex items-center gap-1.5">
               <span
                 className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${
-                  isCompleted
-                    ? "bg-[#82B89D]"
-                    : isRetrieving
-                    ? "bg-[#82B89D]"
-                    : "bg-[#303030]"
+                  isConfirmation ? "bg-[#82B89D]" : "bg-[#303030]"
                 }`}
               />
               <span
                 className={`transition-colors duration-300 ${
-                  isRetrieving ? "text-[#F0EEE9] font-medium" : "text-[#77736D]"
+                  isConfirmation ? "text-[#F0EEE9] font-medium" : "text-[#77736D]"
                 }`}
               >
-                Results returned
+                Result returned
               </span>
             </div>
           </div>
-
-          {/* Right Status Indicator */}
-          <div className="hidden sm:flex items-center gap-2 text-[10.5px]">
-            {isCompleted ? (
-              <span className="text-[#82B89D] flex items-center gap-1.5 font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#82B89D]" />
-                {isSelect ? "3 matching records" : "1 record updated"}
-              </span>
-            ) : isRetrieving ? (
-              <span className="text-[#82B89D]/80">Streaming tuples</span>
-            ) : isRecordsMatched ? (
-              <span className="text-[#A5A19A]">Reading heap</span>
-            ) : (
-              <span className="text-[#77736D]">Scanning index</span>
-            )}
-          </div>
         </div>
 
-        {/* Structured Results Table */}
-        <div className="w-full font-mono text-[11px]">
-          {/* Table Column Headers */}
-          <div className="grid grid-cols-12 text-[9.5px] text-[#77736D] pb-1 border-b border-[#222222] uppercase tracking-wider">
-            <div className={isSelect ? "col-span-3" : "col-span-4"}>ID</div>
-            {isSelect && <div className="col-span-5">SLUG</div>}
-            <div className={isSelect ? "col-span-4" : "col-span-8"}>STATUS</div>
-          </div>
-
-          {/* Structured Rows (Fixed Height to Prevent Layout Shift) */}
-          <div className="min-h-[56px] flex flex-col justify-center divide-y divide-[#1D1D1D]">
-            {isSelect ? (
-              <>
-                {/* Row 1 */}
-                <div
-                  className={`grid grid-cols-12 py-0.5 items-center transition-all duration-300 ${
-                    isRow1Visible ? "opacity-100 translate-y-0" : "opacity-20"
-                  }`}
-                >
-                  <span className="col-span-3 text-[#F0EEE9] font-medium">rel_024</span>
-                  <span className="col-span-5 text-[#A5A19A]">v2.4-production</span>
-                  <span className="col-span-4 text-[#82B89D] flex items-center gap-1.5 font-medium">
-                    <span className={`w-1 h-1 rounded-full ${isRow1Visible ? "bg-[#82B89D]" : "bg-[#303030]"}`} />
-                    published
-                  </span>
-                </div>
-
-                {/* Row 2 */}
-                <div
-                  className={`grid grid-cols-12 py-0.5 items-center transition-all duration-300 ${
-                    isRow2Visible ? "opacity-100 translate-y-0" : "opacity-20"
-                  }`}
-                >
-                  <span className="col-span-3 text-[#F0EEE9] font-medium">rel_023</span>
-                  <span className="col-span-5 text-[#A5A19A]">v2.3-stable</span>
-                  <span className="col-span-4 text-[#82B89D] flex items-center gap-1.5 font-medium">
-                    <span className={`w-1 h-1 rounded-full ${isRow2Visible ? "bg-[#82B89D]" : "bg-[#303030]"}`} />
-                    published
-                  </span>
-                </div>
-
-                {/* Row 3 */}
-                <div
-                  className={`grid grid-cols-12 py-0.5 items-center transition-all duration-300 ${
-                    isRow3Visible ? "opacity-100 translate-y-0" : "opacity-20"
-                  }`}
-                >
-                  <span className="col-span-3 text-[#F0EEE9] font-medium">rel_022</span>
-                  <span className="col-span-5 text-[#A5A19A]">v2.2-production</span>
-                  <span className="col-span-4 text-[#82B89D] flex items-center gap-1.5 font-medium">
-                    <span className={`w-1 h-1 rounded-full ${isRow3Visible ? "bg-[#82B89D]" : "bg-[#303030]"}`} />
-                    published
-                  </span>
-                </div>
-              </>
-            ) : (
-              /* UPDATE Returned Row */
-              <div
-                className={`grid grid-cols-12 py-1.5 items-center transition-all duration-300 ${
-                  isRow1Visible ? "opacity-100 translate-y-0" : "opacity-20"
+        {/* Result: Concise Operation Confirmation (rel_024 · published · Updated from draft) */}
+        <div className="w-full font-mono text-[12px] py-1.5 flex items-center">
+          <div
+            className={`flex items-center gap-2 sm:gap-2.5 transition-all duration-300 ${
+              isConfirmation ? "opacity-100" : "opacity-30"
+            }`}
+          >
+            <span className="text-[#F0EEE9] font-medium tracking-tight">rel_024</span>
+            <span className="text-[#77736D]">·</span>
+            <span className="text-[#82B89D] flex items-center gap-1.5 font-medium">
+              <span
+                className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${
+                  isConfirmation ? "bg-[#82B89D]" : "bg-[#303030]"
                 }`}
-              >
-                <span className="col-span-4 text-[#F0EEE9] font-medium">rel_024</span>
-                <span className="col-span-8 text-[#82B89D] flex items-center gap-2 font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#82B89D]" />
-                  published
-                  <span className="text-[10px] text-[#A5A19A] font-normal">
-                    (updated from draft)
-                  </span>
-                </span>
-              </div>
-            )}
+              />
+              published
+            </span>
+            <span className="text-[#77736D]">·</span>
+            <span className="text-[#A5A19A] text-[11px]">Updated from draft</span>
           </div>
         </div>
       </div>
