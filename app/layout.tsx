@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Space_Grotesk, Geist_Mono } from "next/font/google";
+import { BRAND } from "@/lib/brand";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -18,7 +19,7 @@ const geistMono = Geist_Mono({
 
 // Temporary placeholder product name in metadata
 export const metadata: Metadata = {
-  title: "Platform [Preview] · Cloud Infrastructure",
+  title: `${BRAND.name} [Preview] · Cloud Infrastructure`,
   description: "Next-generation developer infrastructure and cloud deployment platform.",
 };
 
