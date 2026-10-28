@@ -6,9 +6,9 @@ type RequestType = "GET" | "POST";
 
 type LifecyclePhase =
   | "setup"       // 400ms: Request initiation at client origin
-  | "outgoing"    // 900ms: Burnt-orange signal travels through illustrated pathway into API
-  | "processing"  // 500ms: Central API structure executes and reorganizes
-  | "returning"   // 900ms: Sage-green signal travels through egress pathway to destination
+  | "outgoing"    // 900ms: Burnt-orange signal travels through curved conduit into API engine
+  | "processing"  // 500ms: Central isometric engine core illuminates & executes
+  | "returning"   // 900ms: Sage-green signal travels through egress conduit to destination
   | "reveal"      // 600ms: Response status & JSON properties materialize line by line
   | "completed";  // 1600ms: Completed state held for reading
 
@@ -101,61 +101,71 @@ export function ApiServicePlayground() {
   return (
     <div
       ref={containerRef}
-      className="w-full h-full flex items-center justify-center overflow-hidden select-none relative py-1"
+      className="w-full h-full flex items-center justify-center overflow-hidden select-none relative"
     >
       <style>{`
-        @keyframes signalTravelDesktop {
-          0% {
-            stroke-dashoffset: 40;
-            opacity: 0;
-          }
-          15% {
-            opacity: 1;
-          }
-          85% {
-            opacity: 1;
-          }
-          100% {
-            stroke-dashoffset: -180;
-            opacity: 0;
-          }
-        }
-        @keyframes signalTravelVerticalTop {
+        @keyframes conduitDashFlow {
           0% {
             stroke-dashoffset: 20;
-            opacity: 0;
-          }
-          15% {
-            opacity: 1;
-          }
-          85% {
-            opacity: 1;
           }
           100% {
-            stroke-dashoffset: -40;
-            opacity: 0;
+            stroke-dashoffset: -20;
           }
         }
-        @keyframes signalTravelVerticalBottom {
+        @keyframes signalTravelDesktop1 {
           0% {
-            stroke-dashoffset: 20;
+            offset-distance: 0%;
             opacity: 0;
+            transform: scale(0.6);
           }
           15% {
             opacity: 1;
+            transform: scale(1);
           }
           85% {
             opacity: 1;
+            transform: scale(1);
           }
           100% {
-            stroke-dashoffset: -40;
+            offset-distance: 100%;
             opacity: 0;
+            transform: scale(0.6);
+          }
+        }
+        @keyframes signalTravelDesktop2 {
+          0% {
+            offset-distance: 0%;
+            opacity: 0;
+            transform: scale(0.6);
+          }
+          15% {
+            opacity: 1;
+            transform: scale(1);
+          }
+          85% {
+            opacity: 1;
+            transform: scale(1);
+          }
+          100% {
+            offset-distance: 100%;
+            opacity: 0;
+            transform: scale(0.6);
+          }
+        }
+        @keyframes pulseHalo {
+          0%, 100% {
+            transform: scale(1);
+            opacity: 0.6;
+          }
+          50% {
+            transform: scale(1.3);
+            opacity: 0.9;
           }
         }
         @keyframes jsonLineFade {
           from {
             opacity: 0;
-            transform: translateY(2px);
+            transform: translateY(3px);
           }
           to {
             opacity: 1;
@@ -165,500 +175,573 @@ export function ApiServicePlayground() {
       `}</style>
 
       {/* =================================================================
-          DESKTOP & TABLET: Perfectly Balanced Three-Stage Composition
-          Left Card: 260px × 180px (Y=70 to 250)
-          Center Illustration: 260px × 180px (Y=70 to 250)
-          Right Card: 260px × 180px (Y=70 to 250)
-          All ports & conduits precisely aligned along Y = 160
-          viewBox="0 0 960 320"
+          DESKTOP & TABLET: Architectural Technical Sketch
+          Zero Slate Backgrounds · Pure Isometric Plinth Sketch · Smooth Bézier Conduits
+          viewBox="0 0 1020 360"
           ================================================================= */}
       <div className="hidden md:flex w-full h-full items-center justify-center">
         <svg
-          className="w-full h-full max-h-[380px] overflow-visible"
-          viewBox="0 0 960 320"
+          className="w-full h-full max-h-[390px] overflow-visible"
+          viewBox="0 0 1020 360"
           preserveAspectRatio="xMidYMid meet"
           fill="none"
         >
+          <defs>
+            {/* Precision Volumetric Isometric Shading (Matching Jetway Build Core) */}
+            <linearGradient id="api-iso-top-vol" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#22262A" stopOpacity="0.95" />
+              <stop offset="100%" stopColor="#131618" stopOpacity="0.95" />
+            </linearGradient>
+
+            <linearGradient id="api-iso-left-vol" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#1A1D20" stopOpacity="0.98" />
+              <stop offset="100%" stopColor="#0E1012" stopOpacity="0.98" />
+            </linearGradient>
+
+            <linearGradient id="api-iso-right-vol" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#16181B" stopOpacity="0.98" />
+              <stop offset="100%" stopColor="#0A0B0D" stopOpacity="0.98" />
+            </linearGradient>
+
+            <linearGradient id="api-core-glow-active" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#D88762" stopOpacity="0.4" />
+              <stop offset="100%" stopColor="#D88762" stopOpacity="0.08" />
+            </linearGradient>
+
+            <linearGradient id="api-core-glow-success" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#83B69A" stopOpacity="0.4" />
+              <stop offset="100%" stopColor="#83B69A" stopOpacity="0.08" />
+            </linearGradient>
+
+            <linearGradient id="api-core-glow-idle" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#22262A" stopOpacity="0.6" />
+              <stop offset="100%" stopColor="#131618" stopOpacity="0.6" />
+            </linearGradient>
+          </defs>
+
           {/* =============================================================
-              1. LEFT REQUEST CARD (X: 30 to 290, Y: 70 to 250)
-              Matching surface, border, corner radius, and padding as Right Card
+              CONNECTING PIPELINE CONDUITS (Rendered Behind Geometry)
+              Leg 1: Request Origin (280, 215) -> API Engine (410, 215)
+              Leg 2: API Engine (610, 215) -> Response Destination (740, 215)
               ============================================================= */}
-          <g id="request-card">
-            {/* Unified Card Surface */}
-            <rect
-              x="30"
-              y="70"
-              width="260"
-              height="180"
-              rx="6"
-              fill="#121315"
-              stroke="#23252A"
-              strokeWidth="1"
+          <g id="conduit-wiring">
+            {/* Leg 1: Background Dashed Guide */}
+            <path
+              d="M 280,215 C 325,185 365,245 410,215"
+              stroke="#3D4245"
+              strokeWidth="1.2"
+              strokeDasharray="3 3"
+              fill="none"
             />
+            {/* Leg 1: Active Burnt-Orange Trace */}
+            <path
+              id="leg1-path"
+              d="M 280,215 C 325,185 365,245 410,215"
+              stroke="#D88762"
+              strokeWidth="2"
+              strokeLinecap="round"
+              fill="none"
+              opacity={activePhase === "outgoing" ? 1 : 0.4}
+              className="transition-opacity duration-300"
+            />
+            {/* Leg 1 Midpoint Outlined Junction Node */}
+            <circle cx="345" cy="215" r="4" fill="#121416" stroke="#D88762" strokeWidth="1.4" />
+            <circle cx="345" cy="215" r="1.8" fill="#D88762" />
 
-            {/* Method & Endpoint Header */}
+            {/* Leg 1 Animated Signal Motion Packet */}
+            {activePhase === "outgoing" && (
+              <circle
+                r="4.5"
+                fill="#D88762"
+                style={{
+                  offsetPath: "path('M 280,215 C 325,185 365,245 410,215')",
+                  animation: "signalTravelDesktop1 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards",
+                }}
+              />
+            )}
+
+            {/* Leg 2: Background Dashed Guide */}
+            <path
+              d="M 610,215 C 655,185 695,245 740,215"
+              stroke="#3D4245"
+              strokeWidth="1.2"
+              strokeDasharray="3 3"
+              fill="none"
+            />
+            {/* Leg 2: Active Sage-Green Trace */}
+            <path
+              id="leg2-path"
+              d="M 610,215 C 655,185 695,245 740,215"
+              stroke="#83B69A"
+              strokeWidth="2"
+              strokeLinecap="round"
+              fill="none"
+              opacity={isResponseActive ? 1 : 0.3}
+              className="transition-opacity duration-300"
+            />
+            {/* Leg 2 Midpoint Outlined Junction Node */}
+            <circle cx="675" cy="215" r="4" fill="#121416" stroke="#83B69A" strokeWidth="1.4" />
+            <circle cx="675" cy="215" r="1.8" fill="#83B69A" />
+
+            {/* Leg 2 Animated Signal Motion Packet */}
+            {activePhase === "returning" && (
+              <circle
+                r="4.5"
+                fill="#83B69A"
+                style={{
+                  offsetPath: "path('M 610,215 C 655,185 695,245 740,215')",
+                  animation: "signalTravelDesktop2 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards",
+                }}
+              />
+            )}
+          </g>
+
+          {/* =============================================================
+              STAGE 01: REQUEST ORIGIN (Left Section)
+              Zero Slate Card · Pure Elegant Typography & Origin Flange
+              ============================================================= */}
+          <g id="scene-request">
+            {/* Section Stage Identifier */}
             <text
-              x="54"
-              y="106"
-              fill={isGet ? "#83B69A" : "#D88762"}
+              x="50"
+              y="62"
               fontFamily="var(--font-geist-mono), monospace"
-              fontSize="13"
-              fontWeight="700"
-              letterSpacing="0.02em"
-            >
-              {isGet ? "GET" : "POST"}
-            </text>
-            <text
-              x={isGet ? "92" : "100"}
-              y="106"
-              fill="#F1F0EC"
-              fontFamily="var(--font-geist-mono), monospace"
-              fontSize="13.5"
+              fontSize="11"
+              fill="#D88762"
+              letterSpacing="0.12em"
               fontWeight="500"
-              letterSpacing="-0.01em"
             >
-              {isGet ? "/api/v1/projects" : "/api/v1/resources"}
+              01 / REQUEST
             </text>
 
-            {/* Card Content: Concise Description for GET or Request Payload for POST */}
+            {/* Method & Endpoint (Prominent, High-Contrast Typography) */}
+            <text
+              x="50"
+              y="96"
+              fontFamily="var(--font-space-grotesk), sans-serif"
+              fontSize="22"
+              fontWeight="600"
+              fill="#F1F0EC"
+              letterSpacing="-0.02em"
+            >
+              <tspan fill={isGet ? "#83B69A" : "#D88762"}>{isGet ? "GET" : "POST"}</tspan>
+              <tspan fill="#F1F0EC" dx="8">
+                {isGet ? "/api/v1/projects" : "/api/v1/resources"}
+              </tspan>
+            </text>
+
+            {/* Subtitle / Description */}
+            <text
+              x="50"
+              y="122"
+              fontFamily="var(--font-geist-mono), monospace"
+              fontSize="12"
+              fill="#777D7D"
+            >
+              {isGet ? "Query project metadata & deployment status" : "Provision production application resource"}
+            </text>
+
+            {/* Content Payload / Protocol Headers (No Box, Pure Typography) */}
             {isGet ? (
               <g>
                 <text
-                  x="54"
-                  y="136"
-                  fill="#717682"
+                  x="50"
+                  y="156"
                   fontFamily="var(--font-geist-mono), monospace"
                   fontSize="11.5"
+                  fill="#4E535C"
                 >
-                  Fetch project state &amp; deployment status
+                  Accept: application/json
                 </text>
                 <text
-                  x="54"
-                  y="160"
-                  fill="#454952"
+                  x="50"
+                  y="178"
                   fontFamily="var(--font-geist-mono), monospace"
-                  fontSize="10.5"
+                  fontSize="11.5"
+                  fill="#4E535C"
                 >
-                  Content-Type: application/json
+                  Authorization: Bearer jet_live_sec
+                </text>
+                <text
+                  x="50"
+                  y="200"
+                  fontFamily="var(--font-geist-mono), monospace"
+                  fontSize="11.5"
+                  fill="#3D424A"
+                >
+                  Host: api.jetway.internal
                 </text>
               </g>
             ) : (
               <text
-                x="54"
-                y="134"
+                x="50"
+                y="152"
                 fontFamily="var(--font-geist-mono), monospace"
-                fontSize="11.5"
+                fontSize="12"
                 fill="#4E525A"
                 xmlSpace="preserve"
               >
-                <tspan x="54" dy="0">&#123;</tspan>
-                <tspan x="68" dy="19" fill="#8A8F98">&quot;name&quot;: <tspan fill="#D88762">&quot;Production resource&quot;</tspan><tspan fill="#4E525A">,</tspan></tspan>
-                <tspan x="68" dy="19" fill="#8A8F98">&quot;type&quot;: <tspan fill="#D88762">&quot;web&quot;</tspan></tspan>
-                <tspan x="54" dy="19" fill="#4E525A">&#125;</tspan>
+                <tspan x="50" dy="0">&#123;</tspan>
+                <tspan x="68" dy="21" fill="#8A8F98">&quot;name&quot;: <tspan fill="#D88762">&quot;Production resource&quot;</tspan><tspan fill="#4E525A">,</tspan></tspan>
+                <tspan x="68" dy="21" fill="#8A8F98">&quot;type&quot;: <tspan fill="#D88762">&quot;web&quot;</tspan></tspan>
+                <tspan x="50" dy="21" fill="#4E525A">&#125;</tspan>
               </text>
             )}
 
-            {/* Left Card Port (Right Edge Anchor: 290, 160) */}
-            <circle
-              cx="290"
-              cy="160"
-              r="4"
-              fill="#121315"
-              stroke={activePhase === "outgoing" ? "#D88762" : "#2E3137"}
-              strokeWidth="1.2"
-              className="transition-colors duration-300"
-            />
-            <circle
-              cx="290"
-              cy="160"
-              r="2"
-              fill={activePhase === "outgoing" ? "#D88762" : "#383B42"}
-              className="transition-colors duration-300"
-            />
+            {/* Output Flange Coupling at Vertex (280, 215) */}
+            <circle cx="280" cy="215" r="5.5" fill="#121416" stroke="#F1F0EC" strokeWidth="1.8" />
+            <circle cx="280" cy="215" r="2.5" fill="#D88762" />
           </g>
 
           {/* =============================================================
-              CONNECTOR 1: Outgoing Transmission Conduit
-              Straight, perfectly aligned connection from (290, 160) to (350, 160)
+              STAGE 02: API ENGINE — THE ISOMETRIC ARCHITECTURAL SKETCH
+              Modeled directly after Jetway Build Core · Layered 30° Plinth
               ============================================================= */}
-          <g id="connector-outgoing">
-            <line
-              x1="290"
-              y1="160"
-              x2="350"
-              y2="160"
-              stroke={activePhase === "outgoing" ? "#3D4046" : "#24262B"}
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              className="transition-colors duration-300"
-            />
-
-            {/* Outgoing Burnt-Orange Signal traveling into the illustration */}
-            {activePhase === "outgoing" && (
-              <path
-                d="M 290 160 H 480"
-                stroke="#D88762"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeDasharray="32 160"
-                style={{
-                  animation: "signalTravelDesktop 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards",
-                }}
-              />
-            )}
-          </g>
-
-          {/* =============================================================
-              2. CENTER API INFRASTRUCTURE ILLUSTRATION (X: 350 to 610, Y: 70 to 250)
-              Detailed, architectural technical network representation
-              ============================================================= */}
-          <g id="center-api-illustration">
-            {/* Technical Registration Corner Ticks */}
-            <path d="M 345 70 H 355 M 350 65 V 75" stroke="#33373E" strokeWidth="1" />
-            <path d="M 605 70 H 615 M 610 65 V 75" stroke="#33373E" strokeWidth="1" />
-            <path d="M 345 250 H 355 M 350 245 V 255" stroke="#33373E" strokeWidth="1" />
-            <path d="M 605 250 H 615 M 610 245 V 255" stroke="#33373E" strokeWidth="1" />
-
-            {/* Subtle Chassis Boundary */}
-            <rect
-              x="350"
-              y="70"
-              width="260"
-              height="180"
-              rx="6"
-              fill="#101113"
-              stroke="#222429"
-              strokeWidth="1"
-            />
-
-            {/* Top Identity Header */}
+          <g id="scene-engine">
+            {/* Stage 02 Heading: Centered above API Engine (X = 510) */}
             <text
-              x="480"
-              y="93"
+              x="510"
+              y="55"
               textAnchor="middle"
-              fill="#8E93A0"
-              fontFamily="var(--font-space-grotesk), sans-serif"
-              fontSize="11.5"
-              fontWeight="600"
-              letterSpacing="0.06em"
+              fontFamily="var(--font-geist-mono), monospace"
+              fontSize="11"
+              fill="#D88762"
+              letterSpacing="0.12em"
             >
-              JETWAY API RUNTIME
+              02 / RUNTIME
+            </text>
+            <text
+              x="510"
+              y="80"
+              textAnchor="middle"
+              fontFamily="var(--font-space-grotesk), sans-serif"
+              fontSize="22"
+              fontWeight="500"
+              fill="#F1F0EC"
+              letterSpacing="-0.02em"
+            >
+              Jetway API Engine
+            </text>
+            <text
+              x="510"
+              y="100"
+              textAnchor="middle"
+              fontFamily="var(--font-geist-mono), monospace"
+              fontSize="12"
+              fill="#777D7D"
+            >
+              Distributed edge request execution
             </text>
 
-            {/* Subtle Architectural Grid Axis Lines */}
-            <line x1="365" y1="104" x2="595" y2="104" stroke="#1A1C20" strokeWidth="1" />
-            <line x1="365" y1="216" x2="595" y2="216" stroke="#1A1C20" strokeWidth="1" />
+            {/* Base Level: Substructure Foundation Platform (30° Isometric) */}
+            <polygon
+              points="510,165 610,215 510,265 410,215"
+              fill="url(#api-iso-top-vol)"
+              stroke="#F1F0EC"
+              strokeWidth="1.6"
+              strokeLinejoin="round"
+            />
+            <polygon
+              points="410,215 510,265 510,295 410,245"
+              fill="url(#api-iso-left-vol)"
+              stroke="#F1F0EC"
+              strokeWidth="1.6"
+              strokeLinejoin="round"
+            />
+            <polygon
+              points="510,265 610,215 610,245 510,295"
+              fill="url(#api-iso-right-vol)"
+              stroke="#F1F0EC"
+              strokeWidth="1.6"
+              strokeLinejoin="round"
+            />
 
-            {/* --- Upper Parallel Bus Track (Y = 118) --- */}
-            <path
-              d="M 396 160 H 408 L 426 118 H 534 L 552 160 H 564"
+            {/* Substructure Cooling Ventilation Micro-Fins (Vertical Slits) */}
+            <line x1="432" y1="228" x2="432" y2="252" stroke="#3D4245" strokeWidth="1.2" />
+            <line x1="454" y1="239" x2="454" y2="263" stroke="#3D4245" strokeWidth="1.2" />
+            <line x1="476" y1="250" x2="476" y2="274" stroke="#3D4245" strokeWidth="1.2" />
+            <line x1="544" y1="250" x2="544" y2="274" stroke="#3D4245" strokeWidth="1.2" />
+            <line x1="566" y1="239" x2="566" y2="263" stroke="#3D4245" strokeWidth="1.2" />
+            <line x1="588" y1="228" x2="588" y2="252" stroke="#3D4245" strokeWidth="1.2" />
+
+            {/* Mid Level: Upper Integrated Core Plinth (Isometric) */}
+            <polygon
+              points="510,148 575,180 510,212 445,180"
+              fill="url(#api-iso-top-vol)"
+              stroke="#F1F0EC"
+              strokeWidth="1.4"
+              strokeLinejoin="round"
+            />
+            <polygon
+              points="445,180 510,212 510,230 445,198"
+              fill="url(#api-iso-left-vol)"
+              stroke="#A6AAA9"
+              strokeWidth="1.2"
+              strokeLinejoin="round"
+            />
+            <polygon
+              points="510,212 575,180 575,198 510,230"
+              fill="url(#api-iso-right-vol)"
+              stroke="#A6AAA9"
+              strokeWidth="1.2"
+              strokeLinejoin="round"
+            />
+
+            {/* Core Level: Active Central Processor Nucleus (Illuminates on request) */}
+            <polygon
+              points="510,160 545,178 510,196 475,178"
+              fill={
+                activePhase === "processing"
+                  ? "url(#api-core-glow-active)"
+                  : isResponseActive
+                  ? "url(#api-core-glow-success)"
+                  : "url(#api-core-glow-idle)"
+              }
               stroke={
                 activePhase === "processing"
                   ? "#D88762"
                   : isResponseActive
                   ? "#83B69A"
-                  : "#23262C"
+                  : "#555A64"
               }
-              strokeWidth="1.2"
-              fill="none"
+              strokeWidth="1.8"
               strokeLinejoin="round"
               className="transition-colors duration-300"
             />
-            {/* Secondary Nodes on Upper Track */}
-            <circle cx="426" cy="118" r="2" fill="#383C44" />
-            <circle cx="480" cy="118" r="2.5" fill={activePhase === "processing" ? "#D88762" : "#383C44"} className="transition-colors duration-300" />
-            <circle cx="534" cy="118" r="2" fill="#383C44" />
+            {/* Core Crosshair Registration Lines */}
+            <line
+              x1="490"
+              y1="178"
+              x2="530"
+              y2="178"
+              stroke={activePhase === "processing" ? "#D88762" : isResponseActive ? "#83B69A" : "#555A64"}
+              strokeWidth="1.2"
+              className="transition-colors duration-300"
+            />
+            <line
+              x1="510"
+              y1="168"
+              x2="510"
+              y2="188"
+              stroke={activePhase === "processing" ? "#D88762" : isResponseActive ? "#83B69A" : "#555A64"}
+              strokeWidth="1.2"
+              className="transition-colors duration-300"
+            />
+            <circle
+              cx="510"
+              cy="178"
+              r="2.8"
+              fill={activePhase === "processing" ? "#D88762" : isResponseActive ? "#83B69A" : "#555A64"}
+              className="transition-colors duration-300"
+            />
 
-            {/* --- Lower Parallel Bus Track (Y = 202) --- */}
+            {/* Internal Pipeline Trace (Connecting Left Flange -> Core -> Right Flange) */}
             <path
-              d="M 396 160 H 408 L 426 202 H 534 L 552 160 H 564"
-              stroke={
-                activePhase === "processing"
-                  ? "#D88762"
-                  : isResponseActive
-                  ? "#83B69A"
-                  : "#23262C"
-              }
-              strokeWidth="1.2"
+              d="M 410,215 L 475,178 L 545,178 L 610,215"
+              stroke={activePhase === "processing" ? "#D88762" : isResponseActive ? "#83B69A" : "#3D4245"}
+              strokeWidth="1.4"
+              strokeDasharray="2.5 2.5"
               fill="none"
-              strokeLinejoin="round"
-              className="transition-colors duration-300"
-            />
-            {/* Secondary Nodes on Lower Track */}
-            <circle cx="426" cy="202" r="2" fill="#383C44" />
-            <circle cx="480" cy="202" r="2.5" fill={activePhase === "processing" ? "#D88762" : "#383C44"} className="transition-colors duration-300" />
-            <circle cx="534" cy="202" r="2" fill="#383C44" />
-
-            {/* --- Ingress Port (350, 160) & Distribution Junction --- */}
-            <line x1="350" y1="160" x2="396" y2="160" stroke="#2E323A" strokeWidth="1.5" />
-            <circle cx="396" cy="160" r="3" fill="#1A1C20" stroke="#3D414B" strokeWidth="1" />
-
-            {/* Central Direct Pathway into Core */}
-            <line
-              x1="396"
-              y1="160"
-              x2="454"
-              y2="160"
-              stroke={activePhase === "outgoing" || activePhase === "processing" ? "#D88762" : "#262930"}
-              strokeWidth="1.5"
               className="transition-colors duration-300"
             />
 
-            {/* --- Vertical Interconnect Traces --- */}
-            <line x1="480" y1="118" x2="480" y2="134" stroke="#282B33" strokeWidth="1" />
-            <line x1="480" y1="186" x2="480" y2="202" stroke="#282B33" strokeWidth="1" />
-
-            {/* --- THE CENTRAL PROCESSING CORE (Prominent 52px Octagon + Execution Matrix) --- */}
-            <g id="central-core">
-              {/* Outer Architectural Octagon */}
-              <polygon
-                points="460,134 500,134 506,140 506,180 500,186 460,186 454,180 454,140"
-                fill="#131417"
-                stroke={
-                  activePhase === "processing"
-                    ? "#D88762"
-                    : isResponseActive
-                    ? "#83B69A"
-                    : "#2B2E35"
-                }
-                strokeWidth={activePhase === "processing" || isResponseActive ? "1.8" : "1.2"}
-                className="transition-colors duration-300"
-              />
-
-              {/* Precision Technical Crosshair Ticks */}
-              <line x1="466" y1="160" x2="494" y2="160" stroke="#3A3E47" strokeWidth="1" />
-              <line x1="480" y1="146" x2="480" y2="174" stroke="#3A3E47" strokeWidth="1" />
-
-              {/* Central Geometric Execution Cell (Rotates smoothly during processing) */}
-              <rect
-                x="472"
-                y="152"
-                width="16"
-                height="16"
-                rx="2"
-                fill={
-                  activePhase === "processing"
-                    ? "#D88762"
-                    : isResponseActive
-                    ? "#83B69A"
-                    : "#1C1E23"
-                }
-                stroke={
-                  activePhase === "processing"
-                    ? "#D88762"
-                    : isResponseActive
-                    ? "#83B69A"
-                    : "#3D414B"
-                }
-                strokeWidth="1.5"
-                transform={
-                  activePhase === "processing"
-                    ? "rotate(90 480 160)"
-                    : isResponseActive
-                    ? "rotate(45 480 160)"
-                    : "rotate(45 480 160)"
-                }
-                className="transition-all duration-300"
-              />
-            </g>
-
-            {/* Central Direct Pathway out of Core */}
-            <line
-              x1="506"
-              y1="160"
-              x2="564"
-              y2="160"
-              stroke={isResponseActive ? "#83B69A" : "#262930"}
-              strokeWidth="1.5"
+            {/* Flange Couplings at Platform Vertices */}
+            <circle cx="410" cy="215" r="5.5" fill="#121416" stroke="#F1F0EC" strokeWidth="1.8" />
+            <circle
+              cx="410"
+              cy="215"
+              r="2.5"
+              fill={activePhase === "outgoing" || activePhase === "processing" ? "#D88762" : "#45494B"}
               className="transition-colors duration-300"
             />
 
-            {/* --- Egress Convergence Junction & Egress Port (610, 160) --- */}
-            <circle cx="564" cy="160" r="3" fill="#1A1C20" stroke="#3D414B" strokeWidth="1" />
-            <line x1="564" y1="160" x2="610" y2="160" stroke="#2E323A" strokeWidth="1.5" />
+            <circle cx="610" cy="215" r="5.5" fill="#121416" stroke="#F1F0EC" strokeWidth="1.8" />
+            <circle
+              cx="610"
+              cy="215"
+              r="2.5"
+              fill={isResponseActive ? "#83B69A" : "#45494B"}
+              className="transition-colors duration-300"
+            />
 
-            {/* Bottom Dynamic Processing Status */}
-            <g id="central-status">
-              {activePhase === "setup" || activePhase === "outgoing" ? (
+            {/* =========================================================
+                API ENGINE TELEMETRY SEQUENCE (Docked Directly Beneath)
+                ========================================================= */}
+            <g id="engine-telemetry-sequence">
+              {/* Step 1: Route resolved */}
+              <g>
+                <circle
+                  cx="410"
+                  cy="312"
+                  r="3"
+                  fill="#121416"
+                  stroke={activePhase === "setup" ? "#45494B" : "#83B69A"}
+                  strokeWidth="1.6"
+                />
+                <text x="424" y="316" fontFamily="var(--font-geist-mono), monospace" fontSize="11" fill="#F1F0EC">
+                  Route matched
+                </text>
+                <text x="610" y="316" textAnchor="end" fontFamily="var(--font-geist-mono), monospace" fontSize="11" fill="#A6AAA9">
+                  1.2ms
+                </text>
+              </g>
+
+              {/* Step 2: Handler executed (Active Highlight during processing) */}
+              <g>
+                <circle
+                  cx="410"
+                  cy="332"
+                  r="3"
+                  fill={activePhase === "processing" ? "#D88762" : isResponseActive ? "#83B69A" : "#121416"}
+                  stroke={activePhase === "processing" ? "#D88762" : isResponseActive ? "#83B69A" : "#45494B"}
+                  strokeWidth="1.6"
+                  className="transition-colors duration-300"
+                />
+                <text x="424" y="336" fontFamily="var(--font-geist-mono), monospace" fontSize="11" fill="#F1F0EC">
+                  Handler executed
+                </text>
                 <text
-                  x="480"
-                  y="235"
-                  textAnchor="middle"
-                  fill="#636875"
+                  x="610"
+                  y="336"
+                  textAnchor="end"
                   fontFamily="var(--font-geist-mono), monospace"
                   fontSize="11"
+                  fill={activePhase === "processing" ? "#D88762" : isResponseActive ? "#83B69A" : "#A6AAA9"}
+                  className="transition-colors duration-300"
                 >
-                  Awaiting request
+                  18.4ms
                 </text>
-              ) : activePhase === "processing" ? (
-                <g>
-                  <circle cx="414" cy="231" r="2.5" fill="#D88762" />
-                  <text
-                    x="480"
-                    y="235"
-                    textAnchor="middle"
-                    fill="#D88762"
-                    fontFamily="var(--font-geist-mono), monospace"
-                    fontSize="11"
-                    fontWeight="600"
-                  >
-                    {isGet ? "Resolving project..." : "Allocating resource..."}
-                  </text>
-                </g>
-              ) : (
-                <g>
-                  <circle cx="414" cy="231" r="2.5" fill="#83B69A" />
-                  <text
-                    x="480"
-                    y="235"
-                    textAnchor="middle"
-                    fill="#83B69A"
-                    fontFamily="var(--font-geist-mono), monospace"
-                    fontSize="11"
-                    fontWeight="600"
-                  >
-                    {isGet ? "200 OK — Resolved" : "201 Created — Allocated"}
-                  </text>
-                </g>
-              )}
+              </g>
+
+              {/* Step 3: Response prepared */}
+              <g>
+                <circle
+                  cx="410"
+                  cy="352"
+                  r="3"
+                  fill="#121416"
+                  stroke={isResponseActive ? "#83B69A" : "#45494B"}
+                  strokeWidth="1.6"
+                  className="transition-colors duration-300"
+                />
+                <text x="424" y="356" fontFamily="var(--font-geist-mono), monospace" fontSize="11" fill="#F1F0EC">
+                  Response serialized
+                </text>
+                <text x="610" y="356" textAnchor="end" fontFamily="var(--font-geist-mono), monospace" fontSize="11" fill="#A6AAA9">
+                  0.4ms
+                </text>
+              </g>
             </g>
           </g>
 
           {/* =============================================================
-              CONNECTOR 2: Returning Transmission Conduit
-              Straight, perfectly aligned connection from (610, 160) to (670, 160)
+              STAGE 03: RESPONSE DESTINATION (Right Section)
+              Zero Slate Card · Pure Elegant Typography & Intake Flange
               ============================================================= */}
-          <g id="connector-returning">
-            <line
-              x1="610"
-              y1="160"
-              x2="670"
-              y2="160"
-              stroke={activePhase === "returning" ? "#3D4046" : "#24262B"}
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              className="transition-colors duration-300"
-            />
+          <g id="scene-response">
+            {/* Section Stage Identifier */}
+            <text
+              x="740"
+              y="62"
+              fontFamily="var(--font-geist-mono), monospace"
+              fontSize="11"
+              fill="#83B69A"
+              letterSpacing="0.12em"
+              fontWeight="500"
+            >
+              03 / RESPONSE
+            </text>
 
-            {/* Returning Sage-Green Signal traveling into the response card */}
-            {activePhase === "returning" && (
-              <path
-                d="M 480 160 H 670"
-                stroke="#83B69A"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeDasharray="32 160"
-                style={{
-                  animation: "signalTravelDesktop 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards",
-                }}
-              />
-            )}
-          </g>
-
-          {/* =============================================================
-              3. RIGHT RESPONSE CARD (X: 670 to 930, Y: 70 to 250)
-              Matching surface, border, corner radius, and padding as Left Card
-              ============================================================= */}
-          <g id="response-card">
-            {/* Unified Card Surface */}
-            <rect
-              x="670"
-              y="70"
-              width="260"
-              height="180"
-              rx="6"
-              fill="#121315"
-              stroke="#23252A"
-              strokeWidth="1"
-            />
-
-            {/* Right Card Port (Left Edge Anchor: 670, 160) */}
-            <circle
-              cx="670"
-              cy="160"
-              r="4"
-              fill="#121315"
-              stroke={isResponseActive ? "#83B69A" : "#2E3137"}
-              strokeWidth="1.2"
-              className="transition-colors duration-300"
-            />
-            <circle
-              cx="670"
-              cy="160"
-              r="2"
-              fill={isResponseActive ? "#83B69A" : "#383B42"}
-              className="transition-colors duration-300"
-            />
-
-            {/* Response Status Header */}
+            {/* Status Header (Prominent, High-Contrast Typography) */}
             {isResponseActive ? (
               <g>
-                <circle cx="698" cy="102" r="3" fill="#83B69A" />
+                <circle cx="745" cy="88" r="3.5" fill="#83B69A" />
                 <text
-                  x="710"
-                  y="106"
-                  fill="#83B69A"
-                  fontFamily="var(--font-geist-mono), monospace"
-                  fontSize="13.5"
+                  x="758"
+                  y="96"
+                  fontFamily="var(--font-space-grotesk), sans-serif"
+                  fontSize="22"
                   fontWeight="600"
-                  letterSpacing="-0.01em"
+                  fill="#83B69A"
+                  letterSpacing="-0.02em"
                 >
                   {isGet ? "200 OK" : "201 Created"}
                 </text>
+                <text
+                  x="740"
+                  y="122"
+                  fontFamily="var(--font-geist-mono), monospace"
+                  fontSize="12"
+                  fill="#777D7D"
+                >
+                  {isGet ? "Payload retrieved · Edge response" : "Resource created · Anycast Edge"}
+                </text>
               </g>
             ) : (
-              <text
-                x="694"
-                y="106"
-                fill="#555A64"
-                fontFamily="var(--font-geist-mono), monospace"
-                fontSize="12.5"
-                letterSpacing="-0.01em"
-              >
-                Response destination
-              </text>
+              <g>
+                <text
+                  x="740"
+                  y="96"
+                  fontFamily="var(--font-space-grotesk), sans-serif"
+                  fontSize="22"
+                  fontWeight="500"
+                  fill="#555A64"
+                  letterSpacing="-0.02em"
+                >
+                  Response destination
+                </text>
+                <text
+                  x="740"
+                  y="122"
+                  fontFamily="var(--font-geist-mono), monospace"
+                  fontSize="12"
+                  fill="#444852"
+                >
+                  Waiting for execution cycle...
+                </text>
+              </g>
             )}
 
-            {/* Card Content: Formatted JSON Response */}
+            {/* Formatted JSON Payload (Clean, High-Contrast, Line-by-Line Reveal) */}
             {!isResponseActive ? (
               <text
-                x="694"
-                y="142"
-                fill="#444852"
+                x="740"
+                y="156"
                 fontFamily="var(--font-geist-mono), monospace"
                 fontSize="11.5"
+                fill="#3E424B"
               >
-                Awaiting response...
+                Waiting for response stream...
               </text>
             ) : isGet ? (
               <text
-                x="694"
-                y="134"
+                x="740"
+                y="152"
                 fontFamily="var(--font-geist-mono), monospace"
-                fontSize="11.5"
+                fontSize="12"
                 fill="#4E525A"
                 xmlSpace="preserve"
               >
-                <tspan x="694" dy="0">&#123;</tspan>
+                <tspan x="740" dy="0">&#123;</tspan>
                 <tspan
-                  x="708"
-                  dy="19"
+                  x="758"
+                  dy="21"
                   fill="#8A8F98"
                   style={{ animation: "jsonLineFade 0.25s ease-out 0.05s both" }}
                 >
                   &quot;name&quot;: <tspan fill="#83B69A">&quot;Meridian&quot;</tspan><tspan fill="#4E525A">,</tspan>
                 </tspan>
                 <tspan
-                  x="708"
-                  dy="19"
+                  x="758"
+                  dy="21"
                   fill="#8A8F98"
                   style={{ animation: "jsonLineFade 0.25s ease-out 0.18s both" }}
                 >
                   &quot;status&quot;: <tspan fill="#83B69A">&quot;healthy&quot;</tspan>
                 </tspan>
                 <tspan
-                  x="694"
-                  dy="19"
+                  x="740"
+                  dy="21"
                   fill="#4E525A"
                   style={{ animation: "jsonLineFade 0.25s ease-out 0.28s both" }}
                 >
@@ -667,33 +750,33 @@ export function ApiServicePlayground() {
               </text>
             ) : (
               <text
-                x="694"
-                y="134"
+                x="740"
+                y="152"
                 fontFamily="var(--font-geist-mono), monospace"
-                fontSize="11.5"
+                fontSize="12"
                 fill="#4E525A"
                 xmlSpace="preserve"
               >
-                <tspan x="694" dy="0">&#123;</tspan>
+                <tspan x="740" dy="0">&#123;</tspan>
                 <tspan
-                  x="708"
-                  dy="19"
+                  x="758"
+                  dy="21"
                   fill="#8A8F98"
                   style={{ animation: "jsonLineFade 0.25s ease-out 0.05s both" }}
                 >
                   &quot;id&quot;: <tspan fill="#F1F0EC">&quot;resource_08&quot;</tspan><tspan fill="#4E525A">,</tspan>
                 </tspan>
                 <tspan
-                  x="708"
-                  dy="19"
+                  x="758"
+                  dy="21"
                   fill="#8A8F98"
                   style={{ animation: "jsonLineFade 0.25s ease-out 0.18s both" }}
                 >
                   &quot;created&quot;: <tspan fill="#D88762">true</tspan>
                 </tspan>
                 <tspan
-                  x="694"
-                  dy="19"
+                  x="740"
+                  dy="21"
                   fill="#4E525A"
                   style={{ animation: "jsonLineFade 0.25s ease-out 0.28s both" }}
                 >
@@ -701,269 +784,125 @@ export function ApiServicePlayground() {
                 </tspan>
               </text>
             )}
+
+            {/* Destination Intake Flange at Vertex (740, 215) */}
+            <circle
+              cx="740"
+              cy="215"
+              r="5.5"
+              fill="#121416"
+              stroke={isResponseActive ? "#83B69A" : "#45494B"}
+              strokeWidth="1.8"
+            />
+            <circle
+              cx="740"
+              cy="215"
+              r="2.5"
+              fill={isResponseActive ? "#83B69A" : "#383B42"}
+            />
           </g>
         </svg>
       </div>
 
       {/* =================================================================
-          MOBILE COMPOSITION (< md): Coordinated Vertical Architecture
-          Matching card styles on top and bottom, substantial center illustration
-          viewBox="0 0 340 390"
+          MOBILE COMPOSITION (< md): Vertical Architectural Sketch
+          Zero Slate Backgrounds · Continuous Isometric Technical Pipeline
+          viewBox="0 0 360 410"
           ================================================================= */}
       <div className="flex md:hidden w-full h-full items-center justify-center">
         <svg
           className="w-full h-full max-h-[380px] overflow-visible"
-          viewBox="0 0 340 390"
+          viewBox="0 0 360 410"
           preserveAspectRatio="xMidYMid meet"
           fill="none"
         >
-          {/* Top Request Card */}
-          <g id="mobile-request-card">
-            <rect
-              x="20"
-              y="15"
-              width="300"
-              height="95"
-              rx="6"
-              fill="#121315"
-              stroke="#23252A"
-              strokeWidth="1"
-            />
-            <text
-              x="36"
-              y="44"
-              fill={isGet ? "#83B69A" : "#D88762"}
-              fontFamily="var(--font-geist-mono), monospace"
-              fontSize="12.5"
-              fontWeight="700"
-            >
-              {isGet ? "GET" : "POST"}
+          {/* Top Request Section */}
+          <g id="mobile-request-section">
+            <text x="24" y="24" fontFamily="var(--font-geist-mono), monospace" fontSize="10" fill="#D88762" letterSpacing="0.12em">
+              01 / REQUEST
             </text>
-            <text
-              x={isGet ? "70" : "78"}
-              y="44"
-              fill="#F1F0EC"
-              fontFamily="var(--font-geist-mono), monospace"
-              fontSize="12.5"
-              fontWeight="500"
-            >
-              {isGet ? "/api/v1/projects" : "/api/v1/resources"}
+            <text x="24" y="48" fontFamily="var(--font-space-grotesk), sans-serif" fontSize="17" fontWeight="600" fill="#F1F0EC">
+              <tspan fill={isGet ? "#83B69A" : "#D88762"}>{isGet ? "GET" : "POST"}</tspan>
+              <tspan fill="#F1F0EC" dx="6">{isGet ? "/api/v1/projects" : "/api/v1/resources"}</tspan>
             </text>
-
             {isGet ? (
-              <text
-                x="36"
-                y="70"
-                fill="#717682"
-                fontFamily="var(--font-geist-mono), monospace"
-                fontSize="10.5"
-              >
-                Fetch project state &amp; deployment status
+              <text x="24" y="68" fontFamily="var(--font-geist-mono), monospace" fontSize="10.5" fill="#777D7D">
+                Query project state &amp; deployment status
               </text>
             ) : (
-              <text
-                x="36"
-                y="70"
-                fill="#8A8F98"
-                fontFamily="var(--font-geist-mono), monospace"
-                fontSize="10.5"
-              >
-                &#123; name: &quot;Production resource&quot;, type: &quot;web&quot; &#125;
+              <text x="24" y="68" fontFamily="var(--font-geist-mono), monospace" fontSize="10.5" fill="#8A8F98">
+                &#123; &quot;name&quot;: &quot;Production resource&quot;, &quot;type&quot;: &quot;web&quot; &#125;
               </text>
             )}
+            <circle cx="180" cy="85" r="4.5" fill="#121416" stroke="#F1F0EC" strokeWidth="1.6" />
+            <circle cx="180" cy="85" r="2" fill="#D88762" />
           </g>
 
-          {/* Top Connector */}
-          <line
-            x1="170"
-            y1="110"
-            x2="170"
-            y2="140"
-            stroke={activePhase === "outgoing" ? "#3D4046" : "#24262B"}
-            strokeWidth="1.5"
-          />
+          {/* Top Conduit Line */}
+          <path d="M 180,85 C 180,110 180,120 180,140" stroke="#3D4245" strokeWidth="1.2" strokeDasharray="3 3" fill="none" />
+          <path d="M 180,85 C 180,110 180,120 180,140" stroke="#D88762" strokeWidth="2" strokeLinecap="round" fill="none" opacity={activePhase === "outgoing" ? 1 : 0.4} />
           {activePhase === "outgoing" && (
-            <line
-              x1="170"
-              y1="110"
-              x2="170"
-              y2="140"
-              stroke="#D88762"
-              strokeWidth="2.5"
-              strokeDasharray="16 40"
-              style={{
-                animation: "signalTravelVerticalTop 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards",
-              }}
-            />
+            <circle cx="180" cy="115" r="3.5" fill="#D88762" />
           )}
 
-          {/* Center Mobile Illustration */}
-          <g id="mobile-center-illustration" transform="translate(0, 140)">
-            <rect
-              x="20"
-              y="0"
-              width="300"
-              height="110"
-              rx="6"
-              fill="#101113"
-              stroke="#222429"
-              strokeWidth="1"
-            />
-            <text
-              x="170"
-              y="24"
-              textAnchor="middle"
-              fill="#8E93A0"
-              fontFamily="var(--font-space-grotesk), sans-serif"
-              fontSize="10.5"
-              fontWeight="600"
-              letterSpacing="0.06em"
-            >
-              JETWAY API RUNTIME
+          {/* Mobile Center Isometric Sketch */}
+          <g id="mobile-center-isometric" transform="translate(0, 140)">
+            <text x="180" y="16" textAnchor="middle" fontFamily="var(--font-geist-mono), monospace" fontSize="9.5" fill="#D88762" letterSpacing="0.1em">
+              02 / RUNTIME · JETWAY API
             </text>
 
-            {/* Core Octagon */}
+            {/* Base Platform */}
+            <polygon points="180,30 250,60 180,90 110,60" fill="url(#api-iso-top-vol)" stroke="#F1F0EC" strokeWidth="1.4" strokeLinejoin="round" />
+            <polygon points="110,60 180,90 180,105 110,75" fill="url(#api-iso-left-vol)" stroke="#F1F0EC" strokeWidth="1.4" strokeLinejoin="round" />
+            <polygon points="180,90 250,60 250,75 180,105" fill="url(#api-iso-right-vol)" stroke="#F1F0EC" strokeWidth="1.4" strokeLinejoin="round" />
+
+            {/* Core Nucleus */}
             <polygon
-              points="155,42 185,42 190,47 190,73 185,78 155,78 150,73 150,47"
-              fill="#131417"
-              stroke={
-                activePhase === "processing"
-                  ? "#D88762"
-                  : isResponseActive
-                  ? "#83B69A"
-                  : "#2B2E35"
-              }
-              strokeWidth="1.2"
-              className="transition-colors duration-300"
+              points="180,45 205,60 180,75 155,60"
+              fill={activePhase === "processing" ? "url(#api-core-glow-active)" : isResponseActive ? "url(#api-core-glow-success)" : "url(#api-core-glow-idle)"}
+              stroke={activePhase === "processing" ? "#D88762" : isResponseActive ? "#83B69A" : "#555A64"}
+              strokeWidth="1.6"
             />
+            <circle cx="180" cy="60" r="2.5" fill={activePhase === "processing" ? "#D88762" : isResponseActive ? "#83B69A" : "#555A64"} />
 
-            {/* Core Cell */}
-            <circle
-              cx="170"
-              cy="60"
-              r="6"
-              fill={
-                activePhase === "processing"
-                  ? "#D88762"
-                  : isResponseActive
-                  ? "#83B69A"
-                  : "#1C1E23"
-              }
-              className="transition-colors duration-300"
-            />
-
-            {/* Status Line */}
-            <text
-              x="170"
-              y="97"
-              textAnchor="middle"
-              fontFamily="var(--font-geist-mono), monospace"
-              fontSize="10"
-            >
-              {activePhase === "setup" || activePhase === "outgoing" ? (
-                <tspan fill="#636874">Awaiting request</tspan>
-              ) : activePhase === "processing" ? (
-                <tspan fill="#D88762" fontWeight="600">Processing...</tspan>
-              ) : (
-                <tspan fill="#83B69A" fontWeight="600">{isGet ? "200 OK — Ready" : "201 Created — Ready"}</tspan>
-              )}
+            {/* Telemetry line */}
+            <text x="180" y="122" textAnchor="middle" fontFamily="var(--font-geist-mono), monospace" fontSize="10" fill={activePhase === "processing" ? "#D88762" : isResponseActive ? "#83B69A" : "#777D7D"}>
+              {activePhase === "processing" ? "● Executing route..." : isResponseActive ? "● 200 OK — Serialized" : "○ Awaiting request"}
             </text>
           </g>
 
-          {/* Bottom Connector */}
-          <line
-            x1="170"
-            y1="250"
-            x2="170"
-            y2="280"
-            stroke={activePhase === "returning" ? "#3D4046" : "#24262B"}
-            strokeWidth="1.5"
-          />
+          {/* Bottom Conduit Line */}
+          <path d="M 180,270 C 180,290 180,300 180,315" stroke="#3D4245" strokeWidth="1.2" strokeDasharray="3 3" fill="none" />
+          <path d="M 180,270 C 180,290 180,300 180,315" stroke="#83B69A" strokeWidth="2" strokeLinecap="round" fill="none" opacity={isResponseActive ? 1 : 0.3} />
           {activePhase === "returning" && (
-            <line
-              x1="170"
-              y1="250"
-              x2="170"
-              y2="280"
-              stroke="#83B69A"
-              strokeWidth="2.5"
-              strokeDasharray="16 40"
-              style={{
-                animation: "signalTravelVerticalBottom 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards",
-              }}
-            />
+            <circle cx="180" cy="295" r="3.5" fill="#83B69A" />
           )}
 
-          {/* Bottom Response Card */}
-          <g id="mobile-response-card" transform="translate(0, 280)">
-            <rect
-              x="20"
-              y="0"
-              width="300"
-              height="95"
-              rx="6"
-              fill="#121315"
-              stroke="#23252A"
-              strokeWidth="1"
-            />
+          {/* Bottom Response Section */}
+          <g id="mobile-response-section" transform="translate(0, 315)">
+            <circle cx="180" cy="0" r="4.5" fill="#121416" stroke={isResponseActive ? "#83B69A" : "#45494B"} strokeWidth="1.6" />
+            <circle cx="180" cy="0" r="2" fill={isResponseActive ? "#83B69A" : "#383B42"} />
 
-            {isResponseActive ? (
-              <g>
-                <circle cx="36" cy="24" r="2.5" fill="#83B69A" />
-                <text
-                  x="46"
-                  y="28"
-                  fill="#83B69A"
-                  fontFamily="var(--font-geist-mono), monospace"
-                  fontSize="12"
-                  fontWeight="600"
-                >
-                  {isGet ? "200 OK" : "201 Created"}
-                </text>
-              </g>
-            ) : (
-              <text
-                x="36"
-                y="28"
-                fill="#555A64"
-                fontFamily="var(--font-geist-mono), monospace"
-                fontSize="11.5"
-              >
-                Response destination
-              </text>
-            )}
+            <text x="24" y="24" fontFamily="var(--font-geist-mono), monospace" fontSize="10" fill="#83B69A" letterSpacing="0.12em">
+              03 / RESPONSE
+            </text>
+            <text x="24" y="48" fontFamily="var(--font-space-grotesk), sans-serif" fontSize="17" fontWeight="600" fill={isResponseActive ? "#83B69A" : "#555A64"}>
+              {isResponseActive ? (isGet ? "200 OK" : "201 Created") : "Awaiting response..."}
+            </text>
 
             {isResponseActive ? (
               isGet ? (
-                <text
-                  x="36"
-                  y="56"
-                  fontFamily="var(--font-geist-mono), monospace"
-                  fontSize="10.5"
-                  fill="#8A8F98"
-                >
+                <text x="24" y="70" fontFamily="var(--font-geist-mono), monospace" fontSize="10.5" fill="#8A8F98">
                   &#123; &quot;name&quot;: &quot;Meridian&quot;, &quot;status&quot;: &quot;healthy&quot; &#125;
                 </text>
               ) : (
-                <text
-                  x="36"
-                  y="56"
-                  fontFamily="var(--font-geist-mono), monospace"
-                  fontSize="10.5"
-                  fill="#8A8F98"
-                >
+                <text x="24" y="70" fontFamily="var(--font-geist-mono), monospace" fontSize="10.5" fill="#8A8F98">
                   &#123; &quot;id&quot;: &quot;resource_08&quot;, &quot;created&quot;: true &#125;
                 </text>
               )
             ) : (
-              <text
-                x="36"
-                y="56"
-                fill="#444852"
-                fontFamily="var(--font-geist-mono), monospace"
-                fontSize="10.5"
-              >
-                Waiting for response stream...
+              <text x="24" y="70" fontFamily="var(--font-geist-mono), monospace" fontSize="10.5" fill="#444852">
+                Waiting for execution cycle...
               </text>
             )}
           </g>
