@@ -220,20 +220,17 @@ export function ApplicationStack() {
                     <span>WEB FRONTEND</span>
                   </div>
                   <h3 className="font-sans text-[20px] sm:text-[22px] font-medium text-[#F1F0EC] tracking-tight leading-tight">
-                    Your frontend. In motion.
+                    Your website, live.
                   </h3>
                   <p className="font-sans text-[12.5px] sm:text-[13px] text-text-secondary leading-relaxed line-clamp-1">
-                    Deploy your website and let Jetway handle the infrastructure behind every release.
+                    From your first deploy to every release.
                   </p>
                 </div>
 
                 <div className="flex items-center gap-2 font-mono text-[11px] self-start sm:self-auto shrink-0 pb-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
                   <span className="text-[#F1F0EC] font-medium tracking-tight">meridian.jetway.app</span>
-                  <span className="text-border-default text-[10px]">·</span>
-                  <span className="text-text-muted text-[10.5px]">Production</span>
-                  <span className="text-border-default text-[10px]">·</span>
-                  <span className="text-semantic-success font-medium text-[10.5px]">Live</span>
+                  <span className="text-semantic-success font-medium">Live</span>
                 </div>
               </div>
 
@@ -295,10 +292,10 @@ export function ApplicationStack() {
                     <span>API SERVICE</span>
                   </div>
                   <h3 className="font-sans text-[20px] sm:text-[22px] font-medium text-[#F1F0EC] tracking-tight leading-tight">
-                    Logic and application requests.
+                    Every request, handled.
                   </h3>
                   <p className="font-sans text-[12.5px] sm:text-[13px] text-text-secondary leading-relaxed line-clamp-1">
-                    From request to response, handled by your deployed API.
+                    From endpoint to response.
                   </p>
                 </div>
 

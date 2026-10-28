@@ -44,7 +44,7 @@ export async function POST(request: Request) {
     if (!name || typeof name !== "string" || name.trim().length === 0) {
       errors.push("Field 'name' (string) is required.");
     }
-    const validTypes = ["database", "key-value", "storage", "compute", "certificate"];
+    const validTypes = ["database", "key-value", "storage", "compute", "certificate", "web"];
     if (!type || typeof type !== "string" || !validTypes.includes(type.toLowerCase())) {
       errors.push(`Field 'type' must be one of: ${validTypes.join(", ")}.`);
     }

@@ -7,7 +7,7 @@
 export interface ResourceItem {
   id: string;
   name: string;
-  type: "database" | "key-value" | "storage" | "compute" | "certificate";
+  type: "database" | "key-value" | "storage" | "compute" | "certificate" | "web";
   status: "available" | "provisioned" | "active";
   tier: string;
   region: string;
