@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
-import { Check, ArrowUpRight } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
 
 type ServiceId = "web" | "api" | "db" | "worker";
 
@@ -9,7 +8,6 @@ interface ServiceMetadata {
   id: ServiceId;
   index: string;
   name: string;
-  tag: string;
   description: string;
 }
 
@@ -18,28 +16,24 @@ const SERVICES: Record<ServiceId, ServiceMetadata> = {
     id: "web",
     index: "01",
     name: "Web frontend",
-    tag: "web-frontend",
     description: "The experience your users see.",
   },
   api: {
     id: "api",
     index: "02",
     name: "API service",
-    tag: "core-api",
     description: "Logic and application requests.",
   },
   db: {
     id: "db",
     index: "03",
     name: "Database",
-    tag: "primary-db",
     description: "Persistent application data.",
   },
   worker: {
     id: "worker",
     index: "04",
     name: "Background worker",
-    tag: "queue-worker",
     description: "Tasks that run behind the scenes.",
   },
 };
@@ -48,32 +42,51 @@ const SERVICES: Record<ServiceId, ServiceMetadata> = {
  * ApplicationStack: Section 04 — The Platform
  * "One platform. Your entire stack."
  *
- * Refactored to match the warm, editorial visual identity of the Deployment section:
- * - Warm near-black backgrounds (#111111) and restrained charcoal surfaces (#1D1D1D)
- * - Minimal horizontal 4-column service index with consistent baselines and burnt-orange active line
- * - Four distinctly composed service views sharing the single fictional "Meridian" product story:
- *     01 Web Frontend: Clean application release stage inside an understated browser frame
- *     02 API Service: Single connected request lifecycle sequence (Auth -> Persistence -> Async Dispatch)
- *     03 Database: Focused PostgreSQL query and clean key-value entity ledger
- *     04 Background Worker: Three-stage horizontal lifecycle (Completed -> Processing -> Queued)
- * - Typography carries the visual hierarchy without card-soup or dashboard widget bloat
- * - Three understated editorial benefit columns below
+ * Unified Shared Architecture matching Section 02 (Deployment):
+ * - Exactly equal outer card heights across all four service views:
+ *   h-[475px] (mobile) / sm:h-[500px] (tablet) / lg:h-[530px] (desktop)
+ * - Container reaches down directly to the line below it
+ * - Web Frontend view removes the bottom footer and extends the site preview flush to the bottom edge of the container
+ * - Both upper switcher and container can be viewed together on screen
+ * - Zero layout jump or resizing when toggling between services
+ * - Strict adherence to Jetway palette: #111111 bg, #1D1D1D surface, #F1F0EC text, #303030 borders, #D88762 accent, #83B69A success
  */
 export function ApplicationStack() {
   const [selectedId, setSelectedId] = useState<ServiceId>("web");
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const previewContainerRef = useRef<HTMLDivElement>(null);
+
+  // Pause preview animation when out of viewport, resume when visible
+  useEffect(() => {
+    if (!previewContainerRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const msg = entry.isIntersecting
+            ? "JETWAY_PREVIEW_RESUME"
+            : "JETWAY_PREVIEW_PAUSE";
+          iframeRef.current?.contentWindow?.postMessage({ type: msg }, "*");
+        });
+      },
+      { threshold: 0.15 }
+    );
+
+    observer.observe(previewContainerRef.current);
+    return () => observer.disconnect();
+  }, [selectedId]);
 
   return (
     <section
       id="platform-stack"
-      className="relative w-full pt-16 pb-24 sm:pt-20 sm:pb-28 lg:pt-24 lg:pb-36 bg-bg-main text-text-primary overflow-hidden"
+      className="relative w-full pt-12 pb-16 sm:pt-16 sm:pb-20 lg:pt-20 lg:pb-28 bg-bg-main text-text-primary overflow-hidden"
       aria-labelledby="stack-heading"
     >
       <div className="layout-container w-full">
         {/* =================================================================
             SECTION IDENTIFIER: 04 / THE PLATFORM
-            Understated minimal divider line matching Section 02
             ================================================================= */}
-        <div className="w-full border-t border-border-subtle pt-5 mb-8 sm:mb-10">
+        <div className="w-full border-t border-border-subtle pt-4 mb-6 sm:mb-8">
           <div className="flex items-center gap-2 font-mono text-[11px] text-text-muted tracking-[0.1em] uppercase">
             <span className="text-accent-orange font-medium">04</span>
             <span>/</span>
@@ -84,8 +97,8 @@ export function ApplicationStack() {
         {/* =================================================================
             EDITORIAL INTRODUCTION
             ================================================================= */}
-        <div className="max-w-3xl mb-10 sm:mb-14">
-          <div className="flex items-center gap-2 mb-3 sm:mb-4">
+        <div className="max-w-3xl mb-6 sm:mb-8">
+          <div className="flex items-center gap-2 mb-2 sm:mb-3">
             <span
               className="w-1.5 h-1.5 rounded-[1px] bg-accent-orange"
               aria-hidden="true"
@@ -97,12 +110,12 @@ export function ApplicationStack() {
 
           <h2
             id="stack-heading"
-            className="font-sans text-[38px] sm:text-[46px] lg:text-[54px] font-medium leading-[1.08] tracking-[-0.03em] text-[#F1F0EC] mb-4 sm:mb-5"
+            className="font-sans text-[36px] sm:text-[44px] lg:text-[50px] font-medium leading-[1.08] tracking-[-0.03em] text-[#F1F0EC] mb-3 sm:mb-4"
           >
             One platform. Your entire stack.
           </h2>
 
-          <p className="font-sans text-[16px] sm:text-[17px] text-text-secondary leading-[1.65] max-w-[600px]">
+          <p className="font-sans text-[15px] sm:text-[16px] text-text-secondary leading-[1.6] max-w-[600px]">
             From the interface your users see to the services working behind the
             scenes, bring your application components together in one
             developer-focused workflow.
@@ -110,14 +123,14 @@ export function ApplicationStack() {
         </div>
 
         {/* =================================================================
-            FOUR-SERVICE NAVIGATION: Minimal Horizontal Service Index
-            Equal-width columns, consistent baseline alignment, burnt-orange active line
+            SERVICE NAVIGATION: Minimal 4-Column Service Index
+            Compact switcher positioned directly above the service container
             ================================================================= */}
-        <div className="w-full border-b border-border-subtle mb-10 sm:mb-12">
+        <div className="w-full border-b border-border-subtle mb-3 sm:mb-4">
           <div
             role="tablist"
             aria-label="Application Services"
-            className="grid grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 pb-px"
+            className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 pb-px"
           >
             {(Object.keys(SERVICES) as ServiceId[]).map((id) => {
               const service = SERVICES[id];
@@ -131,12 +144,12 @@ export function ApplicationStack() {
                   aria-selected={isSelected}
                   aria-controls={`panel-${id}`}
                   onClick={() => setSelectedId(id)}
-                  className="group pb-5 text-left transition-all relative flex flex-col justify-start focus:outline-none cursor-pointer"
+                  className="group pb-2.5 sm:pb-3 pt-1 text-left transition-all relative flex flex-col justify-start focus:outline-none cursor-pointer"
                 >
-                  {/* Index & Identifier */}
-                  <div className="flex items-center gap-2 mb-2 font-mono text-[11px]">
+                  {/* Service Number & Service Name */}
+                  <div className="flex items-baseline gap-2 mb-1 font-sans">
                     <span
-                      className={`font-medium transition-colors ${
+                      className={`font-mono text-[11px] font-medium transition-colors ${
                         isSelected
                           ? "text-accent-orange"
                           : "text-text-muted group-hover:text-text-secondary"
@@ -144,30 +157,27 @@ export function ApplicationStack() {
                     >
                       {service.index}
                     </span>
-                    <span className="text-border-default">—</span>
-                    <span className="text-text-muted">{service.tag}</span>
+                    <span className="text-border-default text-[11px]">—</span>
+                    <span
+                      className={`text-[15px] sm:text-[16px] font-medium tracking-tight transition-colors ${
+                        isSelected
+                          ? "text-[#F1F0EC]"
+                          : "text-text-secondary group-hover:text-[#F1F0EC]"
+                      }`}
+                    >
+                      {service.name}
+                    </span>
                   </div>
 
-                  {/* Service Name */}
-                  <div
-                    className={`font-sans text-[17px] sm:text-[18px] font-medium tracking-tight mb-1.5 transition-colors ${
-                      isSelected
-                        ? "text-[#F1F0EC]"
-                        : "text-text-secondary group-hover:text-[#F1F0EC]"
-                    }`}
-                  >
-                    {service.name}
-                  </div>
-
-                  {/* Description */}
-                  <div className="font-sans text-[13px] text-text-muted leading-relaxed">
+                  {/* One Short Description */}
+                  <div className="font-sans text-[12px] sm:text-[12.5px] text-text-muted leading-snug">
                     {service.description}
                   </div>
 
-                  {/* Active Underline Indicator */}
+                  {/* Thin Burnt-Orange Active Line */}
                   {isSelected ? (
                     <span
-                      className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent-orange"
+                      className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent-orange transition-all"
                       aria-hidden="true"
                     />
                   ) : (
@@ -183,284 +193,234 @@ export function ApplicationStack() {
         </div>
 
         {/* =================================================================
-            MAIN SERVICE STAGE: Distinct, Restrained Compositions
-            Understated primary charcoal surface matching Deployment section
+            MAIN SERVICE STAGE: Equal Height Across All Four Services
+            Unified height (475px mobile / 500px tablet / 530px desktop)
+            Takes the container down to the line below it
+            Web Frontend removes the bottom of the container so the site goes flush to the bottom edge
             ================================================================= */}
         <div
           id={`panel-${selectedId}`}
           role="tabpanel"
           aria-labelledby={`tab-${selectedId}`}
-          className="w-full rounded-[10px] bg-surface-card border border-border-default shadow-2xl p-6 sm:p-8 lg:p-10 mb-16 sm:mb-20 min-h-[460px] flex flex-col justify-between"
+          className="w-full rounded-[10px] bg-surface-card border border-border-default shadow-2xl pt-4 sm:pt-5 lg:pt-5 px-4 sm:px-5 lg:px-6 pb-0 mb-4 sm:mb-5 h-[475px] sm:h-[500px] lg:h-[530px] flex flex-col justify-between overflow-hidden"
         >
           {/* =============================================================
-              VIEW 1: WEB FRONTEND — The Live Application
-              Clean, immersive product UI inside an understated browser frame
+              VIEW 1: WEB FRONTEND — Real Website Preview
+              Actual scrollable demo website extending to the very bottom edge of the container
               ============================================================= */}
           {selectedId === "web" && (
-            <div className="w-full space-y-8 animate-in fade-in duration-200">
-              {/* Minimal Understated Browser Header */}
-              <div className="flex items-center justify-between pb-6 border-b border-border-subtle text-xs font-mono">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#353A40]" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#353A40]" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#353A40]" />
+            <div className="w-full h-full flex flex-col justify-between animate-in fade-in duration-200">
+              {/* Standardized Header */}
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pb-2.5 sm:pb-3 border-b border-border-subtle/70 shrink-0">
+                <div className="space-y-0.5 max-w-xl">
+                  <div className="flex items-center gap-2 font-mono text-[10.5px] text-text-muted tracking-[0.14em] uppercase">
+                    <span className="text-accent-orange font-medium">01</span>
+                    <span>/</span>
+                    <span>WEB FRONTEND</span>
+                  </div>
+                  <h3 className="font-sans text-[20px] sm:text-[22px] font-medium text-[#F1F0EC] tracking-tight leading-tight">
+                    Your frontend. In motion.
+                  </h3>
+                  <p className="font-sans text-[12.5px] sm:text-[13px] text-text-secondary leading-relaxed line-clamp-1">
+                    Deploy your website and let Jetway handle the infrastructure behind every release.
+                  </p>
                 </div>
 
-                <div className="flex items-center gap-2 px-3 py-1 rounded-[4px] bg-[#171717] border border-border-subtle text-[12px] text-text-secondary truncate max-w-sm sm:max-w-md w-full mx-4 justify-center">
-                  <span className="w-1.5 h-1.5 rounded-full bg-semantic-success shrink-0" />
-                  <span className="text-text-muted">https://</span>
-                  <span className="text-[#F1F0EC] font-medium">meridian.jetway.app</span>
-                  <span className="text-text-muted">/releases/v2.4</span>
-                </div>
-
-                <div className="flex items-center gap-1.5 text-semantic-success text-[11px] shrink-0">
+                <div className="flex items-center gap-2 font-mono text-[11px] self-start sm:self-auto shrink-0 pb-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
-                  <span className="hidden sm:inline">Deployed to Anycast Edge</span>
+                  <span className="text-[#F1F0EC] font-medium tracking-tight">meridian.jetway.app</span>
+                  <span className="text-border-default text-[10px]">·</span>
+                  <span className="text-text-muted text-[10.5px]">Production</span>
+                  <span className="text-border-default text-[10px]">·</span>
+                  <span className="text-semantic-success font-medium text-[10.5px]">Live</span>
                 </div>
               </div>
 
-              {/* Application Content */}
-              <div className="w-full space-y-8">
-                {/* Product Header */}
-                <div className="flex items-center justify-between pb-6 border-b border-border-subtle">
-                  <div className="flex items-center gap-3">
-                    <div className="w-6 h-6 rounded-[4px] bg-accent-orange flex items-center justify-center text-[#111111] font-mono font-bold text-xs select-none">
-                      M
-                    </div>
-                    <span className="font-sans font-medium text-[17px] text-[#F1F0EC] tracking-tight">
-                      Meridian
-                    </span>
-                    <span className="font-mono text-[11px] text-text-muted">
-                      /
-                    </span>
-                    <span className="font-mono text-[12px] text-text-secondary">
-                      v2.4.0-rc1
-                    </span>
+              {/* Viewport Middle Area: Extended all the way to the bottom edge of the container */}
+              <div
+                ref={previewContainerRef}
+                onMouseEnter={() => {
+                  iframeRef.current?.contentWindow?.postMessage({ type: "JETWAY_PREVIEW_PAUSE" }, "*");
+                }}
+                onMouseLeave={() => {
+                  iframeRef.current?.contentWindow?.postMessage({ type: "JETWAY_PREVIEW_RESUME" }, "*");
+                }}
+                className="flex-1 w-full min-h-0 mt-2.5 sm:mt-3 rounded-t-[8px] bg-[#141618] border-t border-x border-border-default/80 overflow-hidden shadow-2xl flex flex-col"
+              >
+                {/* Minimal Browser Frame Header */}
+                <div className="flex items-center justify-between px-3 py-1.5 bg-[#141618] border-b border-border-subtle/80 text-[10.5px] font-mono select-none shrink-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-[#2A2E33]" />
+                    <span className="w-2 h-2 rounded-full bg-[#2A2E33]" />
+                    <span className="w-2 h-2 rounded-full bg-[#2A2E33]" />
                   </div>
 
-                  <div className="flex items-center gap-3 text-xs font-mono text-text-muted">
-                    <span>Author: Elena Rostova</span>
-                    <span className="hidden sm:inline text-border-default">•</span>
-                    <span className="hidden sm:inline">Commit: 8f3a21c</span>
-                  </div>
-                </div>
-
-                {/* Main Release Focal Point & Verification Items */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                  {/* Left: Release Title & Milestone Verification */}
-                  <div className="lg:col-span-8 space-y-4">
-                    <div>
-                      <div className="font-mono text-[11px] text-accent-orange uppercase tracking-wider mb-2 font-medium">
-                        PRODUCTION CANDIDATE
-                      </div>
-                      <h3 className="font-sans text-[28px] sm:text-[34px] font-medium text-[#F1F0EC] tracking-tight leading-tight">
-                        Release v2.4.0
-                      </h3>
-                      <p className="font-sans text-[15px] text-text-secondary leading-relaxed mt-2 max-w-xl">
-                        Automated build verified across isolated test environments. All dependency closures resolved and edge cache warmed.
-                      </p>
-                    </div>
-
-                    {/* Verification Items with Fine Separators */}
-                    <div className="space-y-3 pt-4 border-t border-border-subtle">
-                      <div className="flex items-center gap-3 text-[13.5px] text-[#F1F0EC]">
-                        <Check className="w-4 h-4 text-semantic-success shrink-0" />
-                        <span>Universal search indexing engine compiled</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-[13.5px] text-[#F1F0EC]">
-                        <Check className="w-4 h-4 text-semantic-success shrink-0" />
-                        <span>Realtime collaboration websocket cluster attached</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-[13.5px] text-[#F1F0EC]">
-                        <Check className="w-4 h-4 text-semantic-success shrink-0" />
-                        <span>Database migration 0042_release_manifest verified</span>
-                      </div>
-                    </div>
+                  <div className="flex items-center gap-2 px-2.5 py-0.5 rounded-[4px] bg-[#1A1D20] border border-border-subtle/80 text-[10.5px] text-text-secondary max-w-sm w-full justify-center">
+                    <span className="w-1.5 h-1.5 rounded-full bg-semantic-success shrink-0" />
+                    <span className="text-text-muted">https://</span>
+                    <span className="text-[#F1F0EC] font-medium">meridian.jetway.app</span>
                   </div>
 
-                  {/* Right: One Meaningful Primary Action */}
-                  <div className="lg:col-span-4 pt-2 lg:pt-4 lg:border-l lg:border-border-subtle lg:pl-8 space-y-5">
-                    <div className="space-y-1 font-mono text-[12px]">
-                      <div className="text-text-muted">Target Environment</div>
-                      <div className="text-[#F1F0EC] font-medium">production-anycast</div>
-                    </div>
-
-                    <div className="space-y-1 font-mono text-[12px]">
-                      <div className="text-text-muted">SHA-256 Digest</div>
-                      <div className="text-text-secondary text-[11px] truncate">
-                        7f10b8a4e912c0a4b3d8...
-                      </div>
-                    </div>
-
-                    <div className="pt-2">
-                      <button
-                        type="button"
-                        className="w-full py-2.5 px-4 rounded-[6px] bg-accent-orange hover:bg-accent-orange-hover text-[#111111] font-sans font-medium text-[13.5px] flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                      >
-                        <span>Deploy to Production</span>
-                        <ArrowUpRight className="w-4 h-4" />
-                      </button>
-                    </div>
+                  <div className="text-[10px] text-text-muted shrink-0 hidden sm:block">
+                    Anycast Edge
                   </div>
                 </div>
-              </div>
 
-              {/* Single Clean Footer Telemetry */}
-              <div className="pt-6 border-t border-border-subtle flex flex-wrap items-center justify-between gap-4 text-[11px] font-mono text-text-muted">
-                <div>Render Engine: Next.js SSR · Cold start: 0ms</div>
-                <div className="text-text-secondary">12ms edge response time</div>
+                {/* Real Scrollable Website Iframe Viewport */}
+                <div className="flex-1 w-full min-h-0 bg-[#F7F5F0] overflow-hidden relative">
+                  <iframe
+                    ref={iframeRef}
+                    src="/preview/meridian"
+                    title="Meridian Architecture Studio — Live Frontend Preview on Jetway"
+                    className="w-full h-full border-0 select-text"
+                  />
+                </div>
               </div>
             </div>
           )}
 
           {/* =============================================================
               VIEW 2: API SERVICE — The Request in Motion
-              Single connected request trace moving through 3 lifecycle stages
+              Endpoint dominant title, 3 lifecycle stages, 3 recent requests
               ============================================================= */}
           {selectedId === "api" && (
-            <div className="w-full space-y-8 animate-in fade-in duration-200">
-              {/* Request Header */}
-              <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-4 pb-6 border-b border-border-subtle">
-                <div className="space-y-1">
-                  <div className="font-mono text-[11px] text-accent-orange uppercase tracking-wider font-medium">
-                    INCOMING REQUEST TRACE
+            <div className="w-full h-full flex flex-col justify-between animate-in fade-in duration-200 pb-4 sm:pb-5 lg:pb-5">
+              {/* Standardized Header */}
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pb-2.5 sm:pb-3 border-b border-border-subtle/70 shrink-0">
+                <div className="space-y-0.5 max-w-xl">
+                  <div className="flex items-center gap-2 font-mono text-[10.5px] text-text-muted tracking-[0.14em] uppercase">
+                    <span className="text-accent-orange font-medium">02</span>
+                    <span>/</span>
+                    <span>API SERVICE</span>
                   </div>
-                  <div className="flex items-baseline gap-3">
-                    <span className="font-mono text-accent-orange font-semibold text-[15px]">
-                      POST
-                    </span>
-                    <h3 className="font-sans text-[24px] sm:text-[30px] font-medium text-[#F1F0EC] tracking-tight">
-                      /api/v2/releases/publish
-                    </h3>
-                  </div>
+                  <h3 className="font-sans text-[20px] sm:text-[22px] font-medium text-[#F1F0EC] tracking-tight leading-tight">
+                    Logic and application requests.
+                  </h3>
+                  <p className="font-sans text-[12.5px] sm:text-[13px] text-text-secondary leading-relaxed line-clamp-1">
+                    Zero-cold-start API execution connected across private WireGuard networks.
+                  </p>
                 </div>
 
-                <div className="flex items-center gap-4 font-mono text-[12px] self-start sm:self-auto">
-                  <div className="flex items-center gap-1.5 text-semantic-success font-medium">
-                    <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
-                    <span>200 OK</span>
-                  </div>
-                  <span className="text-border-default">•</span>
-                  <div className="text-text-secondary">
-                    18.4ms total latency
-                  </div>
+                <div className="flex items-center gap-2 font-mono text-[11px] self-start sm:self-auto shrink-0 pb-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
+                  <span className="text-semantic-success font-medium">200 OK</span>
+                  <span className="text-border-default text-[10px]">·</span>
+                  <span className="text-text-secondary">18.4ms latency</span>
+                  <span className="text-border-default text-[10px]">·</span>
+                  <span className="text-text-muted text-[10.5px]">Live</span>
                 </div>
               </div>
 
-              {/* Connected Request Lifecycle Sequence */}
-              <div className="space-y-4">
-                <div className="font-mono text-[10.5px] uppercase tracking-wider text-text-muted">
-                  REQUEST LIFECYCLE STAGES
+              {/* Middle Area: Endpoint, 3 Lifecycle Stages, Recent Requests */}
+              <div className="flex-1 min-h-0 my-3 flex flex-col justify-between py-1 overflow-hidden">
+                {/* Endpoint Sub-header */}
+                <div className="flex items-baseline gap-2.5 pb-2 border-b border-border-subtle/60 shrink-0">
+                  <span className="font-mono text-accent-orange font-semibold text-[13px]">
+                    POST
+                  </span>
+                  <span className="font-sans text-[17px] sm:text-[19px] font-medium text-[#F1F0EC] tracking-tight">
+                    /api/v2/releases/publish
+                  </span>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
+                {/* 3 Lifecycle Stages in Sequence */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 py-1.5 shrink-0">
                   {/* Stage 01 */}
-                  <div className="space-y-2 pr-4">
-                    <div className="flex items-center gap-2">
+                  <div className="space-y-1 pr-3">
+                    <div className="flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
-                      <span className="font-mono text-[11px] text-semantic-success font-medium tracking-wider">
-                        01 — AUTH & ROUTING
+                      <span className="font-mono text-[10.5px] text-semantic-success font-medium tracking-wider">
+                        01 · Authentication
                       </span>
                     </div>
-                    <div className="font-sans text-[16px] font-medium text-[#F1F0EC]">
-                      JWT verification
-                    </div>
-                    <p className="font-sans text-[13px] text-text-secondary leading-relaxed">
+                    <p className="font-sans text-[11.5px] sm:text-[12px] text-text-secondary leading-snug">
                       Token validated and request authorized for user{" "}
                       <span className="font-mono text-[#F1F0EC]">elena_91a</span>.
                     </p>
-                    <div className="font-mono text-[11px] text-text-muted pt-1">
+                    <div className="font-mono text-[10px] text-text-muted">
                       1.2ms latency
                     </div>
                   </div>
 
                   {/* Stage 02 */}
-                  <div className="space-y-2 pr-4 md:border-l md:border-border-subtle md:pl-6">
-                    <div className="flex items-center gap-2">
+                  <div className="space-y-1 pr-3 md:border-l md:border-border-subtle md:pl-4">
+                    <div className="flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
-                      <span className="font-mono text-[11px] text-semantic-success font-medium tracking-wider">
-                        02 — PERSISTENCE
+                      <span className="font-mono text-[10.5px] text-semantic-success font-medium tracking-wider">
+                        02 · Persistence
                       </span>
                     </div>
-                    <div className="font-sans text-[16px] font-medium text-[#F1F0EC]">
-                      Database transaction
-                    </div>
-                    <p className="font-sans text-[13px] text-text-secondary leading-relaxed">
-                      Release record updated to{" "}
-                      <span className="font-mono text-semantic-success">published</span> in{" "}
-                      <span className="font-mono text-[#F1F0EC]">primary-db</span>.
+                    <p className="font-sans text-[11.5px] sm:text-[12px] text-text-secondary leading-snug">
+                      Release record updated in database to{" "}
+                      <span className="font-mono text-semantic-success">published</span>.
                     </p>
-                    <div className="font-mono text-[11px] text-text-muted pt-1">
+                    <div className="font-mono text-[10px] text-text-muted">
                       2.8ms execution
                     </div>
                   </div>
 
                   {/* Stage 03 */}
-                  <div className="space-y-2 md:border-l md:border-border-subtle md:pl-6">
-                    <div className="flex items-center gap-2">
+                  <div className="space-y-1 md:border-l md:border-border-subtle md:pl-4">
+                    <div className="flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-accent-orange" />
-                      <span className="font-mono text-[11px] text-accent-orange font-medium tracking-wider">
-                        03 — ASYNC DISPATCH
+                      <span className="font-mono text-[10.5px] text-accent-orange font-medium tracking-wider">
+                        03 · Async dispatch
                       </span>
                     </div>
-                    <div className="font-sans text-[16px] font-medium text-[#F1F0EC]">
-                      Queue acknowledgement
-                    </div>
-                    <p className="font-sans text-[13px] text-text-secondary leading-relaxed">
-                      Task dispatched to{" "}
-                      <span className="font-mono text-[#F1F0EC]">queue-worker</span> for edge bundle generation.
+                    <p className="font-sans text-[11.5px] sm:text-[12px] text-text-secondary leading-snug">
+                      Task dispatched to background worker for edge asset generation.
                     </p>
-                    <div className="font-mono text-[11px] text-text-muted pt-1">
+                    <div className="font-mono text-[10px] text-text-muted">
                       0.8ms broker ACK
                     </div>
                   </div>
                 </div>
+
+                {/* Recent Requests Section */}
+                <div className="pt-2 border-t border-border-subtle/80 space-y-1 shrink-0">
+                  <div className="font-mono text-[10px] uppercase tracking-wider text-text-muted">
+                    Recent requests
+                  </div>
+
+                  <div className="divide-y divide-border-subtle/80 font-mono text-[11px] sm:text-[11.5px]">
+                    <div className="py-1 flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-text-muted w-10 font-medium">GET</span>
+                        <span className="text-[#F1F0EC]">/api/v2/releases/v2.4-rc1</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-text-muted">
+                        <span className="text-semantic-success">200 OK</span>
+                        <span>4.2ms</span>
+                      </div>
+                    </div>
+
+                    <div className="py-1 flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-accent-orange w-10 font-medium">POST</span>
+                        <span className="text-[#F1F0EC]">/api/v2/releases/publish</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-text-muted">
+                        <span className="text-semantic-success">200 OK</span>
+                        <span>18.4ms</span>
+                      </div>
+                    </div>
+
+                    <div className="py-1 flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-text-muted w-10 font-medium">GET</span>
+                        <span className="text-[#F1F0EC]">/api/v2/projects/meridian</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-text-muted">
+                        <span className="text-semantic-success">200 OK</span>
+                        <span>8.1ms</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              {/* Recent Requests: Clean aligned rows with subtle separators */}
-              <div className="pt-6 border-t border-border-subtle space-y-3">
-                <div className="font-mono text-[10.5px] uppercase tracking-wider text-text-muted">
-                  RECENT SERVICE REQUESTS
-                </div>
-
-                <div className="divide-y divide-border-subtle/80 font-mono text-[12px]">
-                  <div className="py-2.5 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="text-text-muted w-12 font-medium">GET</span>
-                      <span className="text-[#F1F0EC]">/api/v2/releases/v2.4-rc1</span>
-                    </div>
-                    <div className="flex items-center gap-4 text-text-muted">
-                      <span className="text-semantic-success">200 OK</span>
-                      <span>4.2ms</span>
-                    </div>
-                  </div>
-
-                  <div className="py-2.5 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="text-accent-orange w-12 font-medium">POST</span>
-                      <span className="text-[#F1F0EC]">/api/v2/releases/publish</span>
-                    </div>
-                    <div className="flex items-center gap-4 text-text-muted">
-                      <span className="text-semantic-success">200 OK</span>
-                      <span>18.4ms</span>
-                    </div>
-                  </div>
-
-                  <div className="py-2.5 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="text-text-muted w-12 font-medium">GET</span>
-                      <span className="text-[#F1F0EC]">/api/v2/projects/meridian</span>
-                    </div>
-                    <div className="flex items-center gap-4 text-text-muted">
-                      <span className="text-semantic-success">200 OK</span>
-                      <span>8.1ms</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="pt-6 border-t border-border-subtle flex flex-wrap items-center justify-between gap-4 text-[11px] font-mono text-text-muted">
+              {/* Standardized Footer */}
+              <div className="pt-2.5 border-t border-border-subtle flex items-center justify-between text-[10.5px] font-mono text-text-muted shrink-0">
                 <div>Zero public ports exposed · Internal WireGuard private mesh</div>
                 <div className="text-text-secondary">Mutual TLS 1.3 enforced</div>
               </div>
@@ -468,85 +428,86 @@ export function ApplicationStack() {
           )}
 
           {/* =============================================================
-              VIEW 3: DATABASE — Make Data Readable
-              Focused PostgreSQL query & structured record key-value ledger
+              VIEW 3: DATABASE — Improve Query and Record Composition
+              Clear PostgreSQL heading, multi-line query, clean field-value ledger
               ============================================================= */}
           {selectedId === "db" && (
-            <div className="w-full space-y-8 animate-in fade-in duration-200">
-              {/* Heading & Secondary Connection Info */}
-              <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 pb-6 border-b border-border-subtle">
-                <div className="space-y-1">
-                  <div className="font-mono text-[11px] text-accent-orange uppercase tracking-wider font-medium">
-                    PERSISTENT DATA LAYER
+            <div className="w-full h-full flex flex-col justify-between animate-in fade-in duration-200 pb-4 sm:pb-5 lg:pb-5">
+              {/* Standardized Header */}
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pb-2.5 sm:pb-3 border-b border-border-subtle/70 shrink-0">
+                <div className="space-y-0.5 max-w-xl">
+                  <div className="flex items-center gap-2 font-mono text-[10.5px] text-text-muted tracking-[0.14em] uppercase">
+                    <span className="text-accent-orange font-medium">03</span>
+                    <span>/</span>
+                    <span>DATABASE</span>
                   </div>
-                  <h3 className="font-sans text-[28px] sm:text-[34px] font-medium text-[#F1F0EC] tracking-tight">
-                    PostgreSQL 16.2
+                  <h3 className="font-sans text-[20px] sm:text-[22px] font-medium text-[#F1F0EC] tracking-tight leading-tight">
+                    Persistent application data.
                   </h3>
+                  <p className="font-sans text-[12.5px] sm:text-[13px] text-text-secondary leading-relaxed line-clamp-1">
+                    Fully managed PostgreSQL with automated point-in-time recovery and connection pooling.
+                  </p>
                 </div>
 
-                <div className="flex items-center gap-2 font-mono text-[12px] text-text-muted">
+                <div className="flex items-center gap-2 font-mono text-[11px] self-start sm:self-auto shrink-0 pb-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
-                  <span>Pool active · 0.6ms execution</span>
+                  <span className="text-[#F1F0EC] font-medium tracking-tight">PostgreSQL 16.2</span>
+                  <span className="text-border-default text-[10px]">·</span>
+                  <span className="text-semantic-success font-medium text-[10.5px]">Pool active</span>
+                  <span className="text-border-default text-[10px]">·</span>
+                  <span className="text-text-muted text-[10.5px]">0.6ms latency</span>
                 </div>
               </div>
 
-              {/* SQL Query (No heavy editor container, restrained syntax colors) */}
-              <div className="space-y-2">
-                <div className="font-mono text-[10.5px] uppercase tracking-wider text-text-muted">
-                  EXECUTED QUERY
-                </div>
-                <div className="py-3 px-4 rounded-[6px] bg-[#171717] border border-border-subtle font-mono text-[12.5px] overflow-x-auto leading-relaxed">
+              {/* Middle Area: SQL Query + Ledger */}
+              <div className="flex-1 min-h-0 my-3 flex flex-col justify-between py-1 overflow-hidden">
+                {/* Natural Multi-Line SQL Query with Pre */}
+                <pre className="py-2.5 px-3.5 rounded-[4px] bg-[#161616] border border-border-subtle font-mono text-[11px] leading-relaxed overflow-x-auto whitespace-pre shrink-0">
                   <span className="text-accent-orange font-medium">SELECT</span>{" "}
-                  <span className="text-[#F1F0EC]">id, slug, version, status, author_id, commit_hash, deployed_at</span>{"\n"}
+                  <span className="text-[#F1F0EC]">id, slug, version, status, deployed_at</span>{"\n"}
                   <span className="text-accent-orange font-medium">FROM</span>{" "}
                   <span className="text-[#F1F0EC]">releases</span>{"\n"}
                   <span className="text-accent-orange font-medium">WHERE</span>{" "}
                   <span className="text-[#F1F0EC]">slug</span> = <span className="text-semantic-success">&apos;v2.4-production&apos;</span>{"\n"}
                   <span className="text-accent-orange font-medium">ORDER BY</span>{" "}
-                  <span className="text-[#F1F0EC]">deployed_at</span> <span className="text-accent-orange font-medium">DESC</span>{"\n"}
+                  <span className="text-[#F1F0EC]">deployed_at</span> <span className="text-accent-orange font-medium">DESC</span>{" "}
                   <span className="text-accent-orange font-medium">LIMIT</span>{" "}
                   <span className="text-accent-orange font-medium">1</span>;
-                </div>
-              </div>
+                </pre>
 
-              {/* Returned Record: Clean Field-Value Layout with Subtle Horizontal Dividers */}
-              <div className="space-y-2">
-                <div className="font-mono text-[10.5px] uppercase tracking-wider text-text-muted">
-                  RETURNED RECORD // RELEASES
-                </div>
-
-                <div className="divide-y divide-border-subtle font-mono text-[12px]">
-                  <div className="py-2.5 grid grid-cols-12 items-baseline">
+                {/* Returned Record: Clean Field-Value Ledger */}
+                <div className="divide-y divide-border-subtle/80 font-mono text-[11px] sm:text-[11.5px] pt-1 shrink-0">
+                  <div className="py-1.5 grid grid-cols-12 items-baseline">
                     <span className="col-span-4 sm:col-span-3 text-text-muted">id</span>
                     <span className="col-span-8 sm:col-span-9 text-[#F1F0EC]">rel_01hn8y7p412a9</span>
                   </div>
 
-                  <div className="py-2.5 grid grid-cols-12 items-baseline">
+                  <div className="py-1.5 grid grid-cols-12 items-baseline">
                     <span className="col-span-4 sm:col-span-3 text-text-muted">version</span>
-                    <span className="col-span-8 sm:col-span-9 text-[#F1F0EC]">2.4.0-rc1</span>
+                    <span className="col-span-8 sm:col-span-9 text-[#F1F0EC]">2.4.0</span>
                   </div>
 
-                  <div className="py-2.5 grid grid-cols-12 items-baseline">
+                  <div className="py-1.5 grid grid-cols-12 items-baseline">
                     <span className="col-span-4 sm:col-span-3 text-text-muted">status</span>
-                    <span className="col-span-8 sm:col-span-9 text-semantic-success flex items-center gap-2 font-medium">
+                    <span className="col-span-8 sm:col-span-9 text-semantic-success flex items-center gap-1.5 font-medium">
                       <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
                       published
                     </span>
                   </div>
 
-                  <div className="py-2.5 grid grid-cols-12 items-baseline">
+                  <div className="py-1.5 grid grid-cols-12 items-baseline">
                     <span className="col-span-4 sm:col-span-3 text-text-muted">author</span>
-                    <span className="col-span-8 sm:col-span-9 text-text-secondary">
+                    <span className="col-span-8 sm:col-span-9 text-text-secondary truncate">
                       Elena Rostova &lt;elena@meridian.io&gt;
                     </span>
                   </div>
 
-                  <div className="py-2.5 grid grid-cols-12 items-baseline">
+                  <div className="py-1.5 grid grid-cols-12 items-baseline">
                     <span className="col-span-4 sm:col-span-3 text-text-muted">commit_hash</span>
                     <span className="col-span-8 sm:col-span-9 text-[#F1F0EC]">8f3a21c</span>
                   </div>
 
-                  <div className="py-2.5 grid grid-cols-12 items-baseline">
+                  <div className="py-1.5 grid grid-cols-12 items-baseline">
                     <span className="col-span-4 sm:col-span-3 text-text-muted">deployed_at</span>
                     <span className="col-span-8 sm:col-span-9 text-text-secondary">
                       2026-10-28 22:30:14 UTC
@@ -555,141 +516,121 @@ export function ApplicationStack() {
                 </div>
               </div>
 
-              {/* Footer */}
-              <div className="pt-6 border-t border-border-subtle flex flex-wrap items-center justify-between gap-4 text-[11px] font-mono text-text-muted">
-                <div>Encrypted internal storage · Port 5432</div>
+              {/* Standardized Footer */}
+              <div className="pt-2.5 border-t border-border-subtle flex items-center justify-between text-[10.5px] font-mono text-text-muted shrink-0">
+                <div>Encrypted NVMe storage · Port 5432 pooled</div>
                 <div className="text-text-secondary">Automated hourly volume snapshots</div>
               </div>
             </div>
           )}
 
           {/* =============================================================
-              VIEW 4: BACKGROUND WORKER — Show the Job Lifecycle
-              Three stages: Completed, Processing (focal point), Queued
+              VIEW 4: BACKGROUND WORKER — Elegant Job Lifecycle
+              Three aligned groups (Completed, Processing focal point, Queued) with thin dividers
               ============================================================= */}
           {selectedId === "worker" && (
-            <div className="w-full space-y-8 animate-in fade-in duration-200">
-              {/* Heading */}
-              <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 pb-6 border-b border-border-subtle">
-                <div className="space-y-1">
-                  <div className="font-mono text-[11px] text-accent-orange uppercase tracking-wider font-medium">
-                    ASYNCHRONOUS SYSTEM
+            <div className="w-full h-full flex flex-col justify-between animate-in fade-in duration-200 pb-4 sm:pb-5 lg:pb-5">
+              {/* Standardized Header */}
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pb-2.5 sm:pb-3 border-b border-border-subtle/70 shrink-0">
+                <div className="space-y-0.5 max-w-xl">
+                  <div className="flex items-center gap-2 font-mono text-[10.5px] text-text-muted tracking-[0.14em] uppercase">
+                    <span className="text-accent-orange font-medium">04</span>
+                    <span>/</span>
+                    <span>BACKGROUND WORKER</span>
                   </div>
-                  <h3 className="font-sans text-[28px] sm:text-[34px] font-medium text-[#F1F0EC] tracking-tight">
-                    Job Execution Lifecycle
+                  <h3 className="font-sans text-[20px] sm:text-[22px] font-medium text-[#F1F0EC] tracking-tight leading-tight">
+                    Tasks behind the scenes.
                   </h3>
+                  <p className="font-sans text-[12.5px] sm:text-[13px] text-text-secondary leading-relaxed line-clamp-1">
+                    Decoupled asynchronous worker pool for asset processing, webhooks, and queues.
+                  </p>
                 </div>
 
-                <div className="flex items-center gap-2 font-mono text-[12px] text-text-muted">
+                <div className="flex items-center gap-2 font-mono text-[11px] self-start sm:self-auto shrink-0 pb-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
-                  <span>Queue active · 0 backlog</span>
+                  <span className="text-semantic-success font-medium">Queue active</span>
+                  <span className="text-border-default text-[10px]">·</span>
+                  <span className="text-[#F1F0EC] font-medium">0 backlog</span>
+                  <span className="text-border-default text-[10px]">·</span>
+                  <span className="text-text-muted text-[10.5px]">Healthy</span>
                 </div>
               </div>
 
-              {/* Three Connected Lifecycle Stages (Horizontal on desktop, stacked on mobile) */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-                
-                {/* Stage 1: Completed Jobs */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between pb-3 border-b border-border-subtle">
-                    <span className="font-mono text-[11px] text-semantic-success font-medium tracking-wider uppercase">
-                      COMPLETED
-                    </span>
-                    <span className="font-mono text-[11px] text-text-muted">2 jobs</span>
-                  </div>
-
-                  <div className="divide-y divide-border-subtle/80 font-mono text-[12px]">
-                    <div className="py-3 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[#F1F0EC] font-medium">compile_wasm_bundle</span>
-                        <span className="text-semantic-success text-[11px]">340ms</span>
-                      </div>
-                      <div className="text-[11px] text-text-muted">
-                        Worker #02 · Success
-                      </div>
+              {/* Middle Area: 3 Aligned Lifecycle Columns */}
+              <div className="flex-1 min-h-0 my-3 flex flex-col justify-center py-2 overflow-hidden">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-7 items-start">
+                  {/* Completed Jobs */}
+                  <div className="space-y-2.5">
+                    <div className="font-mono text-[10.5px] text-text-muted uppercase tracking-wider pb-1.5 border-b border-border-subtle">
+                      Completed
                     </div>
 
-                    <div className="py-3 space-y-1">
+                    <div className="space-y-2.5 font-mono text-[11.5px]">
                       <div className="flex items-center justify-between">
-                        <span className="text-[#F1F0EC] font-medium">generate_release_manifest</span>
-                        <span className="text-semantic-success text-[11px]">115ms</span>
+                        <span className="text-[#F1F0EC]">compile_wasm_bundle</span>
+                        <span className="text-semantic-success text-[10.5px]">● 340ms</span>
                       </div>
-                      <div className="text-[11px] text-text-muted">
-                        Worker #01 · Success
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-[#F1F0EC]">generate_release_manifest</span>
+                        <span className="text-semantic-success text-[10.5px]">● 115ms</span>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Stage 2: Processing (Focal Point!) */}
-                <div className="space-y-4 lg:border-l lg:border-border-subtle lg:pl-8">
-                  <div className="flex items-center justify-between pb-3 border-b border-border-subtle">
-                    <span className="font-mono text-[11px] text-accent-orange font-medium tracking-wider uppercase flex items-center gap-2">
+                  {/* Processing Job (Focal Point!) */}
+                  <div className="space-y-2.5 lg:border-l lg:border-border-subtle lg:pl-6">
+                    <div className="font-mono text-[10.5px] text-accent-orange uppercase tracking-wider pb-1.5 border-b border-border-subtle flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-accent-orange" />
-                      PROCESSING
-                    </span>
-                    <span className="font-mono text-[11px] text-accent-orange font-medium">ACTIVE</span>
-                  </div>
-
-                  <div className="py-3 space-y-3 font-mono text-[12px]">
-                    <div>
-                      <div className="text-[#F1F0EC] font-semibold text-[14px]">
-                        optimize_edge_assets
-                      </div>
-                      <div className="font-sans text-[12.5px] text-text-secondary leading-snug mt-1">
-                        Compressing Brotli release tarballs for multi-region edge distribution.
-                      </div>
+                      Processing
                     </div>
 
-                    {/* Restrained Progress Bar */}
-                    <div className="space-y-1.5 pt-1">
-                      <div className="h-1 w-full bg-[#252525] rounded-full overflow-hidden">
-                        <div className="h-full bg-accent-orange w-3/5 rounded-full" />
+                    <div className="space-y-1.5 font-mono text-[11.5px]">
+                      <div>
+                        <div className="text-[#F1F0EC] font-semibold text-[13px]">
+                          optimize_edge_assets
+                        </div>
+                        <div className="font-sans text-[11.5px] text-text-secondary leading-snug mt-0.5">
+                          Compressing Brotli release tarballs for edge distribution.
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between text-[11px] text-text-muted">
-                        <span className="text-accent-orange">Worker #03</span>
-                        <span>84ms elapsed</span>
+
+                      {/* Slim Restrained Progress Line */}
+                      <div className="space-y-1 pt-0.5">
+                        <div className="h-1 w-full bg-[#252525] rounded-full overflow-hidden">
+                          <div className="h-full bg-accent-orange w-3/5 rounded-full" />
+                        </div>
+                        <div className="flex items-center justify-between text-[10px] text-text-muted">
+                          <span className="text-accent-orange">Worker #03</span>
+                          <span>84ms elapsed</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Stage 3: Queued Jobs */}
-                <div className="space-y-4 lg:border-l lg:border-border-subtle lg:pl-8">
-                  <div className="flex items-center justify-between pb-3 border-b border-border-subtle">
-                    <span className="font-mono text-[11px] text-text-muted font-medium tracking-wider uppercase">
-                      QUEUED
-                    </span>
-                    <span className="font-mono text-[11px] text-text-muted">2 jobs</span>
-                  </div>
+                  {/* Queued Jobs */}
+                  <div className="space-y-2.5 lg:border-l lg:border-border-subtle lg:pl-6">
+                    <div className="font-mono text-[10.5px] text-text-muted uppercase tracking-wider pb-1.5 border-b border-border-subtle">
+                      Queued
+                    </div>
 
-                  <div className="divide-y divide-border-subtle/80 font-mono text-[12px]">
-                    <div className="py-3 space-y-1">
+                    <div className="space-y-2.5 font-mono text-[11.5px]">
                       <div className="flex items-center justify-between">
                         <span className="text-[#F1F0EC]">broadcast_webhook_dispatch</span>
-                        <span className="text-text-muted text-[11px]">Priority: High</span>
+                        <span className="text-text-muted text-[10.5px]">○ High</span>
                       </div>
-                      <div className="text-[11px] text-text-muted">
-                        Waiting in queue · 24ms
-                      </div>
-                    </div>
 
-                    <div className="py-3 space-y-1">
                       <div className="flex items-center justify-between">
                         <span className="text-[#F1F0EC]">purge_stale_cache_keys</span>
-                        <span className="text-text-muted text-[11px]">Scheduled</span>
-                      </div>
-                      <div className="text-[11px] text-text-muted">
-                        Waiting on optimize_edge_assets
+                        <span className="text-text-muted text-[10.5px]">○ Scheduled</span>
                       </div>
                     </div>
                   </div>
                 </div>
-
               </div>
 
-              {/* Footer */}
-              <div className="pt-6 border-t border-border-subtle flex flex-wrap items-center justify-between gap-4 text-[11px] font-mono text-text-muted">
+              {/* Standardized Footer */}
+              <div className="pt-2.5 border-t border-border-subtle flex items-center justify-between text-[10.5px] font-mono text-text-muted shrink-0">
                 <div>Decoupled asynchronous worker pool with automatic retry backoff</div>
                 <div className="text-text-secondary">Message broker: Redis memory bus</div>
               </div>
@@ -699,45 +640,45 @@ export function ApplicationStack() {
 
         {/* =================================================================
             THREE BENEFIT DESCRIPTIONS
-            Understated editorial columns beneath the experience
+            Understated editorial columns directly below the experience
             ================================================================= */}
-        <div className="w-full border-t border-border-subtle pt-10 sm:pt-14">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-12 w-full max-w-6xl">
+        <div className="w-full border-t border-border-subtle pt-6 sm:pt-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-10 w-full max-w-6xl">
             {/* Column 01 */}
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               <div className="font-mono text-[11px] text-accent-orange font-medium tracking-wider">
                 01
               </div>
-              <h3 className="font-sans text-[17px] sm:text-[18px] font-medium text-[#F1F0EC] tracking-[-0.015em]">
+              <h3 className="font-sans text-[16px] sm:text-[17px] font-medium text-[#F1F0EC] tracking-[-0.015em]">
                 Connected services
               </h3>
-              <p className="font-sans text-[14px] text-text-secondary leading-[1.6]">
+              <p className="font-sans text-[13.5px] text-text-secondary leading-[1.6]">
                 Keep the relationships between application components understandable through a shared internal network.
               </p>
             </div>
 
             {/* Column 02 */}
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               <div className="font-mono text-[11px] text-accent-orange font-medium tracking-wider">
                 02
               </div>
-              <h3 className="font-sans text-[17px] sm:text-[18px] font-medium text-[#F1F0EC] tracking-[-0.015em]">
+              <h3 className="font-sans text-[16px] sm:text-[17px] font-medium text-[#F1F0EC] tracking-[-0.015em]">
                 One developer workflow
               </h3>
-              <p className="font-sans text-[14px] text-text-secondary leading-[1.6]">
+              <p className="font-sans text-[13.5px] text-text-secondary leading-[1.6]">
                 Reduce the need to think about every component as an entirely separate project. Manage routing, environment, and code from one place.
               </p>
             </div>
 
             {/* Column 03 */}
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               <div className="font-mono text-[11px] text-accent-orange font-medium tracking-wider">
                 03
               </div>
-              <h3 className="font-sans text-[17px] sm:text-[18px] font-medium text-[#F1F0EC] tracking-[-0.015em]">
+              <h3 className="font-sans text-[16px] sm:text-[17px] font-medium text-[#F1F0EC] tracking-[-0.015em]">
                 Room to grow
               </h3>
-              <p className="font-sans text-[14px] text-text-secondary leading-[1.6]">
+              <p className="font-sans text-[13.5px] text-text-secondary leading-[1.6]">
                 Start with a single frontend service, then attach background workers, queues, and databases as your application evolves.
               </p>
             </div>
