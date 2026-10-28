@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { ApiServicePlayground } from "./api-service-playground";
+import { DatabaseServicePlayground } from "./database-service-playground";
 
 type ServiceId = "web" | "api" | "db" | "worker";
 
@@ -313,8 +314,8 @@ export function ApplicationStack() {
           )}
 
           {/* =============================================================
-              VIEW 3: DATABASE — Improve Query and Record Composition
-              Clear PostgreSQL heading, multi-line query, clean field-value ledger
+              VIEW 3: DATABASE — The Living Database Engine
+              Custom PostgreSQL tiered storage illustration, queries & structured results
               ============================================================= */}
           {selectedId === "db" && (
             <div className="w-full h-full flex flex-col justify-between animate-in fade-in duration-200 pb-4 sm:pb-5 lg:pb-5">
@@ -327,84 +328,24 @@ export function ApplicationStack() {
                     <span>DATABASE</span>
                   </div>
                   <h3 className="font-sans text-[20px] sm:text-[22px] font-medium text-[#F1F0EC] tracking-tight leading-tight">
-                    Persistent application data.
+                    Your data, always within reach.
                   </h3>
                   <p className="font-sans text-[12.5px] sm:text-[13px] text-text-secondary leading-relaxed line-clamp-1">
-                    Fully managed PostgreSQL with automated point-in-time recovery and connection pooling.
+                    PostgreSQL storage, built for your application.
                   </p>
                 </div>
 
                 <div className="flex items-center gap-2 font-mono text-[11px] self-start sm:self-auto shrink-0 pb-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
-                  <span className="text-[#F1F0EC] font-medium tracking-tight">PostgreSQL 16.2</span>
+                  <span className="text-[#F1F0EC] font-medium tracking-tight">PostgreSQL 16</span>
                   <span className="text-border-default text-[10px]">·</span>
-                  <span className="text-semantic-success font-medium text-[10.5px]">Pool active</span>
-                  <span className="text-border-default text-[10px]">·</span>
-                  <span className="text-text-muted text-[10.5px]">0.6ms latency</span>
+                  <span className="text-semantic-success font-medium text-[10.5px]">Connected</span>
                 </div>
               </div>
 
-              {/* Middle Area: SQL Query + Ledger */}
-              <div className="flex-1 min-h-0 my-3 flex flex-col justify-between py-1 overflow-hidden">
-                {/* Natural Multi-Line SQL Query with Pre */}
-                <pre className="py-2.5 px-3.5 rounded-[4px] bg-[#161616] border border-border-subtle font-mono text-[11px] leading-relaxed overflow-x-auto whitespace-pre shrink-0">
-                  <span className="text-accent-orange font-medium">SELECT</span>{" "}
-                  <span className="text-[#F1F0EC]">id, slug, version, status, deployed_at</span>{"\n"}
-                  <span className="text-accent-orange font-medium">FROM</span>{" "}
-                  <span className="text-[#F1F0EC]">releases</span>{"\n"}
-                  <span className="text-accent-orange font-medium">WHERE</span>{" "}
-                  <span className="text-[#F1F0EC]">slug</span> = <span className="text-semantic-success">&apos;v2.4-production&apos;</span>{"\n"}
-                  <span className="text-accent-orange font-medium">ORDER BY</span>{" "}
-                  <span className="text-[#F1F0EC]">deployed_at</span> <span className="text-accent-orange font-medium">DESC</span>{" "}
-                  <span className="text-accent-orange font-medium">LIMIT</span>{" "}
-                  <span className="text-accent-orange font-medium">1</span>;
-                </pre>
-
-                {/* Returned Record: Clean Field-Value Ledger */}
-                <div className="divide-y divide-border-subtle/80 font-mono text-[11px] sm:text-[11.5px] pt-1 shrink-0">
-                  <div className="py-1.5 grid grid-cols-12 items-baseline">
-                    <span className="col-span-4 sm:col-span-3 text-text-muted">id</span>
-                    <span className="col-span-8 sm:col-span-9 text-[#F1F0EC]">rel_01hn8y7p412a9</span>
-                  </div>
-
-                  <div className="py-1.5 grid grid-cols-12 items-baseline">
-                    <span className="col-span-4 sm:col-span-3 text-text-muted">version</span>
-                    <span className="col-span-8 sm:col-span-9 text-[#F1F0EC]">2.4.0</span>
-                  </div>
-
-                  <div className="py-1.5 grid grid-cols-12 items-baseline">
-                    <span className="col-span-4 sm:col-span-3 text-text-muted">status</span>
-                    <span className="col-span-8 sm:col-span-9 text-semantic-success flex items-center gap-1.5 font-medium">
-                      <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
-                      published
-                    </span>
-                  </div>
-
-                  <div className="py-1.5 grid grid-cols-12 items-baseline">
-                    <span className="col-span-4 sm:col-span-3 text-text-muted">author</span>
-                    <span className="col-span-8 sm:col-span-9 text-text-secondary truncate">
-                      Elena Rostova &lt;elena@meridian.io&gt;
-                    </span>
-                  </div>
-
-                  <div className="py-1.5 grid grid-cols-12 items-baseline">
-                    <span className="col-span-4 sm:col-span-3 text-text-muted">commit_hash</span>
-                    <span className="col-span-8 sm:col-span-9 text-[#F1F0EC]">8f3a21c</span>
-                  </div>
-
-                  <div className="py-1.5 grid grid-cols-12 items-baseline">
-                    <span className="col-span-4 sm:col-span-3 text-text-muted">deployed_at</span>
-                    <span className="col-span-8 sm:col-span-9 text-text-secondary">
-                      2026-10-28 22:30:14 UTC
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Standardized Footer */}
-              <div className="pt-2.5 border-t border-border-subtle flex items-center justify-between text-[10.5px] font-mono text-text-muted shrink-0">
-                <div>Encrypted NVMe storage · Port 5432 pooled</div>
-                <div className="text-text-secondary">Automated hourly volume snapshots</div>
+              {/* Living Database Engine Visualization */}
+              <div className="flex-1 min-h-0 mt-3 overflow-hidden">
+                <DatabaseServicePlayground />
               </div>
             </div>
           )}
