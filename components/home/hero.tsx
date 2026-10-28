@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { Check, RefreshCw } from "lucide-react";
-import { motion, useScroll, useTransform } from "motion/react";
 import { BRAND } from "@/lib/brand";
 
 type StageId = "source" | "build" | "production";
@@ -37,7 +36,7 @@ const STAGES: StageInfo[] = [
   },
 ];
 
-// React 19 compliant external store subscription for prefers-reduced-motion
+// SSR-safe subscription for prefers-reduced-motion
 function subscribeReducedMotion(callback: () => void) {
   if (typeof window === "undefined") return () => {};
   const mql = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -68,16 +67,6 @@ export function Hero() {
     getReducedMotionSnapshot,
     getReducedMotionServerSnapshot
   );
-
-  // Natural scroll-linked progression relative to the hero section's position in the document/viewport
-  const { scrollYProgress } = useScroll({
-    target: heroRef,
-    offset: ["start start", "end start"],
-  });
-
-  // Subtle restrained parallax on right visualization container (moves at 0.35x relative speed)
-  const diagramParallaxY = useTransform(scrollYProgress, [0, 1], [0, 32]);
-  const conduitHeight = useTransform(scrollYProgress, [0.35, 1], ["0%", "100%"]);
 
   // Intersection observer to pause animation when outside viewport
   useEffect(() => {
@@ -243,56 +232,59 @@ export function Hero() {
   return (
     <section
       ref={heroRef}
-      className="relative w-full min-h-[600px] xl:min-h-[660px] flex items-center justify-center pt-6 pb-12 sm:pt-8 sm:pb-16 lg:pt-8 lg:pb-16 overflow-hidden"
+      className="relative w-full min-h-[560px] xl:min-h-[620px] flex flex-col justify-center pt-6 pb-4 sm:pt-8 sm:pb-6 lg:pt-8 lg:pb-8 overflow-hidden bg-bg-main"
       aria-label="Deployment Runway Hero"
     >
       <div className="layout-container w-full">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-6 items-center">
           
           {/* =================================================================
-              LEFT COLUMN: Typography, CTAs, Stage Selector (approx 45%)
+              LEFT COLUMN: Typography, CTAs, Stage Selector (5 cols)
+              Remains in normal document flow, fully legible throughout
               ================================================================= */}
           <div className="lg:col-span-5 flex flex-col justify-center z-10">
             
             {/* Technical Eyebrow */}
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2 mb-3">
               <span className="w-1.5 h-1.5 rounded-[1px] bg-accent-orange" aria-hidden="true" />
               <p className="font-mono text-[11px] font-medium tracking-[0.14em] uppercase text-text-muted">
                 BUILT FOR THE WAY YOU SHIP
               </p>
             </div>
 
-            {/* Main Headline */}
-            <h1 className="font-sans text-[44px] sm:text-[54px] lg:text-[62px] xl:text-[70px] font-medium leading-[1.04] tracking-[-0.035em] text-[#F1F0EC] mb-5">
-              Your code. <br />
-              In <span className="text-accent-orange">motion</span>.
+            {/* Main Headline - exactly 2 lines, never wraps into 4 lines */}
+            <h1 className="font-sans text-[42px] sm:text-[50px] lg:text-[56px] xl:text-[64px] font-medium leading-[1.04] tracking-[-0.035em] text-[#F1F0EC] mb-4">
+              <span className="block whitespace-nowrap">Your code.</span>
+              <span className="block whitespace-nowrap">
+                In <span className="text-accent-orange">motion</span>.
+              </span>
             </h1>
 
             {/* Supporting Copy */}
-            <p className="font-sans text-[15.5px] sm:text-[16px] text-[#A6AAA9] leading-[1.6] max-w-[440px] mb-7">
+            <p className="font-sans text-[15px] sm:text-[16px] text-[#A6AAA9] leading-[1.55] max-w-[420px] mb-6">
               From your first deploy to production infrastructure, everything moves forward.
             </p>
 
             {/* Primary & Secondary Actions */}
-            <div className="flex flex-wrap items-center gap-4 mb-8">
+            <div className="flex flex-wrap items-center gap-3.5 mb-6">
               <Link
                 href={BRAND.links.signup}
-                className="inline-flex items-center justify-center h-[40px] px-5 rounded-[7px] bg-[#D88762] hover:bg-[#E39A76] text-[#121416] text-[13.5px] font-semibold transition-colors duration-[160ms] focus-visible:outline-2 focus-visible:outline-accent-orange focus-visible:outline-offset-2"
+                className="inline-flex items-center justify-center h-[38px] px-5 rounded-[7px] bg-[#D88762] hover:bg-[#E39A76] text-[#121416] text-[13.5px] font-semibold transition-colors duration-[160ms] focus-visible:outline-2 focus-visible:outline-accent-orange focus-visible:outline-offset-2"
               >
                 Start building
               </Link>
 
               <Link
                 href="/product"
-                className="inline-flex items-center justify-center h-[40px] px-5 rounded-[7px] bg-transparent border border-[#343A3D] hover:border-[#777D7D] text-[#F1F0EC] text-[13.5px] font-medium transition-colors duration-[160ms] focus-visible:outline-2 focus-visible:outline-accent-orange"
+                className="inline-flex items-center justify-center h-[38px] px-5 rounded-[7px] bg-transparent border border-[#343A3D] hover:border-[#777D7D] text-[#F1F0EC] text-[13.5px] font-medium transition-colors duration-[160ms] focus-visible:outline-2 focus-visible:outline-accent-orange"
               >
                 Explore the platform
               </Link>
             </div>
 
             {/* Integrated Stage Controls & Technical Details */}
-            <div className="pt-5 border-t border-border-subtle/80 max-w-[460px]">
-              <div className="flex items-center justify-between mb-2.5">
+            <div className="pt-4 border-t border-border-subtle/80 max-w-[460px]">
+              <div className="flex items-center justify-between mb-2">
                 <span className="font-mono text-[10.5px] text-text-muted tracking-wider uppercase">
                   {`0${activeStage === "source" ? "1" : activeStage === "build" ? "2" : "3"} STAGE: ${activeStage.toUpperCase()}`}
                 </span>
@@ -303,7 +295,7 @@ export function Hero() {
                       setIsUserInteracting(false);
                       setSelectedStage(null);
                     }}
-                    className="font-mono text-[10.5px] text-accent-orange hover:underline inline-flex items-center gap-1 focus-visible:outline-accent-orange"
+                    className="font-mono text-[10px] text-accent-orange hover:underline inline-flex items-center gap-1 focus-visible:outline-accent-orange"
                   >
                     <RefreshCw className="w-2.5 h-2.5" />
                     resume sequence
@@ -315,7 +307,7 @@ export function Hero() {
               <div
                 role="tablist"
                 aria-label="Deployment stages"
-                className="grid grid-cols-3 gap-2 mb-3"
+                className="grid grid-cols-3 gap-2 mb-2.5"
               >
                 {STAGES.map((stage) => {
                   const isSelected = activeStage === stage.id;
@@ -326,7 +318,7 @@ export function Hero() {
                       role="tab"
                       aria-selected={isSelected}
                       onClick={() => handleStageSelect(stage.id)}
-                      className={`h-[32px] px-2 rounded-[6px] border text-[11.5px] font-mono transition-all duration-[160ms] flex items-center justify-center gap-1.5 focus-visible:outline-2 focus-visible:outline-accent-orange ${
+                      className={`h-[30px] px-2 rounded-[6px] border text-[11px] font-mono transition-all duration-[160ms] flex items-center justify-center gap-1.5 focus-visible:outline-2 focus-visible:outline-accent-orange ${
                         isSelected
                           ? "bg-[#202427] border-accent-orange/80 text-[#F1F0EC] shadow-sm"
                           : "bg-transparent border-border-subtle/60 text-text-muted hover:text-text-secondary hover:border-border-default"
@@ -340,12 +332,12 @@ export function Hero() {
               </div>
 
               {/* Dynamic Explanatory Caption */}
-              <p className="text-[12.5px] text-text-secondary leading-relaxed min-h-[34px] transition-opacity duration-[180ms]">
+              <p className="text-[12px] text-text-secondary leading-relaxed min-h-[32px] transition-opacity duration-[180ms]">
                 {STAGES.find((s) => s.id === activeStage)?.description}
               </p>
 
               {/* Technical deployment annotation */}
-              <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border-subtle/40 text-[11px] font-mono text-text-muted">
+              <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border-subtle/40 text-[10.5px] font-mono text-text-muted">
                 <span className="text-accent-orange">◆</span>
                 <span>git push origin main → automated edge deploy (0.84s)</span>
               </div>
@@ -354,37 +346,31 @@ export function Hero() {
           </div>
 
           {/* =================================================================
-              RIGHT COLUMN: The Deployment Runway Infrastructure System (approx 55%)
+              RIGHT COLUMN: The Deployment Runway Infrastructure System (7 cols)
+              Preserved at intended proportions; Sits at true scale without clipping
               ================================================================= */}
-          <div className="lg:col-span-7 relative w-full flex items-center justify-center">
-            
-            {/* Diagram Container: Unified coordinate space (600x440) with subtle scroll-linked parallax */}
-            <motion.div
-              style={{ y: isReducedMotion ? 0 : diagramParallaxY }}
-              className="w-full relative aspect-[600/440] max-w-[600px] select-none"
-            >
+          <div className="lg:col-span-7 relative w-full flex items-center justify-center lg:justify-end overflow-hidden h-[260px] xs:h-[310px] sm:h-[380px] md:h-[420px] lg:h-[460px]">
+            {/* Diagram Container: Fixed 640x460 coordinate space */}
+            <div className="w-[640px] h-[460px] shrink-0 origin-center lg:origin-top-right scale-[0.54] xs:scale-[0.64] sm:scale-[0.8] md:scale-[0.9] lg:scale-100 relative select-none">
               
               {/* SVG Infrastructure Circuit Layer (connections, pins, data packets) */}
               <svg
-                viewBox="0 0 600 440"
+                viewBox="0 0 640 460"
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
                 className="absolute inset-0 w-full h-full pointer-events-none"
                 aria-hidden="true"
               >
-                {/* -------------------------------------------------------------
-                    CONNECTION 1: Source bottom (130, 116) -> Build top (310, 160)
-                    ------------------------------------------------------------- */}
-                {/* Inactive Base Path */}
+                {/* CONNECTION 1: Source bottom (134, 114) -> Build top (324, 164) */}
                 <path
-                  d="M 130 116 C 130 146, 310 130, 310 160"
+                  d="M 134 114 C 134 148, 324 130, 324 164"
                   stroke="#292E31"
                   strokeWidth="1.5"
                 />
 
-                {/* Active Highlight Path */}
+                {/* Active Highlight Path 1 */}
                 <path
-                  d="M 130 116 C 130 146, 310 130, 310 160"
+                  d="M 134 114 C 134 148, 324 130, 324 164"
                   stroke={isPath1Active ? "#D88762" : "transparent"}
                   strokeWidth="1.75"
                   className="transition-colors duration-300"
@@ -395,7 +381,7 @@ export function Hero() {
                   <g key={`packet1-${loopKey}`}>
                     <circle r="6" fill="#D88762" opacity="0.3">
                       <animateMotion
-                        path="M 130 116 C 130 146, 310 130, 310 160"
+                        path="M 134 114 C 134 148, 324 130, 324 164"
                         dur="0.85s"
                         repeatCount="1"
                         fill="freeze"
@@ -403,7 +389,7 @@ export function Hero() {
                     </circle>
                     <circle r="3.5" fill="#D88762">
                       <animateMotion
-                        path="M 130 116 C 130 146, 310 130, 310 160"
+                        path="M 134 114 C 134 148, 324 130, 324 164"
                         dur="0.85s"
                         repeatCount="1"
                         fill="freeze"
@@ -413,26 +399,23 @@ export function Hero() {
                 )}
 
                 {/* Intermediate Artifact Tag 1 */}
-                <g transform="translate(195, 134)">
+                <g transform="translate(229, 139)">
                   <rect x="-24" y="-8" width="48" height="15" rx="3" fill="#121416" stroke="#292E31" strokeWidth="1" />
                   <text x="0" y="3" fill="#777D7D" fontSize="8.5" fontFamily="var(--font-geist-mono)" textAnchor="middle">
                     git:sha256
                   </text>
                 </g>
 
-                {/* -------------------------------------------------------------
-                    CONNECTION 2: Build bottom (310, 272) -> Production top (460, 312)
-                    ------------------------------------------------------------- */}
-                {/* Inactive Base Path */}
+                {/* CONNECTION 2: Build bottom (324, 290) -> Production top (496, 334) */}
                 <path
-                  d="M 310 272 C 310 298, 460 286, 460 312"
+                  d="M 324 290 C 324 322, 496 302, 496 334"
                   stroke="#292E31"
                   strokeWidth="1.5"
                 />
 
-                {/* Active Highlight Path */}
+                {/* Active Highlight Path 2 */}
                 <path
-                  d="M 310 272 C 310 298, 460 286, 460 312"
+                  d="M 324 290 C 324 322, 496 302, 496 334"
                   stroke={
                     isPath2Active
                       ? isProductionRunning
@@ -449,7 +432,7 @@ export function Hero() {
                   <g key={`packet2-${loopKey}`}>
                     <circle r="6" fill="#D88762" opacity="0.3">
                       <animateMotion
-                        path="M 310 272 C 310 298, 460 286, 460 312"
+                        path="M 324 290 C 324 322, 496 302, 496 334"
                         dur="0.85s"
                         repeatCount="1"
                         fill="freeze"
@@ -457,7 +440,7 @@ export function Hero() {
                     </circle>
                     <circle r="3.5" fill="#D88762">
                       <animateMotion
-                        path="M 310 272 C 310 298, 460 286, 460 312"
+                        path="M 324 290 C 324 322, 496 302, 496 334"
                         dur="0.85s"
                         repeatCount="1"
                         fill="freeze"
@@ -467,7 +450,7 @@ export function Hero() {
                 )}
 
                 {/* Intermediate Artifact Tag 2 */}
-                <g transform="translate(395, 288)">
+                <g transform="translate(410, 312)">
                   <rect x="-24" y="-8" width="48" height="15" rx="3" fill="#121416" stroke="#292E31" strokeWidth="1" />
                   <text x="0" y="3" fill="#777D7D" fontSize="8.5" fontFamily="var(--font-geist-mono)" textAnchor="middle">
                     release:v2.4
@@ -475,42 +458,42 @@ export function Hero() {
                 </g>
 
                 {/* Hardware Terminal Ports (Connection Pins) */}
-                {/* Source Output Pin (130, 116) */}
-                <g transform="translate(130, 116)">
+                {/* Source Output Pin (134, 114) */}
+                <g transform="translate(134, 114)">
                   <rect x="-3.5" y="-3.5" width="7" height="7" rx="1.5" fill="#191C1F" stroke={isPath1Active ? "#D88762" : "#343A3D"} strokeWidth="1.5" />
                   <circle r="1.5" fill={isPath1Active ? "#D88762" : "#777D7D"} />
                 </g>
 
-                {/* Build Input Pin (310, 160) */}
-                <g transform="translate(310, 160)">
+                {/* Build Input Pin (324, 164) */}
+                <g transform="translate(324, 164)">
                   <rect x="-3.5" y="-3.5" width="7" height="7" rx="1.5" fill="#191C1F" stroke={isPath1Active ? "#D88762" : "#343A3D"} strokeWidth="1.5" />
                   <circle r="1.5" fill={isPath1Active ? "#D88762" : "#777D7D"} />
                 </g>
 
-                {/* Build Output Pin (310, 272) */}
-                <g transform="translate(310, 272)">
+                {/* Build Output Pin (324, 290) */}
+                <g transform="translate(324, 290)">
                   <rect x="-3.5" y="-3.5" width="7" height="7" rx="1.5" fill="#191C1F" stroke={isPath2Active ? (isProductionRunning ? "#83B69A" : "#D88762") : "#343A3D"} strokeWidth="1.5" />
                   <circle r="1.5" fill={isPath2Active ? (isProductionRunning ? "#83B69A" : "#D88762") : "#777D7D"} />
                 </g>
 
-                {/* Production Input Pin (460, 312) */}
-                <g transform="translate(460, 312)">
+                {/* Production Input Pin (496, 334) */}
+                <g transform="translate(496, 334)">
                   <rect x="-3.5" y="-3.5" width="7" height="7" rx="1.5" fill="#191C1F" stroke={isPath2Active ? (isProductionRunning ? "#83B69A" : "#D88762") : "#343A3D"} strokeWidth="1.5" />
                   <circle r="1.5" fill={isProductionRunning ? "#83B69A" : isPath2Active ? "#D88762" : "#777D7D"} />
                 </g>
               </svg>
 
               {/* -------------------------------------------------------------
-                  STAGE A: SOURCE NODE (Top-Left: 3.33% left, 5.45% top)
+                  STAGE A: SOURCE NODE (Top-Left: left 16px, top 16px, width 236px)
                   ------------------------------------------------------------- */}
               <div
                 onClick={() => handleStageSelect("source")}
                 style={{
-                  left: "3.33%",
-                  top: "5.45%",
-                  width: "36.67%",
+                  left: 16,
+                  top: 16,
+                  width: 236,
                 }}
-                className={`absolute rounded-[8px] bg-[#191C1F] border p-3 transition-all duration-200 cursor-pointer shadow-md ${
+                className={`absolute rounded-[8px] bg-[#191C1F] border p-3 transition-colors duration-200 cursor-pointer shadow-md ${
                   activeStage === "source"
                     ? "border-accent-orange/90 shadow-accent-orange/5"
                     : "border-border-subtle hover:border-border-default"
@@ -552,16 +535,16 @@ export function Hero() {
               </div>
 
               {/* -------------------------------------------------------------
-                  STAGE B: BUILD ENGINE NODE (Center: 30.83% left, 36.36% top)
+                  STAGE B: BUILD ENGINE NODE (Center: left 196px, top 164px, width 256px)
                   ------------------------------------------------------------- */}
               <div
                 onClick={() => handleStageSelect("build")}
                 style={{
-                  left: "30.83%",
-                  top: "36.36%",
-                  width: "41.67%",
+                  left: 196,
+                  top: 164,
+                  width: 256,
                 }}
-                className={`absolute rounded-[8px] bg-[#191C1F] border p-3 transition-all duration-200 cursor-pointer shadow-md ${
+                className={`absolute rounded-[8px] bg-[#191C1F] border p-3 transition-colors duration-200 cursor-pointer shadow-md ${
                   activeStage === "build"
                     ? "border-accent-orange/90 shadow-accent-orange/10"
                     : "border-border-subtle hover:border-border-default"
@@ -650,16 +633,16 @@ export function Hero() {
               </div>
 
               {/* -------------------------------------------------------------
-                  STAGE C: PRODUCTION NODE (Bottom-Right: 57.50% left, 70.91% top)
+                  STAGE C: PRODUCTION NODE (Bottom-Right: left 368px, top 334px, width 256px)
                   ------------------------------------------------------------- */}
               <div
                 onClick={() => handleStageSelect("production")}
                 style={{
-                  left: "57.50%",
-                  top: "70.91%",
-                  width: "39.17%",
+                  left: 368,
+                  top: 334,
+                  width: 256,
                 }}
-                className={`absolute rounded-[8px] bg-[#191C1F] border p-3 transition-all duration-200 cursor-pointer shadow-md ${
+                className={`absolute rounded-[8px] bg-[#191C1F] border p-3 transition-colors duration-200 cursor-pointer shadow-md ${
                   activeStage === "production"
                     ? "border-semantic-success/80 shadow-semantic-success/5"
                     : "border-border-subtle hover:border-border-default"
@@ -711,25 +694,10 @@ export function Hero() {
                 </div>
               </div>
 
-            </motion.div>
+            </div>
 
           </div>
 
-        </div>
-      </div>
-
-      {/* Visual Continuity Conduit: Extends from hero diagram directly toward the next section */}
-      <div
-        className="w-full flex justify-end pr-12 sm:pr-24 lg:pr-36 h-8 pointer-events-none"
-        aria-hidden="true"
-      >
-        <div className="w-[1px] h-full bg-border-subtle/40 relative overflow-hidden">
-          <motion.div
-            style={{
-              height: isReducedMotion ? "100%" : conduitHeight,
-            }}
-            className="w-full bg-gradient-to-b from-accent-orange/80 to-accent-orange/20"
-          />
         </div>
       </div>
     </section>
