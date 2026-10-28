@@ -1,5 +1,6 @@
 import { Navbar } from "@/components/layout/navbar";
 import { Hero } from "@/components/home/hero";
+import { DeploymentExperience } from "@/components/home/deployment-experience";
 
 export default function Home() {
   return (
@@ -7,6 +8,7 @@ export default function Home() {
       <Navbar />
       <main className="flex-1 flex flex-col">
         <Hero />
+        <DeploymentExperience />
       </main>
     </div>
   );
