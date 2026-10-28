@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { ApiServicePlayground } from "./api-service-playground";
 import { DatabaseServicePlayground } from "./database-service-playground";
+import { WorkerServicePlayground } from "./worker-service-playground";
 
 type ServiceId = "web" | "api" | "db" | "worker";
 
@@ -351,8 +352,8 @@ export function ApplicationStack() {
           )}
 
           {/* =============================================================
-              VIEW 4: BACKGROUND WORKER — Elegant Job Lifecycle
-              Three aligned groups (Completed, Processing focal point, Queued) with thin dividers
+              VIEW 4: BACKGROUND WORKER — Living Job Queue
+              Living job queue, multi-lane worker pool, animated dispatch & completion
               ============================================================= */}
           {selectedId === "worker" && (
             <div className="w-full h-full flex flex-col justify-between animate-in fade-in duration-200 pb-4 sm:pb-5 lg:pb-5">
@@ -365,100 +366,22 @@ export function ApplicationStack() {
                     <span>BACKGROUND WORKER</span>
                   </div>
                   <h3 className="font-sans text-[20px] sm:text-[22px] font-medium text-[#F1F0EC] tracking-tight leading-tight">
-                    Tasks behind the scenes.
+                    Heavy work. Handled in the background.
                   </h3>
                   <p className="font-sans text-[12.5px] sm:text-[13px] text-text-secondary leading-relaxed line-clamp-1">
-                    Decoupled asynchronous worker pool for asset processing, webhooks, and queues.
+                    Run jobs asynchronously without slowing down your application.
                   </p>
                 </div>
 
                 <div className="flex items-center gap-2 font-mono text-[11px] self-start sm:self-auto shrink-0 pb-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
-                  <span className="text-semantic-success font-medium">Queue active</span>
-                  <span className="text-border-default text-[10px]">·</span>
-                  <span className="text-[#F1F0EC] font-medium">0 backlog</span>
-                  <span className="text-border-default text-[10px]">·</span>
-                  <span className="text-text-muted text-[10.5px]">Healthy</span>
+                  <span className="text-semantic-success font-medium">Workers active</span>
                 </div>
               </div>
 
-              {/* Middle Area: 3 Aligned Lifecycle Columns */}
-              <div className="flex-1 min-h-0 my-3 flex flex-col justify-center py-2 overflow-hidden">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-7 items-start">
-                  {/* Completed Jobs */}
-                  <div className="space-y-2.5">
-                    <div className="font-mono text-[10.5px] text-text-muted uppercase tracking-wider pb-1.5 border-b border-border-subtle">
-                      Completed
-                    </div>
-
-                    <div className="space-y-2.5 font-mono text-[11.5px]">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[#F1F0EC]">compile_wasm_bundle</span>
-                        <span className="text-semantic-success text-[10.5px]">● 340ms</span>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-[#F1F0EC]">generate_release_manifest</span>
-                        <span className="text-semantic-success text-[10.5px]">● 115ms</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Processing Job (Focal Point!) */}
-                  <div className="space-y-2.5 lg:border-l lg:border-border-subtle lg:pl-6">
-                    <div className="font-mono text-[10.5px] text-accent-orange uppercase tracking-wider pb-1.5 border-b border-border-subtle flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-accent-orange" />
-                      Processing
-                    </div>
-
-                    <div className="space-y-1.5 font-mono text-[11.5px]">
-                      <div>
-                        <div className="text-[#F1F0EC] font-semibold text-[13px]">
-                          optimize_edge_assets
-                        </div>
-                        <div className="font-sans text-[11.5px] text-text-secondary leading-snug mt-0.5">
-                          Compressing Brotli release tarballs for edge distribution.
-                        </div>
-                      </div>
-
-                      {/* Slim Restrained Progress Line */}
-                      <div className="space-y-1 pt-0.5">
-                        <div className="h-1 w-full bg-[#252525] rounded-full overflow-hidden">
-                          <div className="h-full bg-accent-orange w-3/5 rounded-full" />
-                        </div>
-                        <div className="flex items-center justify-between text-[10px] text-text-muted">
-                          <span className="text-accent-orange">Worker #03</span>
-                          <span>84ms elapsed</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Queued Jobs */}
-                  <div className="space-y-2.5 lg:border-l lg:border-border-subtle lg:pl-6">
-                    <div className="font-mono text-[10.5px] text-text-muted uppercase tracking-wider pb-1.5 border-b border-border-subtle">
-                      Queued
-                    </div>
-
-                    <div className="space-y-2.5 font-mono text-[11.5px]">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[#F1F0EC]">broadcast_webhook_dispatch</span>
-                        <span className="text-text-muted text-[10.5px]">○ High</span>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-[#F1F0EC]">purge_stale_cache_keys</span>
-                        <span className="text-text-muted text-[10.5px]">○ Scheduled</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Standardized Footer */}
-              <div className="pt-2.5 border-t border-border-subtle flex items-center justify-between text-[10.5px] font-mono text-text-muted shrink-0">
-                <div>Decoupled asynchronous worker pool with automatic retry backoff</div>
-                <div className="text-text-secondary">Message broker: Redis memory bus</div>
+              {/* Living Background Worker Visualization */}
+              <div className="flex-1 min-h-0 mt-3 overflow-hidden">
+                <WorkerServicePlayground />
               </div>
             </div>
           )}
