@@ -1,51 +1,23 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useSyncExternalStore } from "react";
 
-type WorkerStage =
-  | "queue"      // 800ms: Job selected in queue (highlighted in burnt orange)
-  | "dispatch"   // 900ms: Job packet travels smoothly along rail into Worker 02
-  | "processing" // 1400ms: Worker 02 processes job, progress bar smoothly advances from 0% to 100%
-  | "completion" // 1000ms: Job completes, accent turns sage green, exits to Completed area
-  | "hold";      // 1800ms: Hold completed state for reading before advancing to next job
+type ConveyorStage =
+  | "arrival"    // 1000ms: Active task marker approaches station along curved path, label visible
+  | "pickup"     // 850ms: Station accepts task, marker moves into central docking chamber
+  | "processing" // 1700ms: Rotor mechanism turns, progress arc advances 0% → 100%
+  | "release"    // 900ms: Accent transitions to sage green, task exits along outgoing path
+  | "hold";      // 1600ms: Hold completed state visible before advancing to next task
 
-interface JobDefinition {
-  id: string;
+interface Job {
   name: string;
-  tag: string;
-  worker: string;
-  description: string;
 }
 
-const JOBS_SEQUENCE: JobDefinition[] = [
-  {
-    id: "job_01",
-    name: "optimize_assets",
-    tag: "Brotli · Image assets",
-    worker: "Worker 02",
-    description: "Compressing release tarballs for edge CDN distribution.",
-  },
-  {
-    id: "job_02",
-    name: "send_webhook",
-    tag: "HTTP · Event dispatch",
-    worker: "Worker 02",
-    description: "Delivering signed release.published payload to subscriber endpoint.",
-  },
-  {
-    id: "job_03",
-    name: "generate_manifest",
-    tag: "SHA-256 · Checksums",
-    worker: "Worker 02",
-    description: "Computing build artifact integrity hashes for deploy verification.",
-  },
-  {
-    id: "job_04",
-    name: "purge_cache",
-    tag: "Edge · Stale keys",
-    worker: "Worker 02",
-    description: "Invalidating cached static assets across global edge POPs.",
-  },
+const JOBS: Job[] = [
+  { name: "optimize_assets" },
+  { name: "send_webhook" },
+  { name: "generate_manifest" },
+  { name: "purge_cache" },
 ];
 
 function subscribeReducedMotion(callback: () => void) {
@@ -64,20 +36,36 @@ function getReducedMotionServerSnapshot() {
   return false;
 }
 
+/**
+ * Calculates the Y coordinate on the continuous curved conveyor track for a given X coordinate.
+ * Uses a smooth cubic Hermite spline:
+ * - Incoming (X: 80 → 480): curves gently from Y: 130 to Y: 160 with horizontal tangents at both ends
+ * - Outgoing (X: 480 → 880): curves gently from Y: 160 to Y: 190 with horizontal tangents at both ends
+ */
+function getTrackY(x: number): number {
+  if (x <= 480) {
+    const t = Math.max(0, Math.min(1, (x - 80) / 400));
+    return 130 + 30 * (3 * t * t - 2 * t * t * t);
+  } else {
+    const t = Math.max(0, Math.min(1, (x - 480) / 400));
+    return 160 + 30 * (3 * t * t - 2 * t * t * t);
+  }
+}
+
 export function WorkerServicePlayground() {
   const [jobIndex, setJobIndex] = useState(0);
-  const [stage, setStage] = useState<WorkerStage>("queue");
+  const [stage, setStage] = useState<ConveyorStage>("arrival");
   const [progress, setProgress] = useState(0);
   const [isInViewport, setIsInViewport] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const isReducedMotion = React.useSyncExternalStore(
+  const isReducedMotion = useSyncExternalStore(
     subscribeReducedMotion,
     getReducedMotionSnapshot,
     getReducedMotionServerSnapshot
   );
 
-  // Pause animation when preview is outside viewport
+  // Pause animations when section is scrolled out of viewport
   useEffect(() => {
     const node = containerRef.current;
     if (!node || typeof IntersectionObserver === "undefined") return;
@@ -93,7 +81,7 @@ export function WorkerServicePlayground() {
     return () => observer.disconnect();
   }, []);
 
-  // Coordinated animation state machine
+  // Coordinated conveyor state machine: Arrival → Pickup → Processing → Release → Hold
   useEffect(() => {
     if (isReducedMotion || !isInViewport) {
       return;
@@ -102,794 +90,522 @@ export function WorkerServicePlayground() {
     let timeoutId: NodeJS.Timeout;
 
     switch (stage) {
-      case "queue":
-        timeoutId = setTimeout(() => setStage("dispatch"), 800);
+      case "arrival":
+        timeoutId = setTimeout(() => setStage("pickup"), 1000);
         break;
-      case "dispatch":
-        timeoutId = setTimeout(() => setStage("processing"), 900);
+      case "pickup":
+        timeoutId = setTimeout(() => setStage("processing"), 850);
         break;
       case "processing":
-        // Animate progress smoothly from 0 to 100%
         timeoutId = setTimeout(() => {
           setProgress(100);
-          setStage("completion");
-        }, 1400);
+          setStage("release");
+        }, 1700);
         break;
-      case "completion":
-        timeoutId = setTimeout(() => setStage("hold"), 1000);
+      case "release":
+        timeoutId = setTimeout(() => setStage("hold"), 900);
         break;
       case "hold":
         timeoutId = setTimeout(() => {
-          setJobIndex((prev) => (prev + 1) % JOBS_SEQUENCE.length);
+          setJobIndex((prev) => (prev + 1) % JOBS.length);
           setProgress(0);
-          setStage("queue");
-        }, 1800);
+          setStage("arrival");
+        }, 1600);
         break;
     }
 
     return () => clearTimeout(timeoutId);
   }, [stage, isReducedMotion, isInViewport]);
 
-  // Smooth progress ticker during "processing" stage
+  // Smooth progress ticker during active processing (0% → 100%)
   useEffect(() => {
     if (stage !== "processing" || isReducedMotion || !isInViewport) return;
 
     const startTime = Date.now();
-    const duration = 1350;
+    const duration = 1600;
 
     const interval = setInterval(() => {
       const elapsed = Date.now() - startTime;
       const current = Math.min(100, Math.round((elapsed / duration) * 100));
       setProgress(current);
       if (current >= 100) clearInterval(interval);
-    }, 40);
+    }, 30);
 
     return () => clearInterval(interval);
   }, [stage, isReducedMotion, isInViewport]);
 
-  const activeStage = isReducedMotion ? "completion" : stage;
-  const currentJob = JOBS_SEQUENCE[jobIndex];
-  const nextJob1 = JOBS_SEQUENCE[(jobIndex + 1) % JOBS_SEQUENCE.length];
-  const nextJob2 = JOBS_SEQUENCE[(jobIndex + 2) % JOBS_SEQUENCE.length];
+  const activeStage = isReducedMotion ? "hold" : stage;
+  const currentJob = JOBS[jobIndex];
 
   // Stage flags
-  const isQueued = activeStage === "queue";
-  const isDispatching = activeStage === "dispatch";
+  const isArrival = activeStage === "arrival";
+  const isPickup = activeStage === "pickup";
   const isProcessing = activeStage === "processing";
-  const isCompleted = activeStage === "completion" || activeStage === "hold";
-  const isWorking = isProcessing || isCompleted;
+  const isRelease = activeStage === "release";
+  const isHold = activeStage === "hold";
+  const isCompleted = isRelease || isHold;
+
+  // Active marker coordinates along the continuous curved track
+  // - Arrival: approaching station at X = 320
+  // - Pickup & Processing: docked in central chamber at X = 480, Y = 160
+  // - Release & Hold: traveling out to completed lane at X = 670
+  let markerX = 320;
+  if (isPickup || isProcessing) {
+    markerX = 480;
+  } else if (isRelease || isHold) {
+    markerX = 670;
+  }
+  const markerY = getTrackY(markerX);
+
+  // Progress arc circumference for radius 50px: 2 * PI * 50 ≈ 314.16px
+  const arcCircumference = 314.16;
+  const arcOffset =
+    isProcessing
+      ? arcCircumference - (progress / 100) * arcCircumference
+      : isCompleted
+      ? 0
+      : arcCircumference;
+
+  // Rotor mechanism rotation (turns 90° during processing, 180° upon release)
+  const rotorAngle = isProcessing ? 90 : isCompleted ? 180 : 0;
+
+  // Track sleeper cross-ties positions
+  const incomingTicks = [100, 130, 160, 190, 220, 250, 280, 310, 340, 370, 400];
+  const outgoingTicks = [560, 590, 620, 650, 680, 710, 740, 770, 800, 830, 860];
 
   return (
     <div
       ref={containerRef}
-      className="w-full h-full flex flex-col justify-between select-none overflow-hidden"
+      className="w-full h-full flex flex-col justify-center items-center select-none overflow-hidden"
     >
       {/* =================================================================
-          TOP STREAM STATUS: Concisely shows the active task context
+          CONTINUOUS TASK CONVEYOR & PROCESSING STATION
+          - No cards, no 3 columns, no dashboard tables
+          - One continuous curved conveyor: Incoming → Processing Station → Completed
+          - Clean visual hierarchy: Central Station > Active Marker > Track > Label
           ================================================================= */}
-      <div className="flex items-center justify-between gap-4 pb-1 text-text-muted text-[11px] font-mono shrink-0">
-        <div className="flex items-center gap-2">
-          <span className="text-[#A5A19A] font-medium">DISPATCH STREAM</span>
-          <span className="text-[#303030]">·</span>
-          <span className="text-[#77736D]">default (concurrency 3)</span>
-        </div>
-
-        {/* Minimal inline flow indicator */}
-        <div className="flex items-center gap-2 text-[10.5px]">
-          <span className="text-[#F0EEE9] font-medium">{currentJob.name}</span>
-          <span className="text-[#77736D]">→</span>
-          <span className={isWorking ? "text-[#E58A61] font-medium" : "text-[#A5A19A]"}>
-            {currentJob.worker}
-          </span>
-          <span className="text-[#77736D]">→</span>
-          <span
-            className={`font-medium transition-colors duration-300 ${
-              isCompleted
-                ? "text-[#82B89D]"
-                : isProcessing
-                ? "text-[#E58A61]"
-                : "text-[#77736D]"
-            }`}
-          >
-            {isCompleted ? "Completed" : isProcessing ? `Processing ${progress}%` : "Queued"}
-          </span>
-        </div>
-      </div>
-
-      {/* =================================================================
-          MAIN SVG ILLUSTRATION: A LIVING JOB QUEUE
-          Three distinct functional areas:
-          A. Job queue on left
-          B. Multi-lane worker pool in center
-          C. Completed jobs on right
-          Connected by precise architectural dispatch and completion rails.
-          ================================================================= */}
-      <div className="flex-1 w-full min-h-0 my-1 relative flex items-center justify-center overflow-hidden">
+      <div className="w-full h-full max-h-[380px] sm:max-h-[410px] relative flex items-center justify-center">
         <svg
-          viewBox="0 0 940 220"
-          className="w-full h-full max-h-[265px] select-none"
+          viewBox="0 0 960 320"
+          className="w-full h-full select-none"
           preserveAspectRatio="xMidYMid meet"
-          aria-label="Background worker pool and job queue illustration"
+          aria-label="Background worker conveyor and processing station illustration"
         >
-          {/* -------------------------------------------------------------
-              AREA A: JOB QUEUE (Left Region, X: 15 to 235)
-              Orderly queue of pending tasks awaiting worker dispatch.
-              ------------------------------------------------------------- */}
-          <g id="job-queue">
-            <text
-              x="20"
-              y="16"
-              fill="#77736D"
-              fontSize="8.5"
-              fontFamily="monospace"
-              letterSpacing="0.08em"
-            >
-              JOB QUEUE (3 PENDING)
-            </text>
-
-            {/* Queue Outer Boundary */}
-            <rect
-              x="15"
-              y="24"
-              width="220"
-              height="182"
-              rx="4"
-              fill="#151515"
-              stroke="#262626"
-              strokeWidth="1"
-            />
-
-            {/* Slot 0: Active / Next-up Task Capsule */}
-            <rect
-              x="25"
-              y="34"
-              width="200"
-              height="50"
-              rx="3"
-              fill={isQueued || isDispatching ? "#1A1614" : "#111111"}
-              stroke={isQueued || isDispatching ? "#E58A61" : "#222222"}
-              strokeWidth={isQueued || isDispatching ? "1.2" : "1"}
-              className="transition-all duration-300"
-            />
-            <text
-              x="35"
-              y="52"
-              fill={isQueued || isDispatching ? "#F0EEE9" : "#A5A19A"}
-              fontSize="9"
-              fontFamily="monospace"
-              fontWeight={isQueued || isDispatching ? "600" : "400"}
-              className="transition-colors duration-300"
-            >
-              {currentJob.name}
-            </text>
-            <text
-              x="35"
-              y="68"
-              fill={isQueued || isDispatching ? "#E58A61" : "#77736D"}
-              fontSize="7.5"
-              fontFamily="monospace"
-              className="transition-colors duration-300"
-            >
-              {isDispatching ? "dispatching →" : isQueued ? "● next for dispatch" : "dispatched"}
-            </text>
-            <circle
-              cx="215"
-              cy="59"
-              r="2.5"
-              fill={isQueued || isDispatching ? "#E58A61" : "#303030"}
-              className="transition-colors duration-300"
-            />
-
-            {/* Slot 1: Next Pending Job */}
-            <rect
-              x="25"
-              y="94"
-              width="200"
-              height="50"
-              rx="3"
-              fill="#111111"
-              stroke="#222222"
-              strokeWidth="1"
-            />
-            <text
-              x="35"
-              y="112"
-              fill="#A5A19A"
-              fontSize="9"
-              fontFamily="monospace"
-            >
-              {nextJob1.name}
-            </text>
-            <text
-              x="35"
-              y="128"
-              fill="#77736D"
-              fontSize="7.5"
-              fontFamily="monospace"
-            >
-              {nextJob1.tag}
-            </text>
-
-            {/* Slot 2: Trailing Pending Job */}
-            <rect
-              x="25"
-              y="148"
-              width="200"
-              height="48"
-              rx="3"
-              fill="#111111"
-              stroke="#222222"
-              strokeWidth="1"
-            />
-            <text
-              x="35"
-              y="166"
-              fill="#A5A19A"
-              fontSize="9"
-              fontFamily="monospace"
-            >
-              {nextJob2.name}
-            </text>
-            <text
-              x="35"
-              y="182"
-              fill="#77736D"
-              fontSize="7.5"
-              fontFamily="monospace"
-            >
-              {nextJob2.tag}
-            </text>
-          </g>
+          <defs>
+            {/* Subtle linear glow gradient for active progress arc */}
+            <linearGradient id="worker-active-glow" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#E58A61" />
+              <stop offset="100%" stopColor="#D47348" />
+            </linearGradient>
+            <linearGradient id="worker-success-glow" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#82B89D" />
+              <stop offset="100%" stopColor="#6AA487" />
+            </linearGradient>
+          </defs>
 
           {/* -------------------------------------------------------------
-              DISPATCH CONDUIT (From Queue Slot 0 to Worker 02)
+              1. CONTINUOUS GENTLY CURVED CONVEYOR RAILS & CROSS-TIES
+              Dual-rail conveyor track with sleeper cross-ties following the Hermite curve
               ------------------------------------------------------------- */}
-          <g id="dispatch-conduit">
-            {/* Base guide rail */}
+          <g id="conveyor-structure">
+            {/* Sleeper cross-ties on incoming track */}
+            {incomingTicks.map((tickX) => {
+              const tickY = getTrackY(tickX);
+              return (
+                <line
+                  key={`in-tick-${tickX}`}
+                  x1={tickX}
+                  y1={tickY - 9}
+                  x2={tickX}
+                  y2={tickY + 9}
+                  stroke="#1E1E1E"
+                  strokeWidth="1"
+                />
+              );
+            })}
+
+            {/* Sleeper cross-ties on outgoing track */}
+            {outgoingTicks.map((tickX) => {
+              const tickY = getTrackY(tickX);
+              return (
+                <line
+                  key={`out-tick-${tickX}`}
+                  x1={tickX}
+                  y1={tickY - 9}
+                  x2={tickX}
+                  y2={tickY + 9}
+                  stroke="#1E1E1E"
+                  strokeWidth="1"
+                />
+              );
+            })}
+
+            {/* Incoming Dual Rails (entering station outer perimeter at X = 410) */}
+            {/* Upper Rail */}
             <path
-              d="M 235 59 H 280 V 115 H 330"
+              d="M 80,122 C 240,122 350,152 410,152"
               fill="none"
               stroke="#262626"
-              strokeWidth="1"
-              strokeDasharray="2 2"
-            />
-
-            {/* Active dispatch trace */}
-            <path
-              d="M 235 59 H 280 V 115 H 330"
-              fill="none"
-              stroke="#E58A61"
               strokeWidth="1.2"
-              style={{
-                strokeDasharray: 180,
-                strokeDashoffset: isDispatching || isWorking ? 0 : 180,
-                transition: "stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1)",
-              }}
+            />
+            {/* Lower Rail */}
+            <path
+              d="M 80,138 C 240,138 350,168 410,168"
+              fill="none"
+              stroke="#262626"
+              strokeWidth="1.2"
             />
 
-            {/* Traveling Dispatch Packet */}
-            {isDispatching && (
-              <circle
-                cx={280}
-                cy={87}
-                r="3.5"
-                fill="#E58A61"
-                className="animate-pulse"
-              />
-            )}
+            {/* Outgoing Dual Rails (exiting station outer perimeter at X = 550) */}
+            {/* Upper Rail */}
+            <path
+              d="M 550,152 C 610,152 720,182 880,182"
+              fill="none"
+              stroke="#262626"
+              strokeWidth="1.2"
+            />
+            {/* Lower Rail */}
+            <path
+              d="M 550,168 C 610,168 720,198 880,198"
+              fill="none"
+              stroke="#262626"
+              strokeWidth="1.2"
+            />
+
+            {/* Center Guide Trace Line (neutral unless task is moving) */}
+            <path
+              d="M 80,130 C 240,130 350,160 410,160"
+              fill="none"
+              stroke={isArrival || isPickup ? "#E58A61" : "#1F1F1F"}
+              strokeWidth="1"
+              strokeDasharray={isArrival || isPickup ? "none" : "3 3"}
+              className="transition-colors duration-400"
+            />
+            <path
+              d="M 550,160 C 610,160 720,190 880,190"
+              fill="none"
+              stroke={isCompleted ? "#82B89D" : "#1F1F1F"}
+              strokeWidth="1"
+              strokeDasharray={isCompleted ? "none" : "3 3"}
+              className="transition-colors duration-400"
+            />
           </g>
 
           {/* -------------------------------------------------------------
-              AREA B: WORKER POOL (Center Region, X: 330 to 655)
-              Three differentiated concurrent processing lanes.
-              Worker 02 actively processes the dispatched task.
+              2. INCOMING TASK MARKERS (Left Stream)
+              Small, quiet markers waiting on the conveyor. No cards.
               ------------------------------------------------------------- */}
-          <g id="worker-pool">
-            <text
-              x="335"
-              y="16"
-              fill="#77736D"
-              fontSize="8.5"
-              fontFamily="monospace"
-              letterSpacing="0.08em"
-            >
-              WORKER POOL (3 CONCURRENT)
-            </text>
-
-            {/* ---------------------------------------------------------
-                LANE 1: Worker 01 (Idle / Standby)
-                --------------------------------------------------------- */}
-            <g id="worker-01">
+          <g id="incoming-queue">
+            {/* Marker 3 (Furthest queue item, hidden on very narrow screens) */}
+            <g className="hidden sm:inline">
               <rect
-                x="330"
-                y="24"
-                width="325"
-                height="52"
-                rx="4"
-                fill="#151515"
-                stroke="#262626"
+                x="114"
+                y={getTrackY(130) - 7}
+                width="32"
+                height="14"
+                rx="7"
+                fill="#141414"
+                stroke="#242424"
                 strokeWidth="1"
               />
-              {/* Lane Badge */}
-              <rect
-                x="330"
-                y="24"
-                width="80"
-                height="52"
-                fill="#181818"
-                stroke="#262626"
-                strokeWidth="1"
-                rx="4"
-              />
-              <text
-                x="340"
-                y="46"
-                fill="#A5A19A"
-                fontSize="9"
-                fontFamily="monospace"
-                fontWeight="500"
-              >
-                Worker 01
-              </text>
-              <text
-                x="340"
-                y="60"
-                fill="#77736D"
-                fontSize="7.5"
-                fontFamily="monospace"
-              >
-                STANDBY
-              </text>
-
-              {/* Lane Content */}
-              <text
-                x="425"
-                y="46"
-                fill="#77736D"
-                fontSize="8.5"
-                fontFamily="monospace"
-              >
-                Idle · Awaiting task dispatch
-              </text>
-              <circle cx="635" cy="50" r="2.5" fill="#303030" />
+              <circle cx="130" cy={getTrackY(130)} r="2" fill="#303030" />
             </g>
 
-            {/* ---------------------------------------------------------
-                LANE 2: Worker 02 (THE ACTIVE HERO PROCESSING WORKER!)
-                Accepts task, runs progress bar, transitions to sage green on completion.
-                --------------------------------------------------------- */}
-            <g id="worker-02">
+            {/* Marker 2 (Second in queue) */}
+            <g>
               <rect
-                x="330"
-                y="86"
-                width="325"
-                height="58"
-                rx="4"
+                x="184"
+                y={getTrackY(200) - 7}
+                width="32"
+                height="14"
+                rx="7"
+                fill="#141414"
+                stroke="#242424"
+                strokeWidth="1"
+              />
+              <circle cx="200" cy={getTrackY(200)} r="2" fill="#303030" />
+            </g>
+          </g>
+
+          {/* -------------------------------------------------------------
+              3. COMPLETED TASK MARKERS (Right Stream)
+              Subtle sage-green completed task markers on outgoing track.
+              ------------------------------------------------------------- */}
+          <g id="completed-queue">
+            {/* Completed Marker C1 */}
+            <g>
+              <rect
+                x="754"
+                y={getTrackY(770) - 7}
+                width="32"
+                height="14"
+                rx="7"
+                fill="#131815"
+                stroke="#223326"
+                strokeWidth="1"
+              />
+              <circle cx="770" cy={getTrackY(770)} r="2" fill="#4B7759" />
+            </g>
+
+            {/* Completed Marker C2 (furthest completed item, hidden on mobile) */}
+            <g className="hidden sm:inline">
+              <rect
+                x="824"
+                y={getTrackY(840) - 7}
+                width="32"
+                height="14"
+                rx="7"
+                fill="#131815"
+                stroke="#223326"
+                strokeWidth="1"
+              />
+              <circle cx="840" cy={getTrackY(840)} r="2" fill="#4B7759" />
+            </g>
+          </g>
+
+          {/* -------------------------------------------------------------
+              4. CENTRAL PROCESSING STATION (Hero Visual Focal Point)
+              Center: X = 480, Y = 160.
+              Engineered orbital infrastructure: precision ticks, progress arc,
+              docking notch gates, caliper rotor, and central chamber.
+              ------------------------------------------------------------- */}
+          <g id="processing-station">
+            {/* Outer Precision Housing Ring (r = 70) */}
+            <circle
+              cx="480"
+              cy="160"
+              r="70"
+              fill="#151515"
+              stroke="#282828"
+              strokeWidth="1"
+            />
+
+            {/* Precision Vernier Radial Ticks (24 ticks around circumference) */}
+            {Array.from({ length: 24 }).map((_, i) => {
+              const deg = i * 15;
+              const isMajor = deg % 90 === 0;
+              const rad = (deg * Math.PI) / 180;
+              const innerR = isMajor ? 63 : 66;
+              const x1 = 480 + Math.cos(rad) * innerR;
+              const y1 = 160 + Math.sin(rad) * innerR;
+              const x2 = 480 + Math.cos(rad) * 70;
+              const y2 = 160 + Math.sin(rad) * 70;
+              return (
+                <line
+                  key={`station-tick-${deg}`}
+                  x1={x1}
+                  y1={y1}
+                  x2={x2}
+                  y2={y2}
+                  stroke={isMajor ? "#3A3A3A" : "#282828"}
+                  strokeWidth="1"
+                />
+              );
+            })}
+
+            {/* Inner Concentric Guide Ring (r = 60) */}
+            <circle
+              cx="480"
+              cy="160"
+              r="60"
+              fill="none"
+              stroke="#1C1C1C"
+              strokeWidth="1"
+            />
+
+            {/* Progress Arc Guide Track (r = 50) */}
+            <circle
+              cx="480"
+              cy="160"
+              r="50"
+              fill="none"
+              stroke="#202020"
+              strokeWidth="2.5"
+            />
+
+            {/* Restrained Active Progress Arc (r = 50) */}
+            <circle
+              cx="480"
+              cy="160"
+              r="50"
+              fill="none"
+              stroke={isCompleted ? "url(#worker-success-glow)" : "url(#worker-active-glow)"}
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeDasharray={arcCircumference}
+              strokeDashoffset={arcOffset}
+              transform="rotate(-90 480 160)"
+              className="transition-all duration-100 ease-out"
+            />
+
+            {/* Internal Caliper Rotor Mechanism (Rotates during processing) */}
+            <g
+              transform={`rotate(${rotorAngle} 480 160)`}
+              style={{
+                transition: "transform 1.4s cubic-bezier(0.4, 0, 0.2, 1)",
+              }}
+            >
+              {/* Concentric rotor rim (r = 32) */}
+              <circle
+                cx="480"
+                cy="160"
+                r="32"
+                fill="none"
+                stroke="#222222"
+                strokeWidth="1"
+                strokeDasharray="2 3"
+              />
+              {/* Horizontal Crosshair Caliper */}
+              <line
+                x1="448"
+                y1="160"
+                x2="512"
+                y2="160"
+                stroke="#2B2B2B"
+                strokeWidth="1"
+              />
+              {/* Vertical Crosshair Caliper */}
+              <line
+                x1="480"
+                y1="128"
+                x2="480"
+                y2="192"
+                stroke="#2B2B2B"
+                strokeWidth="1"
+              />
+              {/* Caliper End Pins */}
+              <circle cx="448" cy="160" r="1.5" fill="#3A3A3A" />
+              <circle cx="512" cy="160" r="1.5" fill="#3A3A3A" />
+              <circle cx="480" cy="128" r="1.5" fill="#3A3A3A" />
+              <circle cx="480" cy="192" r="1.5" fill="#3A3A3A" />
+            </g>
+
+            {/* Central Docking Chamber (r = 20) */}
+            <circle
+              cx="480"
+              cy="160"
+              r="20"
+              fill={
+                isCompleted
+                  ? "#121714"
+                  : isProcessing || isPickup
+                  ? "#181412"
+                  : "#111111"
+              }
+              stroke={
+                isCompleted
+                  ? "#82B89D"
+                  : isProcessing
+                  ? "#E58A61"
+                  : "#262626"
+              }
+              strokeWidth={isProcessing || isCompleted ? "1.5" : "1"}
+              className="transition-colors duration-300"
+            />
+
+            {/* Docking Gate Entrance/Exit Notches */}
+            <line x1="408" y1="160" x2="416" y2="160" stroke="#363636" strokeWidth="2" />
+            <line x1="544" y1="160" x2="552" y2="160" stroke="#363636" strokeWidth="2" />
+          </g>
+
+          {/* -------------------------------------------------------------
+              5. ACTIVE MOVING TASK MARKER & GEIST MONO LABEL
+              Visibly travels along the curved conveyor: Arrival → Pickup → Release
+              ------------------------------------------------------------- */}
+          <g
+            id="active-task-unit"
+            style={{
+              transform: `translate(${markerX}px, ${markerY}px)`,
+              transition:
+                isPickup || isRelease
+                  ? "transform 0.85s cubic-bezier(0.4, 0, 0.2, 1)"
+                  : "none",
+            }}
+          >
+            {/* Active Task Capsule (-17 to +17, -8 to +8) */}
+            <rect
+              x="-17"
+              y="-8"
+              width="34"
+              height="16"
+              rx="8"
+              fill={
+                isCompleted
+                  ? "#131815"
+                  : isProcessing || isPickup || isArrival
+                  ? "#191512"
+                  : "#111111"
+              }
+              stroke={
+                isCompleted
+                  ? "#82B89D"
+                  : isProcessing || isPickup || isArrival
+                  ? "#E58A61"
+                  : "#303030"
+              }
+              strokeWidth={isProcessing || isCompleted ? "1.5" : "1.2"}
+              className="transition-colors duration-300"
+            />
+
+            {/* Center Core Dot */}
+            <circle
+              cx="0"
+              cy="0"
+              r="2.5"
+              fill={isCompleted ? "#82B89D" : "#E58A61"}
+              className="transition-colors duration-300"
+            />
+
+            {/* Attached Geist Mono Job Label (hovering above the active marker) */}
+            <g
+              transform="translate(0, -18)"
+              className="transition-opacity duration-300"
+              style={{ opacity: isHold && !isReducedMotion ? 0.75 : 1 }}
+            >
+              <text
+                x="0"
+                y="0"
+                fill="#F0EEE9"
+                fontSize="11"
+                fontFamily="var(--font-geist-mono), monospace"
+                fontWeight="500"
+                textAnchor="middle"
+                letterSpacing="0.02em"
+              >
+                {currentJob.name}
+              </text>
+            </g>
+
+            {/* Status confirmation below marker during processing & completion */}
+            <g
+              transform="translate(0, 22)"
+              className="transition-opacity duration-300"
+            >
+              <text
+                x="0"
+                y="0"
                 fill={
-                  isCompleted
-                    ? "#131815"
-                    : isProcessing
-                    ? "#1A1614"
-                    : "#151515"
-                }
-                stroke={
                   isCompleted
                     ? "#82B89D"
                     : isProcessing
                     ? "#E58A61"
-                    : "#262626"
+                    : "#A5A19A"
                 }
-                strokeWidth={isWorking ? "1.5" : "1"}
-                className="transition-all duration-300"
-              />
-
-              {/* Lane Badge */}
-              <rect
-                x="330"
-                y="86"
-                width="80"
-                height="58"
-                fill="#181818"
-                stroke="#262626"
-                strokeWidth="1"
-                rx="4"
-              />
-              <text
-                x="340"
-                y="110"
-                fill={isWorking ? "#F0EEE9" : "#A5A19A"}
                 fontSize="9"
-                fontFamily="monospace"
-                fontWeight={isWorking ? "600" : "500"}
+                fontFamily="var(--font-geist-mono), monospace"
+                textAnchor="middle"
+                letterSpacing="0.02em"
                 className="transition-colors duration-300"
-              >
-                Worker 02
-              </text>
-              <text
-                x="340"
-                y="126"
-                fill={isCompleted ? "#82B89D" : isProcessing ? "#E58A61" : "#77736D"}
-                fontSize="7.5"
-                fontFamily="monospace"
-                fontWeight="medium"
-                className="transition-colors duration-300"
-              >
-                {isCompleted ? "DONE" : isProcessing ? "ACTIVE" : "READY"}
-              </text>
-
-              {/* Active Task Details */}
-              <text
-                x="425"
-                y="106"
-                fill={isWorking ? "#F0EEE9" : "#A5A19A"}
-                fontSize="9.5"
-                fontFamily="monospace"
-                fontWeight="500"
-                className="transition-colors duration-300"
-              >
-                {isWorking ? currentJob.name : "Awaiting dispatch"}
-              </text>
-
-              <text
-                x="640"
-                y="106"
-                fill={isCompleted ? "#82B89D" : isProcessing ? "#E58A61" : "#77736D"}
-                fontSize="8"
-                fontFamily="monospace"
-                textAnchor="end"
-                fontWeight="medium"
               >
                 {isCompleted
-                  ? "✔ 100%"
+                  ? "completed"
                   : isProcessing
-                  ? `${progress}%`
-                  : "0%"}
+                  ? `processing ${progress}%`
+                  : ""}
               </text>
-
-              {/* Smooth Progress Bar Rail */}
-              <rect
-                x="425"
-                y="122"
-                width="215"
-                height="4"
-                rx="2"
-                fill="#222222"
-              />
-              <rect
-                x="425"
-                y="122"
-                width={isWorking ? Math.max(4, (progress / 100) * 215) : 0}
-                height="4"
-                rx="2"
-                fill={isCompleted ? "#82B89D" : "#E58A61"}
-                className="transition-all duration-100 ease-out"
-              />
             </g>
-
-            {/* ---------------------------------------------------------
-                LANE 3: Worker 03 (Standby / Ready)
-                --------------------------------------------------------- */}
-            <g id="worker-03">
-              <rect
-                x="330"
-                y="154"
-                width="325"
-                height="52"
-                rx="4"
-                fill="#151515"
-                stroke="#262626"
-                strokeWidth="1"
-              />
-              <rect
-                x="330"
-                y="154"
-                width="80"
-                height="52"
-                fill="#181818"
-                stroke="#262626"
-                strokeWidth="1"
-                rx="4"
-              />
-              <text
-                x="340"
-                y="176"
-                fill="#A5A19A"
-                fontSize="9"
-                fontFamily="monospace"
-                fontWeight="500"
-              >
-                Worker 03
-              </text>
-              <text
-                x="340"
-                y="190"
-                fill="#77736D"
-                fontSize="7.5"
-                fontFamily="monospace"
-              >
-                READY
-              </text>
-
-              <text
-                x="425"
-                y="176"
-                fill="#77736D"
-                fontSize="8.5"
-                fontFamily="monospace"
-              >
-                Available · Polling queue
-              </text>
-              <circle cx="635" cy="180" r="2.5" fill="#303030" />
-            </g>
-          </g>
-
-          {/* -------------------------------------------------------------
-              EXIT CONDUIT (From Worker 02 to Completed Area)
-              ------------------------------------------------------------- */}
-          <g id="exit-conduit">
-            <path
-              d="M 655 115 H 685 V 59 H 715"
-              fill="none"
-              stroke="#262626"
-              strokeWidth="1"
-              strokeDasharray="2 2"
-            />
-            <path
-              d="M 655 115 H 685 V 59 H 715"
-              fill="none"
-              stroke="#82B89D"
-              strokeWidth="1.2"
-              style={{
-                strokeDasharray: 180,
-                strokeDashoffset: isCompleted ? 0 : 180,
-                transition: "stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1)",
-              }}
-            />
-          </g>
-
-          {/* -------------------------------------------------------------
-              AREA C: COMPLETED JOBS (Right Region, X: 715 to 925)
-              Compact completion area where finished tasks exit in sage green.
-              ------------------------------------------------------------- */}
-          <g id="completed-jobs">
-            <text
-              x="720"
-              y="16"
-              fill="#77736D"
-              fontSize="8.5"
-              fontFamily="monospace"
-              letterSpacing="0.08em"
-            >
-              COMPLETED (DISPATCHED)
-            </text>
-
-            <rect
-              x="715"
-              y="24"
-              width="210"
-              height="182"
-              rx="4"
-              fill="#151515"
-              stroke="#262626"
-              strokeWidth="1"
-            />
-
-            {/* Slot 0: Latest Completed Task */}
-            <rect
-              x="725"
-              y="34"
-              width="190"
-              height="50"
-              rx="3"
-              fill={isCompleted ? "#131815" : "#111111"}
-              stroke={isCompleted ? "#82B89D" : "#222222"}
-              strokeWidth={isCompleted ? "1.2" : "1"}
-              className="transition-all duration-300"
-            />
-            <text
-              x="735"
-              y="52"
-              fill={isCompleted ? "#F0EEE9" : "#A5A19A"}
-              fontSize="9"
-              fontFamily="monospace"
-              fontWeight={isCompleted ? "600" : "400"}
-              className="transition-colors duration-300"
-            >
-              {isCompleted ? currentJob.name : "compile_wasm"}
-            </text>
-            <text
-              x="735"
-              y="68"
-              fill="#82B89D"
-              fontSize="7.5"
-              fontFamily="monospace"
-              fontWeight="medium"
-            >
-              ✔ completed
-            </text>
-
-            {/* Slot 1: Previously Completed Task */}
-            <rect
-              x="725"
-              y="94"
-              width="190"
-              height="50"
-              rx="3"
-              fill="#111111"
-              stroke="#222222"
-              strokeWidth="1"
-            />
-            <text
-              x="735"
-              y="112"
-              fill="#A5A19A"
-              fontSize="9"
-              fontFamily="monospace"
-            >
-              broadcast_event
-            </text>
-            <text
-              x="735"
-              y="128"
-              fill="#82B89D"
-              fontSize="7.5"
-              fontFamily="monospace"
-            >
-              ✔ completed
-            </text>
-
-            {/* Slot 2: Previously Completed Task */}
-            <rect
-              x="725"
-              y="148"
-              width="190"
-              height="48"
-              rx="3"
-              fill="#111111"
-              stroke="#222222"
-              strokeWidth="1"
-            />
-            <text
-              x="735"
-              y="166"
-              fill="#A5A19A"
-              fontSize="9"
-              fontFamily="monospace"
-            >
-              generate_sitemap
-            </text>
-            <text
-              x="735"
-              y="182"
-              fill="#82B89D"
-              fontSize="7.5"
-              fontFamily="monospace"
-            >
-              ✔ completed
-            </text>
           </g>
         </svg>
-      </div>
-
-      {/* =================================================================
-          LOWER AREA: CONCISE EXECUTION SUMMARY
-          Understated single-line pipeline lifecycle.
-          No fake throughput graphs or fabricated latency numbers.
-          ================================================================= */}
-      <div className="pt-2 border-t border-[#262626] shrink-0 space-y-2">
-        {/* Single-line Lifecycle */}
-        <div className="flex items-center justify-between text-[11px] font-mono pb-1 border-b border-[#222222]">
-          <div className="flex items-center gap-3 sm:gap-5">
-            {/* Stage 1: Task Queued */}
-            <div className="flex items-center gap-1.5">
-              <span
-                className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${
-                  isWorking
-                    ? "bg-[#82B89D]"
-                    : isQueued || isDispatching
-                    ? "bg-[#E58A61]"
-                    : "bg-[#303030]"
-                }`}
-              />
-              <span
-                className={`transition-colors duration-300 ${
-                  isQueued || isDispatching ? "text-[#F0EEE9] font-medium" : "text-[#77736D]"
-                }`}
-              >
-                Task queued
-              </span>
-            </div>
-
-            <span className="text-[#303030] text-[10px]">→</span>
-
-            {/* Stage 2: Dispatched & Processed */}
-            <div className="flex items-center gap-1.5">
-              <span
-                className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${
-                  isCompleted
-                    ? "bg-[#82B89D]"
-                    : isProcessing
-                    ? "bg-[#E58A61]"
-                    : "bg-[#303030]"
-                }`}
-              />
-              <span
-                className={`transition-colors duration-300 ${
-                  isProcessing ? "text-[#F0EEE9] font-medium" : "text-[#77736D]"
-                }`}
-              >
-                Worker 02 processing
-              </span>
-            </div>
-
-            <span className="text-[#303030] text-[10px]">→</span>
-
-            {/* Stage 3: Job Completed */}
-            <div className="flex items-center gap-1.5">
-              <span
-                className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${
-                  isCompleted ? "bg-[#82B89D]" : "bg-[#303030]"
-                }`}
-              />
-              <span
-                className={`transition-colors duration-300 ${
-                  isCompleted ? "text-[#F0EEE9] font-medium" : "text-[#77736D]"
-                }`}
-              >
-                Job completed
-              </span>
-            </div>
-          </div>
-
-          {/* Right Status */}
-          <div className="hidden sm:flex items-center gap-2 text-[10.5px]">
-            {isCompleted ? (
-              <span className="text-[#82B89D] flex items-center gap-1.5 font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#82B89D]" />
-                Task resolved
-              </span>
-            ) : isProcessing ? (
-              <span className="text-[#E58A61] flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#E58A61] animate-pulse" />
-                Active execution
-              </span>
-            ) : (
-              <span className="text-[#77736D]">Worker ready</span>
-            )}
-          </div>
-        </div>
-
-        {/* Result: Concise Task Operation Confirmation */}
-        <div className="w-full font-mono text-[12px] py-1.5 flex items-center justify-between">
-          <div
-            className={`flex items-center gap-2 sm:gap-2.5 transition-all duration-300 ${
-              isCompleted ? "opacity-100" : "opacity-35"
-            }`}
-          >
-            <span className="text-[#F0EEE9] font-medium tracking-tight">
-              {currentJob.name}
-            </span>
-            <span className="text-[#77736D]">·</span>
-            <span className="text-[#E58A61] font-medium">{currentJob.worker}</span>
-            <span className="text-[#77736D]">·</span>
-            <span className="text-[#82B89D] flex items-center gap-1.5 font-medium">
-              <span
-                className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${
-                  isCompleted ? "bg-[#82B89D]" : "bg-[#303030]"
-                }`}
-              />
-              Completed
-            </span>
-            <span className="text-[#77736D] hidden md:inline">·</span>
-            <span className="text-[#A5A19A] text-[11px] hidden md:inline truncate max-w-sm">
-              {currentJob.description}
-            </span>
-          </div>
-
-          <div className="text-[10px] text-[#77736D] hidden sm:block">
-            Automatic retry backoff
-          </div>
-        </div>
       </div>
     </div>
   );
