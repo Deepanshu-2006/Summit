@@ -1,16 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import {
-  AppWindow,
-  Cpu,
-  Database,
-  RefreshCw,
-  Network,
-  ArrowDown,
-  Info,
-  Lock,
-} from "lucide-react";
+import { ArrowDown, Check, Lock } from "lucide-react";
 
 interface ServiceComponent {
   id: "web" | "api" | "db" | "worker";
@@ -27,48 +18,48 @@ interface ServiceComponent {
 const STACK_SERVICES: Record<string, ServiceComponent> = {
   web: {
     id: "web",
-    tag: "web-app",
-    name: "Web Application",
-    category: "WEB APP",
+    tag: "web-frontend",
+    name: "Web Frontend",
+    category: "WEB APPLICATION",
     role: "The experience your users see",
     description:
       "Public-facing user interface rendering client requests, static assets, and edge routes.",
     tech: "Next.js / React SSR",
-    protocol: "HTTPS // Port 443",
+    protocol: "HTTPS · Port 443",
     status: "Active Ingress",
   },
   api: {
     id: "api",
-    tag: "api-service",
+    tag: "core-api",
     name: "API Service",
-    category: "API SERVICE",
+    category: "COORDINATION CORE",
     role: "Logic and application requests",
     description:
-      "Central application backend handling business logic, user auth, and service coordination.",
+      "Central application backend handling business logic, user authentication, request routing, and service coordination.",
     tech: "Node.js / Go / Python",
-    protocol: "Private Mesh // gRPC & REST",
+    protocol: "Private Mesh · gRPC & REST",
     status: "Connected Core",
   },
   db: {
     id: "db",
     tag: "primary-db",
     name: "Database",
-    category: "DATABASE",
+    category: "PERSISTENT STORAGE",
     role: "Persistent application data",
     description:
-      "Managed relational data storage providing transactional integrity and isolated persistence.",
-    tech: "PostgreSQL Engine",
-    protocol: "Encrypted Internal Wire // 5432",
+      "Managed relational data storage providing transactional integrity, connection pooling, and isolated persistence.",
+    tech: "PostgreSQL 16 Engine",
+    protocol: "Encrypted Internal Wire · Port 5432",
     status: "Volume Attached",
   },
   worker: {
     id: "worker",
     tag: "queue-worker",
     name: "Background Worker",
-    category: "BACKGROUND WORKER",
+    category: "ASYNC PROCESSING",
     role: "Tasks that run behind the scenes",
     description:
-      "Asynchronous job processor executing heavy computations, webhook deliveries, and scheduled tasks.",
+      "Asynchronous job processor executing heavy computations, scheduled jobs, webhook deliveries, and queue tasks.",
     tech: "Job Queue Runtime",
     protocol: "Internal Message Broker",
     status: "Queue Listening",
@@ -78,8 +69,15 @@ const STACK_SERVICES: Record<string, ServiceComponent> = {
 /**
  * ApplicationStack: Section 04 — The Platform
  * "One platform. Your entire stack."
- * Illustrates the relationships between frontend, API, database, and background worker services.
- * Completely normal document flow — stable, spacious, and responsive.
+ *
+ * Art-directed, card-less technical cloud topology diagram:
+ * - Diagram sits directly on the page background without an outer card container
+ * - Hierarchical 4-service topology: Web Frontend -> API Core -> Database & Background Worker
+ * - Thin, intentional SVG connectors with integrated annotations (no pill boxes)
+ * - Clear visual hierarchy distinguishing the central API coordinator
+ * - Editorial two-column component inspector
+ * - Three clean editorial value columns beneath the architecture
+ * - Fully responsive with clean vertical reflow on mobile/tablet
  */
 export function ApplicationStack() {
   const [selectedId, setSelectedId] = useState<"web" | "api" | "db" | "worker">("api");
@@ -89,33 +87,26 @@ export function ApplicationStack() {
   return (
     <section
       id="platform-stack"
-      className="relative w-full pt-12 pb-20 sm:pt-16 sm:pb-24 lg:pt-20 lg:pb-32 bg-bg-main text-text-primary overflow-hidden"
+      className="relative w-full pt-16 pb-24 sm:pt-20 sm:pb-28 lg:pt-24 lg:pb-36 bg-bg-main text-text-primary overflow-hidden"
       aria-labelledby="stack-heading"
     >
       <div className="layout-container w-full">
         {/* =================================================================
-            SECTION MARKER: 04 — THE PLATFORM
+            SECTION IDENTIFIER: 04 / THE PLATFORM
             ================================================================= */}
-        <div className="w-full flex items-center justify-between border-t border-border-subtle/70 pt-5 mb-10 sm:mb-14">
-          <div className="flex items-center gap-3 font-mono text-[11px] text-text-muted tracking-wider">
+        <div className="w-full border-t border-border-subtle pt-5 mb-8 sm:mb-10">
+          <div className="flex items-center gap-2 font-mono text-[11px] text-text-muted tracking-[0.1em] uppercase">
             <span className="text-accent-orange font-medium">04</span>
-            <div className="w-8 h-[1px] bg-accent-orange" aria-hidden="true" />
+            <span>/</span>
             <span>THE PLATFORM</span>
-          </div>
-          <div className="hidden sm:flex items-center gap-2 font-mono text-[10.5px] text-text-muted">
-            <span>APPLICATION TOPOLOGY</span>
-            <span className="text-border-default">•</span>
-            <span>UNIFIED RUNTIME</span>
           </div>
         </div>
 
         {/* =================================================================
-            EDITORIAL INTRO: Eyebrow, Headline, Supporting Copy
-            Spacious, clear typography establishing the architecture
+            EDITORIAL INTRODUCTION
             ================================================================= */}
-        <div className="max-w-3xl mb-12 sm:mb-16">
-          {/* Technical Eyebrow */}
-          <div className="flex items-center gap-2 mb-4">
+        <div className="max-w-3xl mb-10 sm:mb-14">
+          <div className="flex items-center gap-2 mb-3 sm:mb-4">
             <span
               className="w-1.5 h-1.5 rounded-[1px] bg-accent-orange"
               aria-hidden="true"
@@ -125,16 +116,14 @@ export function ApplicationStack() {
             </span>
           </div>
 
-          {/* Section Headline */}
           <h2
             id="stack-heading"
-            className="font-sans text-[36px] sm:text-[46px] lg:text-[54px] font-medium leading-[1.06] tracking-[-0.035em] text-[#F5F5F3] mb-5"
+            className="font-sans text-[36px] sm:text-[44px] lg:text-[50px] xl:text-[54px] font-medium leading-[1.08] tracking-[-0.035em] text-[#F1F0EC] mb-4 sm:mb-5"
           >
             One platform. Your entire stack.
           </h2>
 
-          {/* Supporting Copy */}
-          <p className="font-sans text-[16px] sm:text-[17px] text-text-secondary leading-[1.6] max-w-[620px]">
+          <p className="font-sans text-[16px] sm:text-[17px] text-text-secondary leading-[1.6] max-w-[600px]">
             From the interface your users see to the services working behind the
             scenes, bring your application components together in one
             developer-focused workflow.
@@ -142,248 +131,509 @@ export function ApplicationStack() {
         </div>
 
         {/* =================================================================
-            MAIN VISUAL: The Application Stack Topology Diagram
-            Connected services showing relationships rather than a generic grid
+            HERO VISUAL: CONNECTED SERVICE TOPOLOGY
+            Card-less, open architectural illustration directly on page background
             ================================================================= */}
-        <div className="w-full rounded-[14px] bg-[#171717] border border-border-default shadow-2xl p-5 sm:p-8 lg:p-12 mb-12 sm:mb-16 relative overflow-hidden">
+        <div className="w-full relative mb-12 sm:mb-16">
           
-          {/* Subtle Ambient Dot Grid */}
-          <div
-            className="absolute inset-0 opacity-20 pointer-events-none"
-            style={{
-              backgroundImage: "radial-gradient(#303030 1px, transparent 1px)",
-              backgroundSize: "24px 24px",
-            }}
-            aria-hidden="true"
-          />
+          {/* -------------------------------------------------------------
+              DESKTOP TOPOLOGY SCHEMATIC (lg and up)
+              Pure vector precision with interactive SVG service nodes
+              ------------------------------------------------------------- */}
+          <div className="hidden lg:block w-full">
+            <svg
+              className="w-full h-auto select-none overflow-visible"
+              viewBox="0 0 1000 450"
+              preserveAspectRatio="xMidYMid meet"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-label="Connected cloud service architecture topology"
+            >
+              <defs>
+                {/* Subtle surface gradient fills */}
+                <linearGradient id="node-base-fill" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="#181B1E" />
+                  <stop offset="100%" stopColor="#121416" />
+                </linearGradient>
 
-          {/* Top Topology Header / Status */}
-          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-6 sm:pb-8 border-b border-border-subtle/80 mb-8 sm:mb-10 text-[11px] font-mono text-text-muted">
-            <div className="flex items-center gap-2">
-              <Network className="w-3.5 h-3.5 text-accent-orange" />
-              <span className="text-[#F5F5F3] font-medium">
-                stack-topology // service mesh
-              </span>
-              <span className="text-border-default">•</span>
-              <span className="hidden sm:inline">4 Connected Services</span>
-            </div>
+                <linearGradient id="node-api-fill" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="#1C2023" />
+                  <stop offset="100%" stopColor="#14171A" />
+                </linearGradient>
+              </defs>
 
-            <div className="flex items-center gap-3">
-              <span className="hidden sm:inline-block px-2 py-0.5 rounded-[4px] bg-[#252525] border border-border-subtle text-text-muted text-[10px]">
-                CONCEPTUAL STACK
-              </span>
-              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-[4px] border border-semantic-success/30 bg-semantic-success/15 text-semantic-success text-[10.5px]">
-                <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
-                <span>MESH HEALTHY</span>
-              </div>
-            </div>
-          </div>
+              {/* =========================================================
+                  CONNECTING TOPOLOGY CONDUITS (Drawn Behind Service Nodes)
+                  ========================================================= */}
 
-          {/* ---------------------------------------------------------------
-              DESKTOP ARCHITECTURAL TOPOLOGY (md and up)
-              Hierarchical connected layout: Web App (top) -> API (center) -> DB & Worker (bottom)
-              --------------------------------------------------------------- */}
-          <div className="relative z-10 hidden md:block max-w-4xl mx-auto py-2">
-            
-            {/* 1. TOP TIER: Web Application (Client Ingress) */}
-            <div className="flex justify-center mb-6">
-              <button
-                onClick={() => setSelectedId("web")}
-                className={`w-[360px] p-4 rounded-[10px] bg-[#1D1D1D] border transition-all text-left group ${
-                  selectedId === "web"
-                    ? "border-accent-orange shadow-lg shadow-accent-orange/10 ring-1 ring-accent-orange/30"
-                    : "border-border-default hover:border-border-default/80"
-                }`}
+              {/* 1. Ingress Conduit: Web Frontend -> API Core */}
+              <line
+                x1="500"
+                y1="96"
+                x2="500"
+                y2="180"
+                stroke="#343A3D"
+                strokeWidth="1.2"
+                strokeDasharray="3 3"
+              />
+              <line
+                x1="500"
+                y1="96"
+                x2="500"
+                y2="180"
+                stroke="#D88762"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+              
+              {/* Primary Ingress Motion Signal */}
+              <circle className="motion-reduce:hidden" r="3" fill="#D88762">
+                <animateMotion
+                  path="M 500,96 L 500,180"
+                  dur="2.4s"
+                  repeatCount="indefinite"
+                />
+              </circle>
+
+              {/* Ingress Annotation: Text-only alongside wire (No pill capsule) */}
+              <text x="516" y="132" fontFamily="var(--font-geist-mono), monospace" fontSize="10.5" fill="#D88762" letterSpacing="0.08em">
+                HTTPS INGRESS ROUTING
+              </text>
+              <text x="516" y="148" fontFamily="var(--font-geist-mono), monospace" fontSize="9.5" fill="#777D7D">
+                Client requests · Port 443 · Edge TLS
+              </text>
+
+              {/* 2. Left Branch Conduit: API Core -> Database */}
+              <path
+                d="M 400,270 C 400,314 260,314 260,356"
+                stroke="#343A3D"
+                strokeWidth="1.2"
+                strokeDasharray="3 3"
+                fill="none"
+              />
+              <path
+                d="M 400,270 C 400,314 260,314 260,356"
+                stroke={selectedId === "db" || selectedId === "api" ? "#D88762" : "#343A3D"}
+                strokeWidth={selectedId === "db" ? "2" : "1.4"}
+                strokeLinecap="round"
+                fill="none"
+              />
+              
+              {/* Left Branch Node */}
+              <circle cx="330" cy="314" r="3" fill="#121416" stroke={selectedId === "db" || selectedId === "api" ? "#D88762" : "#343A3D"} strokeWidth="1.4" />
+              <circle cx="330" cy="314" r="1.5" fill={selectedId === "db" || selectedId === "api" ? "#D88762" : "#343A3D"} />
+
+              {/* Database Conduit Annotation (Integrated text, no pills) */}
+              <text x="314" y="306" textAnchor="end" fontFamily="var(--font-geist-mono), monospace" fontSize="10" fill="#A6AAA9" letterSpacing="0.08em">
+                SQL CONNECTION POOL
+              </text>
+              <text x="314" y="322" textAnchor="end" fontFamily="var(--font-geist-mono), monospace" fontSize="9" fill="#777D7D">
+                Encrypted wire · Port 5432
+              </text>
+
+              {/* 3. Right Branch Conduit: API Core -> Background Worker */}
+              <path
+                d="M 600,270 C 600,314 740,314 740,356"
+                stroke="#343A3D"
+                strokeWidth="1.2"
+                strokeDasharray="3 3"
+                fill="none"
+              />
+              <path
+                d="M 600,270 C 600,314 740,314 740,356"
+                stroke={selectedId === "worker" || selectedId === "api" ? "#D88762" : "#343A3D"}
+                strokeWidth={selectedId === "worker" ? "2" : "1.4"}
+                strokeLinecap="round"
+                fill="none"
+              />
+
+              {/* Right Branch Node */}
+              <circle cx="670" cy="314" r="3" fill="#121416" stroke={selectedId === "worker" || selectedId === "api" ? "#D88762" : "#343A3D"} strokeWidth="1.4" />
+              <circle cx="670" cy="314" r="1.5" fill={selectedId === "worker" || selectedId === "api" ? "#D88762" : "#343A3D"} />
+
+              {/* Worker Conduit Annotation (Integrated text, no pills) */}
+              <text x="686" y="306" fontFamily="var(--font-geist-mono), monospace" fontSize="10" fill="#A6AAA9" letterSpacing="0.08em">
+                ASYNC JOB DISPATCH
+              </text>
+              <text x="686" y="322" fontFamily="var(--font-geist-mono), monospace" fontSize="9" fill="#777D7D">
+                Message broker · Task queue
+              </text>
+
+              {/* =========================================================
+                  SERVICE NODE 1: WEB FRONTEND (Top Tier)
+                  ========================================================= */}
+              <g
+                id="node-web"
+                tabIndex={0}
                 role="button"
                 aria-pressed={selectedId === "web"}
+                onClick={() => setSelectedId("web")}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setSelectedId("web");
+                  }
+                }}
+                className="cursor-pointer focus:outline-none group"
               >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-[5px] bg-[#252525] border border-border-subtle flex items-center justify-center text-accent-orange">
-                      <AppWindow className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="font-mono text-[10px] text-accent-orange font-medium">
-                        WEB APP
-                      </div>
-                      <div className="font-mono text-[12px] font-semibold text-[#F5F5F3]">
-                        web-frontend
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-[10px] font-mono text-semantic-success bg-semantic-success/10 px-2 py-0.5 rounded-[4px] border border-semantic-success/20">
-                    <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
-                    <span>HTTPS 443</span>
-                  </div>
-                </div>
-                <p className="text-[12px] text-text-secondary leading-snug">
+                {/* Node Framing */}
+                <rect
+                  x="330"
+                  y="20"
+                  width="340"
+                  height="76"
+                  rx="4"
+                  fill="url(#node-base-fill)"
+                  stroke={selectedId === "web" ? "#D88762" : "#2A2E31"}
+                  strokeWidth={selectedId === "web" ? "1.6" : "1"}
+                  className="transition-colors group-hover:stroke-[#454B50]"
+                />
+                
+                {/* Line-Art Glyph: Minimal Ingress Terminal */}
+                <rect x="348" y="36" width="18" height="14" rx="2" stroke="#D88762" strokeWidth="1.2" fill="none" />
+                <line x1="348" y1="41" x2="366" y2="41" stroke="#3D4245" strokeWidth="1" />
+                <circle cx="352" cy="38.5" r="0.8" fill="#D88762" />
+                <circle cx="355" cy="38.5" r="0.8" fill="#A6AAA9" />
+
+                {/* Node Metadata & Typography */}
+                <text x="376" y="40" fontFamily="var(--font-geist-mono), monospace" fontSize="10" fill="#A6AAA9" letterSpacing="0.1em">
+                  WEB FRONTEND
+                </text>
+                <text x="376" y="60" fontFamily="var(--font-space-grotesk), sans-serif" fontSize="17" fontWeight="500" fill="#F1F0EC">
+                  web-frontend
+                </text>
+                <text x="376" y="78" fontFamily="var(--font-sans), sans-serif" fontSize="12" fill="#777D7D">
                   The experience your users see
-                </p>
-              </button>
-            </div>
+                </text>
 
-            {/* Connector 1: Web App -> API Service */}
-            <div className="flex flex-col items-center justify-center my-1 select-none">
-              <div className="w-[1.5px] h-6 bg-border-default" />
-              <div className="px-2.5 py-0.5 rounded-[4px] bg-[#111111] border border-border-subtle text-[9.5px] font-mono text-text-muted my-0.5 flex items-center gap-1.5">
-                <Lock className="w-2.5 h-2.5 text-accent-orange" />
-                <span>HTTPS / Public Ingress Routing</span>
-                <ArrowDown className="w-2.5 h-2.5 text-text-muted" />
-              </div>
-              <div className="w-[1.5px] h-6 bg-border-default" />
-            </div>
+                {/* Status Indicator (Inline, No Pill Capsule) */}
+                <circle cx="620" cy="38" r="2.5" fill="#83B69A" />
+                <text x="628" y="41" fontFamily="var(--font-geist-mono), monospace" fontSize="10" fill="#83B69A">
+                  HTTPS · 443
+                </text>
 
-            {/* 2. CENTER TIER: API Service (Central Hub) */}
-            <div className="flex justify-center mb-6">
-              <button
-                onClick={() => setSelectedId("api")}
-                className={`w-[420px] p-4.5 rounded-[10px] bg-[#1D1D1D] border transition-all text-left relative ${
-                  selectedId === "api"
-                    ? "border-accent-orange shadow-xl shadow-accent-orange/15 ring-1 ring-accent-orange/40"
-                    : "border-border-default hover:border-accent-orange/40"
-                }`}
+                {/* Outgoing Coupling Node */}
+                <circle cx="500" cy="96" r="4.5" fill="#121416" stroke="#D88762" strokeWidth="1.4" />
+                <circle cx="500" cy="96" r="2" fill="#D88762" />
+              </g>
+
+              {/* =========================================================
+                  SERVICE NODE 2: API SERVICE (Central Coordination Core)
+                  Receives visual emphasis through geometry and central location
+                  ========================================================= */}
+              <g
+                id="node-api"
+                tabIndex={0}
                 role="button"
                 aria-pressed={selectedId === "api"}
+                onClick={() => setSelectedId("api")}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setSelectedId("api");
+                  }
+                }}
+                className="cursor-pointer focus:outline-none group"
               >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-[6px] bg-[#252525] border border-accent-orange/40 flex items-center justify-center text-accent-orange">
-                      <Cpu className="w-4.5 h-4.5" />
-                    </div>
-                    <div>
-                      <div className="font-mono text-[10.5px] text-accent-orange font-semibold">
-                        API SERVICE
-                      </div>
-                      <div className="font-mono text-[13px] font-semibold text-[#F5F5F3]">
-                        core-api
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-[10px] font-mono text-[#F5F5F3] bg-[#252525] px-2 py-0.5 rounded-[4px] border border-border-subtle">
-                    <span>Private Mesh</span>
-                  </div>
-                </div>
-                <p className="text-[12.5px] text-text-secondary leading-snug">
-                  Logic and application requests
-                </p>
-                <div className="mt-2 pt-2 border-t border-border-subtle/60 flex items-center justify-between text-[10px] font-mono text-text-muted">
-                  <span>Routing core</span>
-                  <span className="text-accent-orange font-medium">CENTRAL COORDINATOR</span>
-                </div>
-              </button>
-            </div>
-
-            {/* Symmetrical Branch Conduits (SVG) */}
-            <div className="w-full flex justify-center mb-1">
-              <svg
-                width="640"
-                height="50"
-                viewBox="0 0 640 50"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                className="overflow-visible select-none"
-                aria-hidden="true"
-              >
-                {/* Center Stem */}
-                <path d="M 320 0 L 320 18" stroke="#303030" strokeWidth="1.5" />
-
-                {/* Left Branch to Database */}
-                <path
-                  d="M 320 18 L 170 18 L 170 50"
-                  stroke={selectedId === "db" || selectedId === "api" ? "#D88762" : "#303030"}
-                  strokeWidth="1.5"
-                  strokeDasharray={selectedId === "db" ? "none" : "3 3"}
+                {/* Node Framing */}
+                <rect
+                  x="300"
+                  y="180"
+                  width="400"
+                  height="90"
+                  rx="4"
+                  fill="url(#node-api-fill)"
+                  stroke={selectedId === "api" ? "#D88762" : "#363C40"}
+                  strokeWidth={selectedId === "api" ? "1.8" : "1.2"}
+                  className="transition-colors group-hover:stroke-accent-orange/70"
                 />
 
-                {/* Right Branch to Background Worker */}
-                <path
-                  d="M 320 18 L 470 18 L 470 50"
-                  stroke={selectedId === "worker" || selectedId === "api" ? "#D88762" : "#303030"}
-                  strokeWidth="1.5"
-                  strokeDasharray={selectedId === "worker" ? "none" : "3 3"}
-                />
+                {/* Precision Corner Register Marks */}
+                <line x1="300" y1="188" x2="300" y2="180" stroke="#D88762" strokeWidth="1.6" />
+                <line x1="300" y1="180" x2="308" y2="180" stroke="#D88762" strokeWidth="1.6" />
+                <line x1="700" y1="188" x2="700" y2="180" stroke="#D88762" strokeWidth="1.6" />
+                <line x1="700" y1="180" x2="692" y2="180" stroke="#D88762" strokeWidth="1.6" />
 
-                {/* Left Branch Label */}
-                <rect x="180" y="8" width="115" height="18" rx="3" fill="#111111" stroke="#303030" />
-                <text x="186" y="20" fill="#777777" fontFamily="var(--font-geist-mono)" fontSize="8.5">
-                  SQL Connection Pool
+                {/* Line-Art Glyph: Central Logic Core */}
+                <rect x="320" y="198" width="22" height="22" rx="3" stroke="#D88762" strokeWidth="1.5" fill="#1D2023" />
+                <rect x="326" y="204" width="10" height="10" rx="1" stroke="#D88762" strokeWidth="1" fill="#D88762" fillOpacity="0.2" />
+                <line x1="324" y1="195" x2="324" y2="198" stroke="#D88762" strokeWidth="1" />
+                <line x1="338" y1="195" x2="338" y2="198" stroke="#D88762" strokeWidth="1" />
+                <line x1="324" y1="220" x2="324" y2="223" stroke="#D88762" strokeWidth="1" />
+                <line x1="338" y1="220" x2="338" y2="223" stroke="#D88762" strokeWidth="1" />
+
+                {/* Node Metadata & Typography */}
+                <text x="354" y="203" fontFamily="var(--font-geist-mono), monospace" fontSize="10.5" fill="#D88762" fontWeight="600" letterSpacing="0.12em">
+                  API SERVICE · COORDINATION CORE
+                </text>
+                <text x="354" y="226" fontFamily="var(--font-space-grotesk), sans-serif" fontSize="19" fontWeight="500" fill="#F1F0EC">
+                  core-api
+                </text>
+                <text x="354" y="250" fontFamily="var(--font-sans), sans-serif" fontSize="12.5" fill="#A6AAA9">
+                  Logic, authentication, routing & service coordination
                 </text>
 
-                {/* Right Branch Label */}
-                <rect x="345" y="8" width="115" height="18" rx="3" fill="#111111" stroke="#303030" />
-                <text x="351" y="20" fill="#777777" fontFamily="var(--font-geist-mono)" fontSize="8.5">
-                  Async Job Dispatch
+                {/* Right-aligned Protocol Info */}
+                <text x="682" y="203" textAnchor="end" fontFamily="var(--font-geist-mono), monospace" fontSize="10" fill="#777D7D">
+                  gRPC & REST · 8080
                 </text>
-              </svg>
-            </div>
+                <circle cx="634" cy="223" r="2.5" fill="#83B69A" />
+                <text x="642" y="226" fontFamily="var(--font-geist-mono), monospace" fontSize="10" fill="#83B69A">
+                  Private Mesh
+                </text>
 
-            {/* 3. BOTTOM TIER: Database (Left) & Background Worker (Right) */}
-            <div className="grid grid-cols-2 gap-8 max-w-3xl mx-auto">
-              
-              {/* Component C: Database */}
-              <button
-                onClick={() => setSelectedId("db")}
-                className={`p-4 rounded-[10px] bg-[#1D1D1D] border transition-all text-left ${
-                  selectedId === "db"
-                    ? "border-accent-orange shadow-lg shadow-accent-orange/10 ring-1 ring-accent-orange/30"
-                    : "border-border-default hover:border-border-default/80"
-                }`}
+                {/* Top Intake Node (Receives Ingress from Web) */}
+                <circle cx="500" cy="180" r="4.5" fill="#121416" stroke="#D88762" strokeWidth="1.4" />
+                <circle cx="500" cy="180" r="2" fill="#D88762" />
+
+                {/* Bottom Left Branch Flange (To DB) */}
+                <circle cx="400" cy="270" r="4" fill="#121416" stroke={selectedId === "db" || selectedId === "api" ? "#D88762" : "#343A3D"} strokeWidth="1.4" />
+                <circle cx="400" cy="270" r="1.5" fill={selectedId === "db" || selectedId === "api" ? "#D88762" : "#343A3D"} />
+
+                {/* Bottom Right Branch Flange (To Worker) */}
+                <circle cx="600" cy="270" r="4" fill="#121416" stroke={selectedId === "worker" || selectedId === "api" ? "#D88762" : "#343A3D"} strokeWidth="1.4" />
+                <circle cx="600" cy="270" r="1.5" fill={selectedId === "worker" || selectedId === "api" ? "#D88762" : "#343A3D"} />
+              </g>
+
+              {/* =========================================================
+                  SERVICE NODE 3: DATABASE (Bottom Left Tier)
+                  ========================================================= */}
+              <g
+                id="node-db"
+                tabIndex={0}
                 role="button"
                 aria-pressed={selectedId === "db"}
+                onClick={() => setSelectedId("db")}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setSelectedId("db");
+                  }
+                }}
+                className="cursor-pointer focus:outline-none group"
               >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-[5px] bg-[#252525] border border-border-subtle flex items-center justify-center text-accent-orange">
-                      <Database className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="font-mono text-[10px] text-accent-orange font-medium">
-                        DATABASE
-                      </div>
-                      <div className="font-mono text-[12px] font-semibold text-[#F5F5F3]">
-                        primary-db
-                      </div>
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-mono text-text-muted bg-[#111111] px-2 py-0.5 rounded border border-border-subtle">
-                    Postgres
+                {/* Node Framing */}
+                <rect
+                  x="100"
+                  y="356"
+                  width="320"
+                  height="76"
+                  rx="4"
+                  fill="url(#node-base-fill)"
+                  stroke={selectedId === "db" ? "#D88762" : "#2A2E31"}
+                  strokeWidth={selectedId === "db" ? "1.6" : "1"}
+                  className="transition-colors group-hover:stroke-[#454B50]"
+                />
+
+                {/* Line-Art Glyph: Relational Cylinder Stacks */}
+                <ellipse cx="120" cy="375" rx="8" ry="3" stroke="#A6AAA9" strokeWidth="1.2" fill="none" />
+                <path d="M 112,375 v 8 c 0 1.6 3.6 3 8 3 s 8 -1.4 8 -3 v -8" stroke="#A6AAA9" strokeWidth="1.2" fill="none" />
+                <path d="M 112,379 v 4 c 0 1.6 3.6 3 8 3 s 8 -1.4 8 -3 v -4" stroke="#A6AAA9" strokeWidth="1" strokeDasharray="1.5 1.5" fill="none" />
+
+                {/* Node Metadata & Typography */}
+                <text x="140" y="376" fontFamily="var(--font-geist-mono), monospace" fontSize="10" fill="#A6AAA9" letterSpacing="0.1em">
+                  DATABASE
+                </text>
+                <text x="140" y="396" fontFamily="var(--font-space-grotesk), sans-serif" fontSize="17" fontWeight="500" fill="#F1F0EC">
+                  primary-db
+                </text>
+                <text x="140" y="414" fontFamily="var(--font-sans), sans-serif" fontSize="12" fill="#777D7D">
+                  Persistent application data
+                </text>
+
+                {/* Tech Metadata (Inline, No Pill Capsule) */}
+                <text x="404" y="376" textAnchor="end" fontFamily="var(--font-geist-mono), monospace" fontSize="10" fill="#777D7D">
+                  PostgreSQL 16
+                </text>
+
+                {/* Top Intake Node */}
+                <circle cx="260" cy="356" r="4" fill="#121416" stroke={selectedId === "db" || selectedId === "api" ? "#D88762" : "#343A3D"} strokeWidth="1.4" />
+                <circle cx="260" cy="356" r="1.5" fill={selectedId === "db" || selectedId === "api" ? "#D88762" : "#343A3D"} />
+              </g>
+
+              {/* =========================================================
+                  SERVICE NODE 4: BACKGROUND WORKER (Bottom Right Tier)
+                  ========================================================= */}
+              <g
+                id="node-worker"
+                tabIndex={0}
+                role="button"
+                aria-pressed={selectedId === "worker"}
+                onClick={() => setSelectedId("worker")}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setSelectedId("worker");
+                  }
+                }}
+                className="cursor-pointer focus:outline-none group"
+              >
+                {/* Node Framing */}
+                <rect
+                  x="580"
+                  y="356"
+                  width="320"
+                  height="76"
+                  rx="4"
+                  fill="url(#node-base-fill)"
+                  stroke={selectedId === "worker" ? "#D88762" : "#2A2E31"}
+                  strokeWidth={selectedId === "worker" ? "1.6" : "1"}
+                  className="transition-colors group-hover:stroke-[#454B50]"
+                />
+
+                {/* Line-Art Glyph: Async Queue Processing Loop */}
+                <path d="M 598,375 a 5 5 0 1 1 -2 4" stroke="#A6AAA9" strokeWidth="1.2" fill="none" />
+                <polyline points="598,373 598,376 601,376" stroke="#A6AAA9" strokeWidth="1.2" fill="none" />
+                <circle cx="601" cy="379" r="1.2" fill="#D88762" />
+
+                {/* Node Metadata & Typography */}
+                <text x="620" y="376" fontFamily="var(--font-geist-mono), monospace" fontSize="10" fill="#A6AAA9" letterSpacing="0.1em">
+                  BACKGROUND WORKER
+                </text>
+                <text x="620" y="396" fontFamily="var(--font-space-grotesk), sans-serif" fontSize="17" fontWeight="500" fill="#F1F0EC">
+                  queue-worker
+                </text>
+                <text x="620" y="414" fontFamily="var(--font-sans), sans-serif" fontSize="12" fill="#777D7D">
+                  Tasks that run behind the scenes
+                </text>
+
+                {/* Tech Metadata (Inline, No Pill Capsule) */}
+                <text x="884" y="376" textAnchor="end" fontFamily="var(--font-geist-mono), monospace" fontSize="10" fill="#777D7D">
+                  Async Jobs · Queue
+                </text>
+
+                {/* Top Intake Node */}
+                <circle cx="740" cy="356" r="4" fill="#121416" stroke={selectedId === "worker" || selectedId === "api" ? "#D88762" : "#343A3D"} strokeWidth="1.4" />
+                <circle cx="740" cy="356" r="1.5" fill={selectedId === "worker" || selectedId === "api" ? "#D88762" : "#343A3D"} />
+              </g>
+
+            </svg>
+          </div>
+
+          {/* -------------------------------------------------------------
+              MOBILE / TABLET TOPOLOGY (Below lg)
+              Clean, unboxed vertical flow with clear routing connections
+              ------------------------------------------------------------- */}
+          <div className="lg:hidden w-full max-w-xl mx-auto flex flex-col space-y-3">
+            
+            {/* 1. Web Frontend */}
+            <button
+              onClick={() => setSelectedId("web")}
+              className={`w-full p-4.5 rounded-[6px] bg-[#16181B] border transition-all text-left ${
+                selectedId === "web"
+                  ? "border-accent-orange ring-1 ring-accent-orange/40"
+                  : "border-border-default/80 hover:border-border-default"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-mono text-[10px] text-text-muted tracking-wider uppercase">
+                  WEB FRONTEND
+                </span>
+                <span className="font-mono text-[10px] text-semantic-success flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
+                  HTTPS · 443
+                </span>
+              </div>
+              <div className="font-sans text-[18px] font-medium text-[#F1F0EC]">
+                web-frontend
+              </div>
+              <p className="font-sans text-[13px] text-text-secondary mt-0.5">
+                The experience your users see
+              </p>
+            </button>
+
+            {/* Vertical Connector: Ingress */}
+            <div className="flex flex-col items-center py-1 select-none text-text-muted">
+              <div className="w-[1.5px] h-4 bg-accent-orange" />
+              <div className="font-mono text-[10px] text-accent-orange my-1 tracking-wider uppercase flex items-center gap-1.5">
+                <Lock className="w-3 h-3" />
+                <span>HTTPS INGRESS ROUTING</span>
+                <ArrowDown className="w-3 h-3" />
+              </div>
+              <div className="w-[1.5px] h-4 bg-accent-orange" />
+            </div>
+
+            {/* 2. API Service (Coordinator) */}
+            <button
+              onClick={() => setSelectedId("api")}
+              className={`w-full p-5 rounded-[6px] bg-[#1A1D20] border transition-all text-left ${
+                selectedId === "api"
+                  ? "border-accent-orange ring-1 ring-accent-orange/50"
+                  : "border-[#343A3D] hover:border-accent-orange/50"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-mono text-[10.5px] text-accent-orange font-medium tracking-wider uppercase">
+                  API SERVICE · COORDINATOR
+                </span>
+                <span className="font-mono text-[10px] text-semantic-success flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
+                  Private Mesh
+                </span>
+              </div>
+              <div className="font-sans text-[20px] font-medium text-[#F1F0EC]">
+                core-api
+              </div>
+              <p className="font-sans text-[13px] text-text-secondary mt-0.5">
+                Logic, authentication, routing & service coordination
+              </p>
+            </button>
+
+            {/* Branch Connector */}
+            <div className="flex flex-col items-center py-1 select-none text-text-muted">
+              <div className="w-[1.5px] h-4 bg-border-default" />
+              <div className="font-mono text-[10px] text-text-muted my-1 tracking-wider uppercase flex items-center gap-1">
+                <span>INTERNAL SERVICE DISPATCH</span>
+                <ArrowDown className="w-3 h-3" />
+              </div>
+              <div className="w-[1.5px] h-4 bg-border-default" />
+            </div>
+
+            {/* 3 & 4. Database & Background Worker */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+              
+              {/* Database */}
+              <button
+                onClick={() => setSelectedId("db")}
+                className={`w-full p-4 rounded-[6px] bg-[#16181B] border transition-all text-left ${
+                  selectedId === "db"
+                    ? "border-accent-orange ring-1 ring-accent-orange/40"
+                    : "border-border-default/80 hover:border-border-default"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-mono text-[10px] text-text-muted tracking-wider uppercase">
+                    DATABASE
                   </span>
+                  <span className="font-mono text-[10px] text-text-muted">Postgres</span>
                 </div>
-                <p className="text-[12px] text-text-secondary leading-snug">
+                <div className="font-sans text-[17px] font-medium text-[#F1F0EC]">
+                  primary-db
+                </div>
+                <p className="font-sans text-[12.5px] text-text-secondary mt-0.5">
                   Persistent application data
                 </p>
               </button>
 
-              {/* Component D: Background Worker */}
+              {/* Background Worker */}
               <button
                 onClick={() => setSelectedId("worker")}
-                className={`p-4 rounded-[10px] bg-[#1D1D1D] border transition-all text-left ${
+                className={`w-full p-4 rounded-[6px] bg-[#16181B] border transition-all text-left ${
                   selectedId === "worker"
-                    ? "border-accent-orange shadow-lg shadow-accent-orange/10 ring-1 ring-accent-orange/30"
-                    : "border-border-default hover:border-border-default/80"
+                    ? "border-accent-orange ring-1 ring-accent-orange/40"
+                    : "border-border-default/80 hover:border-border-default"
                 }`}
-                role="button"
-                aria-pressed={selectedId === "worker"}
               >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-[5px] bg-[#252525] border border-border-subtle flex items-center justify-center text-accent-orange">
-                      <RefreshCw className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="font-mono text-[10px] text-accent-orange font-medium">
-                        BACKGROUND WORKER
-                      </div>
-                      <div className="font-mono text-[12px] font-semibold text-[#F5F5F3]">
-                        queue-worker
-                      </div>
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-mono text-text-muted bg-[#111111] px-2 py-0.5 rounded border border-border-subtle">
-                    Async Jobs
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-mono text-[10px] text-text-muted tracking-wider uppercase">
+                    WORKER
                   </span>
+                  <span className="font-mono text-[10px] text-text-muted">Async Jobs</span>
                 </div>
-                <p className="text-[12px] text-text-secondary leading-snug">
+                <div className="font-sans text-[17px] font-medium text-[#F1F0EC]">
+                  queue-worker
+                </div>
+                <p className="font-sans text-[12.5px] text-text-secondary mt-0.5">
                   Tasks that run behind the scenes
                 </p>
               </button>
@@ -392,196 +642,109 @@ export function ApplicationStack() {
 
           </div>
 
-          {/* ---------------------------------------------------------------
-              MOBILE ARCHITECTURAL TOPOLOGY (Stack vertical for < md)
-              Clean vertical progression without cramped horizontal overflows
-              --------------------------------------------------------------- */}
-          <div className="relative z-10 md:hidden flex flex-col gap-3">
+        </div>
+
+        {/* =================================================================
+            EDITORIAL COMPONENT INSPECTOR
+            Two-column layout sitting naturally on the page (no enclosing card)
+            ================================================================= */}
+        <div className="w-full border-t border-border-subtle pt-8 sm:pt-10 mb-14 sm:mb-20">
+          <div className="w-full flex flex-col md:flex-row md:items-start justify-between gap-6 sm:gap-8">
             
-            {/* Mobile Web App */}
-            <button
-              onClick={() => setSelectedId("web")}
-              className={`p-4 rounded-[10px] bg-[#1D1D1D] border text-left transition-all ${
-                selectedId === "web" ? "border-accent-orange" : "border-border-default"
-              }`}
-            >
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="font-mono text-[10px] text-accent-orange font-medium">
-                  WEB APP
-                </div>
-                <span className="text-[10px] font-mono text-semantic-success">HTTPS 443</span>
+            {/* Left Column: Role & Explanatory Sentence */}
+            <div className="space-y-2 max-w-xl">
+              <div className="font-mono text-[11px] uppercase tracking-[0.14em] text-accent-orange flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-accent-orange" />
+                <span>INSPECTING COMPONENT // {current.category}</span>
               </div>
-              <div className="font-mono text-[13px] font-semibold text-[#F5F5F3] mb-0.5">
-                web-frontend
+              <div className="font-sans text-[22px] sm:text-[24px] font-medium text-[#F1F0EC] tracking-[-0.02em]">
+                {current.name}{" "}
+                <span className="font-mono text-[13px] text-text-muted font-normal">
+                  ({current.tag})
+                </span>
               </div>
-              <p className="text-[12px] text-text-secondary">The experience your users see</p>
-            </button>
-
-            {/* Mobile Connector */}
-            <div className="flex items-center justify-center py-0.5 text-text-muted">
-              <ArrowDown className="w-3.5 h-3.5 text-accent-orange" />
-            </div>
-
-            {/* Mobile API */}
-            <button
-              onClick={() => setSelectedId("api")}
-              className={`p-4 rounded-[10px] bg-[#1D1D1D] border text-left transition-all ${
-                selectedId === "api" ? "border-accent-orange" : "border-border-default"
-              }`}
-            >
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="font-mono text-[10px] text-accent-orange font-semibold">
-                  API SERVICE
-                </div>
-                <span className="text-[10px] font-mono text-text-muted">Private Mesh</span>
-              </div>
-              <div className="font-mono text-[13px] font-semibold text-[#F5F5F3] mb-0.5">
-                core-api
-              </div>
-              <p className="text-[12px] text-text-secondary">Logic and application requests</p>
-            </button>
-
-            {/* Mobile Connector */}
-            <div className="flex items-center justify-center py-0.5 text-text-muted">
-              <ArrowDown className="w-3.5 h-3.5 text-accent-orange" />
-            </div>
-
-            {/* Mobile Database */}
-            <button
-              onClick={() => setSelectedId("db")}
-              className={`p-4 rounded-[10px] bg-[#1D1D1D] border text-left transition-all ${
-                selectedId === "db" ? "border-accent-orange" : "border-border-default"
-              }`}
-            >
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="font-mono text-[10px] text-accent-orange font-medium">
-                  DATABASE
-                </div>
-                <span className="text-[10px] font-mono text-text-muted">Postgres</span>
-              </div>
-              <div className="font-mono text-[13px] font-semibold text-[#F5F5F3] mb-0.5">
-                primary-db
-              </div>
-              <p className="text-[12px] text-text-secondary">Persistent application data</p>
-            </button>
-
-            {/* Mobile Connector */}
-            <div className="flex items-center justify-center py-0.5 text-text-muted">
-              <ArrowDown className="w-3.5 h-3.5 text-accent-orange" />
-            </div>
-
-            {/* Mobile Background Worker */}
-            <button
-              onClick={() => setSelectedId("worker")}
-              className={`p-4 rounded-[10px] bg-[#1D1D1D] border text-left transition-all ${
-                selectedId === "worker" ? "border-accent-orange" : "border-border-default"
-              }`}
-            >
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="font-mono text-[10px] text-accent-orange font-medium">
-                  BACKGROUND WORKER
-                </div>
-                <span className="text-[10px] font-mono text-text-muted">Async Jobs</span>
-              </div>
-              <div className="font-mono text-[13px] font-semibold text-[#F5F5F3] mb-0.5">
-                queue-worker
-              </div>
-              <p className="text-[12px] text-text-secondary">Tasks that run behind the scenes</p>
-            </button>
-
-          </div>
-
-          {/* ---------------------------------------------------------------
-              SUBORDINATE SERVICE INSPECTOR PANEL
-              Shows selected service's role, protocol, and relationship
-              --------------------------------------------------------------- */}
-          <div className="mt-8 pt-6 border-t border-border-subtle/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-[11.5px] font-mono text-text-muted">
-            <div className="space-y-1">
-              <div className="text-[10px] uppercase text-text-muted tracking-wider">
-                INSPECTING COMPONENT // {current.category}
-              </div>
-              <div className="text-[#F5F5F3] font-medium text-[13px] font-sans">
-                {current.name} — <span className="text-text-secondary font-normal">{current.role}</span>
-              </div>
-              <p className="text-[12px] text-text-muted max-w-xl font-sans mt-0.5">
+              <p className="font-sans text-[15px] text-text-secondary leading-relaxed">
                 {current.description}
               </p>
             </div>
 
-            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 shrink-0 self-start sm:self-center">
-              <span className="px-2.5 py-1 rounded-[4px] bg-[#1D1D1D] border border-border-subtle text-text-secondary">
-                {current.tech}
-              </span>
-              <span className="px-2.5 py-1 rounded-[4px] bg-semantic-success/15 border border-semantic-success/30 text-semantic-success font-medium">
-                {current.status}
-              </span>
-            </div>
-          </div>
+            {/* Right Column: Runtime & Diagnostic Metadata */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-6 sm:gap-10 shrink-0 self-start md:self-center font-mono text-[12px] pt-1">
+              <div className="space-y-1">
+                <div className="text-[10px] uppercase text-text-muted tracking-wider">
+                  RUNTIME / ENGINE
+                </div>
+                <div className="text-[#F1F0EC]">{current.tech}</div>
+              </div>
+              
+              <div className="space-y-1">
+                <div className="text-[10px] uppercase text-text-muted tracking-wider">
+                  PROTOCOL
+                </div>
+                <div className="text-text-secondary">{current.protocol}</div>
+              </div>
 
+              <div className="space-y-1">
+                <div className="text-[10px] uppercase text-text-muted tracking-wider">
+                  HEALTH STATUS
+                </div>
+                <div className="flex items-center gap-1.5 text-semantic-success font-medium">
+                  <Check className="w-3.5 h-3.5 text-semantic-success" />
+                  <span>{current.status}</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
         </div>
 
         {/* =================================================================
-            SUPPORTING FEATURE ROW: 3 Compact Points Explaining Value
-            01 Connected Services • 02 One Developer Workflow • 03 Room to Grow
+            THREE BENEFIT DESCRIPTIONS
+            Clean editorial columns beneath the architecture (no card boxes)
             ================================================================= */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-10 pt-4 max-w-5xl">
-          
-          {/* Feature 1 */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-[11px] text-accent-orange font-medium">
+        <div className="w-full border-t border-border-subtle pt-10 sm:pt-14">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-12 w-full max-w-6xl">
+            
+            {/* Column 01 */}
+            <div className="space-y-2.5">
+              <div className="font-mono text-[11px] text-accent-orange font-medium tracking-wider">
                 01
-              </span>
-              <div className="w-4 h-[1px] bg-accent-orange/60" aria-hidden="true" />
-              <h3 className="font-sans text-[15px] font-semibold text-[#F5F5F3]">
+              </div>
+              <h3 className="font-sans text-[17px] sm:text-[18px] font-medium text-[#F1F0EC] tracking-[-0.015em]">
                 Connected services
               </h3>
+              <p className="font-sans text-[14px] text-text-secondary leading-[1.6]">
+                Keep the relationships between application components understandable through a shared internal network.
+              </p>
             </div>
-            <p className="font-sans text-[13px] text-text-muted leading-relaxed">
-              Keep the relationships between application components understandable through a shared internal network.
-            </p>
-          </div>
 
-          {/* Feature 2 */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-[11px] text-accent-orange font-medium">
+            {/* Column 02 */}
+            <div className="space-y-2.5">
+              <div className="font-mono text-[11px] text-accent-orange font-medium tracking-wider">
                 02
-              </span>
-              <div className="w-4 h-[1px] bg-accent-orange/60" aria-hidden="true" />
-              <h3 className="font-sans text-[15px] font-semibold text-[#F5F5F3]">
+              </div>
+              <h3 className="font-sans text-[17px] sm:text-[18px] font-medium text-[#F1F0EC] tracking-[-0.015em]">
                 One developer workflow
               </h3>
+              <p className="font-sans text-[14px] text-text-secondary leading-[1.6]">
+                Reduce the need to think about every component as an entirely separate project. Manage routing, environment, and code from one place.
+              </p>
             </div>
-            <p className="font-sans text-[13px] text-text-muted leading-relaxed">
-              Reduce the need to think about every component as an entirely separate project. Manage routing, environment, and code from one place.
-            </p>
-          </div>
 
-          {/* Feature 3 */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-[11px] text-accent-orange font-medium">
+            {/* Column 03 */}
+            <div className="space-y-2.5">
+              <div className="font-mono text-[11px] text-accent-orange font-medium tracking-wider">
                 03
-              </span>
-              <div className="w-4 h-[1px] bg-accent-orange/60" aria-hidden="true" />
-              <h3 className="font-sans text-[15px] font-semibold text-[#F5F5F3]">
+              </div>
+              <h3 className="font-sans text-[17px] sm:text-[18px] font-medium text-[#F1F0EC] tracking-[-0.015em]">
                 Room to grow
               </h3>
+              <p className="font-sans text-[14px] text-text-secondary leading-[1.6]">
+                Start with a single frontend service, then attach background workers, queues, and databases as your application evolves.
+              </p>
             </div>
-            <p className="font-sans text-[13px] text-text-muted leading-relaxed">
-              Start with a single frontend service, then attach background workers, queues, and databases as your application evolves.
-            </p>
+
           </div>
-
-        </div>
-
-        {/* Footnote Disclosing Conceptual Model */}
-        <div className="mt-10 pt-4 border-t border-border-subtle/50 flex items-center gap-2 text-[10.5px] font-mono text-text-muted">
-          <Info className="w-3.5 h-3.5 text-text-muted shrink-0" />
-          <span>
-            Conceptual application architecture model. Illustrates service coordination on a unified developer platform.
-          </span>
         </div>
 
       </div>
