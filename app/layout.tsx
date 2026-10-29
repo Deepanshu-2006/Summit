@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Space_Grotesk, Geist_Mono } from "next/font/google";
 import { BRAND } from "@/lib/brand";
+import { SmoothScrollProvider } from "@/components/layout/smooth-scroll-provider";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -41,7 +42,9 @@ export default function RootLayout({
       className={`${spaceGrotesk.variable} ${geistMono.variable} dark`}
     >
       <body className="min-h-screen bg-bg-main text-text-primary font-sans antialiased selection:bg-accent-orange/25 selection:text-text-primary">
-        {children}
+        <SmoothScrollProvider>
+          {children}
+        </SmoothScrollProvider>
       </body>
     </html>
   );

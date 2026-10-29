@@ -259,17 +259,11 @@ export function FinalCta() {
         return;
       }
 
-      // Dignified progression velocity cap
-      const maxVelocity = 0.85;
-      const maxStep = maxVelocity * dt;
+      // Synchronized interpolation that tracks Lenis smooth scroll curvature without secondary lag
+      const lerpRate = 18.0;
+      const step = diff * (1 - Math.exp(-lerpRate * dt));
 
-      // Exponential decay damping
-      const lerpRate = 4.2;
-      const rawStep = diff * (1 - Math.exp(-lerpRate * dt));
-      const clampedStep =
-        Math.sign(rawStep) * Math.min(Math.abs(rawStep), maxStep);
-
-      currentP += clampedStep;
+      currentP += step;
       render(currentP, now);
       rafId = requestAnimationFrame(tick);
     };

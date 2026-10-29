@@ -148,6 +148,7 @@ function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
       {isOpen && (
         <motion.div
           id="mobile-navigation"
+          data-lenis-prevent
           role="dialog"
           aria-modal="true"
           aria-label="Mobile navigation menu"
