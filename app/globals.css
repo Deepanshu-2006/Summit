@@ -309,3 +309,18 @@ body {
     padding-inline: var(--pad-desktop);
   }
 }
+
+/* -------------------------------------------------------------------------
+   Atmospheric Volumetric Animations
+   ------------------------------------------------------------------------- */
+@keyframes driftSlow {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(28px, -10px, 0) scale(1.05);
+  }
+  100% {
+    transform: translate3d(-20px, 14px, 0) scale(0.97);
+  }
+}

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useSyncExternalStore } from "react"
 import Link from "next/link";
 import { Check, RefreshCw } from "lucide-react";
 import { BRAND } from "@/lib/brand";
+import { HeroMountainIllustration } from "@/components/home/hero-mountain-illustration";
 
 type StageId = "source" | "build" | "production";
 type AnimPhase = "source" | "packet1" | "building" | "packet2" | "production";
@@ -232,10 +233,17 @@ export function Hero() {
   return (
     <section
       ref={heroRef}
-      className="relative w-full min-h-[560px] xl:min-h-[620px] flex flex-col justify-center pt-6 pb-4 sm:pt-8 sm:pb-6 lg:pt-8 lg:pb-8 overflow-hidden bg-transparent"
+      className="relative w-full min-h-[580px] xl:min-h-[640px] flex flex-col justify-center pt-8 pb-6 sm:pt-10 sm:pb-8 lg:pt-12 lg:pb-10 overflow-hidden bg-transparent select-none"
       aria-label="Deployment Runway Hero"
     >
-      <div className="layout-container w-full">
+      {/* Signature Engraved Mountain Landscape & Volumetric Valley Clouds */}
+      <HeroMountainIllustration
+        activeStage={activeStage}
+        animPhase={animPhase}
+        isReducedMotion={isReducedMotion}
+      />
+
+      <div className="layout-container w-full relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-6 items-center">
           
           {/* =================================================================
@@ -486,7 +494,7 @@ export function Hero() {
                   top: 16,
                   width: 236,
                 }}
-                className={`absolute rounded-[8px] bg-[#1D1D1D] border p-3 transition-colors duration-200 cursor-pointer shadow-md ${
+                className={`absolute rounded-[8px] bg-[#181817]/92 backdrop-blur-md border p-3 transition-all duration-200 cursor-pointer shadow-xl shadow-black/50 ${
                   activeStage === "source"
                     ? "border-accent-orange/90 shadow-accent-orange/5"
                     : "border-border-subtle hover:border-border-default"
@@ -537,7 +545,7 @@ export function Hero() {
                   top: 164,
                   width: 256,
                 }}
-                className={`absolute rounded-[8px] bg-[#1D1D1D] border p-3 transition-colors duration-200 cursor-pointer shadow-md ${
+                className={`absolute rounded-[8px] bg-[#181817]/92 backdrop-blur-md border p-3 transition-all duration-200 cursor-pointer shadow-xl shadow-black/50 ${
                   activeStage === "build"
                     ? "border-accent-orange/90 shadow-accent-orange/10"
                     : "border-border-subtle hover:border-border-default"
@@ -635,7 +643,7 @@ export function Hero() {
                   top: 334,
                   width: 256,
                 }}
-                className={`absolute rounded-[8px] bg-[#1D1D1D] border p-3 transition-colors duration-200 cursor-pointer shadow-md ${
+                className={`absolute rounded-[8px] bg-[#181817]/92 backdrop-blur-md border p-3 transition-all duration-200 cursor-pointer shadow-xl shadow-black/50 ${
                   activeStage === "production"
                     ? "border-semantic-success/80 shadow-semantic-success/5"
                     : "border-border-subtle hover:border-border-default"
