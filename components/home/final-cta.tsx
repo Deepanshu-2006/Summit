@@ -22,17 +22,34 @@ function getReducedMotionServerSnapshot() {
   return false;
 }
 
+// Headline Word & Character Definitions for Per-Alphabet Kinetic Emergence
+const LINE_1_WORDS = [
+  { word: "Your", chars: ["Y", "o", "u", "r"] },
+  { word: "code.", chars: ["c", "o", "d", "e", "."] },
+];
+
+const LINE_2_WORDS = [
+  { word: "Ready", chars: ["R", "e", "a", "d", "y"] },
+  { word: "for", chars: ["f", "o", "r"] },
+  { word: "what’s", chars: ["w", "h", "a", "t", "’", "s"] },
+  { word: "next.", chars: ["n", "e", "x", "t", "."] },
+];
+
+const TOTAL_LINE_1_CHARS = LINE_1_WORDS.reduce((acc, w) => acc + w.chars.length, 0); // 9
+const TOTAL_CHARS =
+  TOTAL_LINE_1_CHARS + LINE_2_WORDS.reduce((acc, w) => acc + w.chars.length, 0); // 28
+
 /**
  * FinalCta: Section 08 — Final Call to Action
  * "Your code. Ready for what’s next."
  *
  * Cinematic typography & scroll-driven mountain composition:
  * - Two-statement art-directed headline: "Your code." followed by "Ready for what’s next."
+ * - Per-alphabet kinetic scroll emergence: each letter comes up separately from the mountains
  * - Completely removed top pill/capsule for immediate typographic authority
  * - Calm, narrower supporting copy with generous breathing room
  * - Distinct button hierarchy: high-contrast burnt-orange primary with refined arrow
  *   paired with a quiet, border-defined dark secondary action
- * - Coordinated viewport entrance animation (headline -> copy -> actions)
  * - 5 independently emerging scroll-driven terrain layers preserved seamlessly
  */
 export function FinalCta() {
@@ -45,8 +62,8 @@ export function FinalCta() {
   const layer5Ref = useRef<HTMLDivElement>(null);
   const lightLayerRef = useRef<HTMLDivElement>(null);
 
-  // Content DOM references for 3D scroll-driven emergence from back to front
-  const headlineRef = useRef<HTMLHeadingElement>(null);
+  // Per-character DOM references for letter-by-letter kinetic emergence
+  const charRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const paragraphRef = useRef<HTMLParagraphElement>(null);
   const actionsRef = useRef<HTMLDivElement>(null);
 
@@ -71,9 +88,25 @@ export function FinalCta() {
       resetLayer(layer3Ref.current);
       resetLayer(layer4Ref.current);
       resetLayer(layer5Ref.current);
-      resetLayer(headlineRef.current);
-      resetLayer(paragraphRef.current);
-      resetLayer(actionsRef.current);
+      charRefs.current.forEach((el) => {
+        if (!el) return;
+        el.style.transform = "none";
+        el.style.opacity = "1";
+        el.style.filter = "none";
+        el.style.transition = "none";
+      });
+      if (paragraphRef.current) {
+        paragraphRef.current.style.transform = "none";
+        paragraphRef.current.style.opacity = "1";
+        paragraphRef.current.style.filter = "none";
+        paragraphRef.current.style.transition = "none";
+      }
+      if (actionsRef.current) {
+        actionsRef.current.style.transform = "none";
+        actionsRef.current.style.opacity = "1";
+        actionsRef.current.style.filter = "none";
+        actionsRef.current.style.transition = "none";
+      }
       if (masterLayerRef.current) masterLayerRef.current.style.opacity = "1";
       return;
     }
@@ -81,167 +114,234 @@ export function FinalCta() {
     const section = sectionRef.current;
     if (!section) return;
 
+    let targetP = 0;
+    let currentP = 0;
+    let isInitialized = false;
     let rafId: number | null = null;
     let isIntersecting = false;
 
-    // Easing helpers
-    const easeOutQuad = (t: number) => 1 - (1 - t) * (1 - t);
+    // Easing helper: smooth cubic deceleration curve
     const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 
-    const updateLayers = () => {
-      if (!section) return;
+    // Compute target scroll progress based on section position in viewport
+    // Removing the 0.50 delay: emergence begins responsively as section enters viewport (~72% down)
+    const computeTargetP = () => {
+      if (!section) return 0;
       const rect = section.getBoundingClientRect();
       const windowH = window.innerHeight;
-
-      // Emergence starts when the section is ~65% down the viewport
-      const startY = windowH * 0.65;
-      // Emergence completes and settles as the section reaches its reading position
-      const endY = Math.max(40, windowH * 0.05);
-
+      const startY = windowH * 0.72;
+      const endY = Math.max(40, windowH * 0.06);
       const rawP = (startY - rect.top) / (startY - endY);
-      const p = Math.max(0, Math.min(1, rawP));
+      return Math.max(0, Math.min(1, rawP));
+    };
 
-      // Layer 1: Distant Ridge (progress: 0.00 -> 0.55)
+    const render = (p: number) => {
+      // =================================================================
+      // DEEP PHYSICAL GROUND EMERGENCE: MOUNTAINS RISING FROM BEDROCK
+      // Large vertical travel offsets so peaks physically pierce the ground
+      // and rise upward out of the earth rather than fading in place
+      // =================================================================
+      const isMobile = window.innerWidth < 640;
+      const yL1 = isMobile ? 180 : 280; // Distant ridge
+      const yL2 = isMobile ? 280 : 460; // Left mountain (tallest mass on left)
+      const yL3 = isMobile ? 190 : 300; // Central valley
+      const yL4 = isMobile ? 290 : 480; // Right mountain (tall craggy peak on right)
+      const yL5 = isMobile ? 200 : 320; // Foreground terrain
+
+      // Layer 1: Distant Ridge (emerges immediately: progress 0.00 -> 0.46)
       if (layer1Ref.current) {
-        const p1 = Math.max(0, Math.min(1, p / 0.55));
-        const y1 = (55 * (1 - easeOutQuad(p1))).toFixed(2);
-        const op1 = Math.min(1, p1 * 1.5).toFixed(3);
-        layer1Ref.current.style.transform = `translate3d(0, ${y1}px, 0)`;
+        const p1 = Math.max(0, Math.min(1, p / 0.46));
+        const e1 = easeOutCubic(p1);
+        const y1 = (yL1 * (1 - e1)).toFixed(2);
+        const sY1 = (0.90 + 0.10 * e1).toFixed(3);
+        const op1 = p1 > 0 ? Math.min(1, 0.35 + p1 * 0.65).toFixed(3) : "0";
+        layer1Ref.current.style.transform = `translate3d(0, ${y1}px, 0) scaleY(${sY1})`;
         layer1Ref.current.style.opacity = op1;
       }
 
-      // Layer 2: Left Mountain (progress: 0.12 -> 0.72)
+      // Layer 2: Left Mountain (breaches ground at p = 0.08 -> 0.60)
       if (layer2Ref.current) {
-        const p2 = Math.max(0, Math.min(1, (p - 0.12) / 0.60));
-        const y2 = (115 * (1 - easeOutCubic(p2))).toFixed(2);
-        const op2 = Math.min(1, p2 * 1.5).toFixed(3);
-        layer2Ref.current.style.transform = `translate3d(0, ${y2}px, 0)`;
+        const p2 = Math.max(0, Math.min(1, (p - 0.08) / 0.52));
+        const e2 = easeOutCubic(p2);
+        const y2 = (yL2 * (1 - e2)).toFixed(2);
+        const sY2 = (0.86 + 0.14 * e2).toFixed(3);
+        const op2 = p2 > 0 ? Math.min(1, 0.40 + p2 * 0.60).toFixed(3) : "0";
+        layer2Ref.current.style.transform = `translate3d(0, ${y2}px, 0) scaleY(${sY2})`;
         layer2Ref.current.style.opacity = op2;
       }
 
-      // Layer 3: Central Valley (progress: 0.25 -> 0.82)
+      // Layer 3: Central Valley (rises between peaks at p = 0.16 -> 0.68)
       if (layer3Ref.current) {
-        const p3 = Math.max(0, Math.min(1, (p - 0.25) / 0.57));
-        const y3 = (90 * (1 - easeOutQuad(p3))).toFixed(2);
-        const op3 = Math.min(1, p3 * 1.5).toFixed(3);
-        layer3Ref.current.style.transform = `translate3d(0, ${y3}px, 0)`;
+        const p3 = Math.max(0, Math.min(1, (p - 0.16) / 0.52));
+        const e3 = easeOutCubic(p3);
+        const y3 = (yL3 * (1 - e3)).toFixed(2);
+        const sY3 = (0.88 + 0.12 * e3).toFixed(3);
+        const op3 = p3 > 0 ? Math.min(1, 0.35 + p3 * 0.65).toFixed(3) : "0";
+        layer3Ref.current.style.transform = `translate3d(0, ${y3}px, 0) scaleY(${sY3})`;
         layer3Ref.current.style.opacity = op3;
       }
 
-      // Layer 4: Right Mountain (progress: 0.38 -> 0.92)
+      // Layer 4: Right Mountain (pierces ground on right at p = 0.25 -> 0.77)
       if (layer4Ref.current) {
-        const p4 = Math.max(0, Math.min(1, (p - 0.38) / 0.54));
-        const y4 = (135 * (1 - easeOutCubic(p4))).toFixed(2);
-        const op4 = Math.min(1, p4 * 1.5).toFixed(3);
-        layer4Ref.current.style.transform = `translate3d(0, ${y4}px, 0)`;
+        const p4 = Math.max(0, Math.min(1, (p - 0.25) / 0.52));
+        const e4 = easeOutCubic(p4);
+        const y4 = (yL4 * (1 - e4)).toFixed(2);
+        const sY4 = (0.86 + 0.14 * e4).toFixed(3);
+        const op4 = p4 > 0 ? Math.min(1, 0.40 + p4 * 0.60).toFixed(3) : "0";
+        layer4Ref.current.style.transform = `translate3d(0, ${y4}px, 0) scaleY(${sY4})`;
         layer4Ref.current.style.opacity = op4;
       }
 
-      // Layer 5: Foreground Terrain (progress: 0.50 -> 1.00)
+      // Layer 5: Foreground Terrain (closest foreground ridges rise last: p = 0.36 -> 0.88)
       if (layer5Ref.current) {
-        const p5 = Math.max(0, Math.min(1, (p - 0.50) / 0.50));
-        const y5 = (155 * (1 - easeOutCubic(p5))).toFixed(2);
-        const op5 = Math.min(1, p5 * 1.6).toFixed(3);
-        layer5Ref.current.style.transform = `translate3d(0, ${y5}px, 0)`;
+        const p5 = Math.max(0, Math.min(1, (p - 0.36) / 0.52));
+        const e5 = easeOutCubic(p5);
+        const y5 = (yL5 * (1 - e5)).toFixed(2);
+        const sY5 = (0.88 + 0.12 * e5).toFixed(3);
+        const op5 = p5 > 0 ? Math.min(1, 0.45 + p5 * 0.55).toFixed(3) : "0";
+        layer5Ref.current.style.transform = `translate3d(0, ${y5}px, 0) scaleY(${sY5})`;
         layer5Ref.current.style.opacity = op5;
       }
 
       // Ambient light shimmer opacity tracks terrain emergence
       if (lightLayerRef.current) {
-        const lightOp = (0.28 * Math.min(1, p * 1.2)).toFixed(3);
+        const lightOp = (0.28 * Math.max(0, Math.min(1, (p - 0.10) * 1.3))).toFixed(3);
         lightLayerRef.current.style.opacity = lightOp;
       }
 
       // Master composite lock: smoothly fades in as everything settles into final resting composition
       if (masterLayerRef.current) {
-        const masterOp = p >= 0.85 ? Math.min(1, (p - 0.85) / 0.15).toFixed(3) : "0";
+        const masterOp = p >= 0.84 ? Math.min(1, (p - 0.84) / 0.16).toFixed(3) : "0";
         masterLayerRef.current.style.opacity = masterOp;
       }
 
       // =================================================================
-      // TEXT & ACTIONS SCROLL EMERGENCE: BACK OF MOUNTAINS TO THE FRONT
-      // Responsive travel offsets: starting deep in the valley behind peaks,
-      // ascending and surging forward in 3D perspective to front plane
+      // 1. HEADLINE PER-CHARACTER KINETIC EMERGENCE: BACK TO FRONT
+      // Each alphabet emerges and rises up independently on scroll
       // =================================================================
-      const isMobile = window.innerWidth < 640;
-      const yTravelH = isMobile ? 100 : 160;
-      const yTravelP = isMobile ? 120 : 190;
-      const yTravelB = isMobile ? 140 : 220;
+      const charYTravel = isMobile ? 50 : 75;
+      const windowSpan = 0.22;
+      const staggerRange = 0.30;
+      const maxBlur = isMobile ? 3 : 5;
 
-      // 1. Headline (delayed emergence: mountains rise first, then headline ascends at p = 0.22 -> 0.78)
-      if (headlineRef.current) {
-        const pH = Math.max(0, Math.min(1, (p - 0.22) / 0.56));
-        const eH = easeOutCubic(pH);
-        const yH = (yTravelH * (1 - eH)).toFixed(2);
-        const sH = (0.70 + 0.30 * eH).toFixed(3);
-        const rotH = ((isMobile ? 3.5 : 6.5) * (1 - eH)).toFixed(2);
-        const opH = Math.min(1, pH * 1.5).toFixed(3);
-        const blurH = ((isMobile ? 5 : 8) * (1 - eH)).toFixed(2);
+      for (let i = 0; i < TOTAL_CHARS; i++) {
+        const charEl = charRefs.current[i];
+        if (!charEl) continue;
 
-        if (pH >= 0.98) {
-          headlineRef.current.style.transform = "translate3d(0, 0, 0)";
-          headlineRef.current.style.opacity = "1";
-          headlineRef.current.style.filter = "none";
-          headlineRef.current.style.transition = "none";
+        const charStart = 0.18 + (i / (TOTAL_CHARS - 1)) * staggerRange;
+        const charEnd = charStart + windowSpan;
+        const charP = Math.max(0, Math.min(1, (p - charStart) / (charEnd - charStart)));
+
+        if (charP >= 0.99) {
+          charEl.style.transform = "translate3d(0, 0, 0)";
+          charEl.style.opacity = "1";
+          charEl.style.filter = "none";
+        } else if (charP <= 0) {
+          charEl.style.transform = `translate3d(0, ${charYTravel}px, 0) scale(0.75) rotateX(${isMobile ? 8 : 14}deg)`;
+          charEl.style.opacity = "0";
+          charEl.style.filter = `blur(${maxBlur}px)`;
         } else {
-          headlineRef.current.style.transform = `translate3d(0, ${yH}px, 0) scale(${sH}) rotateX(${rotH}deg)`;
-          headlineRef.current.style.opacity = opH;
-          headlineRef.current.style.filter = `blur(${blurH}px)`;
-          headlineRef.current.style.transition = "transform 0.14s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.14s ease-out, filter 0.14s ease-out";
+          const charEase = easeOutCubic(charP);
+          const y = (charYTravel * (1 - charEase)).toFixed(2);
+          const s = (0.75 + 0.25 * charEase).toFixed(3);
+          const rot = ((isMobile ? 8 : 14) * (1 - charEase)).toFixed(2);
+          const op = Math.min(1, charP * 1.5).toFixed(3);
+          const blur = charP > 0.85 ? "none" : `blur(${((maxBlur) * (1 - charEase)).toFixed(2)}px)`;
+
+          charEl.style.transform = `translate3d(0, ${y}px, 0) scale(${s}) rotateX(${rot}deg)`;
+          charEl.style.opacity = op;
+          charEl.style.filter = blur;
         }
       }
 
-      // 2. Supporting Paragraph (delayed: follows headline at p = 0.36 -> 0.88)
-      if (paragraphRef.current) {
-        const pP = Math.max(0, Math.min(1, (p - 0.36) / 0.52));
-        const eP = easeOutCubic(pP);
-        const yP = (yTravelP * (1 - eP)).toFixed(2);
-        const sP = (0.74 + 0.26 * eP).toFixed(3);
-        const rotP = ((isMobile ? 3 : 5.5) * (1 - eP)).toFixed(2);
-        const opP = Math.min(1, pP * 1.5).toFixed(3);
-        const blurP = ((isMobile ? 5 : 8) * (1 - eP)).toFixed(2);
+      // =================================================================
+      // 2. SUPPORTING COPY & BUTTONS: PROGRESSIVE FORWARD SURGE
+      // =================================================================
+      const yTravelP = isMobile ? 100 : 160;
+      const yTravelB = isMobile ? 120 : 180;
+      const maxBlurP = isMobile ? 4 : 6;
+      const maxBlurB = isMobile ? 3 : 5;
 
-        if (pP >= 0.98) {
+      // 2. Supporting Paragraph (delayed: follows headline cascade at p = 0.32 -> 0.80)
+      if (paragraphRef.current) {
+        const pP = Math.max(0, Math.min(1, (p - 0.32) / 0.48));
+        if (pP >= 0.99) {
           paragraphRef.current.style.transform = "translate3d(0, 0, 0)";
           paragraphRef.current.style.opacity = "1";
           paragraphRef.current.style.filter = "none";
-          paragraphRef.current.style.transition = "none";
+        } else if (pP <= 0) {
+          paragraphRef.current.style.transform = `translate3d(0, ${yTravelP}px, 0) scale(0.76) rotateX(${isMobile ? 3 : 5}deg)`;
+          paragraphRef.current.style.opacity = "0";
+          paragraphRef.current.style.filter = `blur(${maxBlurP}px)`;
         } else {
+          const eP = easeOutCubic(pP);
+          const yP = (yTravelP * (1 - eP)).toFixed(2);
+          const sP = (0.76 + 0.24 * eP).toFixed(3);
+          const rotP = ((isMobile ? 3 : 5) * (1 - eP)).toFixed(2);
+          const opP = Math.min(1, pP * 1.5).toFixed(3);
+          const blurP = pP > 0.85 ? "none" : `blur(${((maxBlurP) * (1 - eP)).toFixed(2)}px)`;
+
           paragraphRef.current.style.transform = `translate3d(0, ${yP}px, 0) scale(${sP}) rotateX(${rotP}deg)`;
           paragraphRef.current.style.opacity = opP;
-          paragraphRef.current.style.filter = `blur(${blurP}px)`;
-          paragraphRef.current.style.transition = "transform 0.14s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.14s ease-out, filter 0.14s ease-out";
+          paragraphRef.current.style.filter = blurP;
         }
       }
 
-      // 3. Actions / Buttons (delayed: emerges last from the valley at p = 0.50 -> 0.98)
+      // 3. Actions / Buttons (delayed: emerges last from the valley at p = 0.44 -> 0.92)
       if (actionsRef.current) {
-        const pB = Math.max(0, Math.min(1, (p - 0.50) / 0.48));
-        const eB = easeOutCubic(pB);
-        const yB = (yTravelB * (1 - eB)).toFixed(2);
-        const sB = (0.78 + 0.22 * eB).toFixed(3);
-        const rotB = ((isMobile ? 2.5 : 4.5) * (1 - eB)).toFixed(2);
-        const opB = Math.min(1, pB * 1.6).toFixed(3);
-        const blurB = ((isMobile ? 4 : 6) * (1 - eB)).toFixed(2);
-
-        if (pB >= 0.98) {
+        const pB = Math.max(0, Math.min(1, (p - 0.44) / 0.48));
+        if (pB >= 0.99) {
           actionsRef.current.style.transform = "translate3d(0, 0, 0)";
           actionsRef.current.style.opacity = "1";
           actionsRef.current.style.filter = "none";
-          actionsRef.current.style.transition = "none";
+        } else if (pB <= 0) {
+          actionsRef.current.style.transform = `translate3d(0, ${yTravelB}px, 0) scale(0.80) rotateX(${isMobile ? 2.5 : 4}deg)`;
+          actionsRef.current.style.opacity = "0";
+          actionsRef.current.style.filter = `blur(${maxBlurB}px)`;
         } else {
+          const eB = easeOutCubic(pB);
+          const yB = (yTravelB * (1 - eB)).toFixed(2);
+          const sB = (0.80 + 0.20 * eB).toFixed(3);
+          const rotB = ((isMobile ? 2.5 : 4) * (1 - eB)).toFixed(2);
+          const opB = Math.min(1, pB * 1.6).toFixed(3);
+          const blurB = pB > 0.85 ? "none" : `blur(${((maxBlurB) * (1 - eB)).toFixed(2)}px)`;
+
           actionsRef.current.style.transform = `translate3d(0, ${yB}px, 0) scale(${sB}) rotateX(${rotB}deg)`;
           actionsRef.current.style.opacity = opB;
-          actionsRef.current.style.filter = `blur(${blurB}px)`;
-          actionsRef.current.style.transition = "transform 0.14s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.14s ease-out, filter 0.14s ease-out";
+          actionsRef.current.style.filter = blurB;
         }
       }
     };
 
-    const onScroll = () => {
+    // Smooth Lerp Tick Loop: Eliminates mouse-wheel notch stepping and creates liquid motion
+    const tick = () => {
+      const diff = targetP - currentP;
+      if (Math.abs(diff) < 0.0003) {
+        currentP = targetP;
+        render(currentP);
+        rafId = null;
+        return;
+      }
+
+      currentP += diff * 0.12;
+      render(currentP);
+      rafId = requestAnimationFrame(tick);
+    };
+
+    const requestTick = () => {
       if (!isIntersecting) return;
-      if (rafId !== null) cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(updateLayers);
+      targetP = computeTargetP();
+      if (rafId === null) {
+        rafId = requestAnimationFrame(tick);
+      }
+    };
+
+    const onScroll = () => {
+      requestTick();
+    };
+
+    const onResize = () => {
+      requestTick();
     };
 
     // Use IntersectionObserver to ensure 0 scroll overhead when off-screen
@@ -249,12 +349,19 @@ export function FinalCta() {
       ([entry]) => {
         isIntersecting = entry.isIntersecting;
         if (isIntersecting) {
-          updateLayers();
+          targetP = computeTargetP();
+          if (!isInitialized) {
+            currentP = targetP;
+            render(currentP);
+            isInitialized = true;
+          } else {
+            requestTick();
+          }
           window.addEventListener("scroll", onScroll, { passive: true });
-          window.addEventListener("resize", onScroll, { passive: true });
+          window.addEventListener("resize", onResize, { passive: true });
         } else {
           window.removeEventListener("scroll", onScroll);
-          window.removeEventListener("resize", onScroll);
+          window.removeEventListener("resize", onResize);
           if (rafId !== null) {
             cancelAnimationFrame(rafId);
             rafId = null;
@@ -266,13 +373,16 @@ export function FinalCta() {
 
     observer.observe(section);
 
-    // Initial positioning calculation
-    updateLayers();
+    // Initial calculation on mount
+    targetP = computeTargetP();
+    currentP = targetP;
+    render(currentP);
+    isInitialized = true;
 
     return () => {
       observer.disconnect();
       window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
+      window.removeEventListener("resize", onResize);
       if (rafId !== null) cancelAnimationFrame(rafId);
     };
   }, [isReducedMotion]);
@@ -332,7 +442,8 @@ export function FinalCta() {
             ref={layer1Ref}
             className="absolute inset-0 pointer-events-none will-change-[transform,opacity]"
             style={{
-              transform: isReducedMotion ? "translate3d(0, 0, 0)" : "translate3d(0, 55px, 0)",
+              transformOrigin: "center bottom",
+              transform: isReducedMotion ? "translate3d(0, 0, 0)" : "translate3d(0, 280px, 0) scaleY(0.9)",
               opacity: isReducedMotion ? 1 : 0,
             }}
           >
@@ -351,7 +462,8 @@ export function FinalCta() {
             ref={layer2Ref}
             className="absolute inset-0 pointer-events-none will-change-[transform,opacity]"
             style={{
-              transform: isReducedMotion ? "translate3d(0, 0, 0)" : "translate3d(0, 115px, 0)",
+              transformOrigin: "center bottom",
+              transform: isReducedMotion ? "translate3d(0, 0, 0)" : "translate3d(0, 460px, 0) scaleY(0.86)",
               opacity: isReducedMotion ? 1 : 0,
             }}
           >
@@ -370,7 +482,8 @@ export function FinalCta() {
             ref={layer3Ref}
             className="absolute inset-0 pointer-events-none will-change-[transform,opacity]"
             style={{
-              transform: isReducedMotion ? "translate3d(0, 0, 0)" : "translate3d(0, 90px, 0)",
+              transformOrigin: "center bottom",
+              transform: isReducedMotion ? "translate3d(0, 0, 0)" : "translate3d(0, 300px, 0) scaleY(0.88)",
               opacity: isReducedMotion ? 1 : 0,
             }}
           >
@@ -389,7 +502,8 @@ export function FinalCta() {
             ref={layer4Ref}
             className="absolute inset-0 pointer-events-none will-change-[transform,opacity]"
             style={{
-              transform: isReducedMotion ? "translate3d(0, 0, 0)" : "translate3d(0, 135px, 0)",
+              transformOrigin: "center bottom",
+              transform: isReducedMotion ? "translate3d(0, 0, 0)" : "translate3d(0, 480px, 0) scaleY(0.86)",
               opacity: isReducedMotion ? 1 : 0,
             }}
           >
@@ -408,7 +522,8 @@ export function FinalCta() {
             ref={layer5Ref}
             className="absolute inset-0 pointer-events-none will-change-[transform,opacity]"
             style={{
-              transform: isReducedMotion ? "translate3d(0, 0, 0)" : "translate3d(0, 155px, 0)",
+              transformOrigin: "center bottom",
+              transform: isReducedMotion ? "translate3d(0, 0, 0)" : "translate3d(0, 320px, 0) scaleY(0.88)",
               opacity: isReducedMotion ? 1 : 0,
             }}
           >
@@ -422,12 +537,12 @@ export function FinalCta() {
             />
           </div>
 
-          {/* Seamless Edge Falloff: Blends bottom edge invisibly into #111110 */}
+          {/* Bedrock Ground Threshold: Solid dark base the mountains physically pierce and emerge through */}
           <div
-            className="absolute inset-x-0 bottom-0 h-20 pointer-events-none z-10"
+            className="absolute inset-x-0 bottom-0 h-28 sm:h-36 pointer-events-none z-10"
             style={{
               background:
-                "linear-gradient(to bottom, rgba(17,17,16,0) 0%, rgba(17,17,16,0.6) 50%, #111110 100%)",
+                "linear-gradient(to top, #111110 0%, rgba(17,17,16,0.92) 35%, rgba(17,17,16,0) 100%)",
             }}
           />
 
@@ -466,19 +581,80 @@ export function FinalCta() {
         style={{ perspective: "1200px" }}
       >
         <div className="max-w-4xl mx-auto text-center flex flex-col items-center select-text">
-          {/* Art-Directed Two-Statement Headline */}
+          {/* Art-Directed Two-Statement Headline with Per-Character Kinetic Emergence */}
           <h2
-            ref={headlineRef}
             id="cta-heading"
-            className="font-sans text-[44px] sm:text-[58px] md:text-[68px] lg:text-[78px] xl:text-[84px] leading-[0.98] sm:leading-[1.02] tracking-[-0.04em] max-w-[880px] mx-auto will-change-[transform,opacity,filter]"
-            style={{
-              transformOrigin: "center center",
-              opacity: isReducedMotion ? 1 : 0,
-            }}
+            className="font-sans text-[44px] sm:text-[58px] md:text-[68px] lg:text-[78px] xl:text-[84px] leading-[0.98] sm:leading-[1.02] tracking-[-0.04em] max-w-[880px] mx-auto select-text"
           >
-            <span className="block font-medium text-[#F2F0EB]">Your code.</span>
+            {/* Line 1: Your code. */}
+            <span className="block font-medium text-[#F2F0EB]">
+              {LINE_1_WORDS.map((w, wIdx) => {
+                const wordStartIdx = LINE_1_WORDS.slice(0, wIdx).reduce(
+                  (acc, item) => acc + item.chars.length,
+                  0
+                );
+                return (
+                  <span
+                    key={w.word}
+                    className="inline-block whitespace-nowrap mr-[0.26em] last:mr-0"
+                  >
+                    {w.chars.map((char, cIdx) => {
+                      const charIndex = wordStartIdx + cIdx;
+                      return (
+                        <span
+                          key={cIdx}
+                          ref={(el) => {
+                            charRefs.current[charIndex] = el;
+                          }}
+                          className="inline-block will-change-[transform,opacity,filter]"
+                          style={{
+                            transformOrigin: "center bottom",
+                            opacity: isReducedMotion ? 1 : 0,
+                          }}
+                        >
+                          {char}
+                        </span>
+                      );
+                    })}
+                  </span>
+                );
+              })}
+            </span>
+
+            {/* Line 2: Ready for what’s next. */}
             <span className="block font-normal text-[#DDD9D0] mt-1.5 sm:mt-2">
-              Ready for what’s next.
+              {LINE_2_WORDS.map((w, wIdx) => {
+                const line2PrevChars = LINE_2_WORDS.slice(0, wIdx).reduce(
+                  (acc, item) => acc + item.chars.length,
+                  0
+                );
+                const wordStartIdx = TOTAL_LINE_1_CHARS + line2PrevChars;
+                return (
+                  <span
+                    key={w.word}
+                    className="inline-block whitespace-nowrap mr-[0.26em] last:mr-0"
+                  >
+                    {w.chars.map((char, cIdx) => {
+                      const charIndex = wordStartIdx + cIdx;
+                      return (
+                        <span
+                          key={cIdx}
+                          ref={(el) => {
+                            charRefs.current[charIndex] = el;
+                          }}
+                          className="inline-block will-change-[transform,opacity,filter]"
+                          style={{
+                            transformOrigin: "center bottom",
+                            opacity: isReducedMotion ? 1 : 0,
+                          }}
+                        >
+                          {char}
+                        </span>
+                      );
+                    })}
+                  </span>
+                );
+              })}
             </span>
           </h2>
 
