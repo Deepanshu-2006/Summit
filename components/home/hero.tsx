@@ -40,17 +40,18 @@ function getReducedMotionServerSnapshot() {
 }
 
 /**
- * Hero Component — The Infrastructure Expedition
+ * Hero Component — Editorial Alpine Infrastructure Layout
  *
  * Cinematic alpine composition combining monumental mountain topography
  * with an architectural deployment journey:
  *
- * - Left Third: Editorial typography ("Your code belongs up here.") with dramatic negative space.
- * - Central Valley: Expansive open corridor with living procedural valley mist.
- * - Right Half: Three distinct expedition waypoints ascending toward the summit beacon:
- *     1. Waypoint 01 // Source (Basecamp telemetry capsule)
- *     2. Waypoint 02 // Build Engine (Core turbine station)
- *     3. Destination // Production (Summit peak destination beacon)
+ * - Upper-Left Quadrant: Editorial typography ("Your code belongs up here.")
+ *   with deliberate breathing room from the navbar and darker negative space framing.
+ * - Central Valley: Serene open mountain corridor and living procedural valley mist.
+ * - Right Flank: Three distinct infrastructure stations ascending toward the summit beacon:
+ *     1. Station 01: Source (Commit & telemetry waypoint)
+ *     2. Station 02: Build Engine (Turbopack compile station)
+ *     3. Station 03: Production (Summit peak destination beacon)
  */
 export function Hero() {
   const [animPhase, setAnimPhase] = useState<AnimPhase>("source");
@@ -64,7 +65,7 @@ export function Hero() {
     getReducedMotionServerSnapshot
   );
 
-  // Intersection observer to pause expensive animations when outside viewport
+  // Intersection observer to pause animations when outside viewport
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -184,16 +185,17 @@ export function Hero() {
   const isProductionRunning = isReducedMotion || animPhase === "production";
   const currentBuildStep = isReducedMotion ? 3 : buildStep;
 
-  // Minimal expedition route connectors following landscape contours:
-  // Route 1: Waypoint 01 Source bottom (168, 116) -> Waypoint 02 Build Engine top (284, 184)
-  const route1D = "M 168 116 C 168 156, 284 144, 284 184";
-  // Route 2: Waypoint 02 Build Engine bottom (414, 332) -> Destination Summit top (450, 384)
-  const route2D = "M 414 332 C 414 364, 450 352, 450 384";
+  // Minimal route connectors following landscape contours:
+  // Route 1: Station 01 Source bottom (280, 106) -> Station 02 Build Engine top (350, 174)
+  const route1D = "M 280 106 C 280 146, 350 134, 350 174";
+  // Route 2: Station 02 Build Engine bottom (407, 298) -> Station 03 Production top (460, 344)
+  const route2D = "M 407 298 C 407 328, 460 314, 460 344";
 
   return (
     <section
       ref={heroRef}
-      className="relative w-full min-h-screen flex flex-col justify-center pt-[72px] pb-10 sm:pb-14 lg:pb-16 overflow-hidden bg-transparent select-none"
+      id="hero"
+      className="relative w-full min-h-screen flex flex-col justify-start pt-[104px] sm:pt-[116px] lg:pt-[128px] xl:pt-[140px] pb-24 sm:pb-32 lg:pb-40 xl:pb-48 overflow-hidden bg-transparent select-none"
       aria-label="Summit Cloud Infrastructure Hero"
     >
       {/* Signature Engraved Mountain Landscape & Volumetric Valley Mist */}
@@ -204,19 +206,19 @@ export function Hero() {
         isInView={isInView}
       />
 
-      <div className="layout-container max-w-[1400px] w-full relative z-10 my-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-8 items-center min-h-[calc(100vh-140px)]">
+      <div className="layout-container max-w-[1400px] w-full relative z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 xl:gap-14 items-start">
           
           {/* =================================================================
-              LEFT THIRD: Editorial Typography & Actions (5 cols)
-              Occupies the left third with dramatic negative space, framed by
-              the moody dark valley terrain.
+              UPPER-LEFT QUADRANT: Editorial Typography & Actions (5 cols)
+              Anchored in the upper-left quadrant with intentional breathing room
+              from the navbar, framed by the moody dark mountain valley terrain.
               ================================================================= */}
-          <div className="lg:col-span-5 xl:col-span-5 flex flex-col justify-center z-20 max-w-[480px]">
+          <div className="lg:col-span-5 xl:col-span-5 flex flex-col justify-start z-20 max-w-[480px]">
 
             {/* Editorial Two-Line Headline with Character-by-Character Entrance */}
             <h1
-              className="font-sans text-[38px] sm:text-[46px] md:text-[54px] lg:text-[58px] xl:text-[66px] 2xl:text-[72px] font-medium leading-[1.04] tracking-[-0.035em] text-[#FAF8F5] mb-4 select-text max-w-[460px] xl:max-w-[500px]"
+              className="font-sans text-[36px] sm:text-[44px] md:text-[50px] lg:text-[56px] xl:text-[64px] font-medium leading-[1.04] tracking-[-0.035em] text-[#FAF8F5] select-text max-w-[430px] lg:max-w-[450px] xl:max-w-[480px]"
               aria-label="Your code belongs up here."
             >
               {/* Accessible text representation for screen readers */}
@@ -266,9 +268,9 @@ export function Hero() {
               </span>
             </h1>
 
-            {/* Supporting Copy — Fades in after headline */}
+            {/* Supporting Copy — Fades in beneath headline with generous breathing room */}
             <p
-              className="hero-fade-up font-sans text-[15.5px] text-[#A6A4A0] leading-[1.6] max-w-[390px] mb-8 select-text"
+              className="hero-fade-up font-sans text-[15px] sm:text-[15.5px] text-[#A6A4A0] leading-[1.65] max-w-[380px] mt-6 sm:mt-7 mb-8 sm:mb-9 select-text"
               style={
                 isReducedMotion
                   ? { opacity: 1, transform: "none" }
@@ -281,9 +283,9 @@ export function Hero() {
               From your first deploy to production infrastructure, everything moves forward.
             </p>
 
-            {/* Primary & Secondary Actions — Fades in beneath copy */}
+            {/* Primary & Secondary Actions — Aligned in one balanced row */}
             <div
-              className="hero-fade-up flex flex-wrap items-center gap-3.5"
+              className="hero-fade-up flex flex-wrap items-center gap-3.5 sm:gap-4"
               style={
                 isReducedMotion
                   ? { opacity: 1, transform: "none" }
@@ -295,14 +297,14 @@ export function Hero() {
             >
               <Link
                 href={BRAND.links.signup}
-                className="inline-flex items-center justify-center h-[40px] px-5 rounded-[8px] bg-[#D88762] hover:bg-[#E39A76] text-[#111111] text-[13.5px] font-semibold transition-colors duration-[160ms] shadow-sm focus-visible:outline-2 focus-visible:outline-accent-orange focus-visible:outline-offset-2"
+                className="inline-flex items-center justify-center h-[42px] px-6 rounded-[8px] bg-[#D88762] hover:bg-[#E39A76] text-[#111111] text-[13.5px] font-semibold transition-colors duration-[160ms] shadow-sm focus-visible:outline-2 focus-visible:outline-accent-orange focus-visible:outline-offset-2"
               >
                 Start building
               </Link>
 
               <Link
                 href="/product"
-                className="inline-flex items-center justify-center h-[40px] px-5 rounded-[8px] bg-transparent border border-[#333330] hover:border-[#777777] text-[#FAF8F5] text-[13.5px] font-medium transition-colors duration-[160ms] focus-visible:outline-2 focus-visible:outline-accent-orange"
+                className="inline-flex items-center justify-center h-[42px] px-5 rounded-[8px] bg-transparent border border-[#383834] hover:border-[#666660] text-[#FAF8F5] text-[13.5px] font-medium transition-colors duration-[160ms] focus-visible:outline-2 focus-visible:outline-accent-orange"
               >
                 Explore the platform
               </Link>
@@ -311,54 +313,51 @@ export function Hero() {
           </div>
 
           {/* =================================================================
-              RIGHT HALF: The Infrastructure Expedition (7 cols)
-              Three bespoke waypoints ascending along the mountain contours:
-              Waypoint 01 (Basecamp) -> Waypoint 02 (High Engine) -> Destination (Summit)
+              RIGHT FLANK: The Infrastructure Expedition (7 cols)
+              Three waypoints ascending along the right mountain slopes toward
+              the summit peak, leaving the center mountain valley open for
+              dramatic atmospheric breathing room.
               ================================================================= */}
-          <div className="lg:col-span-7 xl:col-span-7 relative w-full flex items-center justify-center lg:justify-end overflow-visible h-[300px] xs:h-[350px] sm:h-[430px] md:h-[480px] lg:h-[530px] lg:-translate-y-4 lg:translate-x-3 xl:-translate-y-6 xl:translate-x-6 z-20">
-            {/* Expedition Canvas: 680x520 coordinate space */}
-            <div className="w-[680px] h-[520px] shrink-0 origin-center lg:origin-top-right scale-[0.48] xs:scale-[0.56] sm:scale-[0.68] md:scale-[0.78] lg:scale-[0.88] xl:scale-100 relative select-none">
+          <div className="lg:col-span-7 xl:col-span-7 relative w-full flex items-start justify-center lg:justify-end overflow-visible h-[270px] xs:h-[310px] sm:h-[370px] md:h-[420px] lg:h-[490px] z-20 mt-8 lg:mt-0">
+            {/* Expedition Canvas: 680x490 coordinate space */}
+            <div className="w-[680px] h-[490px] shrink-0 origin-top-left sm:origin-top lg:origin-top-right scale-[0.52] xs:scale-[0.60] sm:scale-[0.72] md:scale-[0.82] lg:scale-[0.88] xl:scale-100 relative select-none">
               
-              {/* SVG Expedition Route Connectors (Glowing Minimal Paths, No White Dotted) */}
+              {/* SVG Route Connectors: Glowing Minimal Paths (No White Dotted Lines) */}
               <svg
-                viewBox="0 0 680 520"
+                viewBox="0 0 680 490"
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
                 className="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-visible"
                 aria-hidden="true"
               >
                 <defs>
-                  {/* Glowing orange aura filter for Trail 1 */}
-                  <filter id="expeditionGlowOrange" x="-60%" y="-60%" width="220%" height="220%">
-                    <feGaussianBlur in="SourceGraphic" stdDeviation="3.5" result="blur1" />
-                    <feGaussianBlur in="SourceGraphic" stdDeviation="7" result="blur2" />
+                  {/* Glowing orange aura filter for Route 1 */}
+                  <filter id="routeGlowOrange" x="-50%" y="-50%" width="200%" height="200%">
+                    <feGaussianBlur stdDeviation="3.5" result="blur" />
                     <feMerge>
-                      <feMergeNode in="blur2" />
-                      <feMergeNode in="blur1" />
+                      <feMergeNode in="blur" />
                       <feMergeNode in="SourceGraphic" />
                     </feMerge>
                   </filter>
 
-                  {/* Glowing green aura filter for Trail 2 */}
-                  <filter id="expeditionGlowGreen" x="-60%" y="-60%" width="220%" height="220%">
-                    <feGaussianBlur in="SourceGraphic" stdDeviation="3.5" result="blur1" />
-                    <feGaussianBlur in="SourceGraphic" stdDeviation="7" result="blur2" />
+                  {/* Glowing green aura filter for Route 2 */}
+                  <filter id="routeGlowGreen" x="-50%" y="-50%" width="200%" height="200%">
+                    <feGaussianBlur stdDeviation="3.5" result="blur" />
                     <feMerge>
-                      <feMergeNode in="blur2" />
-                      <feMergeNode in="blur1" />
+                      <feMergeNode in="blur" />
                       <feMergeNode in="SourceGraphic" />
                     </feMerge>
                   </filter>
 
-                  {/* Luminous Orange Trail Gradient */}
-                  <linearGradient id="trailGradOrange" x1="0%" y1="0%" x2="100%" y2="100%">
+                  {/* Luminous Orange Route Gradient */}
+                  <linearGradient id="routeGradOrange" x1="0%" y1="0%" x2="100%" y2="100%">
                     <stop offset="0%" stopColor="#FFA67E" />
                     <stop offset="50%" stopColor="#D88762" />
                     <stop offset="100%" stopColor="#FFA67E" />
                   </linearGradient>
 
-                  {/* Luminous Green Trail Gradient */}
-                  <linearGradient id="trailGradGreen" x1="0%" y1="0%" x2="100%" y2="100%">
+                  {/* Luminous Green Route Gradient */}
+                  <linearGradient id="routeGradGreen" x1="0%" y1="0%" x2="100%" y2="100%">
                     <stop offset="0%" stopColor="#B3EAD0" />
                     <stop offset="50%" stopColor="#83B69A" />
                     <stop offset="100%" stopColor="#B3EAD0" />
@@ -366,22 +365,22 @@ export function Hero() {
                 </defs>
 
                 {/* -----------------------------------------------------------
-                    EXPEDITION ROUTE 1: Waypoint 01 (Source) -> Waypoint 02 (Build Engine)
-                    GLOWING BURNT ORANGE ALONG MOUNTAIN SADDLE CONTOUR
+                    ROUTE 1: Station 01 (Source) -> Station 02 (Build Engine)
+                    GLOWING BURNT ORANGE ALONG MOUNTAIN SLOPE
                     ----------------------------------------------------------- */}
-                {/* 1. Deep ambient orange glow shadow */}
+                {/* 1. Deep ambient orange glow aura */}
                 <path
                   d={route1D}
                   stroke="#D88762"
                   strokeWidth="7"
                   strokeLinecap="round"
                   opacity="0.4"
-                  filter="url(#expeditionGlowOrange)"
+                  filter="url(#routeGlowOrange)"
                 >
                   {!isReducedMotion && (
                     <animate
                       attributeName="opacity"
-                      values="0.30;0.60;0.30"
+                      values="0.30;0.65;0.30"
                       dur="2.4s"
                       repeatCount="indefinite"
                     />
@@ -391,7 +390,7 @@ export function Hero() {
                 {/* 2. Core bright orange line */}
                 <path
                   d={route1D}
-                  stroke="url(#trailGradOrange)"
+                  stroke="url(#routeGradOrange)"
                   strokeWidth="2"
                   strokeLinecap="round"
                   opacity="0.95"
@@ -400,14 +399,14 @@ export function Hero() {
                 {/* 3. Glowing orange energy bead gliding along the trail */}
                 {!isReducedMotion && (
                   <g>
-                    <circle r="6" fill="#D88762" opacity="0.6" filter="url(#expeditionGlowOrange)">
+                    <circle r="6" fill="#D88762" opacity="0.6" filter="url(#routeGlowOrange)">
                       <animateMotion
                         path={route1D}
                         dur="1.8s"
                         repeatCount="indefinite"
                       />
                     </circle>
-                    <circle r="3" fill="#FFA67E" filter="url(#expeditionGlowOrange)">
+                    <circle r="3" fill="#FFA67E" filter="url(#routeGlowOrange)">
                       <animateMotion
                         path={route1D}
                         dur="1.8s"
@@ -418,26 +417,26 @@ export function Hero() {
                 )}
 
                 {/* Anchor Reticles Route 1 */}
-                <circle cx="168" cy="116" r="3.5" fill="#FFA67E" filter="url(#expeditionGlowOrange)" />
-                <circle cx="284" cy="184" r="3.5" fill="#FFA67E" filter="url(#expeditionGlowOrange)" />
+                <circle cx="280" cy="106" r="3.5" fill="#FFA67E" filter="url(#routeGlowOrange)" />
+                <circle cx="350" cy="174" r="3.5" fill="#FFA67E" filter="url(#routeGlowOrange)" />
 
                 {/* -----------------------------------------------------------
-                    EXPEDITION ROUTE 2: Waypoint 02 (Build Engine) -> Destination (Summit)
-                    GLOWING SAGE GREEN ASCENDING THE HIGH SUMMIT ARÊTE
+                    ROUTE 2: Station 02 (Build Engine) -> Station 03 (Production)
+                    GLOWING SAGE GREEN ASCENDING THE HIGH SUMMIT PEAK
                     ----------------------------------------------------------- */}
-                {/* 1. Deep ambient green glow shadow */}
+                {/* 1. Deep ambient green glow aura */}
                 <path
                   d={route2D}
                   stroke="#83B69A"
                   strokeWidth="7"
                   strokeLinecap="round"
                   opacity="0.4"
-                  filter="url(#expeditionGlowGreen)"
+                  filter="url(#routeGlowGreen)"
                 >
                   {!isReducedMotion && (
                     <animate
                       attributeName="opacity"
-                      values="0.30;0.60;0.30"
+                      values="0.30;0.65;0.30"
                       dur="2.4s"
                       repeatCount="indefinite"
                     />
@@ -447,7 +446,7 @@ export function Hero() {
                 {/* 2. Core bright green line */}
                 <path
                   d={route2D}
-                  stroke="url(#trailGradGreen)"
+                  stroke="url(#routeGradGreen)"
                   strokeWidth="2"
                   strokeLinecap="round"
                   opacity="0.95"
@@ -456,14 +455,14 @@ export function Hero() {
                 {/* 3. Glowing sage-green energy bead gliding along the trail */}
                 {!isReducedMotion && (
                   <g>
-                    <circle r="6" fill="#83B69A" opacity="0.6" filter="url(#expeditionGlowGreen)">
+                    <circle r="6" fill="#83B69A" opacity="0.6" filter="url(#routeGlowGreen)">
                       <animateMotion
                         path={route2D}
                         dur="1.8s"
                         repeatCount="indefinite"
                       />
                     </circle>
-                    <circle r="3" fill="#B3EAD0" filter="url(#expeditionGlowGreen)">
+                    <circle r="3" fill="#B3EAD0" filter="url(#routeGlowGreen)">
                       <animateMotion
                         path={route2D}
                         dur="1.8s"
@@ -474,20 +473,20 @@ export function Hero() {
                 )}
 
                 {/* Anchor Reticles Route 2 */}
-                <circle cx="414" cy="332" r="3.5" fill="#B3EAD0" filter="url(#expeditionGlowGreen)" />
-                <circle cx="450" cy="384" r="3.5" fill="#B3EAD0" filter="url(#expeditionGlowGreen)" />
+                <circle cx="407" cy="298" r="3.5" fill="#B3EAD0" filter="url(#routeGlowGreen)" />
+                <circle cx="460" cy="344" r="3.5" fill="#B3EAD0" filter="url(#routeGlowGreen)" />
               </svg>
 
               {/* -------------------------------------------------------------
-                  STATION 01 // SOURCE (Basecamp Waypoint Capsule)
-                  Position: left 60px, top 24px, width 216px
-                  Compact, sleek telemetry waypoint with origin commit & status
+                  STATION 01 // SOURCE
+                  Position: left 170px, top 12px, width 220px
+                  Telemetry waypoint with origin commit & status
                   ------------------------------------------------------------- */}
               <div
                 style={{
-                  left: 60,
-                  top: 24,
-                  width: 216,
+                  left: 170,
+                  top: 12,
+                  width: 220,
                   ...(isReducedMotion
                     ? {}
                     : {
@@ -497,10 +496,10 @@ export function Hero() {
                 }}
                 className={`hero-fade-up absolute rounded-[8px] backdrop-blur-md p-3 transition-all duration-300 z-10 ${
                   activeStage === "source"
-                    ? "bg-[#1A1816]/95 border-[1.5px] border-accent-orange ring-1 ring-accent-orange/50 shadow-[0_0_24px_rgba(216,135,98,0.32),0_4px_16px_rgba(0,0,0,0.6)]"
-                    : "bg-[#141413]/90 border border-[#3A3A36] hover:border-[#555550] shadow-xl shadow-black/60"
+                    ? "bg-[#1B1917]/95 border-[1.5px] border-accent-orange ring-1 ring-accent-orange/50 shadow-[0_0_24px_rgba(216,135,98,0.32),0_6px_20px_rgba(0,0,0,0.6)]"
+                    : "bg-[#141413]/90 border border-[#383834] hover:border-[#52524C] shadow-xl shadow-black/60"
                 }`}
-                aria-label="Waypoint 01: Source"
+                aria-label="Station 01: Source"
               >
                 {/* Station Header */}
                 <div
@@ -521,7 +520,7 @@ export function Hero() {
                         activeStage === "source" ? "text-accent-orange" : "text-text-muted"
                       }`}
                     >
-                      01 // SOURCE
+                      SOURCE
                     </span>
                   </div>
                   <span className="font-mono text-[8.5px] px-1.5 py-0.5 rounded-[3px] bg-[#20201E] border border-[#2C2C2A] text-text-secondary">
@@ -548,14 +547,14 @@ export function Hero() {
               </div>
 
               {/* -------------------------------------------------------------
-                  STATION 02 // BUILD ENGINE (Core Turbine Station)
-                  Position: left 220px, top 184px, width 254px
-                  The prominent central technical instrument panel
+                  STATION 02 // BUILD ENGINE
+                  Position: left 280px, top 174px, width 254px
+                  Core compilation station
                   ------------------------------------------------------------- */}
               <div
                 style={{
-                  left: 220,
-                  top: 184,
+                  left: 280,
+                  top: 174,
                   width: 254,
                   ...(isReducedMotion
                     ? {}
@@ -566,10 +565,10 @@ export function Hero() {
                 }}
                 className={`hero-fade-up absolute rounded-[8px] backdrop-blur-md p-3.5 transition-all duration-300 z-10 ${
                   activeStage === "build"
-                    ? "bg-[#1A1816]/95 border-[1.5px] border-accent-orange ring-1 ring-accent-orange/50 shadow-[0_0_28px_rgba(216,135,98,0.35),0_4px_16px_rgba(0,0,0,0.6)]"
-                    : "bg-[#141413]/90 border border-[#3A3A36] hover:border-[#555550] shadow-xl shadow-black/60"
+                    ? "bg-[#1B1917]/95 border-[1.5px] border-accent-orange ring-1 ring-accent-orange/50 shadow-[0_0_28px_rgba(216,135,98,0.35),0_6px_20px_rgba(0,0,0,0.6)]"
+                    : "bg-[#141413]/90 border border-[#383834] hover:border-[#52524C] shadow-xl shadow-black/60"
                 }`}
-                aria-label="Waypoint 02: Build Engine"
+                aria-label="Station 02: Build Engine"
               >
                 {/* Station Header */}
                 <div
@@ -592,7 +591,7 @@ export function Hero() {
                         activeStage === "build" ? "text-accent-orange" : "text-text-muted"
                       }`}
                     >
-                      02 // BUILD ENGINE
+                      BUILD ENGINE
                     </span>
                   </div>
                   <span className="font-mono text-[8.5px] px-1.5 py-0.5 rounded-[3px] bg-[#20201E] border border-[#2C2C2A] text-text-secondary">
@@ -660,14 +659,14 @@ export function Hero() {
               </div>
 
               {/* -------------------------------------------------------------
-                  STATION 03 // DESTINATION (The Summit Peak Beacon)
-                  Position: left 380px, top 384px, width 250px
-                  Refined destination marker crowning the highest mountain peak
+                  STATION 03 // PRODUCTION (Summit Peak Destination)
+                  Position: left 390px, top 344px, width 250px
+                  Destination marker crowning the highest mountain peak
                   ------------------------------------------------------------- */}
               <div
                 style={{
-                  left: 380,
-                  top: 384,
+                  left: 390,
+                  top: 344,
                   width: 250,
                   ...(isReducedMotion
                     ? {}
@@ -678,8 +677,8 @@ export function Hero() {
                 }}
                 className={`hero-fade-up absolute rounded-[8px] backdrop-blur-md p-3.5 transition-all duration-300 z-10 ${
                   activeStage === "production" || isProductionRunning
-                    ? "bg-[#141B16]/95 border-[1.5px] border-semantic-success ring-1 ring-semantic-success/50 shadow-[0_0_28px_rgba(131,182,154,0.35),0_4px_16px_rgba(0,0,0,0.6)]"
-                    : "bg-[#141413]/90 border border-[#3A3A36] hover:border-[#555550] shadow-xl shadow-black/60"
+                    ? "bg-[#141B16]/95 border-[1.5px] border-semantic-success ring-1 ring-semantic-success/50 shadow-[0_0_28px_rgba(131,182,154,0.35),0_6px_20px_rgba(0,0,0,0.6)]"
+                    : "bg-[#141413]/90 border border-[#383834] hover:border-[#52524C] shadow-xl shadow-black/60"
                 }`}
                 aria-label="Destination: Summit Peak Production"
               >
@@ -702,7 +701,7 @@ export function Hero() {
                         isProductionRunning ? "text-semantic-success" : "text-text-muted"
                       }`}
                     >
-                      DESTINATION // SUMMIT
+                      PRODUCTION
                     </span>
                   </div>
                   <span
@@ -728,7 +727,7 @@ export function Hero() {
                   </div>
                 </div>
 
-                {/* Station Footer: Geodesic Summit Elevation & Health */}
+                {/* Station Footer: Summit Elevation & Health */}
                 <div className="mt-2 pt-1.5 border-t border-[#2C2C2A]/50 flex items-center justify-between font-mono text-[9px] text-text-muted">
                   <span className="tracking-wide">SUMMIT // 3,428M</span>
                   <span className="text-semantic-success font-medium">SSL active</span>
