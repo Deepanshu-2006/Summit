@@ -31,6 +31,7 @@
   /* Brand Accent Colors (Burnt Orange) */
   --color-accent-orange: #D88762;
   --color-accent-orange-hover: #E39A76;
+  --color-accent-orange-transparent: rgba(216, 135, 98, 0);
 
   /* Semantic Colors */
   --color-semantic-success: #83B69A;
@@ -94,6 +95,7 @@
 
   --accent-orange: #D88762;
   --accent-orange-hover: #E39A76;
+  --accent-orange-transparent: rgba(216, 135, 98, 0);
 
   --color-success: #83B69A;
   --color-warning: #D6AD72;

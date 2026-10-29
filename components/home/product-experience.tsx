@@ -30,16 +30,6 @@ export function ProductExperience() {
       aria-labelledby="experience-heading"
     >
       <div className="layout-container w-full">
-        {/* =================================================================
-            SECTION IDENTIFIER: 03 / SYSTEM ARCHITECTURE
-            ================================================================= */}
-        <div className="w-full border-t border-border-subtle pt-5 mb-8 sm:mb-10">
-          <div className="flex items-center gap-2 font-mono text-[11px] text-text-muted tracking-[0.1em] uppercase">
-            <span className="text-accent-orange font-medium">03</span>
-            <span>/</span>
-            <span>SYSTEM ARCHITECTURE</span>
-          </div>
-        </div>
 
         {/* =================================================================
             EDITORIAL INTRODUCTION

@@ -86,30 +86,11 @@ export function ApplicationStack() {
       aria-labelledby="stack-heading"
     >
       <div className="layout-container w-full">
-        {/* =================================================================
-            SECTION IDENTIFIER: 04 / THE PLATFORM
-            ================================================================= */}
-        <div className="w-full border-t border-border-subtle pt-4 mb-6 sm:mb-8">
-          <div className="flex items-center gap-2 font-mono text-[11px] text-text-muted tracking-[0.1em] uppercase">
-            <span className="text-accent-orange font-medium">04</span>
-            <span>/</span>
-            <span>THE PLATFORM</span>
-          </div>
-        </div>
 
         {/* =================================================================
             EDITORIAL INTRODUCTION
             ================================================================= */}
         <div className="max-w-3xl mb-6 sm:mb-8">
-          <div className="flex items-center gap-2 mb-2 sm:mb-3">
-            <span
-              className="w-1.5 h-1.5 rounded-[1px] bg-accent-orange"
-              aria-hidden="true"
-            />
-            <span className="font-mono text-[11px] font-medium tracking-[0.14em] uppercase text-text-muted">
-              EVERYTHING WORKS TOGETHER
-            </span>
-          </div>
 
           <h2
             id="stack-heading"

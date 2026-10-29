@@ -244,13 +244,6 @@ export function Hero() {
               ================================================================= */}
           <div className="lg:col-span-5 flex flex-col justify-center z-10">
             
-            {/* Technical Eyebrow */}
-            <div className="flex items-center gap-2 mb-3">
-              <span className="w-1.5 h-1.5 rounded-[1px] bg-accent-orange" aria-hidden="true" />
-              <p className="font-mono text-[11px] font-medium tracking-[0.14em] uppercase text-text-muted">
-                BUILT FOR THE WAY YOU SHIP
-              </p>
-            </div>
 
             {/* Main Headline - exactly 2 lines, never wraps into 4 lines */}
             <h1 className="font-sans text-[42px] sm:text-[50px] lg:text-[56px] xl:text-[64px] font-medium leading-[1.04] tracking-[-0.035em] text-[#F5F5F3] mb-4">

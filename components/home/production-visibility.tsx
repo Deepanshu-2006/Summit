@@ -122,17 +122,6 @@ export function ProductionVisibility() {
       aria-label="Production Visibility"
     >
       <div className="layout-container w-full">
-        {/* =================================================================
-            SECTION IDENTIFIER: 06 / PRODUCTION VISIBILITY
-            Understated divider line matching Jetway standard
-            ================================================================= */}
-        <div className="w-full border-t border-[#262422] pt-5 mb-20 sm:mb-28 lg:mb-36">
-          <div className="flex items-center gap-2 font-mono text-[11px] text-[#77736D] tracking-[0.1em] uppercase">
-            <span className="text-[#E58B65] font-medium">06</span>
-            <span>/</span>
-            <span>PRODUCTION VISIBILITY</span>
-          </div>
-        </div>
 
         {/* =================================================================
             CENTERED EDITORIAL PARAGRAPH

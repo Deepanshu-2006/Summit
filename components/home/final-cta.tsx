@@ -422,7 +422,7 @@ export function FinalCta() {
     <section
       ref={sectionRef}
       id="final-cta"
-      className="relative w-full h-[360vh] sm:h-[380vh] lg:h-[400vh] bg-transparent text-text-primary select-none"
+      className="relative z-20 w-full h-[360vh] sm:h-[380vh] lg:h-[400vh] bg-transparent text-text-primary select-none"
       aria-labelledby="cta-heading"
     >
       {/* =================================================================
@@ -430,7 +430,7 @@ export function FinalCta() {
           ================================================================= */}
       <div
         ref={viewportRef}
-        className="sticky top-0 w-full h-screen overflow-hidden flex flex-col justify-center items-center bg-transparent select-none"
+        className="sticky top-0 z-20 w-full h-screen overflow-hidden flex flex-col justify-center items-center bg-transparent select-none"
       >
         {/* =================================================================
             EMERGING MOUNTAIN HORIZON (z-[5]: Rises upward after clouds part, BEFORE text)
@@ -464,15 +464,6 @@ export function FinalCta() {
           className="layout-container w-full relative z-[10] flex justify-start items-center"
           style={{ opacity: 0 }}
         >
-          {/* Subtle broad tonal veil behind content for zero-friction legibility */}
-          <div
-            className="absolute -inset-10 pointer-events-none -z-10"
-            style={{
-              background:
-                "radial-gradient(ellipse 80% 70% at 20% 50%, rgba(17, 17, 16, 0.72) 0%, transparent 100%)",
-            }}
-            aria-hidden="true"
-          />
 
           <div className="w-full max-w-[700px] xl:max-w-[760px] flex flex-col items-start text-left select-text lg:pl-2 xl:pl-6">
             {/* Main Headline — Independent Alphabet-by-Alphabet Kinetic Emergence */}
@@ -593,7 +584,7 @@ export function FinalCta() {
             ================================================================= */}
         <div
           ref={cloudLeftRef}
-          className="absolute -left-[12vw] sm:-left-[8vw] lg:-left-[5vw] top-1/2 -translate-y-1/2 h-[104vh] min-h-[750px] w-auto pointer-events-none select-none will-change-[transform,opacity] z-[15] flex items-center justify-start"
+          className="absolute -left-[12vw] sm:-left-[8vw] lg:-left-[5vw] top-1/2 -translate-y-1/2 h-[94vh] sm:h-[96vh] lg:h-[98vh] max-h-screen w-auto pointer-events-none select-none will-change-[transform,opacity] z-[15] flex items-center justify-start"
           aria-hidden="true"
         >
           <Image
@@ -611,7 +602,7 @@ export function FinalCta() {
             ================================================================= */}
         <div
           ref={cloudRightRef}
-          className="absolute -right-[12vw] sm:-right-[8vw] lg:-right-[5vw] top-1/2 -translate-y-1/2 h-[104vh] min-h-[750px] w-auto pointer-events-none select-none will-change-[transform,opacity] z-[15] flex items-center justify-end"
+          className="absolute -right-[12vw] sm:-right-[8vw] lg:-right-[5vw] top-1/2 -translate-y-1/2 h-[94vh] sm:h-[96vh] lg:h-[98vh] max-h-screen w-auto pointer-events-none select-none will-change-[transform,opacity] z-[15] flex items-center justify-end"
           aria-hidden="true"
         >
           <Image
@@ -626,13 +617,14 @@ export function FinalCta() {
 
         {/* =================================================================
             ATMOSPHERIC PERIMETER FALLOFF (z-[25])
-            Soft vertical feathering at section edges to transition cleanly
+            Clean transparent transition at top to seamlessly preserve ambient stardust/glow,
+            with gentle feathering into #111111 only at the bottom before footer
             ================================================================= */}
         <div
           className="absolute inset-0 pointer-events-none z-[25]"
           style={{
             background:
-              "linear-gradient(to bottom, #111110 0%, transparent 12%, transparent 88%, #111110 100%)",
+              "linear-gradient(to bottom, transparent 0%, transparent 85%, #111111 100%)",
           }}
           aria-hidden="true"
         />

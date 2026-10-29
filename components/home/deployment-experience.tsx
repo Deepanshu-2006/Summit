@@ -32,17 +32,6 @@ export function DeploymentExperience() {
       aria-labelledby="deployment-heading"
     >
       <div className="layout-container w-full">
-        {/* =================================================================
-            SECTION IDENTIFIER: 02 / DEPLOYMENT
-            Understated, minimal divider line
-            ================================================================= */}
-        <div className="w-full border-t border-border-subtle pt-5 mb-12 sm:mb-16">
-          <div className="flex items-center gap-2 font-mono text-[11px] text-text-muted tracking-[0.1em] uppercase">
-            <span className="text-accent-orange font-medium">02</span>
-            <span>/</span>
-            <span>DEPLOYMENT</span>
-          </div>
-        </div>
 
         {/* =================================================================
             TWO-COLUMN EDITORIAL COMPOSITION (~40/60 Split)

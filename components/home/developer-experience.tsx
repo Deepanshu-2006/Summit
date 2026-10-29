@@ -47,17 +47,6 @@ export function DeveloperExperience() {
       aria-labelledby="devex-heading"
     >
       <div className="layout-container w-full">
-        {/* =================================================================
-            SECTION IDENTIFIER: 05 / DEVELOPER EXPERIENCE
-            Understated divider line matching Jetway standard
-            ================================================================= */}
-        <div className="w-full border-t border-[#262422] pt-5 mb-12 sm:mb-16">
-          <div className="flex items-center gap-2 font-mono text-[11px] text-[#77736D] tracking-[0.1em] uppercase">
-            <span className="text-[#E58A61] font-medium">05</span>
-            <span>/</span>
-            <span>DEVELOPER EXPERIENCE</span>
-          </div>
-        </div>
 
         {/* =================================================================
             SECTION INTRODUCTION: Heading & Supporting Copy

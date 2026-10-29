@@ -171,31 +171,11 @@ export function GettingStarted() {
       aria-labelledby="getting-started-heading"
     >
       <div className="layout-container w-full">
-        {/* =================================================================
-            SECTION IDENTIFIER: 07 / GETTING STARTED
-            Understated divider line matching Jetway standard
-            ================================================================= */}
-        <div className="w-full border-t border-[#262422] pt-5 mb-12 sm:mb-16">
-          <div className="flex items-center gap-2 font-mono text-[11px] text-[#77736D] tracking-[0.1em] uppercase">
-            <span className="text-[#E58B65] font-medium">07</span>
-            <span>/</span>
-            <span>GETTING STARTED</span>
-          </div>
-        </div>
 
         {/* =================================================================
             EDITORIAL INTRO: Eyebrow, Heading & Supporting Copy
             ================================================================= */}
         <div className="max-w-2xl mb-14 sm:mb-18 lg:mb-20">
-          <div className="flex items-center gap-2 mb-4">
-            <span
-              className="w-1.5 h-1.5 rounded-[1px] bg-[#E58B65]"
-              aria-hidden="true"
-            />
-            <span className="font-mono text-[11px] font-medium tracking-[0.14em] uppercase text-[#77736D]">
-              THREE STEPS. ONE STARTING POINT.
-            </span>
-          </div>
 
           <h2
             id="getting-started-heading"
