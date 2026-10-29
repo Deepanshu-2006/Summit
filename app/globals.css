@@ -183,7 +183,8 @@ body {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-  .hero-char {
+  .hero-char,
+  .hero-fade-up {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
@@ -480,5 +481,17 @@ body {
   100% {
     transform: translate3d(-12%, -3%, 0);
     opacity: 0.16;
+  }
+}
+
+/* Hero Element Fade-Up Entrance */
+@keyframes heroFadeUp {
+  0% {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

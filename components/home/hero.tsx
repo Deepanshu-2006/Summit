@@ -39,6 +39,19 @@ function getReducedMotionServerSnapshot() {
   return false;
 }
 
+/**
+ * Hero Component — The Infrastructure Expedition
+ *
+ * Cinematic alpine composition combining monumental mountain topography
+ * with an architectural deployment journey:
+ *
+ * - Left Third: Editorial typography ("Your code belongs up here.") with dramatic negative space.
+ * - Central Valley: Expansive open corridor with living procedural valley mist.
+ * - Right Half: Three distinct expedition waypoints ascending toward the summit beacon:
+ *     1. Waypoint 01 // Source (Basecamp telemetry capsule)
+ *     2. Waypoint 02 // Build Engine (Core turbine station)
+ *     3. Destination // Production (Summit peak destination beacon)
+ */
 export function Hero() {
   const [animPhase, setAnimPhase] = useState<AnimPhase>("source");
   const [buildStep, setBuildStep] = useState<number>(0); // 0: idle, 1: installing, 2: compiling, 3: ready
@@ -171,11 +184,11 @@ export function Hero() {
   const isProductionRunning = isReducedMotion || animPhase === "production";
   const currentBuildStep = isReducedMotion ? 3 : buildStep;
 
-  // Connector paths with generous spacing between the 3 cards
-  // Path 1 (Source bottom [233, 116] -> Build Engine top [330, 184])
-  const path1D = "M 233 116 C 233 158, 330 142, 330 184";
-  // Path 2 (Build Engine bottom [410, 336] -> Production top [470, 406])
-  const path2D = "M 410 336 C 410 380, 470 362, 470 406";
+  // Minimal expedition route connectors following landscape contours:
+  // Route 1: Waypoint 01 Source bottom (168, 116) -> Waypoint 02 Build Engine top (284, 184)
+  const route1D = "M 168 116 C 168 156, 284 144, 284 184";
+  // Route 2: Waypoint 02 Build Engine bottom (414, 332) -> Destination Summit top (450, 384)
+  const route2D = "M 414 332 C 414 364, 450 352, 450 384";
 
   return (
     <section
@@ -191,19 +204,19 @@ export function Hero() {
         isInView={isInView}
       />
 
-      <div className="layout-container max-w-[1360px] w-full relative z-10 my-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 xl:gap-14 items-center">
+      <div className="layout-container max-w-[1400px] w-full relative z-10 my-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-8 items-center min-h-[calc(100vh-140px)]">
           
           {/* =================================================================
-              LEFT COLUMN: Editorial Typography & Actions (5 cols)
-              Strictly constrained to its own distinct zone; does not collide
-              with the deployment cards or merge into the mountain peaks.
+              LEFT THIRD: Editorial Typography & Actions (5 cols)
+              Occupies the left third with dramatic negative space, framed by
+              the moody dark valley terrain.
               ================================================================= */}
-          <div className="lg:col-span-5 xl:col-span-5 flex flex-col justify-center z-10 max-w-[490px] xl:max-w-[530px]">
+          <div className="lg:col-span-5 xl:col-span-5 flex flex-col justify-center z-20 max-w-[480px]">
 
             {/* Editorial Two-Line Headline with Character-by-Character Entrance */}
             <h1
-              className="font-sans text-[38px] sm:text-[46px] md:text-[54px] lg:text-[58px] xl:text-[66px] 2xl:text-[72px] font-medium leading-[1.05] tracking-[-0.035em] text-[#F5F5F3] mb-5 select-text max-w-[480px] lg:max-w-[490px] xl:max-w-[530px]"
+              className="font-sans text-[38px] sm:text-[46px] md:text-[54px] lg:text-[58px] xl:text-[66px] 2xl:text-[72px] font-medium leading-[1.04] tracking-[-0.035em] text-[#FAF8F5] mb-4 select-text max-w-[460px] xl:max-w-[500px]"
               aria-label="Your code belongs up here."
             >
               {/* Accessible text representation for screen readers */}
@@ -229,7 +242,7 @@ export function Hero() {
                 ))}
               </span>
 
-              {/* Line 2: "up here." with Burnt-Orange Accent */}
+              {/* Line 2: "up here." with Summit's burnt-orange accent */}
               <span
                 aria-hidden="true"
                 className="block whitespace-nowrap text-accent-orange"
@@ -253,13 +266,33 @@ export function Hero() {
               </span>
             </h1>
 
-            {/* Supporting Copy */}
-            <p className="font-sans text-[15px] sm:text-[16px] text-[#B0B0AE] leading-[1.6] max-w-[420px] mb-8 select-text">
+            {/* Supporting Copy — Fades in after headline */}
+            <p
+              className="hero-fade-up font-sans text-[15.5px] text-[#A6A4A0] leading-[1.6] max-w-[390px] mb-8 select-text"
+              style={
+                isReducedMotion
+                  ? { opacity: 1, transform: "none" }
+                  : {
+                      animation: "heroFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both",
+                      animationDelay: "0.80s",
+                    }
+              }
+            >
               From your first deploy to production infrastructure, everything moves forward.
             </p>
 
-            {/* Primary & Secondary Actions */}
-            <div className="flex flex-wrap items-center gap-3.5">
+            {/* Primary & Secondary Actions — Fades in beneath copy */}
+            <div
+              className="hero-fade-up flex flex-wrap items-center gap-3.5"
+              style={
+                isReducedMotion
+                  ? { opacity: 1, transform: "none" }
+                  : {
+                      animation: "heroFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both",
+                      animationDelay: "1.00s",
+                    }
+              }
+            >
               <Link
                 href={BRAND.links.signup}
                 className="inline-flex items-center justify-center h-[40px] px-5 rounded-[8px] bg-[#D88762] hover:bg-[#E39A76] text-[#111111] text-[13.5px] font-semibold transition-colors duration-[160ms] shadow-sm focus-visible:outline-2 focus-visible:outline-accent-orange focus-visible:outline-offset-2"
@@ -269,7 +302,7 @@ export function Hero() {
 
               <Link
                 href="/product"
-                className="inline-flex items-center justify-center h-[40px] px-5 rounded-[8px] bg-transparent border border-[#303030] hover:border-[#777777] text-[#F5F5F3] text-[13.5px] font-medium transition-colors duration-[160ms] focus-visible:outline-2 focus-visible:outline-accent-orange"
+                className="inline-flex items-center justify-center h-[40px] px-5 rounded-[8px] bg-transparent border border-[#333330] hover:border-[#777777] text-[#FAF8F5] text-[13.5px] font-medium transition-colors duration-[160ms] focus-visible:outline-2 focus-visible:outline-accent-orange"
               >
                 Explore the platform
               </Link>
@@ -278,24 +311,25 @@ export function Hero() {
           </div>
 
           {/* =================================================================
-              RIGHT COLUMN: Technical Overlay Infrastructure System (7 cols)
-              Shifted right & up with generous spacing between the 3 cards.
+              RIGHT HALF: The Infrastructure Expedition (7 cols)
+              Three bespoke waypoints ascending along the mountain contours:
+              Waypoint 01 (Basecamp) -> Waypoint 02 (High Engine) -> Destination (Summit)
               ================================================================= */}
-          <div className="lg:col-span-7 xl:col-span-7 relative w-full flex items-center justify-center lg:justify-end overflow-visible h-[300px] xs:h-[350px] sm:h-[430px] md:h-[480px] lg:h-[530px] lg:-translate-y-6 lg:translate-x-4 xl:-translate-y-8 xl:translate-x-8">
-            {/* Diagram Container: Spaced-out 660x520 coordinate space */}
-            <div className="w-[660px] h-[520px] shrink-0 origin-center lg:origin-top-right scale-[0.50] xs:scale-[0.58] sm:scale-[0.70] md:scale-[0.80] lg:scale-[0.88] xl:scale-100 relative select-none">
+          <div className="lg:col-span-7 xl:col-span-7 relative w-full flex items-center justify-center lg:justify-end overflow-visible h-[300px] xs:h-[350px] sm:h-[430px] md:h-[480px] lg:h-[530px] lg:-translate-y-4 lg:translate-x-3 xl:-translate-y-6 xl:translate-x-6 z-20">
+            {/* Expedition Canvas: 680x520 coordinate space */}
+            <div className="w-[680px] h-[520px] shrink-0 origin-center lg:origin-top-right scale-[0.48] xs:scale-[0.56] sm:scale-[0.68] md:scale-[0.78] lg:scale-[0.88] xl:scale-100 relative select-none">
               
-              {/* SVG Infrastructure Connector Layer (Glowing Orange 1st & Glowing Green 2nd with Animation) */}
+              {/* SVG Expedition Route Connectors (Glowing Minimal Paths, No White Dotted) */}
               <svg
-                viewBox="0 0 660 520"
+                viewBox="0 0 680 520"
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
                 className="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-visible"
                 aria-hidden="true"
               >
                 <defs>
-                  {/* Glow filter for 1st connector line (Burnt Orange) */}
-                  <filter id="heroGlowOrange" x="-60%" y="-60%" width="220%" height="220%">
+                  {/* Glowing orange aura filter for Trail 1 */}
+                  <filter id="expeditionGlowOrange" x="-60%" y="-60%" width="220%" height="220%">
                     <feGaussianBlur in="SourceGraphic" stdDeviation="3.5" result="blur1" />
                     <feGaussianBlur in="SourceGraphic" stdDeviation="7" result="blur2" />
                     <feMerge>
@@ -305,8 +339,8 @@ export function Hero() {
                     </feMerge>
                   </filter>
 
-                  {/* Glow filter for 2nd connector line (Sage Green) */}
-                  <filter id="heroGlowGreen" x="-60%" y="-60%" width="220%" height="220%">
+                  {/* Glowing green aura filter for Trail 2 */}
+                  <filter id="expeditionGlowGreen" x="-60%" y="-60%" width="220%" height="220%">
                     <feGaussianBlur in="SourceGraphic" stdDeviation="3.5" result="blur1" />
                     <feGaussianBlur in="SourceGraphic" stdDeviation="7" result="blur2" />
                     <feMerge>
@@ -316,15 +350,15 @@ export function Hero() {
                     </feMerge>
                   </filter>
 
-                  {/* Luminous Orange Gradient */}
-                  <linearGradient id="lineGradOrange" x1="0%" y1="0%" x2="100%" y2="100%">
+                  {/* Luminous Orange Trail Gradient */}
+                  <linearGradient id="trailGradOrange" x1="0%" y1="0%" x2="100%" y2="100%">
                     <stop offset="0%" stopColor="#FFA67E" />
                     <stop offset="50%" stopColor="#D88762" />
                     <stop offset="100%" stopColor="#FFA67E" />
                   </linearGradient>
 
-                  {/* Luminous Green Gradient */}
-                  <linearGradient id="lineGradGreen" x1="0%" y1="0%" x2="100%" y2="100%">
+                  {/* Luminous Green Trail Gradient */}
+                  <linearGradient id="trailGradGreen" x1="0%" y1="0%" x2="100%" y2="100%">
                     <stop offset="0%" stopColor="#B3EAD0" />
                     <stop offset="50%" stopColor="#83B69A" />
                     <stop offset="100%" stopColor="#B3EAD0" />
@@ -332,50 +366,50 @@ export function Hero() {
                 </defs>
 
                 {/* -----------------------------------------------------------
-                    CONNECTOR 1: Source -> Build Engine
-                    JUST GLOWING BURNT ORANGE (NO WHITE DOTTED)
+                    EXPEDITION ROUTE 1: Waypoint 01 (Source) -> Waypoint 02 (Build Engine)
+                    GLOWING BURNT ORANGE ALONG MOUNTAIN SADDLE CONTOUR
                     ----------------------------------------------------------- */}
-                {/* 1. Deep ambient orange glow aura with gentle luminous breathing */}
+                {/* 1. Deep ambient orange glow shadow */}
                 <path
-                  d={path1D}
+                  d={route1D}
                   stroke="#D88762"
-                  strokeWidth="8"
+                  strokeWidth="7"
                   strokeLinecap="round"
-                  opacity="0.5"
-                  filter="url(#heroGlowOrange)"
+                  opacity="0.4"
+                  filter="url(#expeditionGlowOrange)"
                 >
                   {!isReducedMotion && (
                     <animate
                       attributeName="opacity"
-                      values="0.35;0.65;0.35"
+                      values="0.30;0.60;0.30"
                       dur="2.4s"
                       repeatCount="indefinite"
                     />
                   )}
                 </path>
 
-                {/* 2. Core bright glowing orange line */}
+                {/* 2. Core bright orange line */}
                 <path
-                  d={path1D}
-                  stroke="url(#lineGradOrange)"
-                  strokeWidth="2.5"
+                  d={route1D}
+                  stroke="url(#trailGradOrange)"
+                  strokeWidth="2"
                   strokeLinecap="round"
                   opacity="0.95"
                 />
 
-                {/* 3. Glowing orange energy bead gliding continuously along the line */}
+                {/* 3. Glowing orange energy bead gliding along the trail */}
                 {!isReducedMotion && (
                   <g>
-                    <circle r="7" fill="#D88762" opacity="0.6" filter="url(#heroGlowOrange)">
+                    <circle r="6" fill="#D88762" opacity="0.6" filter="url(#expeditionGlowOrange)">
                       <animateMotion
-                        path={path1D}
+                        path={route1D}
                         dur="1.8s"
                         repeatCount="indefinite"
                       />
                     </circle>
-                    <circle r="3.5" fill="#FFA67E" filter="url(#heroGlowOrange)">
+                    <circle r="3" fill="#FFA67E" filter="url(#expeditionGlowOrange)">
                       <animateMotion
-                        path={path1D}
+                        path={route1D}
                         dur="1.8s"
                         repeatCount="indefinite"
                       />
@@ -383,55 +417,55 @@ export function Hero() {
                   </g>
                 )}
 
-                {/* Terminal Pins Connector 1 */}
-                <circle cx="233" cy="116" r="3.5" fill="#FFA67E" filter="url(#heroGlowOrange)" />
-                <circle cx="330" cy="184" r="3.5" fill="#FFA67E" filter="url(#heroGlowOrange)" />
+                {/* Anchor Reticles Route 1 */}
+                <circle cx="168" cy="116" r="3.5" fill="#FFA67E" filter="url(#expeditionGlowOrange)" />
+                <circle cx="284" cy="184" r="3.5" fill="#FFA67E" filter="url(#expeditionGlowOrange)" />
 
                 {/* -----------------------------------------------------------
-                    CONNECTOR 2: Build Engine -> Production
-                    JUST GLOWING SAGE GREEN (NO WHITE DOTTED)
+                    EXPEDITION ROUTE 2: Waypoint 02 (Build Engine) -> Destination (Summit)
+                    GLOWING SAGE GREEN ASCENDING THE HIGH SUMMIT ARÊTE
                     ----------------------------------------------------------- */}
-                {/* 1. Deep ambient green glow aura with gentle luminous breathing */}
+                {/* 1. Deep ambient green glow shadow */}
                 <path
-                  d={path2D}
+                  d={route2D}
                   stroke="#83B69A"
-                  strokeWidth="8"
+                  strokeWidth="7"
                   strokeLinecap="round"
-                  opacity="0.5"
-                  filter="url(#heroGlowGreen)"
+                  opacity="0.4"
+                  filter="url(#expeditionGlowGreen)"
                 >
                   {!isReducedMotion && (
                     <animate
                       attributeName="opacity"
-                      values="0.35;0.65;0.35"
+                      values="0.30;0.60;0.30"
                       dur="2.4s"
                       repeatCount="indefinite"
                     />
                   )}
                 </path>
 
-                {/* 2. Core bright glowing green line */}
+                {/* 2. Core bright green line */}
                 <path
-                  d={path2D}
-                  stroke="url(#lineGradGreen)"
-                  strokeWidth="2.5"
+                  d={route2D}
+                  stroke="url(#trailGradGreen)"
+                  strokeWidth="2"
                   strokeLinecap="round"
                   opacity="0.95"
                 />
 
-                {/* 3. Glowing sage-green energy bead gliding continuously along the line */}
+                {/* 3. Glowing sage-green energy bead gliding along the trail */}
                 {!isReducedMotion && (
                   <g>
-                    <circle r="7" fill="#83B69A" opacity="0.6" filter="url(#heroGlowGreen)">
+                    <circle r="6" fill="#83B69A" opacity="0.6" filter="url(#expeditionGlowGreen)">
                       <animateMotion
-                        path={path2D}
+                        path={route2D}
                         dur="1.8s"
                         repeatCount="indefinite"
                       />
                     </circle>
-                    <circle r="3.5" fill="#B3EAD0" filter="url(#heroGlowGreen)">
+                    <circle r="3" fill="#B3EAD0" filter="url(#expeditionGlowGreen)">
                       <animateMotion
-                        path={path2D}
+                        path={route2D}
                         dur="1.8s"
                         repeatCount="indefinite"
                       />
@@ -439,29 +473,36 @@ export function Hero() {
                   </g>
                 )}
 
-                {/* Terminal Pins Connector 2 */}
-                <circle cx="410" cy="336" r="3.5" fill="#B3EAD0" filter="url(#heroGlowGreen)" />
-                <circle cx="470" cy="406" r="3.5" fill="#B3EAD0" filter="url(#heroGlowGreen)" />
+                {/* Anchor Reticles Route 2 */}
+                <circle cx="414" cy="332" r="3.5" fill="#B3EAD0" filter="url(#expeditionGlowGreen)" />
+                <circle cx="450" cy="384" r="3.5" fill="#B3EAD0" filter="url(#expeditionGlowGreen)" />
               </svg>
 
               {/* -------------------------------------------------------------
-                  CARD 1: SOURCE NODE (Top: left 120px, top 12px, width 226px)
-                  Shifted right and up away from the headline
+                  STATION 01 // SOURCE (Basecamp Waypoint Capsule)
+                  Position: left 60px, top 24px, width 216px
+                  Compact, sleek telemetry waypoint with origin commit & status
                   ------------------------------------------------------------- */}
               <div
                 style={{
-                  left: 120,
-                  top: 12,
-                  width: 226,
+                  left: 60,
+                  top: 24,
+                  width: 216,
+                  ...(isReducedMotion
+                    ? {}
+                    : {
+                        animation: "heroFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both",
+                        animationDelay: "0.55s",
+                      }),
                 }}
-                className={`absolute rounded-[8px] backdrop-blur-md p-3 transition-all duration-300 z-10 ${
+                className={`hero-fade-up absolute rounded-[8px] backdrop-blur-md p-3 transition-all duration-300 z-10 ${
                   activeStage === "source"
-                    ? "bg-[#1B1917]/95 border-[1.5px] border-accent-orange ring-1 ring-accent-orange/50 shadow-[0_0_24px_rgba(216,135,98,0.32),0_4px_16px_rgba(0,0,0,0.6)]"
+                    ? "bg-[#1A1816]/95 border-[1.5px] border-accent-orange ring-1 ring-accent-orange/50 shadow-[0_0_24px_rgba(216,135,98,0.32),0_4px_16px_rgba(0,0,0,0.6)]"
                     : "bg-[#141413]/90 border border-[#3A3A36] hover:border-[#555550] shadow-xl shadow-black/60"
                 }`}
-                aria-label="Source Node"
+                aria-label="Waypoint 01: Source"
               >
-                {/* Node Header */}
+                {/* Station Header */}
                 <div
                   className={`flex items-center justify-between mb-1.5 pb-1.5 border-b transition-colors duration-300 ${
                     activeStage === "source" ? "border-accent-orange/30" : "border-[#2C2C2A]/60"
@@ -476,54 +517,61 @@ export function Hero() {
                       }`}
                     />
                     <span
-                      className={`font-mono text-[9.5px] uppercase tracking-wider font-medium transition-colors duration-300 ${
+                      className={`font-mono text-[9px] uppercase tracking-wider font-medium transition-colors duration-300 ${
                         activeStage === "source" ? "text-accent-orange" : "text-text-muted"
                       }`}
                     >
-                      SOURCE
+                      01 // SOURCE
                     </span>
                   </div>
-                  <span className="font-mono text-[9px] px-1.5 py-0.5 rounded-[3px] bg-[#20201E] border border-[#2C2C2A] text-text-secondary">
+                  <span className="font-mono text-[8.5px] px-1.5 py-0.5 rounded-[3px] bg-[#20201E] border border-[#2C2C2A] text-text-secondary">
                     main
                   </span>
                 </div>
 
-                {/* Node Body: Commit & Diff Details */}
-                <div className="space-y-0.5 font-mono text-[10.5px]">
+                {/* Station Body: Commit & Diff Details */}
+                <div className="space-y-0.5 font-mono text-[10px]">
                   <div className="flex items-center justify-between">
-                    <span className="text-[#F5F5F3] font-medium">commit 8f3a21c</span>
-                    <span className="text-semantic-success text-[9.5px]">+142 -18</span>
+                    <span className="text-[#FAF8F5] font-medium">commit 8f3a21c</span>
+                    <span className="text-semantic-success text-[9px]">+142 -18</span>
                   </div>
-                  <p className="text-[10px] text-text-muted truncate">
+                  <p className="text-[9.5px] text-text-muted truncate">
                     feat(routing): edge cluster v2
                   </p>
                 </div>
 
-                {/* Node Footer */}
-                <div className="mt-2 pt-1.5 border-t border-[#2C2C2A]/50 flex items-center justify-between font-mono text-[9.5px] text-text-muted">
-                  <span>origin/main</span>
+                {/* Station Footer */}
+                <div className="mt-2 pt-1.5 border-t border-[#2C2C2A]/50 flex items-center justify-between font-mono text-[9px] text-text-muted">
+                  <span className="tracking-wide">ELEV 1,640M</span>
                   <span className="text-accent-orange font-medium">READY</span>
                 </div>
               </div>
 
               {/* -------------------------------------------------------------
-                  CARD 2: BUILD ENGINE NODE (Center: left 260px, top 184px, width 250px)
-                  Spaced out with 68px vertical gap from Source
+                  STATION 02 // BUILD ENGINE (Core Turbine Station)
+                  Position: left 220px, top 184px, width 254px
+                  The prominent central technical instrument panel
                   ------------------------------------------------------------- */}
               <div
                 style={{
-                  left: 260,
+                  left: 220,
                   top: 184,
-                  width: 250,
+                  width: 254,
+                  ...(isReducedMotion
+                    ? {}
+                    : {
+                        animation: "heroFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both",
+                        animationDelay: "0.80s",
+                      }),
                 }}
-                className={`absolute rounded-[8px] backdrop-blur-md p-3 transition-all duration-300 z-10 ${
+                className={`hero-fade-up absolute rounded-[8px] backdrop-blur-md p-3.5 transition-all duration-300 z-10 ${
                   activeStage === "build"
-                    ? "bg-[#1B1917]/95 border-[1.5px] border-accent-orange ring-1 ring-accent-orange/50 shadow-[0_0_28px_rgba(216,135,98,0.35),0_4px_16px_rgba(0,0,0,0.6)]"
+                    ? "bg-[#1A1816]/95 border-[1.5px] border-accent-orange ring-1 ring-accent-orange/50 shadow-[0_0_28px_rgba(216,135,98,0.35),0_4px_16px_rgba(0,0,0,0.6)]"
                     : "bg-[#141413]/90 border border-[#3A3A36] hover:border-[#555550] shadow-xl shadow-black/60"
                 }`}
-                aria-label="Build Engine Node"
+                aria-label="Waypoint 02: Build Engine"
               >
-                {/* Node Header */}
+                {/* Station Header */}
                 <div
                   className={`flex items-center justify-between mb-1.5 pb-1.5 border-b transition-colors duration-300 ${
                     activeStage === "build" ? "border-accent-orange/30" : "border-[#2C2C2A]/60"
@@ -540,36 +588,36 @@ export function Hero() {
                       }`}
                     />
                     <span
-                      className={`font-mono text-[9.5px] uppercase tracking-wider font-medium transition-colors duration-300 ${
+                      className={`font-mono text-[9px] uppercase tracking-wider font-medium transition-colors duration-300 ${
                         activeStage === "build" ? "text-accent-orange" : "text-text-muted"
                       }`}
                     >
-                      BUILD ENGINE
+                      02 // BUILD ENGINE
                     </span>
                   </div>
-                  <span className="font-mono text-[9px] px-1.5 py-0.5 rounded-[3px] bg-[#20201E] border border-[#2C2C2A] text-text-secondary">
+                  <span className="font-mono text-[8.5px] px-1.5 py-0.5 rounded-[3px] bg-[#20201E] border border-[#2C2C2A] text-text-secondary">
                     turbopack
                   </span>
                 </div>
 
                 {/* Simulated Build Steps */}
-                <div className="space-y-1 font-mono text-[10.5px]">
+                <div className="space-y-1 font-mono text-[10px]">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-text-muted text-[9.5px]">01</span>
-                    <span className={currentBuildStep >= 1 ? "text-[#F5F5F3]" : "text-text-muted"}>
+                    <span className="text-text-muted text-[9px]">01</span>
+                    <span className={currentBuildStep >= 1 ? "text-[#FAF8F5]" : "text-text-muted"}>
                       pnpm install --frozen
                     </span>
                     {currentBuildStep >= 1 && <Check className="w-2.5 h-2.5 text-semantic-success ml-auto" />}
                   </div>
 
                   <div className="flex items-center gap-1.5">
-                    <span className="text-text-muted text-[9.5px]">02</span>
+                    <span className="text-text-muted text-[9px]">02</span>
                     <span
                       className={
                         currentBuildStep === 2
                           ? "text-accent-orange font-medium"
                           : currentBuildStep >= 3
-                          ? "text-[#F5F5F3]"
+                          ? "text-[#FAF8F5]"
                           : "text-text-muted"
                       }
                     >
@@ -594,9 +642,9 @@ export function Hero() {
                   </div>
                 </div>
 
-                {/* Build status label */}
-                <div className="mt-2 pt-1.5 border-t border-[#2C2C2A]/50 flex items-center justify-between font-mono text-[9.5px]">
-                  <span className="text-text-muted">status</span>
+                {/* Station Footer */}
+                <div className="mt-2 pt-1.5 border-t border-[#2C2C2A]/50 flex items-center justify-between font-mono text-[9px]">
+                  <span className="text-text-muted tracking-wide">ELEV 2,840M</span>
                   <span
                     className={
                       currentBuildStep >= 3
@@ -612,23 +660,30 @@ export function Hero() {
               </div>
 
               {/* -------------------------------------------------------------
-                  CARD 3: PRODUCTION NODE (Bottom-Right: left 380px, top 406px, width 246px)
-                  Spaced out with 68px vertical gap from Build Engine
+                  STATION 03 // DESTINATION (The Summit Peak Beacon)
+                  Position: left 380px, top 384px, width 250px
+                  Refined destination marker crowning the highest mountain peak
                   ------------------------------------------------------------- */}
               <div
                 style={{
                   left: 380,
-                  top: 406,
-                  width: 246,
+                  top: 384,
+                  width: 250,
+                  ...(isReducedMotion
+                    ? {}
+                    : {
+                        animation: "heroFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both",
+                        animationDelay: "1.05s",
+                      }),
                 }}
-                className={`absolute rounded-[8px] backdrop-blur-md p-3 transition-all duration-300 z-10 ${
+                className={`hero-fade-up absolute rounded-[8px] backdrop-blur-md p-3.5 transition-all duration-300 z-10 ${
                   activeStage === "production" || isProductionRunning
-                    ? "bg-[#151B17]/95 border-[1.5px] border-semantic-success ring-1 ring-semantic-success/50 shadow-[0_0_28px_rgba(131,182,154,0.35),0_4px_16px_rgba(0,0,0,0.6)]"
+                    ? "bg-[#141B16]/95 border-[1.5px] border-semantic-success ring-1 ring-semantic-success/50 shadow-[0_0_28px_rgba(131,182,154,0.35),0_4px_16px_rgba(0,0,0,0.6)]"
                     : "bg-[#141413]/90 border border-[#3A3A36] hover:border-[#555550] shadow-xl shadow-black/60"
                 }`}
-                aria-label="Production Node"
+                aria-label="Destination: Summit Peak Production"
               >
-                {/* Node Header */}
+                {/* Station Header: Destination Marker */}
                 <div
                   className={`flex items-center justify-between mb-1.5 pb-1.5 border-b transition-colors duration-300 ${
                     isProductionRunning ? "border-semantic-success/30" : "border-[#2C2C2A]/60"
@@ -636,47 +691,47 @@ export function Hero() {
                 >
                   <div className="flex items-center gap-1.5">
                     <span
-                      className={`w-1.5 h-1.5 rounded-full ${
+                      className={`w-2 h-2 rounded-full ${
                         isProductionRunning
                           ? "bg-semantic-success shadow-[0_0_8px_rgba(131,182,154,0.9)] animate-pulse"
                           : "bg-text-muted/60"
                       }`}
                     />
                     <span
-                      className={`font-mono text-[9.5px] uppercase tracking-wider font-medium transition-colors duration-300 ${
+                      className={`font-mono text-[9px] uppercase tracking-wider font-semibold transition-colors duration-300 ${
                         isProductionRunning ? "text-semantic-success" : "text-text-muted"
                       }`}
                     >
-                      PRODUCTION
+                      DESTINATION // SUMMIT
                     </span>
                   </div>
                   <span
-                    className={`font-mono text-[9px] px-1.5 py-0.5 rounded-[3px] border font-medium ${
+                    className={`font-mono text-[8.5px] px-1.5 py-0.5 rounded-[3px] border font-medium ${
                       isProductionRunning
                         ? "bg-semantic-success/15 border-semantic-success/30 text-semantic-success"
                         : "bg-[#20201E] border-[#2C2C2A] text-text-muted"
                     }`}
                   >
-                    {isProductionRunning ? "RUNNING" : "DEPLOYING"}
+                    {isProductionRunning ? "LIVE" : "DEPLOYING"}
                   </span>
                 </div>
 
-                {/* Production Body: Service details */}
-                <div className="space-y-0.5 font-mono text-[10.5px]">
-                  <div className="text-[#F5F5F3] font-medium truncate flex items-center justify-between">
+                {/* Station Body: Endpoint & Global Edge Telemetry */}
+                <div className="space-y-0.5 font-mono text-[10px]">
+                  <div className="text-[#FAF8F5] font-medium truncate flex items-center justify-between">
                     <span>app.summit.demo</span>
-                    <span className="text-[9px] text-text-muted">https</span>
+                    <span className="text-[8.5px] text-text-muted">https</span>
                   </div>
-                  <div className="flex items-center justify-between text-[9.5px] text-text-muted">
+                  <div className="flex items-center justify-between text-[9px] text-text-muted">
                     <span>iad1-edge</span>
                     <span className="text-semantic-success">18ms</span>
                   </div>
                 </div>
 
-                {/* Health & Deployment confirmation */}
-                <div className="mt-2 pt-1.5 border-t border-[#2C2C2A]/50 flex items-center justify-between font-mono text-[9.5px] text-text-muted">
-                  <span>health: 100%</span>
-                  <span className="text-text-primary">SSL active</span>
+                {/* Station Footer: Geodesic Summit Elevation & Health */}
+                <div className="mt-2 pt-1.5 border-t border-[#2C2C2A]/50 flex items-center justify-between font-mono text-[9px] text-text-muted">
+                  <span className="tracking-wide">SUMMIT // 3,428M</span>
+                  <span className="text-semantic-success font-medium">SSL active</span>
                 </div>
               </div>
 
