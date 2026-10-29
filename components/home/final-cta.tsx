@@ -3,7 +3,6 @@
 import React, { useRef, useEffect, useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, ExternalLink } from "lucide-react";
 
 // Reduced Motion Subscription helper
 function subscribeReducedMotion(callback: () => void) {
@@ -22,16 +21,26 @@ function getReducedMotionServerSnapshot() {
   return false;
 }
 
+const HEADLINE_LINES = [
+  { words: ["Your", "code."], color: "text-[#F2F0EB]", weight: "font-medium" },
+  { words: ["Ready", "for"], color: "text-[#DDD8CE]", weight: "font-normal" },
+  { words: ["what’s", "next."], color: "text-[#C2BCAD]", weight: "font-normal" },
+];
+
+const TOTAL_HEADLINE_CHARS = HEADLINE_LINES.reduce(
+  (acc, line) => acc + line.words.reduce((wAcc, w) => wAcc + w.length, 0),
+  0
+);
+
 /**
  * FinalCta: Section 08 — Final Call to Action
  * "Your code. Ready for what’s next."
- *
  * Locked-Screen Multi-Stage Cinematic Reveal:
  * 1. Screen locks in place with extended scroll track (h-[360vh] sm:h-[380vh] lg:h-[400vh])
- * 2. Stage 1 (p in [0.00 .. 0.34]): Clouds part horizontally to the flanks
- * 3. Stage 2 (p in [0.32 .. 0.64]): Mountain horizon emerges and ascends from the bottom
- * 4. Stage 3 (p in [0.62 .. 0.88]): Typography ("Your code. Ready for what’s next.") and CTAs surge forward into crisp focus
- * 5. Stage 4 (p in [0.88 .. 1.00]): Settled plateau where the complete scene remains stable and interactive
+ * 2. Stage 0: Clouds sweep in and seal shut ("clouds came and got closed")
+ * 3. Stage 1 & 2: Clouds open wide and mountain horizon emerges simultaneously
+ * 4. Stage 3: Independent alphabet-by-alphabet kinetic typographic emergence
+ * 5. Stage 4: Settled plateau where the complete scene remains stable and interactive
  */
 export function FinalCta() {
   const sectionRef = useRef<HTMLElement>(null);
@@ -41,11 +50,15 @@ export function FinalCta() {
   const cloudLeftRef = useRef<HTMLDivElement>(null);
   const cloudRightRef = useRef<HTMLDivElement>(null);
 
-  // Emerging mountain horizon reference (Rises upward after clouds part)
+  // Emerging mountain horizon reference (Rises upward after clouds part, before text)
   const mountainRef = useRef<HTMLDivElement>(null);
 
-  // Section content reference (surges from inside the screen after mountain settles)
+  // Staggered editorial section references
   const contentWrapperRef = useRef<HTMLDivElement>(null);
+  const charRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const subcopyRef = useRef<HTMLParagraphElement>(null);
+  const ctaAreaRef = useRef<HTMLDivElement>(null);
+  const detailsRef = useRef<HTMLDivElement>(null);
 
   // Synchronously subscribe to reduced motion preference
   const isReducedMotion = useSyncExternalStore(
@@ -65,10 +78,14 @@ export function FinalCta() {
         el.style.transition = "none";
       };
 
-      resetEl(cloudLeftRef.current, "translate3d(-600px, 0, 0)", "0.85");
-      resetEl(cloudRightRef.current, "translate3d(600px, 0, 0)", "0.85");
+      resetEl(cloudLeftRef.current, "translate3d(-900px, 0, 0)", "0.85");
+      resetEl(cloudRightRef.current, "translate3d(900px, 0, 0)", "0.85");
       resetEl(mountainRef.current, "translate3d(0, 0, 0)", "1.0");
       resetEl(contentWrapperRef.current, "none", "1");
+      charRefs.current.forEach((el) => resetEl(el, "none", "1"));
+      resetEl(subcopyRef.current, "none", "1");
+      resetEl(ctaAreaRef.current, "none", "1");
+      resetEl(detailsRef.current, "none", "1");
       return;
     }
 
@@ -80,6 +97,7 @@ export function FinalCta() {
     let isInitialized = false;
     let rafId: number | null = null;
     let isIntersecting = false;
+    let entryStartTime: number | null = null;
 
     // Deceleration & symmetrical easing helpers
     const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
@@ -97,41 +115,55 @@ export function FinalCta() {
       return Math.min(1.0, Math.max(0.0, rawP));
     };
 
-    const render = (p: number) => {
+    const render = (p: number, now: number) => {
       const isMobile = window.innerWidth < 640;
       const isTablet = window.innerWidth >= 640 && window.innerWidth < 1024;
 
       // =================================================================
-      // STAGE 1: CLOUDS PART HORIZONTALLY (p in [0.00 .. 0.34])
+      // STAGE 0: ENTRY SEAL ANIMATION ("Clouds came and got closed")
+      // As the user arrives at this section, clouds glide in from the sides
+      // and seal shut in the center, before parting.
       // =================================================================
-      const cloudFactor = p < 0.34 ? easeOutCubic(p / 0.34) : 1.0;
+      const rect = section.getBoundingClientRect();
+      const scrollApproach =
+        rect.top <= 0
+          ? 1.0
+          : Math.max(0.0, 1.0 - rect.top / (window.innerHeight * 0.85));
+
+      const timeElapsed =
+        entryStartTime !== null ? (now - entryStartTime) / 750 : 1.0;
+      const timeSeal = Math.min(1.0, Math.max(0.0, timeElapsed));
+
+      // If user has already scrolled into the sequence (p > 0.02), clouds are 100% sealed
+      const entrySeal =
+        p > 0.02
+          ? 1.0
+          : Math.max(easeOutCubic(timeSeal), easeOutCubic(scrollApproach));
+
+      const entrySeparation =
+        (1 - entrySeal) * (isMobile ? 260 : isTablet ? 360 : 480);
 
       // =================================================================
-      // STAGE 2: MOUNTAINS EMERGE FROM BOTTOM (p in [0.32 .. 0.64])
-      // Appears first after clouds open, before the text renders
+      // STAGE 1: CLOUDS OPEN WIDE (p in [0.04 .. 0.46])
+      // Sweep far to the left and right flanks (viewport-relative)
       // =================================================================
-      let mountainFactor = 0;
-      if (p >= 0.32) {
-        mountainFactor = p < 0.64 ? easeOutCubic((p - 0.32) / 0.32) : 1.0;
-      }
+      const openFactor =
+        p < 0.04 ? 0 : easeOutCubic(Math.min(1.0, (p - 0.04) / 0.42));
 
-      // =================================================================
-      // STAGE 3: TEXT & CTAS RENDER (p in [0.62 .. 0.88])
-      // Surges into focus after the mountain horizon has risen into place
-      // =================================================================
-      let textFactor = 0;
-      if (p >= 0.62) {
-        textFactor = p < 0.88 ? easeOutCubic((p - 0.62) / 0.26) : 1.0;
-      }
+      // Generous wide offset so clouds travel significantly further to left and right
+      const outOffset = Math.max(
+        window.innerWidth * 0.75,
+        isMobile ? 620 : isTablet ? 950 : 1380
+      );
 
-      // -----------------------------------------------------------------
-      // 1. LEFT & RIGHT CLOUDS: Glide outward to flanks
-      // -----------------------------------------------------------------
-      const outOffset = isMobile ? 320 : isTablet ? 460 : 620;
-      const xLeft = (-outOffset * cloudFactor).toFixed(2);
-      const xRight = (outOffset * cloudFactor).toFixed(2);
-      const sCloud = (1.0 + 0.02 * cloudFactor).toFixed(3);
-      const opCloud = (0.92 - 0.06 * cloudFactor).toFixed(3);
+      const xLeft = (-entrySeparation - outOffset * openFactor).toFixed(2);
+      const xRight = (entrySeparation + outOffset * openFactor).toFixed(2);
+      const sCloud = (1.0 + 0.03 * openFactor).toFixed(3);
+      const opCloud = (
+        0.75 +
+        0.20 * entrySeal -
+        0.12 * openFactor
+      ).toFixed(3);
 
       if (cloudLeftRef.current) {
         cloudLeftRef.current.style.transform = `translate3d(${xLeft}px, 0, 0) scale(${sCloud})`;
@@ -142,9 +174,16 @@ export function FinalCta() {
         cloudRightRef.current.style.opacity = opCloud;
       }
 
-      // -----------------------------------------------------------------
-      // 2. MOUNTAINS: Ascend smoothly from bottom (First after clouds)
-      // -----------------------------------------------------------------
+      // =================================================================
+      // STAGE 2: MOUNTAIN HORIZON EMERGES AS CLOUDS START OPENING (p in [0.04 .. 0.46])
+      // Appears immediately when the clouds begin opening, ascending in tandem
+      // =================================================================
+      let mountainFactor = 0;
+      if (p >= 0.04) {
+        mountainFactor =
+          p < 0.46 ? easeOutCubic((p - 0.04) / 0.42) : 1.0;
+      }
+
       if (mountainRef.current) {
         const baseOffsetY = isMobile ? 140 : isTablet ? 180 : 220;
         const mountainY = (baseOffsetY * (1 - mountainFactor)).toFixed(2);
@@ -155,22 +194,49 @@ export function FinalCta() {
         mountainRef.current.style.opacity = mountainOp;
       }
 
-      // -----------------------------------------------------------------
-      // 3. EDITORIAL TEXT & CTAS: 3D Surge into crisp focus (After mountains)
-      // -----------------------------------------------------------------
-      if (contentWrapperRef.current) {
-        const scaleContent = (0.80 + 0.20 * textFactor).toFixed(3);
-        const yContent = ((isMobile ? 24 : 36) * (1 - textFactor)).toFixed(2);
-        const opContent = (textFactor * 1.0).toFixed(3);
-        const blurContent =
-          textFactor > 0.88
-            ? "none"
-            : `blur(${((1 - textFactor) * 6).toFixed(1)}px)`;
+      // =================================================================
+      // STAGE 3: INDEPENDENT ALPHABET-BY-ALPHABET EMERGENCE (p in [0.44 .. 0.74])
+      // Each letter ascends from underneath independently in rhythmic cascade
+      // =================================================================
+      charRefs.current.forEach((el, i) => {
+        if (!el) return;
+        const start = 0.44 + (i / TOTAL_HEADLINE_CHARS) * 0.22;
+        const dur = 0.08;
+        let f = 0;
+        if (p >= start + dur) f = 1;
+        else if (p > start) f = easeOutCubic((p - start) / dur);
 
-        contentWrapperRef.current.style.transform = `translate3d(0, ${yContent}px, 0) scale(${scaleContent})`;
-        contentWrapperRef.current.style.opacity = opContent;
-        contentWrapperRef.current.style.filter = blurContent;
+        const y = (110 * (1 - f)).toFixed(1);
+        const op = f.toFixed(3);
+        el.style.transform = `translate3d(0, ${y}%, 0)`;
+        el.style.opacity = op;
+      });
+
+      // Supporting copy, CTA area, and field notes reveal
+      const getFactor = (start: number, end: number) => {
+        if (p < start) return 0;
+        if (p >= end) return 1;
+        return easeOutCubic((p - start) / (end - start));
+      };
+
+      const subcopyFactor = getFactor(0.68, 0.82);
+      const ctaFactor = getFactor(0.74, 0.88);
+      const detailsFactor = getFactor(0.80, 0.92);
+
+      const applyStagger = (el: HTMLElement | null, factor: number, distY = 16) => {
+        if (!el) return;
+        const y = (distY * (1 - factor)).toFixed(2);
+        el.style.transform = `translate3d(0, ${y}px, 0)`;
+        el.style.opacity = factor.toFixed(3);
+      };
+
+      if (contentWrapperRef.current) {
+        contentWrapperRef.current.style.opacity = p >= 0.42 ? "1" : "0";
       }
+
+      applyStagger(subcopyRef.current, subcopyFactor, 16);
+      applyStagger(ctaAreaRef.current, ctaFactor, 16);
+      applyStagger(detailsRef.current, detailsFactor, 12);
     };
 
     let lastTime: number | null = null;
@@ -182,9 +248,12 @@ export function FinalCta() {
       lastTime = now;
 
       const diff = targetP - currentP;
-      if (Math.abs(diff) < 0.0004) {
+      const isSealing =
+        entryStartTime !== null && now - entryStartTime < 800 && currentP <= 0.03;
+
+      if (Math.abs(diff) < 0.0004 && !isSealing) {
         currentP = targetP;
-        render(currentP);
+        render(currentP, now);
         rafId = null;
         lastTime = null;
         return;
@@ -197,10 +266,11 @@ export function FinalCta() {
       // Exponential decay damping
       const lerpRate = 4.2;
       const rawStep = diff * (1 - Math.exp(-lerpRate * dt));
-      const clampedStep = Math.sign(rawStep) * Math.min(Math.abs(rawStep), maxStep);
+      const clampedStep =
+        Math.sign(rawStep) * Math.min(Math.abs(rawStep), maxStep);
 
       currentP += clampedStep;
-      render(currentP);
+      render(currentP, now);
       rafId = requestAnimationFrame(tick);
     };
 
@@ -221,17 +291,18 @@ export function FinalCta() {
       ([entry]) => {
         isIntersecting = entry.isIntersecting;
         if (isIntersecting) {
+          entryStartTime = performance.now();
           targetP = computeTargetP();
           if (!isInitialized) {
             currentP = targetP;
-            render(currentP);
+            render(currentP, performance.now());
             isInitialized = true;
-          } else {
-            requestTick();
           }
+          requestTick();
           window.addEventListener("scroll", onScroll, { passive: true });
           window.addEventListener("resize", onResize, { passive: true });
         } else {
+          entryStartTime = null;
           window.removeEventListener("scroll", onScroll);
           window.removeEventListener("resize", onResize);
           if (rafId !== null) {
@@ -247,9 +318,10 @@ export function FinalCta() {
     observer.observe(section);
 
     // Initial calculation on mount
+    entryStartTime = performance.now();
     targetP = computeTargetP();
     currentP = targetP;
-    render(currentP);
+    render(currentP, performance.now());
     isInitialized = true;
 
     return () => {
@@ -276,72 +348,156 @@ export function FinalCta() {
       >
         {/* =================================================================
             EMERGING MOUNTAIN HORIZON (z-[5]: Rises upward after clouds part, BEFORE text)
+            Full-width photorealistic mountain panorama spanning 100% viewport width
             Initial state: completely hidden (opacity 0, translateY 220px)
             ================================================================= */}
         <div
           ref={mountainRef}
-          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[1920px] pointer-events-none select-none will-change-[transform,opacity] z-[5] flex justify-center items-end"
+          className="absolute bottom-0 left-0 w-full pointer-events-none select-none will-change-[transform,opacity] z-[5] flex items-end justify-center overflow-hidden"
           style={{ opacity: 0, transform: "translate3d(0, 220px, 0)" }}
           aria-hidden="true"
         >
           <Image
-            src="/images/mountains-dark.webp"
+            src="/images/mountains-photorealistic.webp"
             alt=""
-            width={1924}
-            height={610}
+            width={3840}
+            height={1279}
             priority
-            className="w-full h-auto max-h-[48vh] sm:max-h-[52vh] lg:max-h-[56vh] object-contain object-bottom block"
+            unoptimized
+            className="w-full h-auto min-w-full min-h-[240px] sm:min-h-[320px] md:min-h-[380px] lg:min-h-[460px] max-h-[64vh] object-cover object-bottom block"
           />
         </div>
 
         {/* =================================================================
-            EDITORIAL CONTENT & CALLS TO ACTION (z-[10])
-            Surges forward AFTER mountains have risen: scale(0.80) -> scale(1.0)
+            GEOLOGICAL EDITORIAL COMPOSITION (z-[10])
+            Asymmetric single-column editorial composition (~55-65% width)
+            Framed naturally by the towering mountain silhouettes on left & right
             ================================================================= */}
         <div
           ref={contentWrapperRef}
-          className="layout-container w-full relative z-[10] will-change-[transform,opacity,filter]"
-          style={{ perspective: "1200px", opacity: 0, transform: "translate3d(0, 36px, 0) scale(0.80)" }}
+          className="layout-container w-full relative z-[10] flex justify-start items-center"
+          style={{ opacity: 0 }}
         >
-          <div className="max-w-4xl mx-auto text-center flex flex-col items-center select-text">
-            {/* Art-Directed Two-Statement Headline */}
+          {/* Subtle broad tonal veil behind content for zero-friction legibility */}
+          <div
+            className="absolute -inset-10 pointer-events-none -z-10"
+            style={{
+              background:
+                "radial-gradient(ellipse 80% 70% at 20% 50%, rgba(17, 17, 16, 0.72) 0%, transparent 100%)",
+            }}
+            aria-hidden="true"
+          />
+
+          <div className="w-full max-w-[700px] xl:max-w-[760px] flex flex-col items-start text-left select-text lg:pl-2 xl:pl-6">
+            {/* Main Headline — Independent Alphabet-by-Alphabet Kinetic Emergence */}
             <h2
               id="cta-heading"
-              className="font-sans text-[44px] sm:text-[58px] md:text-[68px] lg:text-[78px] xl:text-[84px] leading-[0.98] sm:leading-[1.02] tracking-[-0.04em] max-w-[880px] mx-auto select-text"
+              className="font-sans text-[44px] sm:text-[58px] md:text-[68px] lg:text-[76px] xl:text-[84px] leading-[0.96] sm:leading-[0.98] tracking-[-0.038em] max-w-[660px] select-text"
             >
-              <span className="block font-medium text-[#F2F0EB]">Your code.</span>
-              <span className="block font-normal text-[#DDD9D0] mt-1.5 sm:mt-2">
-                Ready for what’s next.
-              </span>
+              {(() => {
+                let charCounter = 0;
+                return HEADLINE_LINES.map((line, lineIdx) => (
+                  <span
+                    key={lineIdx}
+                    className={`block ${line.color} ${line.weight} ${
+                      lineIdx > 0 ? "mt-0.5 sm:mt-1" : ""
+                    }`}
+                  >
+                    {line.words.map((word, wordIdx) => (
+                      <span
+                        key={wordIdx}
+                        className="inline-block whitespace-nowrap"
+                      >
+                        {Array.from(word).map((char, charIdx) => {
+                          const currIdx = charCounter++;
+                          return (
+                            <span
+                              key={charIdx}
+                              className="inline-block overflow-hidden pb-1 -mb-1 align-bottom"
+                            >
+                              <span
+                                ref={(el) => {
+                                  charRefs.current[currIdx] = el;
+                                }}
+                                className="inline-block will-change-transform"
+                                style={{
+                                  transform: "translate3d(0, 110%, 0)",
+                                  opacity: 0,
+                                }}
+                              >
+                                {char}
+                              </span>
+                            </span>
+                          );
+                        })}
+                        {wordIdx < line.words.length - 1 && (
+                          <span className="inline-block">&nbsp;</span>
+                        )}
+                      </span>
+                    ))}
+                  </span>
+                ));
+              })()}
             </h2>
 
-            {/* Refined Supporting Copy */}
-            <p className="font-sans text-[16.5px] sm:text-[18px] lg:text-[19.5px] leading-[1.55] text-[#9E9B93] max-w-[500px] mx-auto mt-7 sm:mt-8 mb-10 sm:mb-12">
-              Bring your next idea to life. Start with your code and build toward
-              something worth shipping.
+            {/* Level C: Supporting Copy */}
+            <p
+              ref={subcopyRef}
+              className="font-sans text-[17px] sm:text-[18px] lg:text-[19px] leading-[1.6] text-[#9A968E] max-w-[460px] mt-6 sm:mt-7 lg:mt-8 select-text will-change-[transform,opacity]"
+              style={{ opacity: 0 }}
+            >
+              Bring your next idea to life. Build toward something worth shipping.
             </p>
 
-            {/* Actions: High-Contrast Burnt Orange Primary + Quiet Border-Defined Secondary */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-4.5 w-full sm:w-auto">
-              {/* Primary Action: Direct jump to Onboarding */}
+            {/* Unified Editorial Action Area */}
+            <div
+              ref={ctaAreaRef}
+              className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 mt-8 sm:mt-9 w-full sm:w-auto will-change-[transform,opacity]"
+              style={{ opacity: 0 }}
+            >
+              {/* Primary Action: Start building */}
               <Link
                 href="#getting-started"
-                className="inline-flex items-center justify-center gap-2.5 h-[54px] sm:h-[58px] px-8 sm:px-9 rounded-[8px] bg-accent-orange hover:bg-accent-orange-hover text-[#121110] text-[15px] sm:text-[15.5px] font-semibold transition-all duration-200 shadow-md shadow-accent-orange/15 hover:shadow-accent-orange/25 hover:-translate-y-0.5 active:translate-y-0 w-full sm:w-auto group"
+                className="inline-flex items-center justify-between sm:justify-center gap-3.5 h-[50px] sm:h-[52px] px-7 sm:px-8 rounded-[6px] bg-accent-orange hover:bg-accent-orange-hover text-[#121110] text-[15px] font-medium tracking-[-0.01em] transition-all duration-200 shadow-sm shadow-accent-orange/15 hover:shadow-accent-orange/25 active:translate-y-0 w-full sm:w-auto group"
               >
-                <span>Get started</span>
-                <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
+                <span>Start building</span>
+                <span
+                  aria-hidden="true"
+                  className="text-[15px] font-sans transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                >
+                  ↗
+                </span>
               </Link>
 
-              {/* Secondary Action: Repository Destination */}
+              {/* Secondary Action: Explore the repository */}
               <Link
                 href="https://github.com/Deepanshu-2006/jetway"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 h-[54px] sm:h-[58px] px-7 sm:px-8 rounded-[8px] bg-[#181817]/90 hover:bg-[#222220] border border-white/12 hover:border-white/22 text-[#E8E6E0] hover:text-[#F5F5F3] text-[14.5px] sm:text-[15px] font-medium transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 backdrop-blur-sm w-full sm:w-auto group"
+                className="inline-flex items-center gap-1.5 text-[14px] font-mono text-[#8E8A82] hover:text-[#F2F0EB] transition-colors duration-200 py-1 group"
               >
-                <span>GitHub repository</span>
-                <ExternalLink className="w-4 h-4 text-text-muted group-hover:text-text-primary transition-colors" />
+                <span className="border-b border-[#3E3B37] group-hover:border-[#F2F0EB] transition-colors duration-200 pb-0.5">
+                  Explore the repository
+                </span>
+                <span
+                  aria-hidden="true"
+                  className="text-[13px] leading-none text-[#77736D] group-hover:text-[#F2F0EB] transition-all duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                >
+                  ↗
+                </span>
               </Link>
+            </div>
+
+            {/* Subtle Editorial Anchor Detail */}
+            <div
+              ref={detailsRef}
+              className="mt-8 pt-4 border-t border-[#252523] flex items-center gap-3 select-text will-change-[transform,opacity]"
+              style={{ opacity: 0 }}
+            >
+              <span className="w-1 h-1 rounded-full bg-[#524E48]" aria-hidden="true" />
+              <span className="font-mono text-[10.5px] tracking-[0.16em] uppercase text-[#6B6760]">
+                BUILT TO SHIP // LATENCY 14MS
+              </span>
             </div>
           </div>
         </div>
