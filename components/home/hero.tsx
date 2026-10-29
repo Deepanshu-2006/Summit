@@ -241,6 +241,7 @@ export function Hero() {
         activeStage={activeStage}
         animPhase={animPhase}
         isReducedMotion={isReducedMotion}
+        isInView={isInView}
       />
 
       <div className="layout-container w-full relative z-10">
