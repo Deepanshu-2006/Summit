@@ -6,7 +6,7 @@ import { HeroMountainClouds } from "./hero-mountain-clouds";
 import { HeroTerrainWake } from "./hero-terrain-wake";
 
 interface HeroMountainIllustrationProps {
-  activeStage: "source" | "build" | "production";
+  activeStage?: "source" | "build" | "production";
   animPhase: "source" | "packet1" | "building" | "packet2" | "production";
   isReducedMotion: boolean;
   isInView?: boolean;
@@ -20,27 +20,25 @@ interface HeroMountainIllustrationProps {
  * 1. Full-Screen Mountain Background:
  *    - The signature antique copperplate alpine artwork (hero-engraved-mountains-fullbleed.webp)
  *      fills the viewport edge-to-edge beneath the navbar.
- *    - Ambient landscape drift: continuous, ultra-slow 85s ambient drift independent of cursor.
- *    - CRITICAL: Absolutely NO cursor-driven image translation, tilt, scaling, or parallax.
+ *    - Stably anchored: sharp engraved character at all times, no large-scale plastic distortion.
+ *    - Composition: darker terrain towards text side, soaring bright peaks on the right.
  *
- * 2. Travelling Mountain Ridge Illumination (Ambient):
- *    - Broad, soft illumination travelling gradually across the engraved ridges (54s loop).
+ * 2. Travelling Mountain Ridge Illumination (Ambient 54s Loop):
+ *    - Broad, soft illumination travelling gradually across the engraved ridges.
  *    - Warm ivory with restrained burnt-orange undertone, subtly revealing contour details.
  *
  * 3. Living Atmospheric Valley Clouds (HeroMountainClouds):
- *    - Dedicated multi-layer procedural cloud mist moving continuously through the valleys.
+ *    - 3 independent layers (background haze, midground valley formations, foreground wisps).
  *
  * 4. Signature Terrain Wake (HeroTerrainWake):
- *    - Cursor movement creates a temporary, flowing wake of delicate topographic strands along
- *      its recent path through the engraved landscape.
- *    - Dissipates completely when the cursor stops or leaves the hero.
- *    - No cursor light, no spotlight, no parallax.
+ *    - Ephemeral topographic wake from pointer movement, dissipating naturally.
+ *    - No cursor light, no spotlight, no cursor parallax.
  *
  * 5. Clean Stationary Topographic Elevation Contours & Geodesic Benchmarks:
  *    - Precision SVG elevation contours with continuous 60s flowing currents and benchmark reticles.
  */
 export function HeroMountainIllustration({
-  activeStage,
+  activeStage = "source",
   animPhase,
   isReducedMotion,
   isInView = true,
@@ -64,39 +62,32 @@ export function HeroMountainIllustration({
       aria-hidden="true"
     >
       {/* =================================================================
-          LAYER 1: ATMOSPHERIC HORIZON RADIANT BASE
-          Ultra-gentle warm radiance echoing through the central saddle pass
+          LAYER 1: ATMOSPHERIC SADDLE RADIANT BASE
+          Ultra-gentle warm radiance echoing through the central pass
           ================================================================= */}
       <div
         className="absolute inset-0 w-full h-full pointer-events-none opacity-30"
         style={{
           background:
-            "radial-gradient(ellipse 80% 60% at 65% 50%, rgba(216, 135, 98, 0.06) 0%, rgba(216, 135, 98, 0.02) 45%, transparent 75%)",
+            "radial-gradient(ellipse 80% 60% at 65% 50%, rgba(216, 135, 98, 0.05) 0%, rgba(216, 135, 98, 0.015) 45%, transparent 75%)",
         }}
       />
 
       {/* =================================================================
           LAYER 2: FULL-BLEED PANORAMIC ENGRAVED MOUNTAIN TOPOGRAPHY
           Antique copperplate alpine artwork filling the hero edge-to-edge.
-          A. Slow landscape drift: continuous 85s ambient drift independent of cursor.
-          CRITICAL: Absolutely no cursor-driven translation, tilt, scaling, or parallax.
+          Stably anchored to preserve sharp engraved lines.
           ================================================================= */}
-      <div
-        className={`absolute inset-0 w-full h-full pointer-events-none will-change-transform ${
-          isReducedMotion
-            ? "scale-[1.06]"
-            : "animate-[mountainLandscapeDrift_85s_easeInOut_infinite]"
-        }`}
-      >
+      <div className="absolute inset-0 w-full h-full pointer-events-none">
         <div className="relative w-full h-full">
           <Image
             src="/images/hero/hero-engraved-mountains-fullbleed.webp"
             alt=""
             fill
             priority
-            quality={75}
+            quality={85}
             sizes="100vw"
-            className="w-full h-full object-cover object-[center_60%] lg:object-[center_55%] block opacity-95"
+            className="w-full h-full object-cover object-[68%_55%] sm:object-[center_55%] lg:object-[center_52%] block opacity-95"
           />
         </div>
       </div>
@@ -109,10 +100,10 @@ export function HeroMountainIllustration({
           ================================================================= */}
       {!isReducedMotion && (
         <div
-          className="absolute inset-0 w-full h-full pointer-events-none animate-[travellingMountainLight_54s_easeInOut_infinite] will-change-transform"
+          className="absolute inset-0 w-full h-full pointer-events-none animate-[ridgeIlluminationSweep_54s_easeInOut_infinite] will-change-transform"
           style={{
             background:
-              "radial-gradient(ellipse 75% 55% at 50% 45%, rgba(247, 244, 238, 0.12) 0%, rgba(238, 225, 212, 0.08) 28%, rgba(216, 135, 98, 0.045) 52%, rgba(142, 140, 134, 0.015) 75%, transparent 95%)",
+              "radial-gradient(ellipse 75% 55% at 52% 45%, rgba(247, 244, 238, 0.12) 0%, rgba(238, 225, 212, 0.08) 28%, rgba(216, 135, 98, 0.045) 52%, rgba(142, 140, 134, 0.015) 75%, transparent 95%)",
             mixBlendMode: "screen",
           }}
         />
@@ -120,7 +111,7 @@ export function HeroMountainIllustration({
 
       {/* =================================================================
           LAYER 4: LIVING ATMOSPHERIC MOUNTAIN VALLEY CLOUDS (CANVAS)
-          Multi-layer procedural cloud mist moving continuously through the valleys.
+          Multi-layer procedural mist moving continuously through the valleys.
           ================================================================= */}
       <HeroMountainClouds
         isInView={isInView}
@@ -285,15 +276,22 @@ export function HeroMountainIllustration({
       </svg>
 
       {/* =================================================================
-          LAYER 7: CONTENT CONTRAST GUARD
+          LAYER 7: CONTENT CONTRAST GUARD & BOTTOM VIGNETTE
           A gentle, broad shadow behind the left typography column ensuring 100%
-          text contrast against the mountain backdrop without creating a visible box
+          text contrast against the mountain backdrop without creating a visible box,
+          plus a smooth transparent-to-black fade at the bottom.
           ================================================================= */}
       <div
-        className="absolute left-0 top-0 w-full sm:w-[55vw] lg:w-[48vw] h-full pointer-events-none opacity-35"
+        className="absolute left-0 top-0 w-full sm:w-[58vw] lg:w-[50vw] h-full pointer-events-none opacity-40"
         style={{
           background:
-            "radial-gradient(ellipse 75% 65% at 25% 42%, rgba(17, 17, 17, 0.70) 0%, rgba(17, 17, 17, 0.25) 60%, transparent 100%)",
+            "radial-gradient(ellipse 75% 65% at 22% 45%, rgba(17, 17, 17, 0.75) 0%, rgba(17, 17, 17, 0.3) 60%, transparent 100%)",
+        }}
+      />
+      <div
+        className="absolute bottom-0 left-0 w-full h-[120px] pointer-events-none"
+        style={{
+          background: "linear-gradient(to bottom, transparent 0%, rgba(17, 17, 17, 0.8) 70%, #111111 100%)",
         }}
       />
     </div>

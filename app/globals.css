@@ -183,6 +183,12 @@ body {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+  .hero-char {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+  }
 }
 
 /* -------------------------------------------------------------------------
@@ -440,5 +446,39 @@ body {
   50% {
     transform: scale(1.05);
     opacity: 0.35;
+  }
+}
+
+/* Character-by-character Hero Headline Entrance */
+@keyframes heroCharEntrance {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+    filter: blur(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0px);
+  }
+}
+
+/* Ambient Ridge Illumination Sweep (54s seamless loop) */
+@keyframes ridgeIlluminationSweep {
+  0% {
+    transform: translate3d(-12%, -3%, 0);
+    opacity: 0.16;
+  }
+  35% {
+    transform: translate3d(6%, 2%, 0);
+    opacity: 0.28;
+  }
+  70% {
+    transform: translate3d(16%, -4%, 0);
+    opacity: 0.22;
+  }
+  100% {
+    transform: translate3d(-12%, -3%, 0);
+    opacity: 0.16;
   }
 }

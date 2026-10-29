@@ -8,7 +8,7 @@ interface HeroMountainCloudsProps {
 }
 
 interface Puff {
-  u: number; // -0.5 to 0.5 along spine
+  u: number; // -0.5 to 0.5 along formation spine
   offsetY: number;
   rx: number;
   ry: number;
@@ -24,22 +24,50 @@ interface Filament {
   uEnd: number;
   curveAmp: number;
   alphaFactor: number;
+  isAccent?: boolean;
 }
 
 interface CloudFormation {
   id: number;
   corridorIdx: number;
-  layer: "distant" | "valley" | "foreground";
+  layer: "background" | "midground" | "foreground";
   x: number;
   speed: number;
   length: number;
   height: number;
   baseAlpha: number;
   warmthWeight: number;
+  breathPhase: number;
+  breathSpeed: number;
   puffs: Puff[];
   filaments: Filament[];
 }
 
+/**
+ * HeroMountainClouds
+ *
+ * Multi-layer atmospheric mountain mist adhering to Summit's engraved copperplate aesthetic:
+ *
+ * 1. Background Haze (Distant Peaks):
+ *    - Very gentle, high-elevation haze drifting across the distant peaks (y ~ 0.22 to 0.40).
+ *    - Wide, soft translucent horizontal bands creating atmospheric depth without cursor parallax.
+ *    - Ultra-slow drift speed: ~10 to 14 px/s.
+ *
+ * 2. Midground Valley Formations (Mountain Passes & Saddles):
+ *    - Drifting laterally through the mountain saddles and passes (y ~ 0.46 to 0.65).
+ *    - Composed of translucent stratified cloud bodies with internal etched linework.
+ *    - Natural density breathing and soft ridge interaction.
+ *    - Medium drift speed: ~18 to 26 px/s.
+ *
+ * 3. Foreground Mist (Wispy Strands):
+ *    - Thin, elongated wispy strands traveling across the lower ravines and ridge crests (y ~ 0.68 to 0.82).
+ *    - Delicate tapered bezier threads that softly reveal and conceal parts of the engraved terrain.
+ *    - Faster drift speed: ~28 to 36 px/s.
+ *
+ * 4. Continuous, Seamless Loop:
+ *    - Smooth wrapping with cosine boundary feathering; zero pop, reset, or flash.
+ *    - DPR scaling, paused when out of view, static for prefers-reduced-motion.
+ */
 export function HeroMountainClouds({
   isInView = true,
   isReducedMotion = false,
@@ -60,132 +88,129 @@ export function HeroMountainClouds({
     let height = 0;
     let dpr = 1;
 
-    // Valley Corridor Spline Functions (Normalized coordinates)
+    // Valley corridor elevation curves across normalized width (0 to 1)
     const getCorridorY = (corridorIdx: number, nx: number, H: number): number => {
       switch (corridorIdx) {
         case 0:
-          // Layer A — Distant Saddle / High Mountain Pass (subtle, high between peaks)
-          return H * (0.42 - 0.05 * Math.sin(nx * Math.PI) + 0.02 * (nx - 0.5));
+          // Background Layer: High Mountain Ridge Haze (around distant peaks)
+          return H * (0.28 - 0.04 * Math.sin(nx * Math.PI) + 0.02 * (nx - 0.5));
         case 1:
-          // Layer B — Upper Valley Channel (sweeps from mid-left ridge pass through center)
+          // Background Layer: Distant Saddle Haze
+          return H * (0.38 - 0.035 * Math.sin(nx * Math.PI * 1.1) + 0.02 * Math.cos(nx * Math.PI * 0.8));
+        case 2:
+          // Midground Layer: Upper Mountain Pass (sweeps from mid-left through center saddle)
           return (
             H *
             (0.50 -
-              0.045 * Math.sin(nx * Math.PI * 1.2) +
-              0.03 * Math.cos(nx * Math.PI * 0.75))
-          );
-        case 2:
-          // Layer B — Main Central Valley & Ravine (primary sweeping valley drift)
-          return (
-            H *
-            (0.57 +
-              0.045 * Math.sin((nx - 0.2) * Math.PI * 1.15) -
-              0.035 * Math.cos((nx - 0.4) * Math.PI * 0.85))
+              0.045 * Math.sin(nx * Math.PI * 1.15) +
+              0.025 * Math.cos(nx * Math.PI * 0.75))
           );
         case 3:
-          // Layer B — Mid-Lower Saddle (flows across the base of the middle crags)
+          // Midground Layer: Central Ravine & Ridge Channel (primary sweeping valley drift)
           return (
             H *
-            (0.64 -
-              0.035 * Math.sin(nx * Math.PI * 0.95) +
-              0.02 * Math.sin(nx * Math.PI * 2.2))
+            (0.58 +
+              0.04 * Math.sin((nx - 0.2) * Math.PI * 1.2) -
+              0.03 * Math.cos((nx - 0.4) * Math.PI * 0.9))
           );
         case 4:
+          // Foreground Layer: Lower Valley Slopes & Ravine (wispy strands)
+          return (
+            H *
+            (0.68 -
+              0.035 * Math.sin(nx * Math.PI * 0.95) +
+              0.02 * Math.sin(nx * Math.PI * 2.1))
+          );
+        case 5:
         default:
-          // Layer C — Foreground Lower Slope Mist (gentle broad drift over lower foothills)
-          return H * (0.75 + 0.035 * Math.sin(nx * Math.PI * 0.8));
+          // Foreground Layer: Low Foothill Mist Strands
+          return H * (0.78 + 0.03 * Math.sin(nx * Math.PI * 0.85));
       }
     };
 
-    // Helper to generate an organic, elongated cloud formation
+    // Helper to generate a tailored cloud formation for a specific layer
     const createFormation = (
       id: number,
       corridorIdx: number,
-      initialX: number,
-      W: number,
-      H: number
+      initialX: number
     ): CloudFormation => {
-      let layer: "distant" | "valley" | "foreground";
+      let layer: "background" | "midground" | "foreground";
       let speedRange: [number, number];
       let lengthRange: [number, number];
       let heightRange: [number, number];
       let alphaRange: [number, number];
       let warmthProbability: number;
 
-      if (corridorIdx === 0) {
-        // Layer A: Distant mist
-        layer = "distant";
-        speedRange = [18, 24];
-        lengthRange = [380, 520];
-        heightRange = [38, 52];
-        alphaRange = [0.18, 0.26];
+      if (corridorIdx <= 1) {
+        // Layer 1: Background Peak Haze
+        layer = "background";
+        speedRange = [10, 14];
+        lengthRange = [580, 840];
+        heightRange = [44, 68];
+        alphaRange = [0.12, 0.18];
         warmthProbability = 0.2;
-      } else if (corridorIdx === 4) {
-        // Layer C: Foreground mist
+      } else if (corridorIdx >= 4) {
+        // Layer 3: Foreground Wispy Mist Strands
         layer = "foreground";
-        speedRange = [24, 30];
-        lengthRange = [560, 780];
-        heightRange = [75, 110];
-        alphaRange = [0.14, 0.22];
-        warmthProbability = 0.35;
+        speedRange = [28, 36];
+        lengthRange = [380, 620];
+        heightRange = [22, 42];
+        alphaRange = [0.16, 0.26];
+        warmthProbability = 0.4;
       } else {
-        // Layer B: Main valley clouds (Primary animated layer, clearly visible)
-        layer = "valley";
-        speedRange = [38, 48];
-        lengthRange = [480, 680];
-        heightRange = [55, 90];
-        alphaRange = [0.30, 0.44];
-        warmthProbability = 0.45;
+        // Layer 2: Midground Valley Formations (Primary visible formations)
+        layer = "midground";
+        speedRange = [18, 25];
+        lengthRange = [480, 720];
+        heightRange = [52, 85];
+        alphaRange = [0.24, 0.38];
+        warmthProbability = 0.5;
       }
 
-      const speed =
-        speedRange[0] + Math.random() * (speedRange[1] - speedRange[0]);
-      const length =
-        lengthRange[0] + Math.random() * (lengthRange[1] - lengthRange[0]);
-      const fHeight =
-        heightRange[0] + Math.random() * (heightRange[1] - heightRange[0]);
-      const baseAlpha =
-        alphaRange[0] + Math.random() * (alphaRange[1] - alphaRange[0]);
+      const speed = speedRange[0] + Math.random() * (speedRange[1] - speedRange[0]);
+      const length = lengthRange[0] + Math.random() * (lengthRange[1] - lengthRange[0]);
+      const fHeight = heightRange[0] + Math.random() * (heightRange[1] - heightRange[0]);
+      const baseAlpha = alphaRange[0] + Math.random() * (alphaRange[1] - alphaRange[0]);
       const warmthWeight = Math.random() < warmthProbability ? 0.6 : 0.0;
+      const breathPhase = Math.random() * Math.PI * 2;
+      const breathSpeed = 0.2 + Math.random() * 0.25;
 
-      // Generate 10 to 14 overlapping puffs along the spine
-      const numPuffs = 10 + Math.floor(Math.random() * 4);
+      // Density puffs along formation spine
+      const numPuffs = layer === "foreground" ? 8 : layer === "background" ? 10 : 13;
       const puffs: Puff[] = [];
 
       for (let i = 0; i < numPuffs; i++) {
-        // u from -0.5 to 0.5
         const u = (i - (numPuffs - 1) / 2) / ((numPuffs - 1) / 2 || 1);
-        // Cosine envelope to taper ends smoothly
         const taper = Math.pow(Math.cos(u * Math.PI * 0.46), 1.15);
 
-        // Elongated horizontal ratio (3:1 to 5:1)
-        const rx =
-          (length / numPuffs) * 1.85 * taper * (0.85 + Math.random() * 0.35);
-        const ry = (fHeight * 0.44) * taper * (0.85 + Math.random() * 0.35);
-        const offsetY = (Math.random() - 0.5) * fHeight * 0.28;
+        // Highly elongated horizontal ratio (4:1 to 7:1) for stratified mountain mist
+        const rx = (length / numPuffs) * (layer === "foreground" ? 2.2 : 1.9) * taper * (0.85 + Math.random() * 0.3);
+        const ry = (fHeight * 0.42) * taper * (0.85 + Math.random() * 0.3);
+        const offsetY = (Math.random() - 0.5) * fHeight * (layer === "foreground" ? 0.2 : 0.28);
 
         puffs.push({
-          u: u * 0.48, // scale along spine
+          u: u * 0.48,
           offsetY,
-          rx: Math.max(rx, 25),
-          ry: Math.max(ry, 12),
-          density: taper * (0.85 + Math.random() * 0.35),
+          rx: Math.max(rx, 20),
+          ry: Math.max(ry, layer === "foreground" ? 8 : 12),
+          density: taper * (0.85 + Math.random() * 0.3),
           wobblePhase: Math.random() * Math.PI * 2,
-          wobbleSpeed: 0.35 + Math.random() * 0.4,
-          wobbleAmp: 3.0 + Math.random() * 4.0,
+          wobbleSpeed: 0.3 + Math.random() * 0.35,
+          wobbleAmp: layer === "foreground" ? 2.0 : 3.5,
         });
       }
 
-      // Generate 2 to 3 internal delicate flowing filaments (etched mist lines)
-      const numFilaments = 2 + Math.floor(Math.random() * 2);
+      // Delicate etched filaments matching copperplate mountain lines
+      const numFilaments = layer === "foreground" ? 3 : layer === "midground" ? 3 : 2;
       const filaments: Filament[] = [];
       for (let f = 0; f < numFilaments; f++) {
         filaments.push({
-          yOffset: (Math.random() - 0.5) * fHeight * 0.35,
+          yOffset: (Math.random() - 0.5) * fHeight * 0.32,
           uStart: -0.42 + Math.random() * 0.15,
-          uEnd: 0.25 + Math.random() * 0.2,
-          curveAmp: (Math.random() - 0.5) * 16,
-          alphaFactor: 0.15 + Math.random() * 0.15,
+          uEnd: 0.28 + Math.random() * 0.18,
+          curveAmp: (Math.random() - 0.5) * 14,
+          alphaFactor: layer === "foreground" ? 0.25 : 0.18,
+          isAccent: Math.random() < 0.3,
         });
       }
 
@@ -199,38 +224,36 @@ export function HeroMountainClouds({
         height: fHeight,
         baseAlpha,
         warmthWeight,
+        breathPhase,
+        breathSpeed,
         puffs,
         filaments,
       };
     };
 
-    // Initialize formations staggered across the full width and beyond
-    const initFormations = (W: number, H: number) => {
+    // Initialize formations distributed across full width + margins
+    const initFormations = (W: number) => {
       const formations: CloudFormation[] = [];
       let idCounter = 0;
 
-      // Corridor assignments:
-      // Corridor 0 (Layer A - Distant): 3 formations
-      // Corridor 1 (Layer B - Upper Valley): 4 formations
-      // Corridor 2 (Layer B - Main Ravine): 4 formations
-      // Corridor 3 (Layer B - Lower Saddle): 3 formations
-      // Corridor 4 (Layer C - Foreground): 3 formations
+      // Corridors configuration:
+      // 0 & 1: Background Peak Haze (2 + 2 = 4 formations)
+      // 2 & 3: Midground Valley Channels (4 + 4 = 8 formations)
+      // 4 & 5: Foreground Wispy Strands (3 + 3 = 6 formations)
       const setup = [
-        { corridor: 0, count: 3 },
-        { corridor: 1, count: 4 },
+        { corridor: 0, count: 2 },
+        { corridor: 1, count: 2 },
         { corridor: 2, count: 4 },
-        { corridor: 3, count: 3 },
+        { corridor: 3, count: 4 },
         { corridor: 4, count: 3 },
+        { corridor: 5, count: 3 },
       ];
 
       setup.forEach(({ corridor, count }) => {
         for (let i = 0; i < count; i++) {
-          // Stagger across the entire width + margins so clouds are active immediately
           const initialX =
-            -200 + (i / count) * (W + 500) + (Math.random() - 0.5) * 120;
-          formations.push(
-            createFormation(idCounter++, corridor, initialX, W, H)
-          );
+            -250 + (i / count) * (W + 550) + (Math.random() - 0.5) * 140;
+          formations.push(createFormation(idCounter++, corridor, initialX));
         }
       });
 
@@ -246,9 +269,8 @@ export function HeroMountainClouds({
       canvas.width = Math.floor(width * dpr);
       canvas.height = Math.floor(height * dpr);
 
-      // Re-initialize formations if empty or on major size change
       if (formationsRef.current.length === 0) {
-        initFormations(width, height);
+        initFormations(width);
       }
     };
 
@@ -259,7 +281,7 @@ export function HeroMountainClouds({
     });
     resizeObserver.observe(canvas);
 
-    // Render loop
+    // Continuous Animation Loop
     const render = (timestamp: number) => {
       if (!ctx || width === 0 || height === 0) {
         animFrameRef.current = requestAnimationFrame(render);
@@ -279,47 +301,50 @@ export function HeroMountainClouds({
 
       const formations = formationsRef.current;
 
-      // Update positions and draw
       for (let i = 0; i < formations.length; i++) {
         const f = formations[i];
 
         if (!isReducedMotion) {
           f.x += f.speed * dt;
-          // Wrap around seamlessly with slight randomization
-          if (f.x - f.length * 0.6 > width + 100) {
-            f.x = -f.length * 0.6 - 40 - Math.random() * 140;
-            // Slightly mutate speed and warmth for natural organic variation
-            f.speed = Math.max(16, f.speed + (Math.random() - 0.5) * 4);
+          // Continuous seamless wrap: when tail exits right side, cycle to left buffer
+          if (f.x - f.length * 0.6 > width + 120) {
+            f.x = -f.length * 0.6 - 50 - Math.random() * 120;
+            f.speed = Math.max(12, f.speed + (Math.random() - 0.5) * 3);
           }
         }
 
         const nx = f.x / width;
         const cy = getCorridorY(f.corridorIdx, nx, height);
 
-        // Viewport entrance & exit feathering
-        let fade = 1.0;
+        // Viewport entrance & exit cosine feathering (eliminates popping)
+        let edgeFade = 1.0;
         const headX = f.x + f.length * 0.5;
         const tailX = f.x - f.length * 0.5;
 
-        if (tailX < 120) {
-          fade = Math.max(0, Math.min(1, (headX + 50) / (170 + f.length * 0.5)));
-        } else if (headX > width - 150) {
-          fade = Math.max(0, Math.min(1, (width + f.length * 0.5 - tailX) / (250 + f.length * 0.5)));
+        if (tailX < 140) {
+          edgeFade = Math.max(0, Math.min(1, (headX + 40) / (180 + f.length * 0.5)));
+        } else if (headX > width - 140) {
+          edgeFade = Math.max(0, Math.min(1, (width + f.length * 0.5 - tailX) / (220 + f.length * 0.5)));
         }
 
         // Over-ridge modulation:
-        // Where clouds cross dark valleys (nx ~ 0.15 - 0.65), opacity is at full richness.
-        // Where they cross bright mountain faces on the right (nx ~ 0.72 - 0.95),
-        // gently scale opacity down ~25% so the engraved linework remains crisp and readable!
+        // When crossing dark valleys (nx ~ 0.15 - 0.65), full mist opacity.
+        // When crossing bright mountain peaks on the right (nx ~ 0.72 - 0.95),
+        // gently reduce opacity ~25% so engraved peak details stay sharp and crisp!
         let cragMod = 1.0;
         if (nx > 0.70 && nx < 0.95) {
           cragMod = 0.75 + 0.25 * Math.cos(((nx - 0.70) / 0.25) * Math.PI);
         }
 
-        const effectiveAlpha = f.baseAlpha * fade * cragMod;
+        // Density breathing modulation
+        const breath = isReducedMotion
+          ? 1.0
+          : 0.9 + 0.1 * Math.sin(timeSec * f.breathSpeed + f.breathPhase);
+
+        const effectiveAlpha = f.baseAlpha * edgeFade * cragMod * breath;
         if (effectiveAlpha <= 0.005) continue;
 
-        // Draw individual organic puffs
+        // Draw stratified mist puffs along spine
         for (let j = 0; j < f.puffs.length; j++) {
           const p = f.puffs[j];
           const wobbleY = isReducedMotion
@@ -327,8 +352,7 @@ export function HeroMountainClouds({
             : Math.sin(timeSec * p.wobbleSpeed + p.wobblePhase) * p.wobbleAmp;
           const wobbleX = isReducedMotion
             ? 0
-            : Math.cos(timeSec * p.wobbleSpeed * 0.7 + p.wobblePhase) *
-              (p.wobbleAmp * 0.4);
+            : Math.cos(timeSec * p.wobbleSpeed * 0.7 + p.wobblePhase) * (p.wobbleAmp * 0.35);
 
           const px = f.x + p.u * f.length + wobbleX;
           const py = cy + p.offsetY + wobbleY;
@@ -342,19 +366,18 @@ export function HeroMountainClouds({
 
           const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, p.rx);
 
-          // Warm Ivory & Graphite Tonal Palette
           if (f.warmthWeight > 0.4) {
-            // Subtle dawn ember warmth stop
-            grad.addColorStop(0.0, `rgba(247, 244, 238, ${puffAlpha * 0.95})`);
-            grad.addColorStop(0.3, `rgba(235, 215, 200, ${puffAlpha * 0.72})`);
-            grad.addColorStop(0.65, `rgba(165, 155, 145, ${puffAlpha * 0.32})`);
-            grad.addColorStop(1.0, "rgba(20, 20, 20, 0)");
+            // Subtle warm dawn undertone stop
+            grad.addColorStop(0.0, `rgba(247, 244, 238, ${puffAlpha * 0.92})`);
+            grad.addColorStop(0.3, `rgba(235, 215, 202, ${puffAlpha * 0.68})`);
+            grad.addColorStop(0.65, `rgba(165, 155, 145, ${puffAlpha * 0.28})`);
+            grad.addColorStop(1.0, "rgba(17, 17, 17, 0)");
           } else {
-            // Classic antique engraved warm ivory & muted graphite
-            grad.addColorStop(0.0, `rgba(245, 243, 238, ${puffAlpha * 0.95})`);
-            grad.addColorStop(0.32, `rgba(225, 222, 215, ${puffAlpha * 0.70})`);
-            grad.addColorStop(0.68, `rgba(142, 140, 134, ${puffAlpha * 0.30})`);
-            grad.addColorStop(1.0, "rgba(20, 20, 20, 0)");
+            // Antique engraved warm ivory & muted graphite
+            grad.addColorStop(0.0, `rgba(245, 243, 238, ${puffAlpha * 0.92})`);
+            grad.addColorStop(0.32, `rgba(225, 222, 215, ${puffAlpha * 0.66})`);
+            grad.addColorStop(0.68, `rgba(142, 140, 134, ${puffAlpha * 0.28})`);
+            grad.addColorStop(1.0, "rgba(17, 17, 17, 0)");
           }
 
           ctx.fillStyle = grad;
@@ -364,11 +387,11 @@ export function HeroMountainClouds({
           ctx.restore();
         }
 
-        // Draw delicate etched filaments (matching mountain engraving lines)
+        // Draw delicate etched filaments (engraved mist lines)
         for (let k = 0; k < f.filaments.length; k++) {
           const fil = f.filaments[k];
           const filAlpha = effectiveAlpha * fil.alphaFactor;
-          if (filAlpha <= 0.01) continue;
+          if (filAlpha <= 0.008) continue;
 
           const startX = f.x + fil.uStart * f.length;
           const endX = f.x + fil.uEnd * f.length;
@@ -376,8 +399,10 @@ export function HeroMountainClouds({
           const filY = cy + fil.yOffset;
           const cY = filY + fil.curveAmp;
 
-          ctx.strokeStyle = `rgba(242, 240, 235, ${filAlpha})`;
-          ctx.lineWidth = 0.85;
+          ctx.strokeStyle = fil.isAccent
+            ? `rgba(216, 135, 98, ${filAlpha * 0.85})`
+            : `rgba(242, 240, 235, ${filAlpha})`;
+          ctx.lineWidth = f.layer === "foreground" ? 0.95 : 0.75;
           ctx.beginPath();
           ctx.moveTo(startX, filY);
           ctx.quadraticCurveTo(midX, cY, endX, filY);
@@ -385,12 +410,12 @@ export function HeroMountainClouds({
         }
       }
 
-      // If reduced motion is requested, render once and do not continue animation
+      // If reduced motion is active, do not request further frames
       if (isReducedMotion) {
         return;
       }
 
-      // Continue animation if in view
+      // Continue animation when in view
       if (isInView) {
         animFrameRef.current = requestAnimationFrame(render);
       }
