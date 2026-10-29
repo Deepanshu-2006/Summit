@@ -96,11 +96,15 @@ export function FinalCta() {
     let currentP = 0;
     let isInitialized = false;
     let rafId: number | null = null;
-    let isIntersecting = false;
     let entryStartTime: number | null = null;
 
-    // Deceleration & symmetrical easing helpers
-    const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+    // Quintic smootherstep polynomial (Ken Perlin): 6t^5 - 15t^4 + 10t^3
+    // Yields completely continuous derivatives (zero initial velocity and acceleration)
+    // for silky, organic cloud parting and mountain emergence
+    const smootherstep = (t: number) => {
+      const c = Math.max(0, Math.min(1, t));
+      return c * c * c * (c * (c * 6 - 15) + 10);
+    };
 
     // Compute locked scroll progress p in [0.0, 1.0]
     // Section pins when rect.top <= 0, and unpins when user scrolls through track
@@ -125,64 +129,69 @@ export function FinalCta() {
       // and seal shut in the center, before parting.
       // =================================================================
       const rect = section.getBoundingClientRect();
+      const vh = window.innerHeight;
       const scrollApproach =
         rect.top <= 0
           ? 1.0
-          : Math.max(0.0, 1.0 - rect.top / (window.innerHeight * 0.85));
+          : Math.max(0.0, 1.0 - rect.top / (vh * 0.85));
 
       const timeElapsed =
-        entryStartTime !== null ? (now - entryStartTime) / 750 : 1.0;
+        entryStartTime !== null ? (now - entryStartTime) / 800 : 1.0;
       const timeSeal = Math.min(1.0, Math.max(0.0, timeElapsed));
 
-      // If user has already scrolled into the sequence (p > 0.02), clouds are 100% sealed
+      // As user arrives, entrySeal goes from 0 (separated) to 1.0 (sealed)
       const entrySeal =
         p > 0.02
           ? 1.0
-          : Math.max(easeOutCubic(timeSeal), easeOutCubic(scrollApproach));
+          : Math.max(smootherstep(timeSeal), smootherstep(scrollApproach));
 
       const entrySeparation =
         (1 - entrySeal) * (isMobile ? 260 : isTablet ? 360 : 480);
 
       // =================================================================
-      // STAGE 1: CLOUDS OPEN WIDE (p in [0.04 .. 0.46])
-      // Sweep far to the left and right flanks (viewport-relative)
+      // STAGE 1: CLOUDS OPEN WIDE (p in [0.03 .. 0.50])
+      // Using quintic smootherstep for ultra-fluid, organic opening with zero initial jerk
       // =================================================================
-      const openFactor =
-        p < 0.04 ? 0 : easeOutCubic(Math.min(1.0, (p - 0.04) / 0.42));
+      let rawOpen = 0;
+      if (p >= 0.03) {
+        rawOpen = Math.min(1.0, (p - 0.03) / 0.47);
+      }
+      const openFactor = smootherstep(rawOpen);
 
       // Generous wide offset so clouds travel significantly further to left and right
       const outOffset = Math.max(
-        window.innerWidth * 0.75,
-        isMobile ? 620 : isTablet ? 950 : 1380
+        window.innerWidth * 0.78,
+        isMobile ? 640 : isTablet ? 980 : 1420
       );
 
       const xLeft = (-entrySeparation - outOffset * openFactor).toFixed(2);
       const xRight = (entrySeparation + outOffset * openFactor).toFixed(2);
-      const sCloud = (1.0 + 0.03 * openFactor).toFixed(3);
+
+      // Subtle atmospheric dissipation
+      const sCloud = (1.0 + 0.035 * openFactor).toFixed(3);
+      const yCloud = (-10 * openFactor).toFixed(2);
       const opCloud = (
-        0.75 +
-        0.20 * entrySeal -
-        0.12 * openFactor
+        (0.72 + 0.24 * entrySeal) * (1.0 - 0.35 * openFactor)
       ).toFixed(3);
 
       if (cloudLeftRef.current) {
-        cloudLeftRef.current.style.transform = `translate3d(${xLeft}px, 0, 0) scale(${sCloud})`;
+        cloudLeftRef.current.style.transform = `translate3d(${xLeft}px, ${yCloud}px, 0) scale(${sCloud})`;
         cloudLeftRef.current.style.opacity = opCloud;
       }
       if (cloudRightRef.current) {
-        cloudRightRef.current.style.transform = `translate3d(${xRight}px, 0, 0) scale(${sCloud})`;
+        cloudRightRef.current.style.transform = `translate3d(${xRight}px, ${yCloud}px, 0) scale(${sCloud})`;
         cloudRightRef.current.style.opacity = opCloud;
       }
 
       // =================================================================
-      // STAGE 2: MOUNTAIN HORIZON EMERGES AS CLOUDS START OPENING (p in [0.04 .. 0.46])
-      // Appears immediately when the clouds begin opening, ascending in tandem
+      // STAGE 2: MOUNTAIN HORIZON EMERGES IN LOCKSTEP (p in [0.03 .. 0.50])
+      // Ascends simultaneously with the cloud parting in perfect harmony
       // =================================================================
-      let mountainFactor = 0;
-      if (p >= 0.04) {
-        mountainFactor =
-          p < 0.46 ? easeOutCubic((p - 0.04) / 0.42) : 1.0;
+      let rawMountain = 0;
+      if (p >= 0.03) {
+        rawMountain = Math.min(1.0, (p - 0.03) / 0.47);
       }
+      const mountainFactor = smootherstep(rawMountain);
 
       if (mountainRef.current) {
         const baseOffsetY = isMobile ? 140 : isTablet ? 180 : 220;
@@ -195,16 +204,16 @@ export function FinalCta() {
       }
 
       // =================================================================
-      // STAGE 3: INDEPENDENT ALPHABET-BY-ALPHABET EMERGENCE (p in [0.44 .. 0.74])
+      // STAGE 3: INDEPENDENT ALPHABET-BY-ALPHABET EMERGENCE (p in [0.46 .. 0.76])
       // Each letter ascends from underneath independently in rhythmic cascade
       // =================================================================
       charRefs.current.forEach((el, i) => {
         if (!el) return;
-        const start = 0.44 + (i / TOTAL_HEADLINE_CHARS) * 0.22;
+        const start = 0.46 + (i / TOTAL_HEADLINE_CHARS) * 0.20;
         const dur = 0.08;
         let f = 0;
         if (p >= start + dur) f = 1;
-        else if (p > start) f = easeOutCubic((p - start) / dur);
+        else if (p > start) f = smootherstep((p - start) / dur);
 
         const y = (110 * (1 - f)).toFixed(1);
         const op = f.toFixed(3);
@@ -216,7 +225,7 @@ export function FinalCta() {
       const getFactor = (start: number, end: number) => {
         if (p < start) return 0;
         if (p >= end) return 1;
-        return easeOutCubic((p - start) / (end - start));
+        return smootherstep((p - start) / (end - start));
       };
 
       const subcopyFactor = getFactor(0.68, 0.82);
@@ -231,7 +240,7 @@ export function FinalCta() {
       };
 
       if (contentWrapperRef.current) {
-        contentWrapperRef.current.style.opacity = p >= 0.42 ? "1" : "0";
+        contentWrapperRef.current.style.opacity = p >= 0.44 ? "1" : "0";
       }
 
       applyStagger(subcopyRef.current, subcopyFactor, 16);
@@ -239,9 +248,66 @@ export function FinalCta() {
       applyStagger(detailsRef.current, detailsFactor, 12);
     };
 
+    const resetToInitialState = () => {
+      targetP = 0;
+      currentP = 0;
+      entryStartTime = null;
+      isInitialized = false;
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+      lastTime = null;
+
+      const isMobile = window.innerWidth < 640;
+      const isTablet = window.innerWidth >= 640 && window.innerWidth < 1024;
+      const initialSep = isMobile ? 260 : isTablet ? 360 : 480;
+
+      // Reset clouds to separated pre-entry stance
+      if (cloudLeftRef.current) {
+        cloudLeftRef.current.style.transform = `translate3d(-${initialSep}px, 0, 0) scale(1)`;
+        cloudLeftRef.current.style.opacity = "0.72";
+      }
+      if (cloudRightRef.current) {
+        cloudRightRef.current.style.transform = `translate3d(${initialSep}px, 0, 0) scale(1)`;
+        cloudRightRef.current.style.opacity = "0.72";
+      }
+
+      // Reset mountain to hidden stance below horizon
+      if (mountainRef.current) {
+        const baseOffsetY = isMobile ? 140 : isTablet ? 180 : 220;
+        mountainRef.current.style.transform = `translate3d(0, ${baseOffsetY}px, 0) scale(0.96)`;
+        mountainRef.current.style.opacity = "0";
+      }
+
+      // Reset headline characters (hidden underneath mask)
+      charRefs.current.forEach((el) => {
+        if (!el) return;
+        el.style.transform = "translate3d(0, 110%, 0)";
+        el.style.opacity = "0";
+      });
+
+      // Reset editorial content wrapper and supporting copy
+      if (contentWrapperRef.current) {
+        contentWrapperRef.current.style.opacity = "0";
+      }
+      if (subcopyRef.current) {
+        subcopyRef.current.style.transform = "translate3d(0, 16px, 0)";
+        subcopyRef.current.style.opacity = "0";
+      }
+      if (ctaAreaRef.current) {
+        ctaAreaRef.current.style.transform = "translate3d(0, 16px, 0)";
+        ctaAreaRef.current.style.opacity = "0";
+      }
+      if (detailsRef.current) {
+        detailsRef.current.style.transform = "translate3d(0, 12px, 0)";
+        detailsRef.current.style.opacity = "0";
+      }
+    };
+
     let lastTime: number | null = null;
 
-    // Velvet interpolation loop for buttery-smooth responsiveness
+    // Responsive interpolation loop synchronized with Lenis
     const tick = (now: number) => {
       if (lastTime === null) lastTime = now;
       const dt = Math.min(0.05, Math.max(0.008, (now - lastTime) / 1000));
@@ -249,7 +315,7 @@ export function FinalCta() {
 
       const diff = targetP - currentP;
       const isSealing =
-        entryStartTime !== null && now - entryStartTime < 800 && currentP <= 0.03;
+        entryStartTime !== null && now - entryStartTime < 850 && currentP <= 0.03;
 
       if (Math.abs(diff) < 0.0004 && !isSealing) {
         currentP = targetP;
@@ -259,7 +325,7 @@ export function FinalCta() {
         return;
       }
 
-      // Synchronized interpolation that tracks Lenis smooth scroll curvature without secondary lag
+      // Synchronized interpolation that tracks Lenis smooth scroll curvature cleanly
       const lerpRate = 18.0;
       const step = diff * (1 - Math.exp(-lerpRate * dt));
 
@@ -269,7 +335,6 @@ export function FinalCta() {
     };
 
     const requestTick = () => {
-      if (!isIntersecting) return;
       targetP = computeTargetP();
       if (rafId === null) {
         lastTime = null;
@@ -277,46 +342,73 @@ export function FinalCta() {
       }
     };
 
-    const onScroll = () => requestTick();
-    const onResize = () => requestTick();
+    const onScroll = () => {
+      if (!section) return;
+      const rect = section.getBoundingClientRect();
+      const vh = window.innerHeight;
 
-    // IntersectionObserver guarantees zero scroll overhead when off-screen
+      // 1. User scrolled UP past the section (section is completely below viewport)
+      if (rect.top >= vh) {
+        if (isInitialized || currentP > 0 || entryStartTime !== null) {
+          resetToInitialState();
+        }
+        return;
+      }
+
+      // 2. User scrolled DOWN past the section (section is completely above viewport)
+      if (rect.bottom <= 0) {
+        if (isInitialized || currentP > 0 || entryStartTime !== null) {
+          resetToInitialState();
+        }
+        return;
+      }
+
+      // 3. Section is approaching or inside viewport
+      if (entryStartTime === null) {
+        entryStartTime = performance.now();
+      }
+
+      isInitialized = true;
+      requestTick();
+    };
+
+    const onResize = () => {
+      onScroll();
+    };
+
+    // Keep scroll and resize listeners actively registered
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onResize, { passive: true });
+
+    // IntersectionObserver as secondary guard for layout shifts
     const observer = new IntersectionObserver(
       ([entry]) => {
-        isIntersecting = entry.isIntersecting;
-        if (isIntersecting) {
-          entryStartTime = performance.now();
-          targetP = computeTargetP();
-          if (!isInitialized) {
-            currentP = targetP;
-            render(currentP, performance.now());
-            isInitialized = true;
+        if (!entry.isIntersecting) {
+          const rect = entry.boundingClientRect;
+          if (rect.top >= window.innerHeight || rect.bottom <= 0) {
+            resetToInitialState();
           }
-          requestTick();
-          window.addEventListener("scroll", onScroll, { passive: true });
-          window.addEventListener("resize", onResize, { passive: true });
         } else {
-          entryStartTime = null;
-          window.removeEventListener("scroll", onScroll);
-          window.removeEventListener("resize", onResize);
-          if (rafId !== null) {
-            cancelAnimationFrame(rafId);
-            rafId = null;
-            lastTime = null;
-          }
+          onScroll();
         }
       },
-      { rootMargin: "300px 0px 300px 0px", threshold: 0 }
+      { rootMargin: "0px", threshold: 0 }
     );
 
     observer.observe(section);
 
-    // Initial calculation on mount
-    entryStartTime = performance.now();
-    targetP = computeTargetP();
-    currentP = targetP;
-    render(currentP, performance.now());
-    isInitialized = true;
+    // Initial check on mount
+    const initialRect = section.getBoundingClientRect();
+    const initialVh = window.innerHeight;
+    if (initialRect.top < initialVh && initialRect.bottom > 0) {
+      entryStartTime = performance.now() - 1000;
+      targetP = computeTargetP();
+      currentP = targetP;
+      render(currentP, performance.now());
+      isInitialized = true;
+    } else {
+      resetToInitialState();
+    }
 
     return () => {
       observer.disconnect();
