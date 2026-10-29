@@ -8,7 +8,7 @@ import { HeroMountainIllustration } from "@/components/home/hero-mountain-illust
 
 type AnimPhase = "source" | "packet1" | "building" | "packet2" | "production";
 
-// Headline characters with tuned stagger & deliberate cadence
+// Exact two-line headline with tuned character stagger & deliberate cadence
 const LINE1_TEXT = "Your code belongs";
 const LINE2_TEXT = "up here.";
 
@@ -42,7 +42,6 @@ function getReducedMotionServerSnapshot() {
 export function Hero() {
   const [animPhase, setAnimPhase] = useState<AnimPhase>("source");
   const [buildStep, setBuildStep] = useState<number>(0); // 0: idle, 1: installing, 2: compiling, 3: ready
-  const [loopKey, setLoopKey] = useState<number>(0);
   const heroRef = useRef<HTMLElement>(null);
   const [isInView, setIsInView] = useState(true);
 
@@ -74,14 +73,14 @@ export function Hero() {
 
     const timeouts: NodeJS.Timeout[] = [];
 
-    // T=0.8s: Packet 1 travels along Path 1 from Source to Build
+    // T=0.8s: Packet 1 active
     timeouts.push(
       setTimeout(() => {
         setAnimPhase("packet1");
       }, 800)
     );
 
-    // T=1.8s: Packet 1 arrives; Build Engine activates
+    // T=1.8s: Build Engine activates
     timeouts.push(
       setTimeout(() => {
         setAnimPhase("building");
@@ -103,23 +102,22 @@ export function Hero() {
       }, 3400)
     );
 
-    // T=3.8s: Packet 2 travels from Build to Production along Path 2
+    // T=3.8s: Packet 2 active
     timeouts.push(
       setTimeout(() => {
         setAnimPhase("packet2");
       }, 3800)
     );
 
-    // T=4.8s: Packet 2 arrives; Production goes RUNNING (live calm hold)
+    // T=4.8s: Production goes RUNNING (live calm hold)
     timeouts.push(
       setTimeout(() => {
         setAnimPhase("production");
       }, 4800)
     );
 
-    // Total loop interval: 9.6s, smoothly cycles without jarring reset
+    // Total loop interval: 9.6s
     const interval = setInterval(() => {
-      setLoopKey((k) => k + 1);
       setAnimPhase("source");
       setBuildStep(0);
 
@@ -160,7 +158,7 @@ export function Hero() {
       clearInterval(interval);
       timeouts.forEach((t) => clearTimeout(t));
     };
-  }, [isReducedMotion, isInView, loopKey]);
+  }, [isReducedMotion, isInView]);
 
   // Visual stage active states
   const activeStage =
@@ -170,20 +168,14 @@ export function Hero() {
       ? "build"
       : "production";
 
-  // Connection line active states
-  const isPath1Active =
-    !isReducedMotion &&
-    (animPhase === "packet1" ||
-      animPhase === "building" ||
-      animPhase === "packet2" ||
-      animPhase === "production");
-
-  const isPath2Active =
-    !isReducedMotion &&
-    (animPhase === "packet2" || animPhase === "production");
-
   const isProductionRunning = isReducedMotion || animPhase === "production";
   const currentBuildStep = isReducedMotion ? 3 : buildStep;
+
+  // Connector paths with generous spacing between the 3 cards
+  // Path 1 (Source bottom [233, 116] -> Build Engine top [330, 184])
+  const path1D = "M 233 116 C 233 158, 330 142, 330 184";
+  // Path 2 (Build Engine bottom [410, 336] -> Production top [470, 406])
+  const path2D = "M 410 336 C 410 380, 470 362, 470 406";
 
   return (
     <section
@@ -199,18 +191,19 @@ export function Hero() {
         isInView={isInView}
       />
 
-      <div className="layout-container w-full relative z-10 my-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 items-center">
+      <div className="layout-container max-w-[1360px] w-full relative z-10 my-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 xl:gap-14 items-center">
           
           {/* =================================================================
               LEFT COLUMN: Editorial Typography & Actions (5 cols)
-              Rebalanced without the stage selector: confident, elegant, legible
+              Strictly constrained to its own distinct zone; does not collide
+              with the deployment cards or merge into the mountain peaks.
               ================================================================= */}
-          <div className="lg:col-span-5 flex flex-col justify-center z-10">
+          <div className="lg:col-span-5 xl:col-span-5 flex flex-col justify-center z-10 max-w-[490px] xl:max-w-[530px]">
 
             {/* Editorial Two-Line Headline with Character-by-Character Entrance */}
             <h1
-              className="font-sans text-[42px] sm:text-[54px] md:text-[64px] lg:text-[72px] xl:text-[80px] font-medium leading-[1.04] tracking-[-0.035em] text-[#F5F5F3] mb-5 select-text"
+              className="font-sans text-[38px] sm:text-[46px] md:text-[54px] lg:text-[58px] xl:text-[66px] 2xl:text-[72px] font-medium leading-[1.05] tracking-[-0.035em] text-[#F5F5F3] mb-5 select-text max-w-[480px] lg:max-w-[490px] xl:max-w-[530px]"
               aria-label="Your code belongs up here."
             >
               {/* Accessible text representation for screen readers */}
@@ -261,7 +254,7 @@ export function Hero() {
             </h1>
 
             {/* Supporting Copy */}
-            <p className="font-sans text-[15.5px] sm:text-[16.5px] text-[#B0B0AE] leading-[1.6] max-w-[440px] mb-8 select-text">
+            <p className="font-sans text-[15px] sm:text-[16px] text-[#B0B0AE] leading-[1.6] max-w-[420px] mb-8 select-text">
               From your first deploy to production infrastructure, everything moves forward.
             </p>
 
@@ -286,178 +279,207 @@ export function Hero() {
 
           {/* =================================================================
               RIGHT COLUMN: Technical Overlay Infrastructure System (7 cols)
-              Precision technical overlay integrated into the engraved mountainscape
+              Shifted right & up with generous spacing between the 3 cards.
               ================================================================= */}
-          <div className="lg:col-span-7 relative w-full flex items-center justify-center lg:justify-end overflow-hidden h-[260px] xs:h-[310px] sm:h-[380px] md:h-[420px] lg:h-[460px]">
-            {/* Diagram Container: Fixed 640x460 coordinate space */}
-            <div className="w-[640px] h-[460px] shrink-0 origin-center lg:origin-top-right scale-[0.52] xs:scale-[0.62] sm:scale-[0.78] md:scale-[0.88] lg:scale-100 relative select-none">
+          <div className="lg:col-span-7 xl:col-span-7 relative w-full flex items-center justify-center lg:justify-end overflow-visible h-[300px] xs:h-[350px] sm:h-[430px] md:h-[480px] lg:h-[530px] lg:-translate-y-6 lg:translate-x-4 xl:-translate-y-8 xl:translate-x-8">
+            {/* Diagram Container: Spaced-out 660x520 coordinate space */}
+            <div className="w-[660px] h-[520px] shrink-0 origin-center lg:origin-top-right scale-[0.50] xs:scale-[0.58] sm:scale-[0.70] md:scale-[0.80] lg:scale-[0.88] xl:scale-100 relative select-none">
               
-              {/* SVG Infrastructure Circuit Layer (connections, pins, data packets) */}
+              {/* SVG Infrastructure Connector Layer (Glowing Orange 1st & Glowing Green 2nd with Animation) */}
               <svg
-                viewBox="0 0 640 460"
+                viewBox="0 0 660 520"
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
-                className="absolute inset-0 w-full h-full pointer-events-none z-0"
+                className="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-visible"
                 aria-hidden="true"
               >
-                {/* CONNECTION 1 BASE: Source bottom (134, 114) -> Build top (324, 164) */}
+                <defs>
+                  {/* Glow filter for 1st connector line (Burnt Orange) */}
+                  <filter id="heroGlowOrange" x="-60%" y="-60%" width="220%" height="220%">
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="3.5" result="blur1" />
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="7" result="blur2" />
+                    <feMerge>
+                      <feMergeNode in="blur2" />
+                      <feMergeNode in="blur1" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
+
+                  {/* Glow filter for 2nd connector line (Sage Green) */}
+                  <filter id="heroGlowGreen" x="-60%" y="-60%" width="220%" height="220%">
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="3.5" result="blur1" />
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="7" result="blur2" />
+                    <feMerge>
+                      <feMergeNode in="blur2" />
+                      <feMergeNode in="blur1" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
+
+                  {/* Luminous Orange Gradient */}
+                  <linearGradient id="lineGradOrange" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#FFA67E" />
+                    <stop offset="50%" stopColor="#D88762" />
+                    <stop offset="100%" stopColor="#FFA67E" />
+                  </linearGradient>
+
+                  {/* Luminous Green Gradient */}
+                  <linearGradient id="lineGradGreen" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#B3EAD0" />
+                    <stop offset="50%" stopColor="#83B69A" />
+                    <stop offset="100%" stopColor="#B3EAD0" />
+                  </linearGradient>
+                </defs>
+
+                {/* -----------------------------------------------------------
+                    CONNECTOR 1: Source -> Build Engine
+                    JUST GLOWING BURNT ORANGE (NO WHITE DOTTED)
+                    ----------------------------------------------------------- */}
+                {/* 1. Deep ambient orange glow aura with gentle luminous breathing */}
                 <path
-                  d="M 134 114 C 134 148, 324 130, 324 164"
-                  stroke="#282826"
-                  strokeWidth="1.25"
-                  strokeDasharray="3 3"
+                  d={path1D}
+                  stroke="#D88762"
+                  strokeWidth="8"
+                  strokeLinecap="round"
+                  opacity="0.5"
+                  filter="url(#heroGlowOrange)"
+                >
+                  {!isReducedMotion && (
+                    <animate
+                      attributeName="opacity"
+                      values="0.35;0.65;0.35"
+                      dur="2.4s"
+                      repeatCount="indefinite"
+                    />
+                  )}
+                </path>
+
+                {/* 2. Core bright glowing orange line */}
+                <path
+                  d={path1D}
+                  stroke="url(#lineGradOrange)"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  opacity="0.95"
                 />
 
-                {/* Active Highlight Path 1 */}
-                <path
-                  d="M 134 114 C 134 148, 324 130, 324 164"
-                  stroke={isPath1Active ? "#D88762" : "transparent"}
-                  strokeWidth="1.5"
-                  className="transition-colors duration-300"
-                />
-
-                {/* Packet 1: Glides along Path 1 from Source to Build */}
-                {!isReducedMotion && animPhase === "packet1" && (
-                  <g key={`packet1-${loopKey}`}>
-                    <circle r="6" fill="#D88762" opacity="0.3">
+                {/* 3. Glowing orange energy bead gliding continuously along the line */}
+                {!isReducedMotion && (
+                  <g>
+                    <circle r="7" fill="#D88762" opacity="0.6" filter="url(#heroGlowOrange)">
                       <animateMotion
-                        path="M 134 114 C 134 148, 324 130, 324 164"
-                        dur="0.9s"
-                        repeatCount="1"
-                        fill="freeze"
+                        path={path1D}
+                        dur="1.8s"
+                        repeatCount="indefinite"
                       />
                     </circle>
-                    <circle r="3" fill="#D88762">
+                    <circle r="3.5" fill="#FFA67E" filter="url(#heroGlowOrange)">
                       <animateMotion
-                        path="M 134 114 C 134 148, 324 130, 324 164"
-                        dur="0.9s"
-                        repeatCount="1"
-                        fill="freeze"
-                      />
-                    </circle>
-                  </g>
-                )}
-
-                {/* Intermediate Artifact Tag 1 */}
-                <g transform="translate(229, 139)">
-                  <rect x="-24" y="-8" width="48" height="15" rx="3" fill="#141413" stroke="#2C2C2A" strokeWidth="0.85" />
-                  <text x="0" y="3" fill="#777777" fontSize="8.5" fontFamily="var(--font-geist-mono)" textAnchor="middle">
-                    git:sha256
-                  </text>
-                </g>
-
-                {/* CONNECTION 2 BASE: Build bottom (324, 290) -> Production top (496, 334) */}
-                <path
-                  d="M 324 290 C 324 322, 496 302, 496 334"
-                  stroke="#282826"
-                  strokeWidth="1.25"
-                  strokeDasharray="3 3"
-                />
-
-                {/* Active Highlight Path 2 */}
-                <path
-                  d="M 324 290 C 324 322, 496 302, 496 334"
-                  stroke={
-                    isPath2Active
-                      ? isProductionRunning
-                        ? "#83B69A"
-                        : "#D88762"
-                      : "transparent"
-                  }
-                  strokeWidth="1.5"
-                  className="transition-colors duration-300"
-                />
-
-                {/* Packet 2: Glides along Path 2 from Build to Production */}
-                {!isReducedMotion && animPhase === "packet2" && (
-                  <g key={`packet2-${loopKey}`}>
-                    <circle r="6" fill="#D88762" opacity="0.3">
-                      <animateMotion
-                        path="M 324 290 C 324 322, 496 302, 496 334"
-                        dur="0.9s"
-                        repeatCount="1"
-                        fill="freeze"
-                      />
-                    </circle>
-                    <circle r="3" fill="#83B69A">
-                      <animateMotion
-                        path="M 324 290 C 324 322, 496 302, 496 334"
-                        dur="0.9s"
-                        repeatCount="1"
-                        fill="freeze"
-                      />
-                    </circle>
-                  </g>
-                )}
-
-                {/* Subtle continuous telemetry heartbeat ping during live production hold */}
-                {!isReducedMotion && animPhase === "production" && (
-                  <g key={`heartbeat-${loopKey}`}>
-                    <circle r="2.5" fill="#83B69A" opacity="0.45">
-                      <animateMotion
-                        path="M 324 290 C 324 322, 496 302, 496 334"
-                        dur="2.8s"
+                        path={path1D}
+                        dur="1.8s"
                         repeatCount="indefinite"
                       />
                     </circle>
                   </g>
                 )}
 
-                {/* Intermediate Artifact Tag 2 */}
-                <g transform="translate(410, 312)">
-                  <rect x="-24" y="-8" width="48" height="15" rx="3" fill="#141413" stroke="#2C2C2A" strokeWidth="0.85" />
-                  <text x="0" y="3" fill="#777777" fontSize="8.5" fontFamily="var(--font-geist-mono)" textAnchor="middle">
-                    release:v2.4
-                  </text>
-                </g>
+                {/* Terminal Pins Connector 1 */}
+                <circle cx="233" cy="116" r="3.5" fill="#FFA67E" filter="url(#heroGlowOrange)" />
+                <circle cx="330" cy="184" r="3.5" fill="#FFA67E" filter="url(#heroGlowOrange)" />
 
-                {/* Hardware Terminal Ports (Connection Pins) */}
-                {/* Source Output Pin (134, 114) */}
-                <g transform="translate(134, 114)">
-                  <rect x="-3" y="-3" width="6" height="6" rx="1.5" fill="#141413" stroke={isPath1Active ? "#D88762" : "#2C2C2A"} strokeWidth="1.2" />
-                  <circle r="1.2" fill={isPath1Active ? "#D88762" : "#777777"} />
-                </g>
+                {/* -----------------------------------------------------------
+                    CONNECTOR 2: Build Engine -> Production
+                    JUST GLOWING SAGE GREEN (NO WHITE DOTTED)
+                    ----------------------------------------------------------- */}
+                {/* 1. Deep ambient green glow aura with gentle luminous breathing */}
+                <path
+                  d={path2D}
+                  stroke="#83B69A"
+                  strokeWidth="8"
+                  strokeLinecap="round"
+                  opacity="0.5"
+                  filter="url(#heroGlowGreen)"
+                >
+                  {!isReducedMotion && (
+                    <animate
+                      attributeName="opacity"
+                      values="0.35;0.65;0.35"
+                      dur="2.4s"
+                      repeatCount="indefinite"
+                    />
+                  )}
+                </path>
 
-                {/* Build Input Pin (324, 164) */}
-                <g transform="translate(324, 164)">
-                  <rect x="-3" y="-3" width="6" height="6" rx="1.5" fill="#141413" stroke={isPath1Active ? "#D88762" : "#2C2C2A"} strokeWidth="1.2" />
-                  <circle r="1.2" fill={isPath1Active ? "#D88762" : "#777777"} />
-                </g>
+                {/* 2. Core bright glowing green line */}
+                <path
+                  d={path2D}
+                  stroke="url(#lineGradGreen)"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  opacity="0.95"
+                />
 
-                {/* Build Output Pin (324, 290) */}
-                <g transform="translate(324, 290)">
-                  <rect x="-3" y="-3" width="6" height="6" rx="1.5" fill="#141413" stroke={isPath2Active ? (isProductionRunning ? "#83B69A" : "#D88762") : "#2C2C2A"} strokeWidth="1.2" />
-                  <circle r="1.2" fill={isPath2Active ? (isProductionRunning ? "#83B69A" : "#D88762") : "#777777"} />
-                </g>
+                {/* 3. Glowing sage-green energy bead gliding continuously along the line */}
+                {!isReducedMotion && (
+                  <g>
+                    <circle r="7" fill="#83B69A" opacity="0.6" filter="url(#heroGlowGreen)">
+                      <animateMotion
+                        path={path2D}
+                        dur="1.8s"
+                        repeatCount="indefinite"
+                      />
+                    </circle>
+                    <circle r="3.5" fill="#B3EAD0" filter="url(#heroGlowGreen)">
+                      <animateMotion
+                        path={path2D}
+                        dur="1.8s"
+                        repeatCount="indefinite"
+                      />
+                    </circle>
+                  </g>
+                )}
 
-                {/* Production Input Pin (496, 334) */}
-                <g transform="translate(496, 334)">
-                  <rect x="-3" y="-3" width="6" height="6" rx="1.5" fill="#141413" stroke={isPath2Active ? (isProductionRunning ? "#83B69A" : "#D88762") : "#2C2C2A"} strokeWidth="1.2" />
-                  <circle r="1.2" fill={isProductionRunning ? "#83B69A" : isPath2Active ? "#D88762" : "#777777"} />
-                </g>
+                {/* Terminal Pins Connector 2 */}
+                <circle cx="410" cy="336" r="3.5" fill="#B3EAD0" filter="url(#heroGlowGreen)" />
+                <circle cx="470" cy="406" r="3.5" fill="#B3EAD0" filter="url(#heroGlowGreen)" />
               </svg>
 
               {/* -------------------------------------------------------------
-                  NODE 1: SOURCE NODE (Top-Left: left 16px, top 16px, width 236px)
+                  CARD 1: SOURCE NODE (Top: left 120px, top 12px, width 226px)
+                  Shifted right and up away from the headline
                   ------------------------------------------------------------- */}
               <div
                 style={{
-                  left: 16,
-                  top: 16,
-                  width: 236,
+                  left: 120,
+                  top: 12,
+                  width: 226,
                 }}
-                className={`absolute rounded-[8px] bg-[#141413]/88 backdrop-blur-md border p-3 transition-all duration-200 shadow-xl shadow-black/50 z-10 ${
+                className={`absolute rounded-[8px] backdrop-blur-md p-3 transition-all duration-300 z-10 ${
                   activeStage === "source"
-                    ? "border-accent-orange/70 shadow-accent-orange/5"
-                    : "border-[#2C2C2A] hover:border-[#444440]"
+                    ? "bg-[#1B1917]/95 border-[1.5px] border-accent-orange ring-1 ring-accent-orange/50 shadow-[0_0_24px_rgba(216,135,98,0.32),0_4px_16px_rgba(0,0,0,0.6)]"
+                    : "bg-[#141413]/90 border border-[#3A3A36] hover:border-[#555550] shadow-xl shadow-black/60"
                 }`}
                 aria-label="Source Node"
               >
                 {/* Node Header */}
-                <div className="flex items-center justify-between mb-1.5 pb-1.5 border-b border-[#2C2C2A]/60">
+                <div
+                  className={`flex items-center justify-between mb-1.5 pb-1.5 border-b transition-colors duration-300 ${
+                    activeStage === "source" ? "border-accent-orange/30" : "border-[#2C2C2A]/60"
+                  }`}
+                >
                   <div className="flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-accent-orange" />
-                    <span className="font-mono text-[9.5px] uppercase tracking-wider text-text-muted font-medium">
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        activeStage === "source"
+                          ? "bg-accent-orange shadow-[0_0_8px_rgba(216,135,98,0.9)]"
+                          : "bg-accent-orange/70"
+                      }`}
+                    />
+                    <span
+                      className={`font-mono text-[9.5px] uppercase tracking-wider font-medium transition-colors duration-300 ${
+                        activeStage === "source" ? "text-accent-orange" : "text-text-muted"
+                      }`}
+                    >
                       SOURCE
                     </span>
                   </div>
@@ -485,34 +507,43 @@ export function Hero() {
               </div>
 
               {/* -------------------------------------------------------------
-                  NODE 2: BUILD ENGINE NODE (Center: left 196px, top 164px, width 256px)
+                  CARD 2: BUILD ENGINE NODE (Center: left 260px, top 184px, width 250px)
+                  Spaced out with 68px vertical gap from Source
                   ------------------------------------------------------------- */}
               <div
                 style={{
-                  left: 196,
-                  top: 164,
-                  width: 256,
+                  left: 260,
+                  top: 184,
+                  width: 250,
                 }}
-                className={`absolute rounded-[8px] bg-[#141413]/88 backdrop-blur-md border p-3 transition-all duration-200 shadow-xl shadow-black/50 z-10 ${
+                className={`absolute rounded-[8px] backdrop-blur-md p-3 transition-all duration-300 z-10 ${
                   activeStage === "build"
-                    ? "border-accent-orange/70 shadow-accent-orange/10"
-                    : "border-[#2C2C2A] hover:border-[#444440]"
+                    ? "bg-[#1B1917]/95 border-[1.5px] border-accent-orange ring-1 ring-accent-orange/50 shadow-[0_0_28px_rgba(216,135,98,0.35),0_4px_16px_rgba(0,0,0,0.6)]"
+                    : "bg-[#141413]/90 border border-[#3A3A36] hover:border-[#555550] shadow-xl shadow-black/60"
                 }`}
                 aria-label="Build Engine Node"
               >
                 {/* Node Header */}
-                <div className="flex items-center justify-between mb-1.5 pb-1.5 border-b border-[#2C2C2A]/60">
+                <div
+                  className={`flex items-center justify-between mb-1.5 pb-1.5 border-b transition-colors duration-300 ${
+                    activeStage === "build" ? "border-accent-orange/30" : "border-[#2C2C2A]/60"
+                  }`}
+                >
                   <div className="flex items-center gap-1.5">
                     <span
                       className={`w-1.5 h-1.5 rounded-full ${
                         activeStage === "build" || animPhase === "building"
-                          ? "bg-accent-orange animate-pulse"
+                          ? "bg-accent-orange shadow-[0_0_8px_rgba(216,135,98,0.9)] animate-pulse"
                           : currentBuildStep >= 3
-                          ? "bg-semantic-success"
+                          ? "bg-semantic-success shadow-[0_0_8px_rgba(131,182,154,0.8)]"
                           : "bg-text-muted"
                       }`}
                     />
-                    <span className="font-mono text-[9.5px] uppercase tracking-wider text-text-muted font-medium">
+                    <span
+                      className={`font-mono text-[9.5px] uppercase tracking-wider font-medium transition-colors duration-300 ${
+                        activeStage === "build" ? "text-accent-orange" : "text-text-muted"
+                      }`}
+                    >
                       BUILD ENGINE
                     </span>
                   </div>
@@ -581,30 +612,41 @@ export function Hero() {
               </div>
 
               {/* -------------------------------------------------------------
-                  NODE 3: PRODUCTION NODE (Bottom-Right: left 368px, top 334px, width 256px)
+                  CARD 3: PRODUCTION NODE (Bottom-Right: left 380px, top 406px, width 246px)
+                  Spaced out with 68px vertical gap from Build Engine
                   ------------------------------------------------------------- */}
               <div
                 style={{
-                  left: 368,
-                  top: 334,
-                  width: 256,
+                  left: 380,
+                  top: 406,
+                  width: 246,
                 }}
-                className={`absolute rounded-[8px] bg-[#141413]/88 backdrop-blur-md border p-3 transition-all duration-200 shadow-xl shadow-black/50 z-10 ${
+                className={`absolute rounded-[8px] backdrop-blur-md p-3 transition-all duration-300 z-10 ${
                   activeStage === "production" || isProductionRunning
-                    ? "border-semantic-success/60 shadow-semantic-success/5"
-                    : "border-[#2C2C2A] hover:border-[#444440]"
+                    ? "bg-[#151B17]/95 border-[1.5px] border-semantic-success ring-1 ring-semantic-success/50 shadow-[0_0_28px_rgba(131,182,154,0.35),0_4px_16px_rgba(0,0,0,0.6)]"
+                    : "bg-[#141413]/90 border border-[#3A3A36] hover:border-[#555550] shadow-xl shadow-black/60"
                 }`}
                 aria-label="Production Node"
               >
                 {/* Node Header */}
-                <div className="flex items-center justify-between mb-1.5 pb-1.5 border-b border-[#2C2C2A]/60">
+                <div
+                  className={`flex items-center justify-between mb-1.5 pb-1.5 border-b transition-colors duration-300 ${
+                    isProductionRunning ? "border-semantic-success/30" : "border-[#2C2C2A]/60"
+                  }`}
+                >
                   <div className="flex items-center gap-1.5">
                     <span
                       className={`w-1.5 h-1.5 rounded-full ${
-                        isProductionRunning ? "bg-semantic-success animate-pulse" : "bg-text-muted/60"
+                        isProductionRunning
+                          ? "bg-semantic-success shadow-[0_0_8px_rgba(131,182,154,0.9)] animate-pulse"
+                          : "bg-text-muted/60"
                       }`}
                     />
-                    <span className="font-mono text-[9.5px] uppercase tracking-wider text-text-muted font-medium">
+                    <span
+                      className={`font-mono text-[9.5px] uppercase tracking-wider font-medium transition-colors duration-300 ${
+                        isProductionRunning ? "text-semantic-success" : "text-text-muted"
+                      }`}
+                    >
                       PRODUCTION
                     </span>
                   </div>

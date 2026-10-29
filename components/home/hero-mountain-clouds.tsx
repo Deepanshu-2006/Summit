@@ -336,12 +336,20 @@ export function HeroMountainClouds({
           cragMod = 0.75 + 0.25 * Math.cos(((nx - 0.70) / 0.25) * Math.PI);
         }
 
+        // Headline zone attenuation:
+        // Softly reduce mist opacity directly behind the headline (nx < 0.38)
+        // so mist never competes with or washes out text contrast.
+        let headlineMod = 1.0;
+        if (nx < 0.38) {
+          headlineMod = 0.52 + 0.48 * Math.max(0, nx / 0.38);
+        }
+
         // Density breathing modulation
         const breath = isReducedMotion
           ? 1.0
           : 0.9 + 0.1 * Math.sin(timeSec * f.breathSpeed + f.breathPhase);
 
-        const effectiveAlpha = f.baseAlpha * edgeFade * cragMod * breath;
+        const effectiveAlpha = f.baseAlpha * edgeFade * cragMod * headlineMod * breath;
         if (effectiveAlpha <= 0.005) continue;
 
         // Draw stratified mist puffs along spine
