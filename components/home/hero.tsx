@@ -233,7 +233,7 @@ export function Hero() {
   return (
     <section
       ref={heroRef}
-      className="relative w-full min-h-[580px] xl:min-h-[640px] flex flex-col justify-center pt-8 pb-6 sm:pt-10 sm:pb-8 lg:pt-12 lg:pb-10 overflow-hidden bg-transparent select-none"
+      className="relative w-full min-h-[580px] lg:min-h-[calc(100vh-72px)] xl:min-h-[700px] flex flex-col justify-center pt-8 pb-6 sm:pt-10 sm:pb-8 lg:pt-12 lg:pb-10 overflow-hidden bg-transparent select-none"
       aria-label="Deployment Runway Hero"
     >
       {/* Signature Engraved Mountain Landscape & Volumetric Valley Clouds */}

@@ -311,16 +311,112 @@ body {
 }
 
 /* -------------------------------------------------------------------------
-   Atmospheric Volumetric Animations
+   Atmospheric Volumetric Animations (Seamless, Infinitely Living Landscape)
    ------------------------------------------------------------------------- */
-@keyframes driftSlow {
+@keyframes mistOrbitalA {
   0% {
     transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.28;
+  }
+  25% {
+    transform: translate3d(36px, -8px, 0) scale(1.03);
+    opacity: 0.35;
   }
   50% {
-    transform: translate3d(28px, -10px, 0) scale(1.05);
+    transform: translate3d(64px, 6px, 0) scale(0.98);
+    opacity: 0.30;
+  }
+  75% {
+    transform: translate3d(22px, 14px, 0) scale(1.02);
+    opacity: 0.24;
   }
   100% {
-    transform: translate3d(-20px, 14px, 0) scale(0.97);
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.28;
+  }
+}
+
+@keyframes mistOrbitalB {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1.02);
+    opacity: 0.24;
+  }
+  30% {
+    transform: translate3d(-32px, 12px, 0) scale(0.97);
+    opacity: 0.32;
+  }
+  60% {
+    transform: translate3d(28px, -10px, 0) scale(1.04);
+    opacity: 0.22;
+  }
+  85% {
+    transform: translate3d(12px, 6px, 0) scale(1.01);
+    opacity: 0.26;
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1.02);
+    opacity: 0.24;
+  }
+}
+
+@keyframes mistOrbitalC {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.18;
+  }
+  35% {
+    transform: translate3d(44px, -14px, 0) scale(1.05);
+    opacity: 0.28;
+  }
+  70% {
+    transform: translate3d(-20px, -4px, 0) scale(0.96);
+    opacity: 0.20;
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.18;
+  }
+}
+
+@keyframes terrainLightSweep {
+  0% {
+    transform: translate3d(-18%, -4%, 0);
+    opacity: 0.22;
+  }
+  35% {
+    transform: translate3d(8%, 3%, 0);
+    opacity: 0.38;
+  }
+  65% {
+    transform: translate3d(22%, -6%, 0);
+    opacity: 0.32;
+  }
+  85% {
+    transform: translate3d(4%, 1%, 0);
+    opacity: 0.26;
+  }
+  100% {
+    transform: translate3d(-18%, -4%, 0);
+    opacity: 0.22;
+  }
+}
+
+@keyframes contourCurrent {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -320;
+  }
+}
+
+@keyframes ridgePulse {
+  0%, 100% {
+    opacity: 0.25;
+    stroke: #8E8C86;
+  }
+  50% {
+    opacity: 0.55;
+    stroke: #D88762;
   }
 }
