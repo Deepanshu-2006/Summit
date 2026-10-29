@@ -1,6 +1,13 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  useSyncExternalStore,
+} from "react";
+import { useLenis } from "@/components/layout/smooth-scroll-provider";
 import { ApiServicePlayground } from "./api-service-playground";
 import { DatabaseServicePlayground } from "./database-service-playground";
 import { WorkerServicePlayground } from "./worker-service-playground";
@@ -11,7 +18,9 @@ interface ServiceMetadata {
   id: ServiceId;
   index: string;
   name: string;
+  shortName: string;
   description: string;
+  elevation: string;
 }
 
 const SERVICES: Record<ServiceId, ServiceMetadata> = {
@@ -19,45 +28,633 @@ const SERVICES: Record<ServiceId, ServiceMetadata> = {
     id: "web",
     index: "01",
     name: "Web frontend",
+    shortName: "Web",
     description: "The experience your users see.",
+    elevation: "1,420M",
   },
   api: {
     id: "api",
     index: "02",
     name: "API service",
+    shortName: "API",
     description: "Logic and application requests.",
+    elevation: "2,150M",
   },
   db: {
     id: "db",
     index: "03",
     name: "Database",
+    shortName: "Database",
     description: "Persistent application data.",
+    elevation: "2,890M",
   },
   worker: {
     id: "worker",
     index: "04",
     name: "Background worker",
+    shortName: "Worker",
     description: "Tasks that run behind the scenes.",
+    elevation: "3,420M",
   },
 };
+
+const SERVICE_KEYS: ServiceId[] = ["web", "api", "db", "worker"];
+
+// Reduced Motion Subscription helper
+function subscribeReducedMotion(callback: () => void) {
+  if (typeof window === "undefined") return () => {};
+  const mql = window.matchMedia("(prefers-reduced-motion: reduce)");
+  mql.addEventListener("change", callback);
+  return () => mql.removeEventListener("change", callback);
+}
+
+function getReducedMotionSnapshot() {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function getReducedMotionServerSnapshot() {
+  return false;
+}
+
+/**
+ * Maps pinned scroll progress [0, 1] across the 4 stages into a continuous trail progress [0, 1].
+ * Dwells comfortably at each station so users can read the active stage content,
+ * then organically accelerates and decelerates while walking between stations.
+ */
+function progressToTrailRatio(p: number): number {
+  if (p <= 0.12) return 0;
+  if (p < 0.33) {
+    const t = (p - 0.12) / 0.21;
+    // Smootherstep interpolation for organic walking acceleration/deceleration
+    const s = t * t * t * (t * (t * 6 - 15) + 10);
+    return (1 / 3) * s;
+  }
+  if (p <= 0.45) return 1 / 3;
+  if (p < 0.66) {
+    const t = (p - 0.45) / 0.21;
+    const s = t * t * t * (t * (t * 6 - 15) + 10);
+    return 1 / 3 + (1 / 3) * s;
+  }
+  if (p <= 0.78) return 2 / 3;
+  if (p < 0.94) {
+    const t = (p - 0.78) / 0.16;
+    const s = t * t * t * (t * (t * 6 - 15) + 10);
+    return 2 / 3 + (1 / 3) * s;
+  }
+  return 1;
+}
+
+/**
+ * TopDownHiker Component
+ *
+ * Meticulously detailed top-down miniature alpine expeditioner:
+ * - Wide-brim expedition sun hat with Summit burnt-orange hatband
+ * - Broad technical shoulders with alpine shell jacket
+ * - Technical mountain backpack with burnt-orange top flap and rolled bedroll
+ * - Alternating leather boots and swinging trekking poles in responsive stride
+ * - Ground contact shadow and subtle warm ambient lantern glow
+ */
+function HorizontalTopDownHiker({
+  hikerRef,
+  leftBootRef,
+  rightBootRef,
+  leftPoleRef,
+  rightPoleRef,
+  torsoRef,
+}: {
+  hikerRef: React.RefObject<SVGGElement | null>;
+  leftBootRef: React.RefObject<SVGGElement | null>;
+  rightBootRef: React.RefObject<SVGGElement | null>;
+  leftPoleRef: React.RefObject<SVGGElement | null>;
+  rightPoleRef: React.RefObject<SVGGElement | null>;
+  torsoRef: React.RefObject<SVGGElement | null>;
+}) {
+  return (
+    <g
+      ref={hikerRef}
+      className="will-change-transform pointer-events-none"
+      aria-hidden="true"
+    >
+      {/* 1. Ambient Warm Ground Contact Shadow & Subtle Alpine Lantern Glow */}
+      <circle cx="0" cy="1" r="14" fill="#D88762" opacity="0.10" />
+      <ellipse cx="0" cy="1" rx="10" ry="13" fill="#000000" opacity="0.6" />
+
+      {/* 2. Walking Legs & Boots (Alternating stride) */}
+      <g id="hiker-boots">
+        {/* Left Boot */}
+        <g ref={leftBootRef} transform="translate(-5.5, 7)">
+          <rect
+            x="-2.2"
+            y="-4"
+            width="4.4"
+            height="8"
+            rx="2"
+            fill="#1E1D1B"
+            stroke="#111110"
+            strokeWidth="0.75"
+          />
+          <line x1="-1.2" y1="-1" x2="1.2" y2="-1" stroke="#D88762" strokeWidth="0.7" />
+          <line x1="-1.2" y1="1" x2="1.2" y2="1" stroke="#D88762" strokeWidth="0.7" />
+          <ellipse cx="0" cy="-3" rx="1.8" ry="1" fill="#141312" />
+        </g>
+
+        {/* Right Boot */}
+        <g ref={rightBootRef} transform="translate(5.5, 7)">
+          <rect
+            x="-2.2"
+            y="-4"
+            width="4.4"
+            height="8"
+            rx="2"
+            fill="#1E1D1B"
+            stroke="#111110"
+            strokeWidth="0.75"
+          />
+          <line x1="-1.2" y1="-1" x2="1.2" y2="-1" stroke="#D88762" strokeWidth="0.7" />
+          <line x1="-1.2" y1="1" x2="1.2" y2="1" stroke="#D88762" strokeWidth="0.7" />
+          <ellipse cx="0" cy="-3" rx="1.8" ry="1" fill="#141312" />
+        </g>
+      </g>
+
+      {/* 3. Trekking Poles & Hands */}
+      <g id="hiker-poles">
+        {/* Left Trekking Pole */}
+        <g ref={leftPoleRef} transform="translate(-9, -5)">
+          <line
+            x1="-1.2"
+            y1="-8"
+            x2="1.2"
+            y2="10"
+            stroke="#8E8C86"
+            strokeWidth="0.8"
+            strokeLinecap="round"
+          />
+          <circle cx="0.7" cy="7" r="2" fill="none" stroke="#FAF8F5" strokeWidth="0.5" />
+          <circle cx="1.2" cy="10" r="0.7" fill="#FAF8F5" />
+          <rect x="-0.9" y="-2.5" width="1.8" height="4" rx="0.7" fill="#FAF8F5" />
+        </g>
+
+        {/* Right Trekking Pole */}
+        <g ref={rightPoleRef} transform="translate(9, -5)">
+          <line
+            x1="1.2"
+            y1="-8"
+            x2="-1.2"
+            y2="10"
+            stroke="#8E8C86"
+            strokeWidth="0.8"
+            strokeLinecap="round"
+          />
+          <circle cx="-0.7" cy="7" r="2" fill="none" stroke="#FAF8F5" strokeWidth="0.5" />
+          <circle cx="-1.2" cy="10" r="0.7" fill="#FAF8F5" />
+          <rect x="-0.9" y="-2.5" width="1.8" height="4" rx="0.7" fill="#FAF8F5" />
+        </g>
+      </g>
+
+      {/* 4. Torso & Technical Expedition Backpack */}
+      <g ref={torsoRef}>
+        {/* Alpine Shell Jacket */}
+        <path
+          d="M -8 -4 C -8 -7, 8 -7, 8 -4 C 8.5 0, 7.5 3.5, 6.5 4.5 C 3.5 5.5, -3.5 5.5, -6.5 4.5 C -7.5 3.5, -8.5 0, -8 -4 Z"
+          fill="#34322E"
+          stroke="#262422"
+          strokeWidth="0.75"
+        />
+
+        {/* Technical Expedition Backpack */}
+        <g transform="translate(0, 1)">
+          <rect
+            x="-6.5"
+            y="-2"
+            width="13"
+            height="10"
+            rx="2.5"
+            fill="#23211E"
+            stroke="#151413"
+            strokeWidth="0.7"
+          />
+          {/* Burnt-Orange Top Flap */}
+          <rect
+            x="-5.5"
+            y="-3"
+            width="11"
+            height="3.5"
+            rx="1.2"
+            fill="#D88762"
+            stroke="#B96D4C"
+            strokeWidth="0.5"
+          />
+          {/* Compression Straps */}
+          <line x1="-3" y1="-3" x2="-3" y2="7" stroke="#111110" strokeWidth="0.7" />
+          <line x1="3" y1="-3" x2="3" y2="7" stroke="#111110" strokeWidth="0.7" />
+          {/* Rolled Expedition Bedroll */}
+          <rect
+            x="-7"
+            y="-4.8"
+            width="14"
+            height="2.8"
+            rx="1"
+            fill="#C97A56"
+            stroke="#A35C3E"
+            strokeWidth="0.5"
+          />
+        </g>
+
+        {/* 5. Head & Wide-Brim Expedition Sun Hat */}
+        <g transform="translate(0, -5.5)">
+          {/* Wide Brim */}
+          <ellipse
+            cx="0"
+            cy="0"
+            rx="5.8"
+            ry="6.4"
+            fill="#423E39"
+            stroke="#504C46"
+            strokeWidth="0.7"
+          />
+          {/* Burnt-Orange Hatband */}
+          <ellipse
+            cx="0"
+            cy="0"
+            rx="3.8"
+            ry="4.2"
+            fill="none"
+            stroke="#D88762"
+            strokeWidth="0.8"
+          />
+          {/* Crown */}
+          <ellipse cx="0" cy="0" rx="3.1" ry="3.5" fill="#2E2B27" />
+        </g>
+      </g>
+    </g>
+  );
+}
 
 /**
  * ApplicationStack: Section 04 — The Platform
  * "One platform. Your entire stack."
  *
- * Unified Shared Architecture matching Section 02 (Deployment):
- * - Exactly equal outer card heights across all four service views:
- *   h-[475px] (mobile) / sm:h-[500px] (tablet) / lg:h-[530px] (desktop)
- * - Container reaches down directly to the line below it
- * - Web Frontend view removes the bottom footer and extends the site preview flush to the bottom edge of the container
- * - Both upper switcher and container can be viewed together on screen
- * - Zero layout jump or resizing when toggling between services
- * - Strict adherence to Jetway palette: #111111 bg, #1D1D1D surface, #F1F0EC text, #303030 borders, #D88762 accent, #83B69A success
+ * Storytelling Transformation:
+ * - Pinned scroll runway dividing application stack into 4 sequential chapters.
+ * - Conventional underline replaced completely by a continuous horizontal mountain trail with top-down hiker.
+ * - Hiker advances along the alpine path as user scrolls, illuminating conquered waypoints in Summit burnt orange.
+ * - Clicking any stage label smoothly scrolls the page and animates the hiker to that station.
+ * - Smooth, zero-height-jump crossfades between the four infrastructure views.
+ * - Releases cleanly into normal page flow revealing the three architectural benefit pillars.
  */
 export function ApplicationStack() {
   const [selectedId, setSelectedId] = useState<ServiceId>("web");
+  const [activeIndex, setActiveIndex] = useState<number>(0);
+  const [tabCenters, setTabCenters] = useState<number[]>([]);
+
+  const sectionRef = useRef<HTMLElement>(null);
+  const stickyRef = useRef<HTMLDivElement>(null);
+  const switcherRef = useRef<HTMLDivElement>(null);
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const benefitRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
+
+  // SVG Trail Refs
+  const pathRef = useRef<SVGPathElement>(null);
+  const traveledPathRef = useRef<SVGPathElement>(null);
+  const traveledGlowRef = useRef<SVGPathElement>(null);
+  const traveledCoreRef = useRef<SVGPathElement>(null);
+  const pathLengthRef = useRef<number>(600);
+
+  // Hiker DOM Refs for 60fps/120fps direct RAF transforms
+  const hikerRef = useRef<SVGGElement>(null);
+  const leftBootRef = useRef<SVGGElement>(null);
+  const rightBootRef = useRef<SVGGElement>(null);
+  const leftPoleRef = useRef<SVGGElement>(null);
+  const rightPoleRef = useRef<SVGGElement>(null);
+  const torsoRef = useRef<SVGGElement>(null);
+
+  // Animation state tracking
+  const animRef = useRef({
+    targetProgress: 0,
+    currentProgress: 0,
+    walkCycle: 0,
+    stride: 0,
+    armStride: 0,
+    sway: 0,
+    isWalking: false,
+    isWalkingBackward: false,
+    lastDistance: 0,
+    rafId: null as number | null,
+  });
+
+  const activeIndexRef = useRef<number>(0);
+
+  const isReducedMotion = useSyncExternalStore(
+    subscribeReducedMotion,
+    getReducedMotionSnapshot,
+    getReducedMotionServerSnapshot
+  );
+
+  // Shared Lenis scroll instance
+  const lenis = useLenis();
+
+  // Measure tab centers for dynamic path coordinates
+  const measureTabCenters = useCallback(() => {
+    if (!switcherRef.current) return;
+    const containerRect = switcherRef.current.getBoundingClientRect();
+    const width = containerRect.width;
+    if (width <= 0) return;
+
+    const centers: number[] = [];
+    tabRefs.current.forEach((tab) => {
+      if (tab) {
+        const tabRect = tab.getBoundingClientRect();
+        const cx = tabRect.left - containerRect.left + tabRect.width / 2;
+        centers.push(cx);
+      }
+    });
+
+    if (centers.length === 4) {
+      setTabCenters(centers);
+    } else {
+      // Default fallback grid distribution
+      setTabCenters([width * 0.125, width * 0.375, width * 0.625, width * 0.875]);
+    }
+  }, []);
+
+  // Compute SVG trail path with subtle organic mountain contour bends
+  const pathD = React.useMemo(() => {
+    if (tabCenters.length < 4) return "M 0 16 L 600 16";
+    const [x0, x1, x2, x3] = tabCenters;
+    const dx01 = x1 - x0;
+    const dx12 = x2 - x1;
+    const dx23 = x3 - x2;
+
+    // Organic mountain trail curvature through subtle topographic saddles and knolls
+    return `M ${x0.toFixed(1)} 16.0 ` +
+      `C ${(x0 + dx01 * 0.35).toFixed(1)} 12.5, ${(x0 + dx01 * 0.68).toFixed(1)} 19.5, ${x1.toFixed(1)} 16.0 ` +
+      `C ${(x1 + dx12 * 0.32).toFixed(1)} 20.0, ${(x1 + dx12 * 0.70).toFixed(1)} 13.0, ${x2.toFixed(1)} 16.0 ` +
+      `C ${(x2 + dx23 * 0.35).toFixed(1)} 12.0, ${(x2 + dx23 * 0.65).toFixed(1)} 18.5, ${x3.toFixed(1)} 16.0`;
+  }, [tabCenters]);
+
+  // Measure path total length whenever path geometry updates
+  useEffect(() => {
+    if (pathRef.current) {
+      const len = pathRef.current.getTotalLength();
+      if (len > 0) {
+        pathLengthRef.current = len;
+        // Initialize traveled trail paths strokeDasharray
+        [traveledPathRef.current, traveledGlowRef.current, traveledCoreRef.current].forEach(
+          (el) => {
+            if (el) {
+              el.style.strokeDasharray = `${len}`;
+            }
+          }
+        );
+      }
+    }
+  }, [pathD]);
+
+  // Direct RAF render loop updating hiker & trail without React reconciler overhead
+  const updateHikerAndTrail = useCallback((dist: number, anim: typeof animRef.current) => {
+    const totalLen = pathLengthRef.current;
+    if (totalLen <= 0 || !pathRef.current) return;
+
+    const clampedDist = Math.max(0, Math.min(totalLen, dist));
+
+    // Update traveled path lengths
+    const dashOffset = (totalLen - clampedDist).toFixed(1);
+    if (traveledPathRef.current) {
+      traveledPathRef.current.style.strokeDashoffset = dashOffset;
+    }
+    if (traveledGlowRef.current) {
+      traveledGlowRef.current.style.strokeDashoffset = dashOffset;
+    }
+    if (traveledCoreRef.current) {
+      traveledCoreRef.current.style.strokeDashoffset = dashOffset;
+    }
+
+    // Determine position and orientation on mountain path
+    const pt = pathRef.current.getPointAtLength(clampedDist);
+    const ptAhead = pathRef.current.getPointAtLength(Math.min(totalLen, clampedDist + 2));
+    const slope = Math.atan2(ptAhead.y - pt.y, ptAhead.x - pt.x) * (180 / Math.PI);
+    // Orient hiker along the path: 90deg base angle facing East (right)
+    const baseAngle = anim.isWalkingBackward ? slope + 180 + 90 : slope + 90;
+
+    // Apply hiker transforms directly
+    if (hikerRef.current) {
+      hikerRef.current.setAttribute(
+        "transform",
+        `translate(${pt.x.toFixed(1)}, ${pt.y.toFixed(1)}) rotate(${baseAngle.toFixed(1)}) scale(0.85)`
+      );
+    }
+    if (leftBootRef.current) {
+      const lOffset = (anim.stride * 4.5).toFixed(1);
+      leftBootRef.current.setAttribute("transform", `translate(-5.5, ${(7 + Number(lOffset)).toFixed(1)})`);
+    }
+    if (rightBootRef.current) {
+      const rOffset = (-anim.stride * 4.5).toFixed(1);
+      rightBootRef.current.setAttribute("transform", `translate(5.5, ${(7 + Number(rOffset)).toFixed(1)})`);
+    }
+    if (leftPoleRef.current) {
+      const lpOffset = (-anim.armStride * 4.0).toFixed(1);
+      leftPoleRef.current.setAttribute("transform", `translate(-9, ${(-5 + Number(lpOffset)).toFixed(1)})`);
+    }
+    if (rightPoleRef.current) {
+      const rpOffset = (anim.armStride * 4.0).toFixed(1);
+      rightPoleRef.current.setAttribute("transform", `translate(9, ${(-5 + Number(rpOffset)).toFixed(1)})`);
+    }
+    if (torsoRef.current) {
+      torsoRef.current.setAttribute("transform", `rotate(${anim.sway.toFixed(1)})`);
+    }
+  }, []);
+
+  // Responsive tick loop synchronized with Lenis
+  const startTick = useCallback(() => {
+    const anim = animRef.current;
+    if (anim.rafId !== null) return;
+
+    const tick = () => {
+      const diff = anim.targetProgress - anim.currentProgress;
+
+      if (Math.abs(diff) > 0.0002) {
+        anim.currentProgress += diff * 0.16;
+      } else {
+        anim.currentProgress = anim.targetProgress;
+      }
+
+      const trailRatio = progressToTrailRatio(anim.currentProgress);
+      const totalLen = pathLengthRef.current;
+      const targetDist = trailRatio * totalLen;
+      const deltaD = targetDist - anim.lastDistance;
+      anim.lastDistance = targetDist;
+
+      if (Math.abs(deltaD) > 0.04) {
+        anim.isWalking = true;
+        anim.isWalkingBackward = deltaD < 0;
+        anim.walkCycle += Math.abs(deltaD) * 0.14;
+        anim.stride = Math.sin(anim.walkCycle);
+        anim.armStride = Math.cos(anim.walkCycle);
+        anim.sway = Math.sin(anim.walkCycle * 0.5) * 2.2;
+      } else {
+        anim.stride *= 0.82;
+        anim.armStride *= 0.82;
+        anim.sway *= 0.82;
+        if (Math.abs(anim.stride) < 0.01) {
+          anim.stride = 0;
+          anim.armStride = 0;
+          anim.sway = 0;
+          anim.isWalking = false;
+        }
+      }
+
+      updateHikerAndTrail(targetDist, anim);
+
+      // Determine active stage based on progress
+      const stageIdx =
+        anim.currentProgress < 0.25
+          ? 0
+          : anim.currentProgress < 0.5
+          ? 1
+          : anim.currentProgress < 0.75
+          ? 2
+          : 3;
+
+      if (stageIdx !== activeIndexRef.current) {
+        activeIndexRef.current = stageIdx;
+        setActiveIndex(stageIdx);
+        setSelectedId(SERVICE_KEYS[stageIdx]);
+      }
+
+      // Continue animating until settled in place
+      if (Math.abs(diff) > 0.0002 || anim.isWalking || Math.abs(anim.stride) > 0.01) {
+        anim.rafId = requestAnimationFrame(tick);
+      } else {
+        anim.rafId = null;
+      }
+    };
+
+    anim.rafId = requestAnimationFrame(tick);
+  }, [updateHikerAndTrail]);
+
+  // Compute scroll progress from sticky section position
+  const computeScrollProgress = useCallback(() => {
+    if (!sectionRef.current) return;
+
+    const rect = sectionRef.current.getBoundingClientRect();
+    const vh = window.innerHeight;
+    const benefitHeight = benefitRef.current?.offsetHeight || 280;
+
+    // Pinned travel distance
+    const scrollDistance = rect.height - vh - benefitHeight;
+    if (scrollDistance <= 0) return;
+
+    const currentScroll = -rect.top;
+    const rawProgress = currentScroll / scrollDistance;
+    const clampedProgress = Math.max(0, Math.min(1, rawProgress));
+
+    animRef.current.targetProgress = clampedProgress;
+
+    if (isReducedMotion) {
+      animRef.current.currentProgress = clampedProgress;
+      const trailRatio = progressToTrailRatio(clampedProgress);
+      updateHikerAndTrail(trailRatio * pathLengthRef.current, animRef.current);
+      const stageIdx =
+        clampedProgress < 0.25
+          ? 0
+          : clampedProgress < 0.5
+          ? 1
+          : clampedProgress < 0.75
+          ? 2
+          : 3;
+      if (stageIdx !== activeIndexRef.current) {
+        activeIndexRef.current = stageIdx;
+        setActiveIndex(stageIdx);
+        setSelectedId(SERVICE_KEYS[stageIdx]);
+      }
+      return;
+    }
+
+    startTick();
+  }, [isReducedMotion, startTick, updateHikerAndTrail]);
+
+  // Lenis scroll listener
+  useLenis(() => {
+    computeScrollProgress();
+  });
+
+  // Setup resize and native scroll observers
+  useEffect(() => {
+    measureTabCenters();
+
+    const onResize = () => {
+      measureTabCenters();
+      computeScrollProgress();
+    };
+
+    window.addEventListener("resize", onResize, { passive: true });
+    window.addEventListener("scroll", computeScrollProgress, { passive: true });
+
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined" && sectionRef.current) {
+      ro = new ResizeObserver(() => {
+        measureTabCenters();
+        computeScrollProgress();
+      });
+      ro.observe(sectionRef.current);
+    }
+
+    // Initial calculation on mount
+    const timer = setTimeout(() => {
+      measureTabCenters();
+      computeScrollProgress();
+    }, 60);
+
+    const anim = animRef.current;
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("scroll", computeScrollProgress);
+      if (ro) ro.disconnect();
+      if (anim.rafId !== null) {
+        cancelAnimationFrame(anim.rafId);
+      }
+    };
+  }, [measureTabCenters, computeScrollProgress]);
+
+  // Handle stage tab click: smoothly scrolls the page and animates the hiker
+  const handleStageClick = (idx: number) => {
+    if (!sectionRef.current) return;
+
+    setSelectedId(SERVICE_KEYS[idx]);
+    setActiveIndex(idx);
+    activeIndexRef.current = idx;
+
+    const rect = sectionRef.current.getBoundingClientRect();
+    const benefitHeight = benefitRef.current?.offsetHeight || 280;
+    const scrollDistance = sectionRef.current.offsetHeight - window.innerHeight - benefitHeight;
+
+    // Target progress for stage centers: 0.08, 0.38, 0.68, 0.95
+    const targetP = idx === 0 ? 0.08 : idx === 1 ? 0.38 : idx === 2 ? 0.68 : 0.95;
+    const sectionDocumentTop = window.scrollY + rect.top;
+    const targetScrollY = sectionDocumentTop + targetP * scrollDistance;
+
+    if (lenis) {
+      lenis.scrollTo(targetScrollY, { duration: isReducedMotion ? 0 : 0.9 });
+    } else {
+      window.scrollTo({
+        top: targetScrollY,
+        behavior: isReducedMotion ? "auto" : "smooth",
+      });
+    }
+
+    animRef.current.targetProgress = targetP;
+    if (isReducedMotion) {
+      animRef.current.currentProgress = targetP;
+      const trailRatio = progressToTrailRatio(targetP);
+      updateHikerAndTrail(trailRatio * pathLengthRef.current, animRef.current);
+    } else {
+      startTick();
+    }
+  };
 
   // Pause preview animation when out of viewport, resume when visible
   useEffect(() => {
@@ -66,9 +663,10 @@ export function ApplicationStack() {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          const msg = entry.isIntersecting
-            ? "JETWAY_PREVIEW_RESUME"
-            : "JETWAY_PREVIEW_PAUSE";
+          const msg =
+            entry.isIntersecting && selectedId === "web"
+              ? "JETWAY_PREVIEW_RESUME"
+              : "JETWAY_PREVIEW_PAUSE";
           iframeRef.current?.contentWindow?.postMessage({ type: msg }, "*");
         });
       },
@@ -81,131 +679,254 @@ export function ApplicationStack() {
 
   return (
     <section
+      ref={sectionRef}
       id="platform-stack"
-      className="relative w-full pt-24 pb-28 sm:pt-32 sm:pb-36 lg:pt-40 lg:pb-44 xl:pt-48 xl:pb-52 bg-transparent text-text-primary overflow-hidden"
+      className="relative w-full h-[270vh] sm:h-[290vh] lg:h-[310vh] bg-transparent text-text-primary"
       aria-labelledby="stack-heading"
     >
-      <div className="layout-container w-full">
+      {/* =================================================================
+          STICKY VIEWPORT CONTAINER
+          Pins during the 4-stage exploration track, keeping the experience
+          perfectly centered and in focus.
+          ================================================================= */}
+      <div
+        ref={stickyRef}
+        className="sticky top-0 z-20 w-full h-screen overflow-hidden flex flex-col justify-between pt-[76px] pb-4 sm:pb-6 select-none"
+      >
+        <div className="layout-container w-full flex-1 flex flex-col justify-between min-h-0 select-text">
 
-        {/* =================================================================
-            EDITORIAL INTRODUCTION
-            ================================================================= */}
-        <div className="max-w-3xl mb-8 sm:mb-12 lg:mb-14">
-
-          <h2
-            id="stack-heading"
-            className="font-sans text-[36px] sm:text-[44px] lg:text-[50px] font-medium leading-[1.08] tracking-[-0.03em] text-[#F1F0EC] mb-3 sm:mb-4"
-          >
-            One platform. Your entire stack.
-          </h2>
-
-          <p className="font-sans text-[15px] sm:text-[16px] text-text-secondary leading-[1.6] max-w-[600px]">
-            From the interface your users see to the services working behind the
-            scenes, bring your application components together in one
-            developer-focused workflow.
-          </p>
-        </div>
-
-        {/* =================================================================
-            SERVICE NAVIGATION: Minimal 4-Column Service Index
-            Compact switcher positioned directly above the service container
-            ================================================================= */}
-        <div className="w-full border-b border-border-subtle mb-3 sm:mb-4">
-          <div
-            role="tablist"
-            aria-label="Application Services"
-            className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 pb-px"
-          >
-            {(Object.keys(SERVICES) as ServiceId[]).map((id) => {
-              const service = SERVICES[id];
-              const isSelected = selectedId === id;
-
-              return (
-                <button
-                  key={id}
-                  role="tab"
-                  id={`tab-${id}`}
-                  aria-selected={isSelected}
-                  aria-controls={`panel-${id}`}
-                  onClick={() => setSelectedId(id)}
-                  className="group pb-2.5 sm:pb-3 pt-1 text-left transition-all relative flex flex-col justify-start focus:outline-none cursor-pointer"
-                >
-                  {/* Service Number & Service Name */}
-                  <div className="flex items-baseline gap-2 mb-1 font-sans">
-                    <span
-                      className={`font-mono text-[11px] font-medium transition-colors ${
-                        isSelected
-                          ? "text-accent-orange"
-                          : "text-text-muted group-hover:text-text-secondary"
-                      }`}
-                    >
-                      {service.index}
-                    </span>
-                    <span className="text-border-default text-[11px]">—</span>
-                    <span
-                      className={`text-[15px] sm:text-[16px] font-medium tracking-tight transition-colors ${
-                        isSelected
-                          ? "text-[#F1F0EC]"
-                          : "text-text-secondary group-hover:text-[#F1F0EC]"
-                      }`}
-                    >
-                      {service.name}
-                    </span>
-                  </div>
-
-                  {/* One Short Description */}
-                  <div className="font-sans text-[12px] sm:text-[12.5px] text-text-muted leading-snug">
-                    {service.description}
-                  </div>
-
-                  {/* Thin Burnt-Orange Active Line */}
-                  {isSelected ? (
-                    <span
-                      className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent-orange transition-all"
-                      aria-hidden="true"
-                    />
-                  ) : (
-                    <span
-                      className="absolute bottom-0 left-0 right-0 h-[1px] bg-transparent group-hover:bg-border-default transition-colors"
-                      aria-hidden="true"
-                    />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* =================================================================
-            MAIN SERVICE STAGE: Equal Height Across All Four Services
-            Unified height (475px mobile / 500px tablet / 530px desktop)
-            Takes the container down to the line below it
-            Web Frontend removes the bottom of the container so the site goes flush to the bottom edge
-            ================================================================= */}
-        <div
-          id={`panel-${selectedId}`}
-          role="tabpanel"
-          aria-labelledby={`tab-${selectedId}`}
-          className="w-full rounded-[10px] bg-surface-card border border-border-default shadow-2xl pt-4 sm:pt-5 lg:pt-5 px-4 sm:px-5 lg:px-6 pb-0 mb-4 sm:mb-5 h-[475px] sm:h-[500px] lg:h-[530px] flex flex-col justify-between overflow-hidden"
-        >
           {/* =============================================================
-              VIEW 1: WEB FRONTEND — Real Website Preview
-              Actual scrollable demo website extending to the very bottom edge of the container
+              EDITORIAL INTRODUCTION
               ============================================================= */}
-          {selectedId === "web" && (
-            <div className="w-full h-full flex flex-col justify-between animate-in fade-in duration-200">
-              {/* Standardized Header */}
-              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pb-2.5 sm:pb-3 border-b border-border-subtle/70 shrink-0">
+          <div className="max-w-3xl mb-2 sm:mb-3 shrink-0">
+            <h2
+              id="stack-heading"
+              className="font-sans text-[28px] sm:text-[36px] lg:text-[44px] font-medium leading-[1.08] tracking-[-0.03em] text-[#F1F0EC] mb-1.5 sm:mb-2"
+            >
+              One platform. Your entire stack.
+            </h2>
+            <p className="font-sans text-[13px] sm:text-[14.5px] text-text-secondary leading-[1.5] max-w-[580px] hidden sm:block">
+              From the interface your users see to the services working behind the
+              scenes, bring your application components together in one
+              developer-focused workflow.
+            </p>
+          </div>
+
+          {/* =============================================================
+              STAGE NAVIGATION & HORIZONTAL MOUNTAIN TRAIL
+              The conventional underline is completely replaced by an authentic
+              engraved mountain trail with a top-down mountaineer.
+              ============================================================= */}
+          <div ref={switcherRef} className="w-full relative shrink-0 mb-3 sm:mb-4">
+            {/* 4-Stage Horizontal Navigation Buttons */}
+            <div
+              role="tablist"
+              aria-label="Application Services"
+              className="grid grid-cols-4 gap-2 sm:gap-4 lg:gap-8 pb-1"
+            >
+              {SERVICE_KEYS.map((id, idx) => {
+                const service = SERVICES[id];
+                const isSelected = selectedId === id;
+
+                return (
+                  <button
+                    key={id}
+                    ref={(el) => {
+                      tabRefs.current[idx] = el;
+                    }}
+                    role="tab"
+                    id={`tab-${id}`}
+                    aria-selected={isSelected}
+                    aria-controls={`panel-${id}`}
+                    onClick={() => handleStageClick(idx)}
+                    className="group pt-1 pb-1 text-left transition-all relative flex flex-col justify-start focus:outline-none cursor-pointer select-none"
+                  >
+                    {/* Stage Number & Service Name */}
+                    <div className="flex items-baseline gap-1.5 sm:gap-2 mb-0.5 sm:mb-1 font-sans">
+                      <span
+                        className={`font-mono text-[10px] sm:text-[11px] font-medium transition-colors duration-200 ${
+                          isSelected
+                            ? "text-accent-orange font-semibold"
+                            : "text-[#66635D] group-hover:text-text-secondary"
+                        }`}
+                      >
+                        {service.index}
+                      </span>
+                      <span className="text-[#3E3B37] text-[10px] sm:text-[11px]">—</span>
+                      <span
+                        className={`text-[13px] sm:text-[15px] lg:text-[16px] font-medium tracking-tight transition-colors duration-200 ${
+                          isSelected
+                            ? "text-[#FAF8F5] font-semibold"
+                            : "text-[#8E8B85] group-hover:text-[#F1F0EC]"
+                        }`}
+                      >
+                        <span className="sm:hidden">{service.shortName}</span>
+                        <span className="hidden sm:inline">{service.name}</span>
+                      </span>
+                    </div>
+
+                    {/* Stage Short Description (Desktop & Tablet) */}
+                    <div
+                      className={`font-sans text-[11px] sm:text-[12px] leading-snug hidden sm:block transition-colors duration-200 ${
+                        isSelected ? "text-[#A8A59E]" : "text-[#5A5752] group-hover:text-[#7A7771]"
+                      }`}
+                    >
+                      {service.description}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Continuous Mountain Trail with Top-Down Hiker */}
+            <div className="w-full relative h-[32px] sm:h-[36px] mt-0.5 overflow-visible select-none pointer-events-none">
+              <svg
+                className="w-full h-full overflow-visible"
+                aria-hidden="true"
+              >
+                <defs>
+                  {/* Subtle Burnt-Orange Trail Ambient Glow */}
+                  <filter id="trail-orange-glow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="2.2" result="blur" />
+                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                  </filter>
+                </defs>
+
+                {/* Untraveled Mountain Path: Subdued engraved footpath */}
+                <path
+                  ref={pathRef}
+                  d={pathD}
+                  fill="none"
+                  stroke="#262422"
+                  strokeWidth="1.5"
+                  strokeDasharray="4 2.5"
+                />
+
+                {/* Traveled Mountain Path: Glowing Summit Burnt-Orange Trail */}
+                <path
+                  ref={traveledGlowRef}
+                  d={pathD}
+                  fill="none"
+                  stroke="#D88762"
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                  opacity="0.32"
+                  filter="url(#trail-orange-glow)"
+                />
+                <path
+                  ref={traveledPathRef}
+                  d={pathD}
+                  fill="none"
+                  stroke="#D88762"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                />
+                <path
+                  ref={traveledCoreRef}
+                  d={pathD}
+                  fill="none"
+                  stroke="#FFA67E"
+                  strokeWidth="0.85"
+                  strokeLinecap="round"
+                />
+
+                {/* Waypoint Stations: Circular nodes mapped beneath each stage */}
+                {tabCenters.map((cx, i) => {
+                  const isPassed = i <= activeIndex;
+                  const isCurrent = i === activeIndex;
+
+                  return (
+                    <g key={i} className="transition-all duration-300">
+                      {/* Luminous waypoint aura when active */}
+                      {isCurrent && (
+                        <circle
+                          cx={cx}
+                          cy="16"
+                          r="8"
+                          fill="#D88762"
+                          opacity="0.22"
+                        />
+                      )}
+                      {/* Waypoint ring */}
+                      <circle
+                        cx={cx}
+                        cy="16"
+                        r={isPassed ? "4" : "3"}
+                        fill={isPassed ? "#D88762" : "#1A1918"}
+                        stroke={isPassed ? "#FAF8F5" : "#383531"}
+                        strokeWidth={isPassed ? "1.2" : "1"}
+                      />
+                      {/* Center reticle */}
+                      <circle
+                        cx={cx}
+                        cy="16"
+                        r="1.2"
+                        fill={isPassed ? "#FAF8F5" : "#5A5752"}
+                      />
+                      {/* Elevation notation */}
+                      <text
+                        x={cx}
+                        y="28"
+                        textAnchor="middle"
+                        className={`font-mono text-[8.5px] sm:text-[9px] tracking-wider transition-colors duration-200 ${
+                          isCurrent
+                            ? "fill-accent-orange font-medium"
+                            : isPassed
+                            ? "fill-[#8E8B85]"
+                            : "fill-[#4E4B46]"
+                        }`}
+                      >
+                        {SERVICES[SERVICE_KEYS[i]].elevation}
+                      </text>
+                    </g>
+                  );
+                })}
+
+                {/* Top-Down Alpine Hiker navigating along the mountain path */}
+                <HorizontalTopDownHiker
+                  hikerRef={hikerRef}
+                  leftBootRef={leftBootRef}
+                  rightBootRef={rightBootRef}
+                  leftPoleRef={leftPoleRef}
+                  rightPoleRef={rightPoleRef}
+                  torsoRef={torsoRef}
+                />
+              </svg>
+            </div>
+          </div>
+
+          {/* =============================================================
+              MAIN SERVICE STAGE: Fixed Equal-Height Interactive Card
+              Zero height jumping when switching stages.
+              Refined crossfade reveals the active infrastructure layer.
+              ============================================================= */}
+          <div
+            id={`panel-${selectedId}`}
+            role="tabpanel"
+            aria-labelledby={`tab-${selectedId}`}
+            className="w-full rounded-[10px] bg-surface-card border border-border-default shadow-2xl pt-3 sm:pt-4 lg:pt-5 px-3 sm:px-5 lg:px-6 pb-0 mb-1 sm:mb-2 flex-1 min-h-[380px] max-h-[500px] flex flex-col justify-between overflow-hidden relative"
+          >
+            {/* VIEW 1: WEB FRONTEND — Live Website Preview */}
+            <div
+              className={`w-full h-full flex flex-col justify-between transition-all duration-300 ease-out ${
+                selectedId === "web"
+                  ? "opacity-100 translate-x-0 pointer-events-auto z-10"
+                  : "opacity-0 -translate-x-2 pointer-events-none absolute inset-0 pt-3 sm:pt-4 lg:pt-5 px-3 sm:px-5 lg:px-6 pb-0 z-0"
+              }`}
+              aria-hidden={selectedId !== "web"}
+            >
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 sm:gap-3 pb-2 sm:pb-2.5 border-b border-border-subtle/70 shrink-0">
                 <div className="space-y-0.5 max-w-xl">
                   <div className="flex items-center gap-2 font-mono text-[10.5px] text-text-muted tracking-[0.14em] uppercase">
                     <span className="text-accent-orange font-medium">01</span>
                     <span>/</span>
                     <span>WEB FRONTEND</span>
                   </div>
-                  <h3 className="font-sans text-[20px] sm:text-[22px] font-medium text-[#F1F0EC] tracking-tight leading-tight">
+                  <h3 className="font-sans text-[18px] sm:text-[21px] font-medium text-[#F1F0EC] tracking-tight leading-tight">
                     Your website, live.
                   </h3>
-                  <p className="font-sans text-[12.5px] sm:text-[13px] text-text-secondary leading-relaxed line-clamp-1">
+                  <p className="font-sans text-[12px] sm:text-[13px] text-text-secondary leading-relaxed line-clamp-1">
                     From your first deploy to every release.
                   </p>
                 </div>
@@ -217,7 +938,7 @@ export function ApplicationStack() {
                 </div>
               </div>
 
-              {/* Viewport Middle Area: Extended all the way to the bottom edge of the container */}
+              {/* Viewport Middle Area: Extended all the way to bottom edge */}
               <div
                 ref={previewContainerRef}
                 onMouseEnter={() => {
@@ -226,9 +947,9 @@ export function ApplicationStack() {
                 onMouseLeave={() => {
                   iframeRef.current?.contentWindow?.postMessage({ type: "JETWAY_PREVIEW_RESUME" }, "*");
                 }}
-                className="flex-1 w-full min-h-0 mt-2.5 sm:mt-3 rounded-t-[8px] bg-[#141618] border-t border-x border-border-default/80 overflow-hidden shadow-2xl flex flex-col"
+                className="flex-1 w-full min-h-0 mt-2 sm:mt-2.5 rounded-t-[8px] bg-[#141618] border-t border-x border-border-default/80 overflow-hidden shadow-2xl flex flex-col"
               >
-                {/* Minimal Browser Frame Header */}
+                {/* Browser Frame Header */}
                 <div className="flex items-center justify-between px-3 py-1.5 bg-[#141618] border-b border-border-subtle/80 text-[10.5px] font-mono select-none shrink-0">
                   <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-[#2A2E33]" />
@@ -258,26 +979,28 @@ export function ApplicationStack() {
                 </div>
               </div>
             </div>
-          )}
 
-          {/* =============================================================
-              VIEW 2: API SERVICE — Real Backend Demonstration
-              Interactive API playground with live Route Handlers
-              ============================================================= */}
-          {selectedId === "api" && (
-            <div className="w-full h-full flex flex-col justify-between animate-in fade-in duration-200 pb-4 sm:pb-5 lg:pb-5">
-              {/* Standardized Header */}
-              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pb-2.5 sm:pb-3 border-b border-border-subtle/70 shrink-0">
+            {/* VIEW 2: API SERVICE — Real Request Playground */}
+            <div
+              className={`w-full h-full flex flex-col justify-between pb-3 sm:pb-4 lg:pb-4 transition-all duration-300 ease-out ${
+                selectedId === "api"
+                  ? "opacity-100 translate-x-0 pointer-events-auto z-10"
+                  : "opacity-0 translate-x-2 pointer-events-none absolute inset-0 pt-3 sm:pt-4 lg:pt-5 px-3 sm:px-5 lg:px-6 pb-3 sm:pb-4 lg:pb-4 z-0"
+              }`}
+              aria-hidden={selectedId !== "api"}
+            >
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 sm:gap-3 pb-2 sm:pb-2.5 border-b border-border-subtle/70 shrink-0">
                 <div className="space-y-0.5 max-w-xl">
                   <div className="flex items-center gap-2 font-mono text-[10.5px] text-text-muted tracking-[0.14em] uppercase">
                     <span className="text-accent-orange font-medium">02</span>
                     <span>/</span>
                     <span>API SERVICE</span>
                   </div>
-                  <h3 className="font-sans text-[20px] sm:text-[22px] font-medium text-[#F1F0EC] tracking-tight leading-tight">
+                  <h3 className="font-sans text-[18px] sm:text-[21px] font-medium text-[#F1F0EC] tracking-tight leading-tight">
                     Every request, handled.
                   </h3>
-                  <p className="font-sans text-[12.5px] sm:text-[13px] text-text-secondary leading-relaxed line-clamp-1">
+                  <p className="font-sans text-[12px] sm:text-[13px] text-text-secondary leading-relaxed line-clamp-1">
                     From endpoint to response.
                   </p>
                 </div>
@@ -289,30 +1012,32 @@ export function ApplicationStack() {
               </div>
 
               {/* Functional API Playground */}
-              <div className="flex-1 min-h-0 mt-3 overflow-hidden">
+              <div className="flex-1 min-h-0 mt-2.5 overflow-hidden">
                 <ApiServicePlayground />
               </div>
             </div>
-          )}
 
-          {/* =============================================================
-              VIEW 3: DATABASE — The Living Database Engine
-              Custom PostgreSQL tiered storage illustration, queries & structured results
-              ============================================================= */}
-          {selectedId === "db" && (
-            <div className="w-full h-full flex flex-col justify-between animate-in fade-in duration-200 pb-4 sm:pb-5 lg:pb-5">
-              {/* Standardized Header */}
-              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pb-2.5 sm:pb-3 border-b border-border-subtle/70 shrink-0">
+            {/* VIEW 3: DATABASE — The Living PostgreSQL Database Engine */}
+            <div
+              className={`w-full h-full flex flex-col justify-between pb-3 sm:pb-4 lg:pb-4 transition-all duration-300 ease-out ${
+                selectedId === "db"
+                  ? "opacity-100 translate-x-0 pointer-events-auto z-10"
+                  : "opacity-0 translate-x-2 pointer-events-none absolute inset-0 pt-3 sm:pt-4 lg:pt-5 px-3 sm:px-5 lg:px-6 pb-3 sm:pb-4 lg:pb-4 z-0"
+              }`}
+              aria-hidden={selectedId !== "db"}
+            >
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 sm:gap-3 pb-2 sm:pb-2.5 border-b border-border-subtle/70 shrink-0">
                 <div className="space-y-0.5 max-w-xl">
                   <div className="flex items-center gap-2 font-mono text-[10.5px] text-text-muted tracking-[0.14em] uppercase">
                     <span className="text-accent-orange font-medium">03</span>
                     <span>/</span>
                     <span>DATABASE</span>
                   </div>
-                  <h3 className="font-sans text-[20px] sm:text-[22px] font-medium text-[#F1F0EC] tracking-tight leading-tight">
+                  <h3 className="font-sans text-[18px] sm:text-[21px] font-medium text-[#F1F0EC] tracking-tight leading-tight">
                     Your data, always within reach.
                   </h3>
-                  <p className="font-sans text-[12.5px] sm:text-[13px] text-text-secondary leading-relaxed line-clamp-1">
+                  <p className="font-sans text-[12px] sm:text-[13px] text-text-secondary leading-relaxed line-clamp-1">
                     PostgreSQL storage, built for your application.
                   </p>
                 </div>
@@ -326,30 +1051,32 @@ export function ApplicationStack() {
               </div>
 
               {/* Living Database Engine Visualization */}
-              <div className="flex-1 min-h-0 mt-3 overflow-hidden">
+              <div className="flex-1 min-h-0 mt-2.5 overflow-hidden">
                 <DatabaseServicePlayground />
               </div>
             </div>
-          )}
 
-          {/* =============================================================
-              VIEW 4: BACKGROUND WORKER — Living Job Queue
-              Living job queue, multi-lane worker pool, animated dispatch & completion
-              ============================================================= */}
-          {selectedId === "worker" && (
-            <div className="w-full h-full flex flex-col justify-between animate-in fade-in duration-200 pb-4 sm:pb-5 lg:pb-5">
-              {/* Standardized Header */}
-              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pb-2.5 sm:pb-3 border-b border-border-subtle/70 shrink-0">
+            {/* VIEW 4: BACKGROUND WORKER — Living Job Queue */}
+            <div
+              className={`w-full h-full flex flex-col justify-between pb-3 sm:pb-4 lg:pb-4 transition-all duration-300 ease-out ${
+                selectedId === "worker"
+                  ? "opacity-100 translate-x-0 pointer-events-auto z-10"
+                  : "opacity-0 translate-x-2 pointer-events-none absolute inset-0 pt-3 sm:pt-4 lg:pt-5 px-3 sm:px-5 lg:px-6 pb-3 sm:pb-4 lg:pb-4 z-0"
+              }`}
+              aria-hidden={selectedId !== "worker"}
+            >
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 sm:gap-3 pb-2 sm:pb-2.5 border-b border-border-subtle/70 shrink-0">
                 <div className="space-y-0.5 max-w-xl">
                   <div className="flex items-center gap-2 font-mono text-[10.5px] text-text-muted tracking-[0.14em] uppercase">
                     <span className="text-accent-orange font-medium">04</span>
                     <span>/</span>
                     <span>BACKGROUND WORKER</span>
                   </div>
-                  <h3 className="font-sans text-[20px] sm:text-[22px] font-medium text-[#F1F0EC] tracking-tight leading-tight">
+                  <h3 className="font-sans text-[18px] sm:text-[21px] font-medium text-[#F1F0EC] tracking-tight leading-tight">
                     Heavy work. Handled in the background.
                   </h3>
-                  <p className="font-sans text-[12.5px] sm:text-[13px] text-text-secondary leading-relaxed line-clamp-1">
+                  <p className="font-sans text-[12px] sm:text-[13px] text-text-secondary leading-relaxed line-clamp-1">
                     Run jobs asynchronously without slowing down your application.
                   </p>
                 </div>
@@ -361,18 +1088,24 @@ export function ApplicationStack() {
               </div>
 
               {/* Living Background Worker Visualization */}
-              <div className="flex-1 min-h-0 mt-3 overflow-hidden">
+              <div className="flex-1 min-h-0 mt-2.5 overflow-hidden">
                 <WorkerServicePlayground />
               </div>
             </div>
-          )}
-        </div>
+          </div>
 
-        {/* =================================================================
-            THREE BENEFIT DESCRIPTIONS
-            Understated editorial columns directly below the experience
-            ================================================================= */}
-        <div className="w-full border-t border-border-subtle pt-6 sm:pt-8">
+        </div>
+      </div>
+
+      {/* =================================================================
+          NATURAL FLOW EXIT: THREE BENEFIT PILLARS
+          Revealed as normal scrolling seamlessly resumes after Stage 4.
+          ================================================================= */}
+      <div
+        ref={benefitRef}
+        className="relative z-10 w-full bg-transparent pt-14 pb-20 sm:pt-18 sm:pb-24 border-t border-border-subtle"
+      >
+        <div className="layout-container w-full">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-10 w-full max-w-6xl">
             {/* Column 01 */}
             <div className="space-y-2">
@@ -414,7 +1147,6 @@ export function ApplicationStack() {
             </div>
           </div>
         </div>
-
       </div>
     </section>
   );
