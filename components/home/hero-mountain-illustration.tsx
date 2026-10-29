@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useRef } from "react";
 import Image from "next/image";
 import { HeroMountainClouds } from "./hero-mountain-clouds";
+import { HeroTerrainWake } from "./hero-terrain-wake";
 
 interface HeroMountainIllustrationProps {
   activeStage: "source" | "build" | "production";
@@ -16,21 +17,27 @@ interface HeroMountainIllustrationProps {
  *
  * Full-Viewport, Infinitely Living Monochromatic Mountain Landscape:
  *
- * 1. Full-Bleed Engraved Mountain Topography:
+ * 1. Full-Screen Mountain Background:
  *    - The signature antique copperplate alpine artwork (hero-engraved-mountains-fullbleed.webp)
- *      forms the foundation of the hero.
- *    - Stationary foundation: No cursor-driven translation, tilt, scaling, or parallax.
+ *      fills the viewport edge-to-edge beneath the navbar.
+ *    - Ambient landscape drift: continuous, ultra-slow 85s ambient drift independent of cursor.
+ *    - CRITICAL: Absolutely NO cursor-driven image translation, tilt, scaling, or parallax.
  *
- * 2. Continuously Moving Atmospheric Mountain Clouds (HeroMountainClouds):
- *    - Layer A: Distant subtle mountain pass mist
- *    - Layer B: Main valley clouds continuously flowing through the central ravines (noticeable within seconds)
- *    - Layer C: Foreground diffuse slope mist creating depth
- *    - Seamless, infinite looping with zero resets and natural valley-following splines.
+ * 2. Travelling Mountain Ridge Illumination (Ambient):
+ *    - Broad, soft illumination travelling gradually across the engraved ridges (54s loop).
+ *    - Warm ivory with restrained burnt-orange undertone, subtly revealing contour details.
  *
- * 3. Atmospheric Illumination & Topographic Currents:
- *    - 58s slow ambient light sweep across the terrain.
- *    - Subtle cursor-following local illumination highlight (no displacement/parallax).
- *    - Stationary vector elevation contours with continuous flowing currents.
+ * 3. Living Atmospheric Valley Clouds (HeroMountainClouds):
+ *    - Dedicated multi-layer procedural cloud mist moving continuously through the valleys.
+ *
+ * 4. Signature Terrain Wake (HeroTerrainWake):
+ *    - Cursor movement creates a temporary, flowing wake of delicate topographic strands along
+ *      its recent path through the engraved landscape.
+ *    - Dissipates completely when the cursor stops or leaves the hero.
+ *    - No cursor light, no spotlight, no parallax.
+ *
+ * 5. Clean Stationary Topographic Elevation Contours & Geodesic Benchmarks:
+ *    - Precision SVG elevation contours with continuous 60s flowing currents and benchmark reticles.
  */
 export function HeroMountainIllustration({
   activeStage,
@@ -39,69 +46,6 @@ export function HeroMountainIllustration({
   isInView = true,
 }: HeroMountainIllustrationProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const cursorGlowRef = useRef<HTMLDivElement>(null);
-
-  // Subtle cursor light interaction without ANY parallax / translation
-  useEffect(() => {
-    if (isReducedMotion) return;
-
-    // Disable on touch devices
-    if (
-      typeof window !== "undefined" &&
-      window.matchMedia("(pointer: coarse)").matches
-    ) {
-      return;
-    }
-
-    const container = containerRef.current;
-    const glow = cursorGlowRef.current;
-    if (!container || !glow) return;
-
-    let targetX = 0;
-    let targetY = 0;
-    let currentX = 0;
-    let currentY = 0;
-    let isInside = false;
-    let rafId: number | null = null;
-
-    const onMouseMove = (e: MouseEvent) => {
-      const rect = container.getBoundingClientRect();
-      targetX = e.clientX - rect.left;
-      targetY = e.clientY - rect.top;
-      if (!isInside) {
-        isInside = true;
-        currentX = targetX;
-        currentY = targetY;
-        glow.style.opacity = "1";
-      }
-    };
-
-    const onMouseLeave = () => {
-      isInside = false;
-      glow.style.opacity = "0";
-    };
-
-    const animate = () => {
-      if (isInside) {
-        currentX += (targetX - currentX) * 0.08;
-        currentY += (targetY - currentY) * 0.08;
-        glow.style.transform = `translate3d(${currentX - 250}px, ${
-          currentY - 250
-        }px, 0)`;
-      }
-      rafId = requestAnimationFrame(animate);
-    };
-
-    window.addEventListener("mousemove", onMouseMove, { passive: true });
-    container.addEventListener("mouseleave", onMouseLeave);
-    rafId = requestAnimationFrame(animate);
-
-    return () => {
-      window.removeEventListener("mousemove", onMouseMove);
-      container.removeEventListener("mouseleave", onMouseLeave);
-      if (rafId !== null) cancelAnimationFrame(rafId);
-    };
-  }, [isReducedMotion]);
 
   // Deployment pulse states
   const isBuildActive =
@@ -133,62 +77,50 @@ export function HeroMountainIllustration({
 
       {/* =================================================================
           LAYER 2: FULL-BLEED PANORAMIC ENGRAVED MOUNTAIN TOPOGRAPHY
-          Edge-to-edge antique copperplate alpine artwork:
-          Stationary foundation layer (no cursor displacement or parallax).
+          Antique copperplate alpine artwork filling the hero edge-to-edge.
+          A. Slow landscape drift: continuous 85s ambient drift independent of cursor.
+          CRITICAL: Absolutely no cursor-driven translation, tilt, scaling, or parallax.
           ================================================================= */}
-      <div className="absolute inset-0 w-full h-full pointer-events-none">
+      <div
+        className={`absolute inset-0 w-full h-full pointer-events-none will-change-transform ${
+          isReducedMotion
+            ? "scale-[1.06]"
+            : "animate-[mountainLandscapeDrift_85s_easeInOut_infinite]"
+        }`}
+      >
         <div className="relative w-full h-full">
           <Image
             src="/images/hero/hero-engraved-mountains-fullbleed.webp"
             alt=""
             fill
             priority
-            quality={85}
+            quality={75}
             sizes="100vw"
-            className="w-full h-full object-cover object-[center_60%] lg:object-[center_55%] block opacity-95 scale-[1.05]"
+            className="w-full h-full object-cover object-[center_60%] lg:object-[center_55%] block opacity-95"
           />
         </div>
       </div>
 
       {/* =================================================================
-          LAYER 3: TRAVELLING ATMOSPHERIC AMBIENT LIGHT (58s Continuous Loop)
+          LAYER 3: TRAVELLING MOUNTAIN RIDGE ILLUMINATION (Ambient 54s Loop)
           Slow-moving ambient illumination travelling gently across the mountain
-          range, softly revealing ridge contours and subsiding without harsh spotlights
+          ridges, softly revealing ridge contours.
+          Warm ivory with restrained burnt-orange undertone.
           ================================================================= */}
       {!isReducedMotion && (
         <div
-          className="absolute inset-0 w-full h-full pointer-events-none animate-[terrainLightSweep_58s_easeInOut_infinite] will-change-transform"
+          className="absolute inset-0 w-full h-full pointer-events-none animate-[travellingMountainLight_54s_easeInOut_infinite] will-change-transform"
           style={{
             background:
-              "radial-gradient(ellipse 75% 55% at 50% 45%, rgba(242, 240, 235, 0.08) 0%, rgba(216, 135, 98, 0.04) 40%, transparent 75%)",
+              "radial-gradient(ellipse 75% 55% at 50% 45%, rgba(247, 244, 238, 0.12) 0%, rgba(238, 225, 212, 0.08) 28%, rgba(216, 135, 98, 0.045) 52%, rgba(142, 140, 134, 0.015) 75%, transparent 95%)",
             mixBlendMode: "screen",
           }}
         />
       )}
 
       {/* =================================================================
-          LAYER 4: SUBTLE CURSOR AMBIENT ILLUMINATION (NO PARALLAX)
-          Cursor subtly influences local warm illumination without moving mountain
-          artwork or cloud formations.
-          ================================================================= */}
-      {!isReducedMotion && (
-        <div
-          ref={cursorGlowRef}
-          className="absolute top-0 left-0 w-[500px] h-[500px] rounded-full pointer-events-none opacity-0 transition-opacity duration-500 ease-out will-change-transform"
-          style={{
-            background:
-              "radial-gradient(circle at 50% 50%, rgba(216, 135, 98, 0.09) 0%, rgba(242, 240, 235, 0.04) 35%, transparent 70%)",
-            mixBlendMode: "screen",
-          }}
-        />
-      )}
-
-      {/* =================================================================
-          LAYER 5: LIVING ATMOSPHERIC MOUNTAIN VALLEY CLOUDS (CANVAS)
-          Dedicated multi-layer procedural cloud mist moving through the valleys:
-          - Layer A: Distant low-contrast mist
-          - Layer B: Main valley & ravine clouds (primary animated layer, visible in seconds)
-          - Layer C: Foreground diffuse slope mist
+          LAYER 4: LIVING ATMOSPHERIC MOUNTAIN VALLEY CLOUDS (CANVAS)
+          Multi-layer procedural cloud mist moving continuously through the valleys.
           ================================================================= */}
       <HeroMountainClouds
         isInView={isInView}
@@ -196,9 +128,19 @@ export function HeroMountainIllustration({
       />
 
       {/* =================================================================
-          LAYER 6: TOPOGRAPHIC SURVEY CONTOURS & DELICATE CURRENTS
-          Stationary precision vector elevation contours with continuous 60s flowing currents,
-          subtle ridge breathing pulses, and geodesic benchmarks.
+          LAYER 5: SIGNATURE TERRAIN WAKE (CANVAS)
+          Delicate, flowing topographic strands created by cursor movement
+          along its recent path, dissipating smoothly when stopped.
+          ================================================================= */}
+      <HeroTerrainWake
+        isInView={isInView}
+        isReducedMotion={isReducedMotion}
+      />
+
+      {/* =================================================================
+          LAYER 6: TOPOGRAPHIC SURVEY CONTOURS & DELICATE CURRENTS (STATIONARY SVG)
+          Clean, stationary precision vector elevation contours with continuous
+          60s flowing currents, subtle ridge breathing pulses, and geodesic benchmarks.
           ================================================================= */}
       <svg
         viewBox="0 0 1440 800"
