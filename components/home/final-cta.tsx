@@ -26,26 +26,25 @@ function getReducedMotionServerSnapshot() {
  * FinalCta: Section 08 — Final Call to Action
  * "Your code. Ready for what’s next."
  *
- * Locked-Screen Scroll Experience with Volumetric Cloud Parting & Re-closing:
- * 1. Screen locks in place (sticky viewport during scroll track)
- * 2. On arrival, clouds are completely CLOSED over the screen
- * 3. On scroll, clouds move horizontally OUT to the edges
- * 4. Section content surges forward from inside the screen into full crisp focus
- * 5. When scrolling past the section, clouds move back TOGETHER, closing the scene before unpinning
+ * Locked-Screen Multi-Stage Cinematic Reveal:
+ * 1. Screen locks in place with extended scroll track (h-[360vh] sm:h-[380vh] lg:h-[400vh])
+ * 2. Stage 1 (p in [0.00 .. 0.34]): Clouds part horizontally to the flanks
+ * 3. Stage 2 (p in [0.32 .. 0.64]): Mountain horizon emerges and ascends from the bottom
+ * 4. Stage 3 (p in [0.62 .. 0.88]): Typography ("Your code. Ready for what’s next.") and CTAs surge forward into crisp focus
+ * 5. Stage 4 (p in [0.88 .. 1.00]): Settled plateau where the complete scene remains stable and interactive
  */
 export function FinalCta() {
   const sectionRef = useRef<HTMLElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
 
-  // Volumetric cloud layer references (Left & Right depth formations)
-  const cloudLeftBackRef = useRef<HTMLDivElement>(null);
-  const cloudLeftMidRef = useRef<HTMLDivElement>(null);
-  const cloudLeftForeRef = useRef<HTMLDivElement>(null);
-  const cloudRightBackRef = useRef<HTMLDivElement>(null);
-  const cloudRightMidRef = useRef<HTMLDivElement>(null);
-  const cloudRightForeRef = useRef<HTMLDivElement>(null);
+  // Diagrammatic cloud section references (Dedicated Left & Right sections)
+  const cloudLeftRef = useRef<HTMLDivElement>(null);
+  const cloudRightRef = useRef<HTMLDivElement>(null);
 
-  // Section content reference (surges from inside the screen)
+  // Emerging mountain horizon reference (Rises upward after clouds part)
+  const mountainRef = useRef<HTMLDivElement>(null);
+
+  // Section content reference (surges from inside the screen after mountain settles)
   const contentWrapperRef = useRef<HTMLDivElement>(null);
 
   // Synchronously subscribe to reduced motion preference
@@ -66,14 +65,9 @@ export function FinalCta() {
         el.style.transition = "none";
       };
 
-      resetEl(cloudLeftBackRef.current, "translate3d(-320px, 0, 0)", "0.35");
-      resetEl(cloudLeftMidRef.current, "translate3d(-520px, 0, 0)", "0.85");
-      resetEl(cloudLeftForeRef.current, "translate3d(-640px, 0, 0)", "0.20");
-
-      resetEl(cloudRightBackRef.current, "translate3d(320px, 0, 0)", "0.35");
-      resetEl(cloudRightMidRef.current, "translate3d(520px, 0, 0)", "0.85");
-      resetEl(cloudRightForeRef.current, "translate3d(640px, 0, 0)", "0.20");
-
+      resetEl(cloudLeftRef.current, "translate3d(-600px, 0, 0)", "0.85");
+      resetEl(cloudRightRef.current, "translate3d(600px, 0, 0)", "0.85");
+      resetEl(mountainRef.current, "translate3d(0, 0, 0)", "1.0");
       resetEl(contentWrapperRef.current, "none", "1");
       return;
     }
@@ -89,8 +83,6 @@ export function FinalCta() {
 
     // Deceleration & symmetrical easing helpers
     const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
-    const easeInOutCubic = (t: number) =>
-      t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
     // Compute locked scroll progress p in [0.0, 1.0]
     // Section pins when rect.top <= 0, and unpins when user scrolls through track
@@ -110,90 +102,70 @@ export function FinalCta() {
       const isTablet = window.innerWidth >= 640 && window.innerWidth < 1024;
 
       // =================================================================
-      // OPEN FACTOR CALCULATION:
-      // p in [0.00 .. 0.40]: Opening (0.0 -> 1.0)
-      // p in [0.40 .. 0.65]: Settled Open (1.0)
-      // p in [0.65 .. 1.00]: Closing (1.0 -> 0.0) as user scrolls past
+      // STAGE 1: CLOUDS PART HORIZONTALLY (p in [0.00 .. 0.34])
       // =================================================================
-      let openFactor: number;
-      if (p < 0.40) {
-        openFactor = easeOutCubic(p / 0.40);
-      } else if (p <= 0.65) {
-        openFactor = 1.0;
-      } else {
-        openFactor = 1.0 - easeInOutCubic((p - 0.65) / 0.35);
-      }
+      const cloudFactor = p < 0.34 ? easeOutCubic(p / 0.34) : 1.0;
 
       // =================================================================
-      // 1. CLOUD LAYER DISPLACEMENTS
-      // Clouds start overlapping in the center (inward offset),
-      // move out to the flanks (open), and return to the center (close)
+      // STAGE 2: MOUNTAINS EMERGE FROM BOTTOM (p in [0.32 .. 0.64])
+      // Appears first after clouds open, before the text renders
       // =================================================================
-
-      // Middle Clouds (Main volumetric masses)
-      const inMid = isMobile ? 110 : isTablet ? 170 : 250;
-      const outMid = isMobile ? 280 : isTablet ? 480 : 700;
-      const xLMid = (inMid - (inMid + outMid) * openFactor).toFixed(2);
-      const xRMid = (-inMid + (inMid + outMid) * openFactor).toFixed(2);
-      const sMid = (1.0 + 0.04 * openFactor).toFixed(3);
-      const opMid = (0.95 - 0.12 * openFactor).toFixed(3);
-
-      if (cloudLeftMidRef.current) {
-        cloudLeftMidRef.current.style.transform = `translate3d(${xLMid}px, 0, 0) scale(${sMid})`;
-        cloudLeftMidRef.current.style.opacity = opMid;
-      }
-      if (cloudRightMidRef.current) {
-        cloudRightMidRef.current.style.transform = `translate3d(${xRMid}px, 0, 0) scale(${sMid})`;
-        cloudRightMidRef.current.style.opacity = opMid;
-      }
-
-      // Background Mist (Slower, broad parallax)
-      const inBack = isMobile ? 70 : isTablet ? 110 : 160;
-      const outBack = isMobile ? 190 : isTablet ? 330 : 480;
-      const xLBack = (inBack - (inBack + outBack) * openFactor).toFixed(2);
-      const xRBack = (-inBack + (inBack + outBack) * openFactor).toFixed(2);
-      const sBack = (1.0 + 0.03 * openFactor).toFixed(3);
-      const opBack = (0.50 - 0.12 * openFactor).toFixed(3);
-
-      if (cloudLeftBackRef.current) {
-        cloudLeftBackRef.current.style.transform = `translate3d(${xLBack}px, 0, 0) scale(${sBack})`;
-        cloudLeftBackRef.current.style.opacity = opBack;
-      }
-      if (cloudRightBackRef.current) {
-        cloudRightBackRef.current.style.transform = `translate3d(${xRBack}px, 0, 0) scale(${sBack})`;
-        cloudRightBackRef.current.style.opacity = opBack;
-      }
-
-      // Foreground Wisps (Faster drift + fade)
-      const inFore = isMobile ? 90 : isTablet ? 140 : 220;
-      const outFore = isMobile ? 340 : isTablet ? 560 : 840;
-      const xLFore = (inFore - (inFore + outFore) * openFactor).toFixed(2);
-      const xRFore = (-inFore + (inFore + outFore) * openFactor).toFixed(2);
-      const yLFore = ((isMobile ? 14 : 26) * (1 - openFactor)).toFixed(2);
-      const yRFore = (-(isMobile ? 14 : 26) * (1 - openFactor)).toFixed(2);
-      const opFore = Math.max(0.04, 0.80 * (1 - openFactor * 0.90)).toFixed(3);
-
-      if (cloudLeftForeRef.current) {
-        cloudLeftForeRef.current.style.transform = `translate3d(${xLFore}px, ${yLFore}px, 0)`;
-        cloudLeftForeRef.current.style.opacity = opFore;
-      }
-      if (cloudRightForeRef.current) {
-        cloudRightForeRef.current.style.transform = `translate3d(${xRFore}px, ${yRFore}px, 0)`;
-        cloudRightForeRef.current.style.opacity = opFore;
+      let mountainFactor = 0;
+      if (p >= 0.32) {
+        mountainFactor = p < 0.64 ? easeOutCubic((p - 0.32) / 0.32) : 1.0;
       }
 
       // =================================================================
-      // 2. SECTION CONTENT: COMES FROM INSIDE THE SCREEN
-      // 3D forward surge from depth: scale(0.76) -> scale(1.0) with blur dissolve
+      // STAGE 3: TEXT & CTAS RENDER (p in [0.62 .. 0.88])
+      // Surges into focus after the mountain horizon has risen into place
       // =================================================================
+      let textFactor = 0;
+      if (p >= 0.62) {
+        textFactor = p < 0.88 ? easeOutCubic((p - 0.62) / 0.26) : 1.0;
+      }
+
+      // -----------------------------------------------------------------
+      // 1. LEFT & RIGHT CLOUDS: Glide outward to flanks
+      // -----------------------------------------------------------------
+      const outOffset = isMobile ? 320 : isTablet ? 460 : 620;
+      const xLeft = (-outOffset * cloudFactor).toFixed(2);
+      const xRight = (outOffset * cloudFactor).toFixed(2);
+      const sCloud = (1.0 + 0.02 * cloudFactor).toFixed(3);
+      const opCloud = (0.92 - 0.06 * cloudFactor).toFixed(3);
+
+      if (cloudLeftRef.current) {
+        cloudLeftRef.current.style.transform = `translate3d(${xLeft}px, 0, 0) scale(${sCloud})`;
+        cloudLeftRef.current.style.opacity = opCloud;
+      }
+      if (cloudRightRef.current) {
+        cloudRightRef.current.style.transform = `translate3d(${xRight}px, 0, 0) scale(${sCloud})`;
+        cloudRightRef.current.style.opacity = opCloud;
+      }
+
+      // -----------------------------------------------------------------
+      // 2. MOUNTAINS: Ascend smoothly from bottom (First after clouds)
+      // -----------------------------------------------------------------
+      if (mountainRef.current) {
+        const baseOffsetY = isMobile ? 140 : isTablet ? 180 : 220;
+        const mountainY = (baseOffsetY * (1 - mountainFactor)).toFixed(2);
+        const mountainOp = (mountainFactor * 1.0).toFixed(3);
+        const mountainScale = (0.96 + 0.04 * mountainFactor).toFixed(3);
+
+        mountainRef.current.style.transform = `translate3d(0, ${mountainY}px, 0) scale(${mountainScale})`;
+        mountainRef.current.style.opacity = mountainOp;
+      }
+
+      // -----------------------------------------------------------------
+      // 3. EDITORIAL TEXT & CTAS: 3D Surge into crisp focus (After mountains)
+      // -----------------------------------------------------------------
       if (contentWrapperRef.current) {
-        const scaleContent = (0.76 + 0.24 * openFactor).toFixed(3);
-        const yContent = ((isMobile ? 30 : 45) * (1 - openFactor)).toFixed(2);
-        const opContent = Math.min(1.0, Math.max(0.0, openFactor * 1.05)).toFixed(3);
+        const scaleContent = (0.80 + 0.20 * textFactor).toFixed(3);
+        const yContent = ((isMobile ? 24 : 36) * (1 - textFactor)).toFixed(2);
+        const opContent = (textFactor * 1.0).toFixed(3);
         const blurContent =
-          openFactor > 0.92
+          textFactor > 0.88
             ? "none"
-            : `blur(${((1 - openFactor) * 8).toFixed(1)}px)`;
+            : `blur(${((1 - textFactor) * 6).toFixed(1)}px)`;
 
         contentWrapperRef.current.style.transform = `translate3d(0, ${yContent}px, 0) scale(${scaleContent})`;
         contentWrapperRef.current.style.opacity = opContent;
@@ -292,7 +264,7 @@ export function FinalCta() {
     <section
       ref={sectionRef}
       id="final-cta"
-      className="relative w-full h-[240vh] sm:h-[260vh] lg:h-[280vh] bg-[#111110] text-text-primary select-none"
+      className="relative w-full h-[360vh] sm:h-[380vh] lg:h-[400vh] bg-[#111110] text-text-primary select-none"
       aria-labelledby="cta-heading"
     >
       {/* =================================================================
@@ -303,46 +275,33 @@ export function FinalCta() {
         className="sticky top-0 w-full h-screen overflow-hidden flex flex-col justify-center items-center bg-[#111110] select-none"
       >
         {/* =================================================================
-            LAYER 1: BACKGROUND MIST (z-[1]: Subtle, broad, slow-moving)
+            EMERGING MOUNTAIN HORIZON (z-[5]: Rises upward after clouds part, BEFORE text)
+            Initial state: completely hidden (opacity 0, translateY 220px)
             ================================================================= */}
         <div
-          ref={cloudLeftBackRef}
-          className="absolute left-[-22%] sm:left-[-15%] lg:left-[-8%] top-1/2 -translate-y-1/2 w-[72%] sm:w-[60%] lg:w-[50%] max-w-[1050px] pointer-events-none select-none will-change-[transform,opacity] z-[1]"
+          ref={mountainRef}
+          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[1920px] pointer-events-none select-none will-change-[transform,opacity] z-[5] flex justify-center items-end"
+          style={{ opacity: 0, transform: "translate3d(0, 220px, 0)" }}
           aria-hidden="true"
         >
           <Image
-            src="/images/clouds/cloud-left-back.webp"
+            src="/images/mountains-dark.webp"
             alt=""
-            width={1376}
-            height={768}
+            width={1924}
+            height={610}
             priority
-            className="w-full h-auto object-contain block mix-blend-screen opacity-50"
-          />
-        </div>
-
-        <div
-          ref={cloudRightBackRef}
-          className="absolute right-[-22%] sm:right-[-15%] lg:right-[-8%] top-1/2 -translate-y-1/2 w-[72%] sm:w-[60%] lg:w-[50%] max-w-[1050px] pointer-events-none select-none will-change-[transform,opacity] z-[1]"
-          aria-hidden="true"
-        >
-          <Image
-            src="/images/clouds/cloud-right-back.webp"
-            alt=""
-            width={1376}
-            height={768}
-            priority
-            className="w-full h-auto object-contain block mix-blend-screen opacity-50"
+            className="w-full h-auto max-h-[48vh] sm:max-h-[52vh] lg:max-h-[56vh] object-contain object-bottom block"
           />
         </div>
 
         {/* =================================================================
             EDITORIAL CONTENT & CALLS TO ACTION (z-[10])
-            Surges forward from depth: scale(0.76) -> scale(1.0)
+            Surges forward AFTER mountains have risen: scale(0.80) -> scale(1.0)
             ================================================================= */}
         <div
           ref={contentWrapperRef}
           className="layout-container w-full relative z-[10] will-change-[transform,opacity,filter]"
-          style={{ perspective: "1200px" }}
+          style={{ perspective: "1200px", opacity: 0, transform: "translate3d(0, 36px, 0) scale(0.80)" }}
         >
           <div className="max-w-4xl mx-auto text-center flex flex-col items-center select-text">
             {/* Art-Directed Two-Statement Headline */}
@@ -388,81 +347,50 @@ export function FinalCta() {
         </div>
 
         {/* =================================================================
-            LAYER 2: MIDDLE CLOUD FORMATIONS (z-[15]: Main visual masses)
-            Move out horizontally on scroll, close back when scrolling past
+            LEFT CLOUD SECTION (z-[15]: Towering diagrammatic illustration)
             ================================================================= */}
         <div
-          ref={cloudLeftMidRef}
-          className="absolute left-[-16%] sm:left-[-10%] lg:left-[-4%] top-1/2 -translate-y-1/2 w-[78%] sm:w-[64%] lg:w-[54%] max-w-[1150px] pointer-events-none select-none will-change-[transform,opacity] z-[15]"
+          ref={cloudLeftRef}
+          className="absolute -left-[12vw] sm:-left-[8vw] lg:-left-[5vw] top-1/2 -translate-y-1/2 h-[104vh] min-h-[750px] w-auto pointer-events-none select-none will-change-[transform,opacity] z-[15] flex items-center justify-start"
           aria-hidden="true"
         >
           <Image
-            src="/images/clouds/cloud-left-mid.webp"
+            src="/images/clouds/diagram-cloud-left-v2.webp"
             alt=""
-            width={1376}
-            height={768}
+            width={1200}
+            height={896}
             priority
-            className="w-full h-auto object-contain block mix-blend-screen opacity-90"
-          />
-        </div>
-
-        <div
-          ref={cloudRightMidRef}
-          className="absolute right-[-16%] sm:right-[-10%] lg:right-[-4%] top-1/2 -translate-y-1/2 w-[78%] sm:w-[64%] lg:w-[54%] max-w-[1150px] pointer-events-none select-none will-change-[transform,opacity] z-[15]"
-          aria-hidden="true"
-        >
-          <Image
-            src="/images/clouds/cloud-right-mid.webp"
-            alt=""
-            width={1376}
-            height={768}
-            priority
-            className="w-full h-auto object-contain block mix-blend-screen opacity-90"
+            className="h-full w-auto max-w-none object-contain block opacity-90"
           />
         </div>
 
         {/* =================================================================
-            LAYER 3: FOREGROUND WISPS (z-[20]: Delicate tendrils & depth)
+            RIGHT CLOUD SECTION (z-[15]: Towering diagrammatic illustration)
             ================================================================= */}
         <div
-          ref={cloudLeftForeRef}
-          className="absolute left-[-8%] sm:left-[-2%] lg:left-[4%] top-[48%] -translate-y-1/2 w-[66%] sm:w-[56%] lg:w-[48%] max-w-[980px] pointer-events-none select-none will-change-[transform,opacity] z-[20]"
+          ref={cloudRightRef}
+          className="absolute -right-[12vw] sm:-right-[8vw] lg:-right-[5vw] top-1/2 -translate-y-1/2 h-[104vh] min-h-[750px] w-auto pointer-events-none select-none will-change-[transform,opacity] z-[15] flex items-center justify-end"
           aria-hidden="true"
         >
           <Image
-            src="/images/clouds/cloud-left-fore.webp"
+            src="/images/clouds/diagram-cloud-right-v2.webp"
             alt=""
-            width={1376}
-            height={768}
+            width={1200}
+            height={896}
             priority
-            className="w-full h-auto object-contain block mix-blend-screen opacity-75"
-          />
-        </div>
-
-        <div
-          ref={cloudRightForeRef}
-          className="absolute right-[-8%] sm:right-[-2%] lg:right-[4%] top-[48%] -translate-y-1/2 w-[66%] sm:w-[56%] lg:w-[48%] max-w-[980px] pointer-events-none select-none will-change-[transform,opacity] z-[20]"
-          aria-hidden="true"
-        >
-          <Image
-            src="/images/clouds/cloud-right-fore.webp"
-            alt=""
-            width={1376}
-            height={768}
-            priority
-            className="w-full h-auto object-contain block mix-blend-screen opacity-75"
+            className="h-full w-auto max-w-none object-contain block opacity-90"
           />
         </div>
 
         {/* =================================================================
             ATMOSPHERIC PERIMETER FALLOFF (z-[25])
-            Soft radial vignette dissolving edges seamlessly into #111110
+            Soft vertical feathering at section edges to transition cleanly
             ================================================================= */}
         <div
           className="absolute inset-0 pointer-events-none z-[25]"
           style={{
             background:
-              "radial-gradient(ellipse 92% 82% at 50% 50%, transparent 35%, rgba(17,17,16,0.55) 75%, #111110 100%)",
+              "linear-gradient(to bottom, #111110 0%, transparent 12%, transparent 88%, #111110 100%)",
           }}
           aria-hidden="true"
         />
