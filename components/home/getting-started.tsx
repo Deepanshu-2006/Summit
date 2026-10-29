@@ -22,26 +22,28 @@ function getReducedMotionServerSnapshot() {
 
 /**
  * GettingStarted: Section 07 — The Deployment Journey
- * Editorial, carefully art-directed infrastructure experience:
+ * Complete Visual Redesign
  *
- * Distinct Typographic Hierarchy:
- * - THE START: "One commit."
- *   Repository & commit reference entering the deployment pipeline.
+ * An engineered, asymmetric deployment journey composed into three distinct visual zones:
  *
- * - THE WORK: "Built, checked, ready."
- *   Dedicated build & release stage:
- *     1. Resolving dependencies
- *     2. Compiling the application
- *     3. Verifying the build output
- *   Quietly resolving into release-v1.4.2.
+ * 1. LEFT — SOURCE:
+ *    Repository reference & commit trigger (acme/web-app · main · 8f3a21c).
  *
- * - THE RESULT: "Out in the world."
- *   Visual anchor: web-app.jetway.demo
- *   Supporting status: Live · 200 OK
- *   Supporting copy: Release verified. Traffic shifted to production.
+ * 2. CENTER — BUILD AND RELEASE (The Engine):
+ *    Actively transforms source code into a signed, hermetic release.
+ *    Sequential build operations:
+ *      - Resolving dependencies
+ *      - Compiling application
+ *      - Verifying build output
+ *    Resolves cleanly into release-v1.4.2.
  *
- * Coordinated connecting path transitions from active burnt orange (#E58B65)
- * into verified sage green (#82B89D) as progress advances.
+ * 3. RIGHT — LIVE (Primary Focal Point):
+ *    The completed release reaches its destination.
+ *    Dominant typographic live domain: web-app.jetway.demo
+ *    Restrained sage-green status confirmation: ● LIVE · 200 OK
+ *
+ * Connected by an animated SVG deployment path that starts burnt-orange (#E58B65)
+ * during source/build and transitions to sage-green (#82B89D) as the verified release travels to Live.
  */
 export function GettingStarted() {
   const isReducedMotion = useSyncExternalStore(
@@ -51,59 +53,9 @@ export function GettingStarted() {
   );
 
   const sectionRef = useRef<HTMLElement>(null);
-  const gridRef = useRef<HTMLDivElement>(null);
-  const s1Ref = useRef<HTMLDivElement>(null);
-  const s2Ref = useRef<HTMLDivElement>(null);
-  const s3Ref = useRef<HTMLDivElement>(null);
-
   const [hasTriggered, setHasTriggered] = useState(false);
   const [animStep, setAnimStep] = useState<number>(0);
   const step = isReducedMotion ? 9 : animStep;
-
-  // Responsive desktop track coordinates aligned with column positions
-  const [coords, setCoords] = useState<{ x1: number; x2: number; x3: number; totalW: number }>({
-    x1: 4,
-    x2: 270,
-    x3: 700,
-    totalW: 1000,
-  });
-
-  // Dynamically synchronize stage markers with actual rendered column positions
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const updateMeasurements = () => {
-      if (!gridRef.current || !s1Ref.current || !s2Ref.current || !s3Ref.current) return;
-      const gridRect = gridRef.current.getBoundingClientRect();
-      const s1Rect = s1Ref.current.getBoundingClientRect();
-      const s2Rect = s2Ref.current.getBoundingClientRect();
-      const s3Rect = s3Ref.current.getBoundingClientRect();
-
-      setCoords({
-        x1: Math.max(4, s1Rect.left - gridRect.left + 2),
-        x2: Math.max(20, s2Rect.left - gridRect.left + 2),
-        x3: Math.max(40, s3Rect.left - gridRect.left + 2),
-        totalW: gridRect.width,
-      });
-    };
-
-    updateMeasurements();
-
-    const el = gridRef.current;
-    if (!el) return;
-
-    const ro = new ResizeObserver(() => {
-      updateMeasurements();
-    });
-    ro.observe(el);
-
-    window.addEventListener("resize", updateMeasurements);
-
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", updateMeasurements);
-    };
-  }, []);
 
   // Trigger animation once when section enters viewport
   useEffect(() => {
@@ -138,60 +90,67 @@ export function GettingStarted() {
 
     const timeouts: NodeJS.Timeout[] = [];
 
-    // Phase 1: Source appears (t = 40ms)
-    timeouts.push(setTimeout(() => setAnimStep(1), 40));
+    // Phase 1: Source arrives (t = 50ms)
+    timeouts.push(setTimeout(() => setAnimStep(1), 50));
 
-    // Phase 2: Commit marker travels along path to Build (t = 450ms)
-    timeouts.push(setTimeout(() => setAnimStep(2), 450));
+    // Phase 2: Active marker moves toward Build stage (t = 650ms)
+    timeouts.push(setTimeout(() => setAnimStep(2), 650));
 
-    // Phase 3: Build Op 1 active: Resolving dependencies (t = 950ms)
-    timeouts.push(setTimeout(() => setAnimStep(3), 950));
+    // Build Op 1: Resolving dependencies active (t = 1350ms)
+    timeouts.push(setTimeout(() => setAnimStep(3), 1350));
 
-    // Phase 4: Build Op 2 active: Compiling the application (t = 1600ms)
-    timeouts.push(setTimeout(() => setAnimStep(4), 1600));
+    // Build Op 2: Compiling application active (t = 2150ms)
+    timeouts.push(setTimeout(() => setAnimStep(4), 2150));
 
-    // Phase 5: Build Op 3 active: Verifying the build output (t = 2300ms)
-    timeouts.push(setTimeout(() => setAnimStep(5), 2300));
+    // Build Op 3: Verifying build output active (t = 2950ms)
+    timeouts.push(setTimeout(() => setAnimStep(5), 2950));
 
-    // Phase 6: Build verified into Release (t = 3000ms)
-    timeouts.push(setTimeout(() => setAnimStep(6), 3000));
+    // Phase 3: Release verified & signed (t = 3750ms)
+    timeouts.push(setTimeout(() => setAnimStep(6), 3750));
 
-    // Phase 7: Release marker travels to Live destination (t = 3500ms)
-    timeouts.push(setTimeout(() => setAnimStep(7), 3500));
+    // Release marker travels toward Live destination (t = 4450ms)
+    timeouts.push(setTimeout(() => setAnimStep(7), 4450));
 
-    // Phase 8 & 9: Live domain reveals and status activates (t = 4100ms)
-    timeouts.push(setTimeout(() => setAnimStep(8), 4100));
-    timeouts.push(setTimeout(() => setAnimStep(9), 4350));
+    // Phase 4: Application domain appears (t = 5050ms)
+    timeouts.push(setTimeout(() => setAnimStep(8), 5050));
+
+    // Final confirmation: Sage-green LIVE indicator activates (t = 5550ms)
+    timeouts.push(setTimeout(() => setAnimStep(9), 5550));
 
     return () => {
       timeouts.forEach(clearTimeout);
     };
   }, [hasTriggered, isReducedMotion]);
 
-  // Desktop horizontal SVG conduit measurements based on dynamic coordinates
+  // Desktop SVG Path coordinates (Source: x=40, Build: x=380, Live: x=960)
   const getDesktopPathValues = () => {
-    const { x1, x2, x3 } = coords;
-
     if (isReducedMotion) {
       return {
-        segment1X: x2,
-        segment2X: x3,
-        markerX: x3,
+        segment1X: 380,
+        segment2X: 960,
+        markerX: 960,
         markerColor: "#82B89D",
       };
     }
 
-    if (step <= 1) {
-      return { segment1X: x1, segment2X: x2, markerX: x1, markerColor: "#E58B65" };
+    // Step 0: Idle
+    if (step === 0) {
+      return { segment1X: 40, segment2X: 380, markerX: 40, markerColor: "#E58B65" };
     }
+    // Step 1: Source visible, marker at Source
+    if (step === 1) {
+      return { segment1X: 40, segment2X: 380, markerX: 40, markerColor: "#E58B65" };
+    }
+    // Step 2-5: Segment 1 drawn, marker resting at Build engine
     if (step >= 2 && step <= 5) {
-      return { segment1X: x2, segment2X: x2, markerX: x2, markerColor: "#E58B65" };
+      return { segment1X: 380, segment2X: 380, markerX: 380, markerColor: "#E58B65" };
     }
+    // Step 6: Build verified into Release, marker turns sage green at Build
     if (step === 6) {
-      return { segment1X: x2, segment2X: x2, markerX: x2, markerColor: "#82B89D" };
+      return { segment1X: 380, segment2X: 380, markerX: 380, markerColor: "#82B89D" };
     }
-    // step >= 7
-    return { segment1X: x2, segment2X: x3, markerX: x3, markerColor: "#82B89D" };
+    // Step 7-9: Segment 2 drawn, marker glides to Live destination
+    return { segment1X: 380, segment2X: 960, markerX: 960, markerColor: "#82B89D" };
   };
 
   const { segment1X, segment2X, markerX, markerColor } = getDesktopPathValues();
@@ -225,9 +184,19 @@ export function GettingStarted() {
         </div>
 
         {/* =================================================================
-            EDITORIAL INTRO: Heading & Balanced Supporting Copy
+            EDITORIAL INTRO: Eyebrow, Heading & Supporting Copy
             ================================================================= */}
         <div className="max-w-2xl mb-14 sm:mb-18 lg:mb-20">
+          <div className="flex items-center gap-2 mb-4">
+            <span
+              className="w-1.5 h-1.5 rounded-[1px] bg-[#E58B65]"
+              aria-hidden="true"
+            />
+            <span className="font-mono text-[11px] font-medium tracking-[0.14em] uppercase text-[#77736D]">
+              THREE STEPS. ONE STARTING POINT.
+            </span>
+          </div>
+
           <h2
             id="getting-started-heading"
             className="font-sans text-[38px] sm:text-[48px] lg:text-[54px] font-medium leading-[1.08] tracking-[-0.03em] text-[#F2F0EB] mb-5"
@@ -235,156 +204,175 @@ export function GettingStarted() {
             From first commit to first deploy.
           </h2>
 
-          <p className="font-sans text-[16px] sm:text-[17px] text-[#8E8A82] leading-[1.65] max-w-xl">
+          <p className="font-sans text-[16px] sm:text-[17px] text-[#8E8A82] leading-[1.65]">
             Your next deployment doesn’t need a complicated setup. Start with
             your code, configure your application, and get ready to ship.
           </p>
         </div>
 
         {/* =================================================================
-            DEPLOYMENT JOURNEY: Three Asymmetric Editorial Stages
-            1. SOURCE (Compact footprint)
-            2. BUILD & RELEASE (More room for meaningful activity)
-            3. LIVE DESTINATION (Domain is the visual anchor)
+            CUSTOM HORIZONTAL DEPLOYMENT VISUALIZATION
+            Continuous, asymmetric composition with three distinct visual zones:
+              - LEFT: Source
+              - CENTER: Build & Release Engine (Heart of the section)
+              - RIGHT: Live Production (Dominant typographic element)
             ================================================================= */}
         <div className="relative w-full">
 
           {/* ---------------------------------------------------------------
-              DESKTOP PRESENTATION (>= 1024px)
-              Controlled Asymmetric Grid + Precise Connecting Path
+              DESKTOP / TABLET VISUALIZATION (>= 1024px)
               --------------------------------------------------------------- */}
-          <div className="hidden lg:block relative w-full pt-2 pb-6">
+          <div className="hidden lg:block relative w-full pt-4 pb-8">
             
-            {/* The Precision SVG Deployment Path */}
-            <div className="relative w-full h-6 mb-8" aria-hidden="true">
+            {/* The Precision SVG Deployment Conduit */}
+            <div className="relative w-full h-8 mb-8" aria-hidden="true">
               <svg
-                className="w-full h-6 overflow-visible"
-                viewBox={`0 0 ${coords.totalW} 24`}
+                className="w-full h-8 overflow-visible"
+                viewBox="0 0 1000 32"
+                preserveAspectRatio="none"
                 fill="none"
               >
-                {/* 1. Subtle neutral base track aligned from Stage 1 to Stage 3 */}
+                {/* 1. Underlying baseline conduit */}
                 <line
-                  x1={coords.x1}
-                  y1="12"
-                  x2={coords.x3}
-                  y2="12"
+                  x1="40"
+                  y1="16"
+                  x2="960"
+                  y2="16"
                   stroke="#22201E"
                   strokeWidth="1.5"
                   strokeLinecap="round"
                 />
 
-                {/* 2. Active Source -> Build Segment (Burnt Orange, transitions to Sage Green when verified) */}
+                {/* 2. Active Source -> Build Segment (Burnt Orange) */}
                 <line
-                  x1={coords.x1}
-                  y1="12"
+                  x1="40"
+                  y1="16"
                   x2={segment1X}
-                  y2="12"
-                  stroke={step >= 6 ? "#82B89D" : "#E58B65"}
-                  strokeWidth="1.5"
+                  y2="16"
+                  stroke="#E58B65"
+                  strokeWidth="2"
                   strokeLinecap="round"
-                  className={isReducedMotion ? "" : "transition-all duration-600 ease-out"}
+                  className={isReducedMotion ? "" : "transition-all duration-700 ease-out"}
                 />
 
                 {/* 3. Verified Build -> Live Segment (Sage Green) */}
                 {step >= 6 && (
                   <line
-                    x1={coords.x2}
-                    y1="12"
+                    x1="380"
+                    y1="16"
                     x2={segment2X}
-                    y2="12"
+                    y2="16"
                     stroke="#82B89D"
-                    strokeWidth="1.5"
+                    strokeWidth="2"
                     strokeLinecap="round"
-                    className={isReducedMotion ? "" : "transition-all duration-600 ease-out"}
+                    className={isReducedMotion ? "" : "transition-all duration-700 ease-out"}
                   />
                 )}
 
-                {/* 4. Small, restrained stage anchor nodes precisely aligned with columns */}
+                {/* 4. Fixed Stage Junction Nodes */}
+                {/* Node 1: Source */}
                 <circle
-                  cx={coords.x1}
-                  cy="12"
-                  r="3"
-                  fill={step >= 6 ? "#82B89D" : step >= 1 ? "#E58B65" : "#22201E"}
+                  cx="40"
+                  cy="16"
+                  r="3.5"
+                  fill={step >= 1 ? "#E58B65" : "#22201E"}
+                  stroke="#111110"
+                  strokeWidth="1.5"
                 />
+                {/* Node 2: Build Engine Center */}
                 <circle
-                  cx={coords.x2}
-                  cy="12"
-                  r="3"
+                  cx="380"
+                  cy="16"
+                  r="4"
                   fill={step >= 6 ? "#82B89D" : step >= 2 ? "#E58B65" : "#22201E"}
+                  stroke="#111110"
+                  strokeWidth="1.5"
                 />
+                {/* Node 3: Live Destination */}
                 <circle
-                  cx={coords.x3}
-                  cy="12"
-                  r="3"
+                  cx="960"
+                  cy="16"
+                  r="4"
                   fill={step >= 8 ? "#82B89D" : "#22201E"}
+                  stroke="#111110"
+                  strokeWidth="1.5"
                 />
 
-                {/* 5. Travelling Stage Marker */}
-                <circle
-                  cx={markerX}
-                  cy="12"
-                  r="3.75"
-                  fill={markerColor}
-                  className={isReducedMotion ? "" : "transition-all duration-600 ease-out"}
-                />
+                {/* 5. Travelling Commit/Release Marker */}
+                <g className={isReducedMotion ? "" : "transition-all duration-700 ease-out"}>
+                  <circle
+                    cx={markerX}
+                    cy="16"
+                    r="8"
+                    fill={markerColor}
+                    opacity="0.2"
+                  />
+                  <circle
+                    cx={markerX}
+                    cy="16"
+                    r="4"
+                    fill={markerColor}
+                  />
+                </g>
               </svg>
             </div>
 
-            {/* Three Distinct Typographic Stages (3 / 5 / 4 Column Split) */}
-            <div ref={gridRef} className="grid grid-cols-12 gap-8 xl:gap-12 items-start">
+            {/* Three Asymmetric Visual Zones */}
+            <div className="grid grid-cols-12 gap-10 xl:gap-14 items-start">
               
               {/* =============================================================
-                  STAGE 1: SOURCE (Compact Footprint)
+                  ZONE 1: LEFT — SOURCE (3 cols)
+                  Repository and commit trigger enter the deployment
                   ============================================================= */}
-              <div ref={s1Ref} className="col-span-3 space-y-4">
+              <div className="col-span-3 space-y-4">
                 <div className="font-mono text-[11px] text-[#77736D] tracking-[0.14em] uppercase">
-                  THE START
+                  01 / SOURCE
                 </div>
 
                 <div
-                  className={`space-y-3 transition-all duration-500 ${
+                  className={`space-y-2.5 transition-all duration-500 ${
                     step >= 1 ? "opacity-100 translate-y-0" : "opacity-30 translate-y-1"
                   }`}
                 >
-                  <h3 className="font-sans text-[28px] xl:text-[32px] font-medium text-[#F2F0EB] tracking-[-0.03em] leading-tight">
-                    One commit.
+                  <h3 className="font-sans text-[22px] font-medium text-[#F2F0EB] tracking-tight">
+                    Code committed.
                   </h3>
 
-                  <p className="font-sans text-[15px] text-[#8E8A82] leading-[1.6]">
-                    Your code is ready. Jetway picks up the change and takes it
-                    from here.
-                  </p>
-
-                  <div className="pt-2 space-y-1.5 font-mono">
-                    <div className="text-[13px] text-[#F2F0EB]">
-                      acme/web-app · main
-                    </div>
-                    <div className="flex items-center gap-1.5 text-[12px] text-[#E58B65]">
-                      <GitCommit className="w-3.5 h-3.5" />
-                      <span>8f3a21c</span>
-                    </div>
+                  <div className="font-mono text-[15px] font-medium text-[#F2F0EB] pt-1">
+                    acme/web-app
                   </div>
+
+                  <div className="flex items-center gap-2 font-mono text-[12px] text-[#8E8A82]">
+                    <GitCommit className="w-3.5 h-3.5 text-[#E58B65]" />
+                    <span>main · 8f3a21c</span>
+                  </div>
+
+                  <p className="font-mono text-[11px] text-[#77736D] pt-1.5 leading-relaxed">
+                    Webhook received · Automated pipeline triggered
+                  </p>
                 </div>
               </div>
 
               {/* =============================================================
-                  STAGE 2: BUILD & RELEASE (More Room For Operations)
+                  ZONE 2: CENTER — BUILD AND RELEASE ENGINE (5 cols)
+                  The visual heart and engine of the section
                   ============================================================= */}
-              <div ref={s2Ref} className="col-span-5 space-y-4 lg:pl-2 xl:pl-4">
-                <div className="font-mono text-[11px] text-[#77736D] tracking-[0.14em] uppercase">
-                  THE WORK
+              <div className="col-span-5 space-y-4">
+                <div className="font-mono text-[11px] text-[#77736D] tracking-[0.14em] uppercase flex items-center justify-between">
+                  <span>02 / BUILD & RELEASE</span>
+                  <span className="text-[10px] text-[#55524E]">ENGINE</span>
                 </div>
 
                 <div className="space-y-4">
-                  <h3 className="font-sans text-[28px] xl:text-[32px] font-medium text-[#F2F0EB] tracking-[-0.03em] leading-tight">
-                    Built, checked, ready.
+                  <h3 className="font-sans text-[22px] font-medium text-[#F2F0EB] tracking-tight">
+                    Artifact verified.
                   </h3>
 
-                  {/* Focused Typographic Operations Sequence */}
-                  <div className="space-y-2.5 font-mono text-[13px] pt-1">
-                    {/* Operation 1 */}
+                  {/* Typographic Build Sequence */}
+                  <div className="space-y-3 font-mono text-[12.5px] pt-1">
+                    {/* Operation 1: Resolving dependencies */}
                     <div
-                      className={`flex items-center justify-between transition-colors duration-300 ${
+                      className={`flex items-center justify-between transition-colors duration-400 ${
                         step >= 4
                           ? "text-[#8E8A82]"
                           : step === 3
@@ -394,15 +382,23 @@ export function GettingStarted() {
                     >
                       <span>Resolving dependencies</span>
                       {step >= 4 ? (
-                        <span className="text-[#82B89D] text-[11px]">✓</span>
+                        <span className="text-[#82B89D] text-[11px] flex items-center gap-1">
+                          <span>DONE</span>
+                          <span className="text-[#55524E]">·</span>
+                          <span className="text-[#77736D]">1.2s</span>
+                        </span>
                       ) : step === 3 ? (
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#E58B65]" />
-                      ) : null}
+                        <span className="text-[#E58B65] text-[11px] font-medium tracking-wider">
+                          RUNNING
+                        </span>
+                      ) : (
+                        <span className="text-[#33312E] text-[11px]">QUEUED</span>
+                      )}
                     </div>
 
-                    {/* Operation 2 */}
+                    {/* Operation 2: Compiling application */}
                     <div
-                      className={`flex items-center justify-between transition-colors duration-300 ${
+                      className={`flex items-center justify-between transition-colors duration-400 ${
                         step >= 5
                           ? "text-[#8E8A82]"
                           : step === 4
@@ -410,17 +406,25 @@ export function GettingStarted() {
                           : "text-[#44423E]"
                       }`}
                     >
-                      <span>Compiling the application</span>
+                      <span>Compiling application</span>
                       {step >= 5 ? (
-                        <span className="text-[#82B89D] text-[11px]">✓</span>
+                        <span className="text-[#82B89D] text-[11px] flex items-center gap-1">
+                          <span>DONE</span>
+                          <span className="text-[#55524E]">·</span>
+                          <span className="text-[#77736D]">2.4s</span>
+                        </span>
                       ) : step === 4 ? (
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#E58B65]" />
-                      ) : null}
+                        <span className="text-[#E58B65] text-[11px] font-medium tracking-wider">
+                          COMPILING
+                        </span>
+                      ) : (
+                        <span className="text-[#33312E] text-[11px]">WAITING</span>
+                      )}
                     </div>
 
-                    {/* Operation 3 */}
+                    {/* Operation 3: Verifying build output */}
                     <div
-                      className={`flex items-center justify-between transition-colors duration-300 ${
+                      className={`flex items-center justify-between transition-colors duration-400 ${
                         step >= 6
                           ? "text-[#8E8A82]"
                           : step === 5
@@ -428,24 +432,32 @@ export function GettingStarted() {
                           : "text-[#44423E]"
                       }`}
                     >
-                      <span>Verifying the build output</span>
+                      <span>Verifying build output</span>
                       {step >= 6 ? (
-                        <span className="text-[#82B89D] text-[11px]">✓</span>
+                        <span className="text-[#82B89D] text-[11px] flex items-center gap-1 font-medium">
+                          <span>HERMETIC</span>
+                          <span className="text-[#55524E]">·</span>
+                          <span>SIGNED</span>
+                        </span>
                       ) : step === 5 ? (
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#E58B65]" />
-                      ) : null}
+                        <span className="text-[#E58B65] text-[11px] font-medium tracking-wider">
+                          VERIFYING
+                        </span>
+                      ) : (
+                        <span className="text-[#33312E] text-[11px]">PENDING</span>
+                      )}
                     </div>
                   </div>
 
-                  {/* Restrained Progress Indicator Under Operations */}
+                  {/* Single Restrained Build Progress Indicator */}
                   <div
-                    className="w-full h-[1.5px] bg-[#22201E] overflow-hidden my-1"
+                    className="w-full h-[1.5px] bg-[#22201E] overflow-hidden my-2"
                     aria-hidden="true"
                   >
                     <div
                       className={`h-full ${
                         step >= 6 ? "bg-[#82B89D]" : "bg-[#E58B65]"
-                      } transition-all duration-400 ease-out`}
+                      } transition-all duration-500 ease-out`}
                       style={{
                         width:
                           step >= 6
@@ -461,58 +473,65 @@ export function GettingStarted() {
                     />
                   </div>
 
-                  {/* Quiet Release Identifier Bridge */}
+                  {/* Completed Build to Release Output Bridge */}
                   <div
-                    className={`pt-2 flex items-center justify-between font-mono text-[12.5px] transition-all duration-400 ${
-                      step >= 6 ? "opacity-100" : "opacity-30"
+                    className={`pt-2 flex items-center justify-between font-mono text-[12px] transition-all duration-500 ${
+                      step >= 6 ? "opacity-100" : "opacity-25"
                     }`}
                   >
-                    <span className="text-[#F2F0EB]">release-v1.4.2</span>
-                    <span className="text-[#82B89D] text-[12px] flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#82B89D]" />
-                      <span>Build verified</span>
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-[#F2F0EB]">release-v1.4.2</span>
+                      <span className="text-[#82B89D] flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#82B89D]" />
+                        <span>Build verified</span>
+                      </span>
+                    </div>
+                    <span className="text-[#77736D] text-[11px]">sha256:8f3a21c</span>
                   </div>
                 </div>
               </div>
 
               {/* =============================================================
-                  STAGE 3: LIVE DESTINATION (The Result — Domain Anchor)
+                  ZONE 3: RIGHT — LIVE DESTINATION (4 cols)
+                  The prominent typographic conclusion and focal destination
                   ============================================================= */}
-              <div ref={s3Ref} className="col-span-4 space-y-4">
+              <div className="col-span-4 space-y-4">
                 <div className="font-mono text-[11px] text-[#77736D] tracking-[0.14em] uppercase">
-                  THE RESULT
+                  03 / LIVE DESTINATION
                 </div>
 
                 <div
-                  className={`space-y-3 transition-all duration-500 ${
+                  className={`space-y-3 transition-all duration-600 ${
                     step >= 8 ? "opacity-100 translate-y-0" : "opacity-30 translate-y-1"
                   }`}
                 >
-                  <h3 className="font-sans text-[28px] xl:text-[32px] font-medium text-[#F2F0EB] tracking-[-0.03em] leading-tight">
-                    Out in the world.
+                  <h3 className="font-sans text-[22px] font-medium text-[#F2F0EB] tracking-tight">
+                    Traffic shifted.
                   </h3>
 
-                  {/* Visual Anchor: Prominent Deployed Domain (never wraps) */}
+                  {/* Primary Focal Typographic Element: The Deployed Domain (never wraps) */}
                   <div className="pt-1">
-                    <div className="font-mono text-[22px] xl:text-[25px] font-semibold text-[#F2F0EB] tracking-[-0.02em] whitespace-nowrap">
+                    <div className="font-mono text-[22px] xl:text-[25px] font-bold tracking-tight text-[#F2F0EB] whitespace-nowrap">
                       web-app.jetway.demo
                     </div>
                   </div>
 
-                  {/* Supporting Status: Live · 200 OK */}
+                  {/* Subtle Sage-Green Status Confirmation */}
                   <div
-                    className={`flex items-center gap-2 font-mono text-[12.5px] transition-opacity duration-400 ${
+                    className={`flex items-center gap-2.5 font-mono text-[12px] transition-opacity duration-500 ${
                       step >= 9 ? "opacity-100 text-[#82B89D] font-medium" : "opacity-0"
                     }`}
                   >
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#82B89D]" />
-                    <span>Live · 200 OK</span>
+                    <span className="w-2 h-2 rounded-full bg-[#82B89D] animate-pulse" />
+                    <span>LIVE</span>
+                    <span className="text-[#44423E]">·</span>
+                    <span className="text-[#A8A49C]">200 OK</span>
+                    <span className="text-[#44423E]">·</span>
+                    <span className="text-[#77736D]">Global Edge</span>
                   </div>
 
-                  {/* Supporting Copy */}
-                  <p className="font-sans text-[14.5px] text-[#8E8A82] leading-[1.6] pt-1">
-                    Release verified. Traffic shifted to production.
+                  <p className="font-mono text-[11px] text-[#77736D] pt-0.5 leading-relaxed">
+                    100% traffic cutover · Zero downtime release
                   </p>
                 </div>
               </div>
@@ -522,80 +541,69 @@ export function GettingStarted() {
           </div>
 
           {/* ---------------------------------------------------------------
-              MOBILE / TABLET PRESENTATION (< 1024px)
-              Vertical Narrative Flow with Identical Cause-and-Effect Logic
+              MOBILE / TABLET ADAPTIVE VERTICAL PROGRESSION (< 1024px)
+              Recomposed into a readable vertical journey with the same narrative
               --------------------------------------------------------------- */}
-          <div className="block lg:hidden relative w-full pl-7 py-2">
+          <div className="block lg:hidden relative w-full pl-8 py-4">
             
             {/* Vertical Connecting Track Line */}
             <div
-              className="absolute left-[7px] top-2 bottom-8 w-[1.5px] bg-[#22201E]"
+              className="absolute left-[11px] top-4 bottom-10 w-[1.5px] bg-[#22201E]"
               aria-hidden="true"
             >
               <div
                 className={`w-full ${
-                  step >= 6 ? "bg-[#82B89D]" : "bg-[#E58B65]"
+                  step >= 7 ? "bg-[#82B89D]" : "bg-[#E58B65]"
                 } ${
                   isReducedMotion
                     ? "h-full"
-                    : "transition-all duration-600 ease-out origin-top"
+                    : "transition-all duration-700 ease-out origin-top"
                 }`}
                 style={{ height: `${getMobileProgress()}%` }}
               />
             </div>
 
-            <div className="space-y-10 sm:space-y-12">
+            <div className="space-y-12">
               
-              {/* MOBILE STAGE 1: SOURCE */}
-              <div className="relative space-y-2">
+              {/* MOBILE ZONE 1: SOURCE */}
+              <div className="relative space-y-2.5">
                 <div
-                  className={`absolute -left-[23px] top-1.5 w-2 h-2 rounded-full ${
-                    step >= 6
-                      ? "bg-[#82B89D]"
-                      : step >= 1
-                      ? "bg-[#E58B65]"
-                      : "bg-[#22201E]"
+                  className={`absolute -left-[27px] top-1.5 w-2.5 h-2.5 rounded-full border ${
+                    step >= 1
+                      ? "bg-[#E58B65] border-[#FFAA80]"
+                      : "bg-[#1C1B19] border-[#302D2A]"
                   }`}
                   aria-hidden="true"
                 />
                 <div className="font-mono text-[11px] text-[#77736D] uppercase tracking-wider">
-                  THE START
+                  01 / SOURCE
                 </div>
-                <h3 className="font-sans text-[24px] sm:text-[28px] font-medium text-[#F2F0EB] tracking-tight">
-                  One commit.
-                </h3>
-                <p className="font-sans text-[14.5px] text-[#8E8A82] leading-relaxed">
-                  Your code is ready. Jetway picks up the change and takes it from here.
-                </p>
-                <div className="pt-1 space-y-1 font-mono text-[12.5px]">
-                  <div className="text-[#F2F0EB]">acme/web-app · main</div>
-                  <div className="text-[#E58B65] flex items-center gap-1.5">
-                    <GitCommit className="w-3.5 h-3.5" />
-                    <span>8f3a21c</span>
-                  </div>
+                <div className="font-mono text-[17px] font-semibold text-[#F2F0EB]">
+                  acme/web-app
+                </div>
+                <div className="flex items-center gap-2 font-mono text-[12px] text-[#8E8A82]">
+                  <GitCommit className="w-3.5 h-3.5 text-[#E58B65]" />
+                  <span>main · 8f3a21c</span>
                 </div>
               </div>
 
-              {/* MOBILE STAGE 2: BUILD & RELEASE */}
-              <div className="relative space-y-3">
+              {/* MOBILE ZONE 2: BUILD & RELEASE ENGINE */}
+              <div className="relative space-y-3.5">
                 <div
-                  className={`absolute -left-[23px] top-1.5 w-2 h-2 rounded-full ${
+                  className={`absolute -left-[27px] top-1.5 w-2.5 h-2.5 rounded-full border ${
                     step >= 6
-                      ? "bg-[#82B89D]"
+                      ? "bg-[#82B89D] border-[#82B89D]"
                       : step >= 2
-                      ? "bg-[#E58B65]"
-                      : "bg-[#22201E]"
+                      ? "bg-[#E58B65] border-[#FFAA80]"
+                      : "bg-[#1C1B19] border-[#302D2A]"
                   }`}
                   aria-hidden="true"
                 />
                 <div className="font-mono text-[11px] text-[#77736D] uppercase tracking-wider">
-                  THE WORK
+                  02 / BUILD & RELEASE ENGINE
                 </div>
-                <h3 className="font-sans text-[24px] sm:text-[28px] font-medium text-[#F2F0EB] tracking-tight">
-                  Built, checked, ready.
-                </h3>
 
-                <div className="space-y-2 font-mono text-[12.5px] pt-1">
+                <div className="space-y-2.5 font-mono text-[12.5px] pt-1">
                   <div
                     className={`flex items-center justify-between ${
                       step >= 4
@@ -606,8 +614,13 @@ export function GettingStarted() {
                     }`}
                   >
                     <span>Resolving dependencies</span>
-                    {step >= 4 && <span className="text-[#82B89D]">✓</span>}
+                    {step >= 4 ? (
+                      <span className="text-[#82B89D] text-[11px]">DONE · 1.2s</span>
+                    ) : step === 3 ? (
+                      <span className="text-[#E58B65] text-[11px]">RUNNING</span>
+                    ) : null}
                   </div>
+
                   <div
                     className={`flex items-center justify-between ${
                       step >= 5
@@ -617,9 +630,14 @@ export function GettingStarted() {
                         : "text-[#44423E]"
                     }`}
                   >
-                    <span>Compiling the application</span>
-                    {step >= 5 && <span className="text-[#82B89D]">✓</span>}
+                    <span>Compiling application</span>
+                    {step >= 5 ? (
+                      <span className="text-[#82B89D] text-[11px]">DONE · 2.4s</span>
+                    ) : step === 4 ? (
+                      <span className="text-[#E58B65] text-[11px]">COMPILING</span>
+                    ) : null}
                   </div>
+
                   <div
                     className={`flex items-center justify-between ${
                       step >= 6
@@ -629,62 +647,82 @@ export function GettingStarted() {
                         : "text-[#44423E]"
                     }`}
                   >
-                    <span>Verifying the build output</span>
-                    {step >= 6 && <span className="text-[#82B89D]">✓</span>}
+                    <span>Verifying build output</span>
+                    {step >= 6 ? (
+                      <span className="text-[#82B89D] text-[11px]">HERMETIC · SIGNED</span>
+                    ) : step === 5 ? (
+                      <span className="text-[#E58B65] text-[11px]">VERIFYING</span>
+                    ) : null}
                   </div>
                 </div>
 
+                {/* Release identifier bridge */}
                 <div
-                  className={`pt-2 flex items-center justify-between font-mono text-[12px] ${
+                  className={`pt-2 border-t border-[#22201E] flex items-center justify-between font-mono text-[12px] ${
                     step >= 6 ? "opacity-100" : "opacity-30"
                   }`}
                 >
-                  <span className="text-[#F2F0EB]">release-v1.4.2</span>
+                  <span className="font-semibold text-[#F2F0EB]">release-v1.4.2</span>
                   <span className="text-[#82B89D] flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#82B89D]" />
-                    <span>Build verified</span>
+                    <span>Verified</span>
                   </span>
                 </div>
               </div>
 
-              {/* MOBILE STAGE 3: LIVE DESTINATION */}
-              <div className="relative space-y-2">
+              {/* MOBILE ZONE 3: LIVE DESTINATION */}
+              <div className="relative space-y-2.5">
                 <div
-                  className={`absolute -left-[23px] top-1.5 w-2 h-2 rounded-full ${
+                  className={`absolute -left-[27px] top-1.5 w-2.5 h-2.5 rounded-full border ${
                     step >= 8
-                      ? "bg-[#82B89D]"
-                      : "bg-[#22201E]"
+                      ? "bg-[#82B89D] border-[#82B89D]"
+                      : "bg-[#1C1B19] border-[#302D2A]"
                   }`}
                   aria-hidden="true"
                 />
                 <div className="font-mono text-[11px] text-[#77736D] uppercase tracking-wider">
-                  THE RESULT
+                  03 / LIVE DESTINATION
                 </div>
-                <h3 className="font-sans text-[24px] sm:text-[28px] font-medium text-[#F2F0EB] tracking-tight">
-                  Out in the world.
-                </h3>
-                <div className="pt-1">
-                  <div className="font-mono text-[17px] sm:text-[20px] font-semibold text-[#F2F0EB] whitespace-nowrap">
-                    web-app.jetway.demo
-                  </div>
-                </div>
+
                 <div
-                  className={`flex items-center gap-1.5 font-mono text-[12px] text-[#82B89D] ${
-                    step >= 9 ? "opacity-100" : "opacity-0"
+                  className={`space-y-2 ${
+                    step >= 8 ? "opacity-100" : "opacity-30"
                   }`}
                 >
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#82B89D]" />
-                  <span>Live · 200 OK</span>
+                  <div className="font-mono text-[19px] sm:text-[21px] font-bold text-[#F2F0EB] break-all">
+                    web-app.jetway.demo
+                  </div>
+
+                  <div
+                    className={`flex items-center gap-2 font-mono text-[12px] text-[#82B89D] font-medium ${
+                      step >= 9 ? "opacity-100" : "opacity-0"
+                    }`}
+                  >
+                    <span className="w-2 h-2 rounded-full bg-[#82B89D] animate-pulse" />
+                    <span>LIVE · 200 OK</span>
+                    <span className="text-[#44423E]">·</span>
+                    <span className="text-[#77736D]">Global Edge</span>
+                  </div>
                 </div>
-                <p className="font-sans text-[14px] text-[#8E8A82] leading-relaxed pt-0.5">
-                  Release verified. Traffic shifted to production.
-                </p>
               </div>
 
             </div>
 
           </div>
 
+        </div>
+
+        {/* =================================================================
+            DEMONSTRATION DISCLOSURE FOOTNOTE
+            ================================================================= */}
+        <div className="mt-20 pt-4 border-t border-[#262422]/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] font-mono text-[#77736D]">
+          <div className="flex items-center gap-2">
+            <span className="text-[#E58B65]">◆</span>
+            <span>Illustrative deployment sequence</span>
+            <span>—</span>
+            <span>Demonstrates workflow from source commit to live production</span>
+          </div>
+          <span className="hidden sm:inline">Zero live infrastructure claims</span>
         </div>
       </div>
     </section>
