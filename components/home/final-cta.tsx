@@ -461,11 +461,11 @@ export function FinalCta() {
             ================================================================= */}
         <div
           ref={contentWrapperRef}
-          className="layout-container w-full relative z-[10] flex justify-start items-center"
+          className="layout-container w-full relative z-[10] flex justify-center lg:justify-end items-center pb-8 sm:pb-12 lg:pb-16"
           style={{ opacity: 0 }}
         >
 
-          <div className="w-full max-w-[700px] xl:max-w-[760px] flex flex-col items-start text-left select-text lg:pl-2 xl:pl-6">
+          <div className="w-full max-w-[620px] lg:max-w-[660px] xl:max-w-[720px] flex flex-col items-start text-left select-text lg:mr-4 xl:mr-10">
             {/* Main Headline — Independent Alphabet-by-Alphabet Kinetic Emergence */}
             <h2
               id="cta-heading"

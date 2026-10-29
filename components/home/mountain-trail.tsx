@@ -439,13 +439,31 @@ export function MountainTrail() {
     // Viewport focal line: ~45% down the screen
     const viewportGuideY = scrollY + vh * 0.45;
 
-    // Hiker only becomes visible once the user scrolls to the end of Hero / start of trail
+    // Check if user is currently inside Section 4's pinned exploration track
+    const stackEl = document.getElementById("platform-stack");
+    const stackTop = stackEl ? stackEl.offsetTop : 0;
+    const stackHeight = stackEl ? stackEl.offsetHeight : 0;
+    const isInsideStack = stackEl
+      ? scrollY >= stackTop - 60 && scrollY <= stackTop + stackHeight - vh - 20
+      : false;
+
+    // Hiker only becomes visible once the user scrolls to the end of Hero / start of trail,
+    // and is hidden while inside Section 4 (where the same hiker walks across the stack switcher)
     const hasReachedTrail = scrollY + vh * 0.35 >= lineCoords.startY;
-    setIsHikerVisible(hasReachedTrail);
+    setIsHikerVisible(hasReachedTrail && !isInsideStack);
+
+    // During Section 4, the vertical trail target Y is locked at Checkpoint 3 (the switcher level)
+    let effectiveTargetY = viewportGuideY;
+    if (stackEl && isInsideStack) {
+      effectiveTargetY = stackEl.offsetTop + 140; // Locked at Section 4's entrance
+    } else if (stackEl && scrollY > stackEl.offsetTop + stackHeight - vh - 20) {
+      // Past Section 4: continue from below Section 4
+      effectiveTargetY = viewportGuideY;
+    }
 
     const clampedY = Math.max(
       lineCoords.startY,
-      Math.min(lineCoords.endY, viewportGuideY)
+      Math.min(lineCoords.endY, effectiveTargetY)
     );
 
     targetYRef.current = clampedY;
@@ -469,13 +487,26 @@ export function MountainTrail() {
     const onScrollStatic = () => {
       const scrollY = window.scrollY || document.documentElement.scrollTop;
       const vh = window.innerHeight;
-      const targetY = Math.max(
-        lineCoords.startY,
-        Math.min(lineCoords.endY, scrollY + vh * 0.45)
-      );
+
+      const stackEl = document.getElementById("platform-stack");
+      const stackTop = stackEl ? stackEl.offsetTop : 0;
+      const stackHeight = stackEl ? stackEl.offsetHeight : 0;
+      const isInsideStack = stackEl
+        ? scrollY >= stackTop - 60 && scrollY <= stackTop + stackHeight - vh - 20
+        : false;
 
       const hasReachedTrail = scrollY + vh * 0.35 >= lineCoords.startY;
-      setIsHikerVisible(hasReachedTrail);
+      setIsHikerVisible(hasReachedTrail && !isInsideStack);
+
+      let effectiveTargetY = scrollY + vh * 0.45;
+      if (stackEl && isInsideStack) {
+        effectiveTargetY = stackEl.offsetTop + 140;
+      }
+
+      const targetY = Math.max(
+        lineCoords.startY,
+        Math.min(lineCoords.endY, effectiveTargetY)
+      );
 
       setHikerPos({
         x: lineCoords.x,
@@ -546,7 +577,11 @@ export function MountainTrail() {
       const swayVal = Math.sin(walkPhase) * 2.2 * idleFactor;
 
       // Natural facing: 180° when moving down, smoothly flips to 0° if scrolling up
-      const targetAngle = dy < -0.3 ? 0 : 180;
+      let targetAngle = dy < -0.3 ? 0 : 180;
+      const stackEl = document.getElementById("platform-stack");
+      if (stackEl && Math.abs(newY - (stackEl.offsetTop + 140)) < 40) {
+        targetAngle = 90; // Face right towards Section 4 switcher!
+      }
 
       setHikerPos((prev) => {
         let diff = ((targetAngle - prev.angle + 180) % 360) - 180;
