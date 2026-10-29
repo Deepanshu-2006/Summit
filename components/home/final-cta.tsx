@@ -22,50 +22,31 @@ function getReducedMotionServerSnapshot() {
   return false;
 }
 
-// Headline Word & Character Definitions for Per-Alphabet Kinetic Emergence
-const LINE_1_WORDS = [
-  { word: "Your", chars: ["Y", "o", "u", "r"] },
-  { word: "code.", chars: ["c", "o", "d", "e", "."] },
-];
-
-const LINE_2_WORDS = [
-  { word: "Ready", chars: ["R", "e", "a", "d", "y"] },
-  { word: "for", chars: ["f", "o", "r"] },
-  { word: "what’s", chars: ["w", "h", "a", "t", "’", "s"] },
-  { word: "next.", chars: ["n", "e", "x", "t", "."] },
-];
-
-const TOTAL_LINE_1_CHARS = LINE_1_WORDS.reduce((acc, w) => acc + w.chars.length, 0); // 9
-const TOTAL_CHARS =
-  TOTAL_LINE_1_CHARS + LINE_2_WORDS.reduce((acc, w) => acc + w.chars.length, 0); // 28
-
 /**
  * FinalCta: Section 08 — Final Call to Action
  * "Your code. Ready for what’s next."
  *
- * Cinematic typography & scroll-driven mountain composition:
- * - Two-statement art-directed headline: "Your code." followed by "Ready for what’s next."
- * - Per-alphabet kinetic scroll emergence: each letter comes up separately from the mountains
- * - Completely removed top pill/capsule for immediate typographic authority
- * - Calm, narrower supporting copy with generous breathing room
- * - Distinct button hierarchy: high-contrast burnt-orange primary with refined arrow
- *   paired with a quiet, border-defined dark secondary action
- * - 5 independently emerging scroll-driven terrain layers preserved seamlessly
+ * Locked-Screen Scroll Experience with Volumetric Cloud Parting & Re-closing:
+ * 1. Screen locks in place (sticky viewport during scroll track)
+ * 2. On arrival, clouds are completely CLOSED over the screen
+ * 3. On scroll, clouds move horizontally OUT to the edges
+ * 4. Section content surges forward from inside the screen into full crisp focus
+ * 5. When scrolling past the section, clouds move back TOGETHER, closing the scene before unpinning
  */
 export function FinalCta() {
   const sectionRef = useRef<HTMLElement>(null);
-  const masterLayerRef = useRef<HTMLDivElement>(null);
-  const layer1Ref = useRef<HTMLDivElement>(null);
-  const layer2Ref = useRef<HTMLDivElement>(null);
-  const layer3Ref = useRef<HTMLDivElement>(null);
-  const layer4Ref = useRef<HTMLDivElement>(null);
-  const layer5Ref = useRef<HTMLDivElement>(null);
-  const lightLayerRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
 
-  // Per-character DOM references for letter-by-letter kinetic emergence
-  const charRefs = useRef<(HTMLSpanElement | null)[]>([]);
-  const paragraphRef = useRef<HTMLParagraphElement>(null);
-  const actionsRef = useRef<HTMLDivElement>(null);
+  // Volumetric cloud layer references (Left & Right depth formations)
+  const cloudLeftBackRef = useRef<HTMLDivElement>(null);
+  const cloudLeftMidRef = useRef<HTMLDivElement>(null);
+  const cloudLeftForeRef = useRef<HTMLDivElement>(null);
+  const cloudRightBackRef = useRef<HTMLDivElement>(null);
+  const cloudRightMidRef = useRef<HTMLDivElement>(null);
+  const cloudRightForeRef = useRef<HTMLDivElement>(null);
+
+  // Section content reference (surges from inside the screen)
+  const contentWrapperRef = useRef<HTMLDivElement>(null);
 
   // Synchronously subscribe to reduced motion preference
   const isReducedMotion = useSyncExternalStore(
@@ -75,39 +56,25 @@ export function FinalCta() {
   );
 
   useEffect(() => {
-    // If reduced motion is requested, ensure all layers and text are in final resting state
+    // If reduced motion is requested, render static open framing
     if (isReducedMotion) {
-      const resetLayer = (el: HTMLElement | null) => {
+      const resetEl = (el: HTMLElement | null, transform = "none", opacity = "1") => {
         if (!el) return;
-        el.style.transform = "none";
-        el.style.opacity = "1";
-        el.style.filter = "none";
-      };
-      resetLayer(layer1Ref.current);
-      resetLayer(layer2Ref.current);
-      resetLayer(layer3Ref.current);
-      resetLayer(layer4Ref.current);
-      resetLayer(layer5Ref.current);
-      charRefs.current.forEach((el) => {
-        if (!el) return;
-        el.style.transform = "none";
-        el.style.opacity = "1";
+        el.style.transform = transform;
+        el.style.opacity = opacity;
         el.style.filter = "none";
         el.style.transition = "none";
-      });
-      if (paragraphRef.current) {
-        paragraphRef.current.style.transform = "none";
-        paragraphRef.current.style.opacity = "1";
-        paragraphRef.current.style.filter = "none";
-        paragraphRef.current.style.transition = "none";
-      }
-      if (actionsRef.current) {
-        actionsRef.current.style.transform = "none";
-        actionsRef.current.style.opacity = "1";
-        actionsRef.current.style.filter = "none";
-        actionsRef.current.style.transition = "none";
-      }
-      if (masterLayerRef.current) masterLayerRef.current.style.opacity = "1";
+      };
+
+      resetEl(cloudLeftBackRef.current, "translate3d(-320px, 0, 0)", "0.35");
+      resetEl(cloudLeftMidRef.current, "translate3d(-520px, 0, 0)", "0.85");
+      resetEl(cloudLeftForeRef.current, "translate3d(-640px, 0, 0)", "0.20");
+
+      resetEl(cloudRightBackRef.current, "translate3d(320px, 0, 0)", "0.35");
+      resetEl(cloudRightMidRef.current, "translate3d(520px, 0, 0)", "0.85");
+      resetEl(cloudRightForeRef.current, "translate3d(640px, 0, 0)", "0.20");
+
+      resetEl(contentWrapperRef.current, "none", "1");
       return;
     }
 
@@ -120,210 +87,147 @@ export function FinalCta() {
     let rafId: number | null = null;
     let isIntersecting = false;
 
-    // Easing helper: smooth cubic deceleration curve
+    // Deceleration & symmetrical easing helpers
     const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+    const easeInOutCubic = (t: number) =>
+      t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
-    // Compute target scroll progress based on section position in viewport
-    // Removing the 0.50 delay: emergence begins responsively as section enters viewport (~72% down)
+    // Compute locked scroll progress p in [0.0, 1.0]
+    // Section pins when rect.top <= 0, and unpins when user scrolls through track
     const computeTargetP = () => {
       if (!section) return 0;
       const rect = section.getBoundingClientRect();
-      const windowH = window.innerHeight;
-      const startY = windowH * 0.72;
-      const endY = Math.max(40, windowH * 0.06);
-      const rawP = (startY - rect.top) / (startY - endY);
-      return Math.max(0, Math.min(1, rawP));
+      const scrollTrack = rect.height - window.innerHeight;
+      if (scrollTrack <= 0) return 0;
+
+      // When section top is above viewport (pinned): -rect.top advances from 0 to scrollTrack
+      const rawP = -rect.top / scrollTrack;
+      return Math.min(1.0, Math.max(0.0, rawP));
     };
 
     const render = (p: number) => {
-      // =================================================================
-      // DEEP PHYSICAL GROUND EMERGENCE: MOUNTAINS RISING FROM BEDROCK
-      // Large vertical travel offsets so peaks physically pierce the ground
-      // and rise upward out of the earth rather than fading in place
-      // =================================================================
       const isMobile = window.innerWidth < 640;
-      const yL1 = isMobile ? 180 : 280; // Distant ridge
-      const yL2 = isMobile ? 280 : 460; // Left mountain (tallest mass on left)
-      const yL3 = isMobile ? 190 : 300; // Central valley
-      const yL4 = isMobile ? 290 : 480; // Right mountain (tall craggy peak on right)
-      const yL5 = isMobile ? 200 : 320; // Foreground terrain
+      const isTablet = window.innerWidth >= 640 && window.innerWidth < 1024;
 
-      // Layer 1: Distant Ridge (emerges immediately: progress 0.00 -> 0.46)
-      if (layer1Ref.current) {
-        const p1 = Math.max(0, Math.min(1, p / 0.46));
-        const e1 = easeOutCubic(p1);
-        const y1 = (yL1 * (1 - e1)).toFixed(2);
-        const sY1 = (0.90 + 0.10 * e1).toFixed(3);
-        const op1 = p1 > 0 ? Math.min(1, 0.35 + p1 * 0.65).toFixed(3) : "0";
-        layer1Ref.current.style.transform = `translate3d(0, ${y1}px, 0) scaleY(${sY1})`;
-        layer1Ref.current.style.opacity = op1;
-      }
-
-      // Layer 2: Left Mountain (breaches ground at p = 0.08 -> 0.60)
-      if (layer2Ref.current) {
-        const p2 = Math.max(0, Math.min(1, (p - 0.08) / 0.52));
-        const e2 = easeOutCubic(p2);
-        const y2 = (yL2 * (1 - e2)).toFixed(2);
-        const sY2 = (0.86 + 0.14 * e2).toFixed(3);
-        const op2 = p2 > 0 ? Math.min(1, 0.40 + p2 * 0.60).toFixed(3) : "0";
-        layer2Ref.current.style.transform = `translate3d(0, ${y2}px, 0) scaleY(${sY2})`;
-        layer2Ref.current.style.opacity = op2;
-      }
-
-      // Layer 3: Central Valley (rises between peaks at p = 0.16 -> 0.68)
-      if (layer3Ref.current) {
-        const p3 = Math.max(0, Math.min(1, (p - 0.16) / 0.52));
-        const e3 = easeOutCubic(p3);
-        const y3 = (yL3 * (1 - e3)).toFixed(2);
-        const sY3 = (0.88 + 0.12 * e3).toFixed(3);
-        const op3 = p3 > 0 ? Math.min(1, 0.35 + p3 * 0.65).toFixed(3) : "0";
-        layer3Ref.current.style.transform = `translate3d(0, ${y3}px, 0) scaleY(${sY3})`;
-        layer3Ref.current.style.opacity = op3;
-      }
-
-      // Layer 4: Right Mountain (pierces ground on right at p = 0.25 -> 0.77)
-      if (layer4Ref.current) {
-        const p4 = Math.max(0, Math.min(1, (p - 0.25) / 0.52));
-        const e4 = easeOutCubic(p4);
-        const y4 = (yL4 * (1 - e4)).toFixed(2);
-        const sY4 = (0.86 + 0.14 * e4).toFixed(3);
-        const op4 = p4 > 0 ? Math.min(1, 0.40 + p4 * 0.60).toFixed(3) : "0";
-        layer4Ref.current.style.transform = `translate3d(0, ${y4}px, 0) scaleY(${sY4})`;
-        layer4Ref.current.style.opacity = op4;
-      }
-
-      // Layer 5: Foreground Terrain (closest foreground ridges rise last: p = 0.36 -> 0.88)
-      if (layer5Ref.current) {
-        const p5 = Math.max(0, Math.min(1, (p - 0.36) / 0.52));
-        const e5 = easeOutCubic(p5);
-        const y5 = (yL5 * (1 - e5)).toFixed(2);
-        const sY5 = (0.88 + 0.12 * e5).toFixed(3);
-        const op5 = p5 > 0 ? Math.min(1, 0.45 + p5 * 0.55).toFixed(3) : "0";
-        layer5Ref.current.style.transform = `translate3d(0, ${y5}px, 0) scaleY(${sY5})`;
-        layer5Ref.current.style.opacity = op5;
-      }
-
-      // Ambient light shimmer opacity tracks terrain emergence
-      if (lightLayerRef.current) {
-        const lightOp = (0.28 * Math.max(0, Math.min(1, (p - 0.10) * 1.3))).toFixed(3);
-        lightLayerRef.current.style.opacity = lightOp;
-      }
-
-      // Master composite lock: smoothly fades in as everything settles into final resting composition
-      if (masterLayerRef.current) {
-        const masterOp = p >= 0.84 ? Math.min(1, (p - 0.84) / 0.16).toFixed(3) : "0";
-        masterLayerRef.current.style.opacity = masterOp;
+      // =================================================================
+      // OPEN FACTOR CALCULATION:
+      // p in [0.00 .. 0.40]: Opening (0.0 -> 1.0)
+      // p in [0.40 .. 0.65]: Settled Open (1.0)
+      // p in [0.65 .. 1.00]: Closing (1.0 -> 0.0) as user scrolls past
+      // =================================================================
+      let openFactor: number;
+      if (p < 0.40) {
+        openFactor = easeOutCubic(p / 0.40);
+      } else if (p <= 0.65) {
+        openFactor = 1.0;
+      } else {
+        openFactor = 1.0 - easeInOutCubic((p - 0.65) / 0.35);
       }
 
       // =================================================================
-      // 1. HEADLINE PER-CHARACTER KINETIC EMERGENCE: BACK TO FRONT
-      // Each alphabet emerges and rises up independently on scroll
+      // 1. CLOUD LAYER DISPLACEMENTS
+      // Clouds start overlapping in the center (inward offset),
+      // move out to the flanks (open), and return to the center (close)
       // =================================================================
-      const charYTravel = isMobile ? 50 : 75;
-      const windowSpan = 0.22;
-      const staggerRange = 0.30;
-      const maxBlur = isMobile ? 3 : 5;
 
-      for (let i = 0; i < TOTAL_CHARS; i++) {
-        const charEl = charRefs.current[i];
-        if (!charEl) continue;
+      // Middle Clouds (Main volumetric masses)
+      const inMid = isMobile ? 110 : isTablet ? 170 : 250;
+      const outMid = isMobile ? 280 : isTablet ? 480 : 700;
+      const xLMid = (inMid - (inMid + outMid) * openFactor).toFixed(2);
+      const xRMid = (-inMid + (inMid + outMid) * openFactor).toFixed(2);
+      const sMid = (1.0 + 0.04 * openFactor).toFixed(3);
+      const opMid = (0.95 - 0.12 * openFactor).toFixed(3);
 
-        const charStart = 0.18 + (i / (TOTAL_CHARS - 1)) * staggerRange;
-        const charEnd = charStart + windowSpan;
-        const charP = Math.max(0, Math.min(1, (p - charStart) / (charEnd - charStart)));
+      if (cloudLeftMidRef.current) {
+        cloudLeftMidRef.current.style.transform = `translate3d(${xLMid}px, 0, 0) scale(${sMid})`;
+        cloudLeftMidRef.current.style.opacity = opMid;
+      }
+      if (cloudRightMidRef.current) {
+        cloudRightMidRef.current.style.transform = `translate3d(${xRMid}px, 0, 0) scale(${sMid})`;
+        cloudRightMidRef.current.style.opacity = opMid;
+      }
 
-        if (charP >= 0.99) {
-          charEl.style.transform = "translate3d(0, 0, 0)";
-          charEl.style.opacity = "1";
-          charEl.style.filter = "none";
-        } else if (charP <= 0) {
-          charEl.style.transform = `translate3d(0, ${charYTravel}px, 0) scale(0.75) rotateX(${isMobile ? 8 : 14}deg)`;
-          charEl.style.opacity = "0";
-          charEl.style.filter = `blur(${maxBlur}px)`;
-        } else {
-          const charEase = easeOutCubic(charP);
-          const y = (charYTravel * (1 - charEase)).toFixed(2);
-          const s = (0.75 + 0.25 * charEase).toFixed(3);
-          const rot = ((isMobile ? 8 : 14) * (1 - charEase)).toFixed(2);
-          const op = Math.min(1, charP * 1.5).toFixed(3);
-          const blur = charP > 0.85 ? "none" : `blur(${((maxBlur) * (1 - charEase)).toFixed(2)}px)`;
+      // Background Mist (Slower, broad parallax)
+      const inBack = isMobile ? 70 : isTablet ? 110 : 160;
+      const outBack = isMobile ? 190 : isTablet ? 330 : 480;
+      const xLBack = (inBack - (inBack + outBack) * openFactor).toFixed(2);
+      const xRBack = (-inBack + (inBack + outBack) * openFactor).toFixed(2);
+      const sBack = (1.0 + 0.03 * openFactor).toFixed(3);
+      const opBack = (0.50 - 0.12 * openFactor).toFixed(3);
 
-          charEl.style.transform = `translate3d(0, ${y}px, 0) scale(${s}) rotateX(${rot}deg)`;
-          charEl.style.opacity = op;
-          charEl.style.filter = blur;
-        }
+      if (cloudLeftBackRef.current) {
+        cloudLeftBackRef.current.style.transform = `translate3d(${xLBack}px, 0, 0) scale(${sBack})`;
+        cloudLeftBackRef.current.style.opacity = opBack;
+      }
+      if (cloudRightBackRef.current) {
+        cloudRightBackRef.current.style.transform = `translate3d(${xRBack}px, 0, 0) scale(${sBack})`;
+        cloudRightBackRef.current.style.opacity = opBack;
+      }
+
+      // Foreground Wisps (Faster drift + fade)
+      const inFore = isMobile ? 90 : isTablet ? 140 : 220;
+      const outFore = isMobile ? 340 : isTablet ? 560 : 840;
+      const xLFore = (inFore - (inFore + outFore) * openFactor).toFixed(2);
+      const xRFore = (-inFore + (inFore + outFore) * openFactor).toFixed(2);
+      const yLFore = ((isMobile ? 14 : 26) * (1 - openFactor)).toFixed(2);
+      const yRFore = (-(isMobile ? 14 : 26) * (1 - openFactor)).toFixed(2);
+      const opFore = Math.max(0.04, 0.80 * (1 - openFactor * 0.90)).toFixed(3);
+
+      if (cloudLeftForeRef.current) {
+        cloudLeftForeRef.current.style.transform = `translate3d(${xLFore}px, ${yLFore}px, 0)`;
+        cloudLeftForeRef.current.style.opacity = opFore;
+      }
+      if (cloudRightForeRef.current) {
+        cloudRightForeRef.current.style.transform = `translate3d(${xRFore}px, ${yRFore}px, 0)`;
+        cloudRightForeRef.current.style.opacity = opFore;
       }
 
       // =================================================================
-      // 2. SUPPORTING COPY & BUTTONS: PROGRESSIVE FORWARD SURGE
+      // 2. SECTION CONTENT: COMES FROM INSIDE THE SCREEN
+      // 3D forward surge from depth: scale(0.76) -> scale(1.0) with blur dissolve
       // =================================================================
-      const yTravelP = isMobile ? 100 : 160;
-      const yTravelB = isMobile ? 120 : 180;
-      const maxBlurP = isMobile ? 4 : 6;
-      const maxBlurB = isMobile ? 3 : 5;
+      if (contentWrapperRef.current) {
+        const scaleContent = (0.76 + 0.24 * openFactor).toFixed(3);
+        const yContent = ((isMobile ? 30 : 45) * (1 - openFactor)).toFixed(2);
+        const opContent = Math.min(1.0, Math.max(0.0, openFactor * 1.05)).toFixed(3);
+        const blurContent =
+          openFactor > 0.92
+            ? "none"
+            : `blur(${((1 - openFactor) * 8).toFixed(1)}px)`;
 
-      // 2. Supporting Paragraph (delayed: follows headline cascade at p = 0.32 -> 0.80)
-      if (paragraphRef.current) {
-        const pP = Math.max(0, Math.min(1, (p - 0.32) / 0.48));
-        if (pP >= 0.99) {
-          paragraphRef.current.style.transform = "translate3d(0, 0, 0)";
-          paragraphRef.current.style.opacity = "1";
-          paragraphRef.current.style.filter = "none";
-        } else if (pP <= 0) {
-          paragraphRef.current.style.transform = `translate3d(0, ${yTravelP}px, 0) scale(0.76) rotateX(${isMobile ? 3 : 5}deg)`;
-          paragraphRef.current.style.opacity = "0";
-          paragraphRef.current.style.filter = `blur(${maxBlurP}px)`;
-        } else {
-          const eP = easeOutCubic(pP);
-          const yP = (yTravelP * (1 - eP)).toFixed(2);
-          const sP = (0.76 + 0.24 * eP).toFixed(3);
-          const rotP = ((isMobile ? 3 : 5) * (1 - eP)).toFixed(2);
-          const opP = Math.min(1, pP * 1.5).toFixed(3);
-          const blurP = pP > 0.85 ? "none" : `blur(${((maxBlurP) * (1 - eP)).toFixed(2)}px)`;
-
-          paragraphRef.current.style.transform = `translate3d(0, ${yP}px, 0) scale(${sP}) rotateX(${rotP}deg)`;
-          paragraphRef.current.style.opacity = opP;
-          paragraphRef.current.style.filter = blurP;
-        }
-      }
-
-      // 3. Actions / Buttons (delayed: emerges last from the valley at p = 0.44 -> 0.92)
-      if (actionsRef.current) {
-        const pB = Math.max(0, Math.min(1, (p - 0.44) / 0.48));
-        if (pB >= 0.99) {
-          actionsRef.current.style.transform = "translate3d(0, 0, 0)";
-          actionsRef.current.style.opacity = "1";
-          actionsRef.current.style.filter = "none";
-        } else if (pB <= 0) {
-          actionsRef.current.style.transform = `translate3d(0, ${yTravelB}px, 0) scale(0.80) rotateX(${isMobile ? 2.5 : 4}deg)`;
-          actionsRef.current.style.opacity = "0";
-          actionsRef.current.style.filter = `blur(${maxBlurB}px)`;
-        } else {
-          const eB = easeOutCubic(pB);
-          const yB = (yTravelB * (1 - eB)).toFixed(2);
-          const sB = (0.80 + 0.20 * eB).toFixed(3);
-          const rotB = ((isMobile ? 2.5 : 4) * (1 - eB)).toFixed(2);
-          const opB = Math.min(1, pB * 1.6).toFixed(3);
-          const blurB = pB > 0.85 ? "none" : `blur(${((maxBlurB) * (1 - eB)).toFixed(2)}px)`;
-
-          actionsRef.current.style.transform = `translate3d(0, ${yB}px, 0) scale(${sB}) rotateX(${rotB}deg)`;
-          actionsRef.current.style.opacity = opB;
-          actionsRef.current.style.filter = blurB;
-        }
+        contentWrapperRef.current.style.transform = `translate3d(0, ${yContent}px, 0) scale(${scaleContent})`;
+        contentWrapperRef.current.style.opacity = opContent;
+        contentWrapperRef.current.style.filter = blurContent;
       }
     };
 
-    // Smooth Lerp Tick Loop: Eliminates mouse-wheel notch stepping and creates liquid motion
-    const tick = () => {
+    let lastTime: number | null = null;
+
+    // Velvet interpolation loop for buttery-smooth responsiveness
+    const tick = (now: number) => {
+      if (lastTime === null) lastTime = now;
+      const dt = Math.min(0.05, Math.max(0.008, (now - lastTime) / 1000));
+      lastTime = now;
+
       const diff = targetP - currentP;
-      if (Math.abs(diff) < 0.0003) {
+      if (Math.abs(diff) < 0.0004) {
         currentP = targetP;
         render(currentP);
         rafId = null;
+        lastTime = null;
         return;
       }
 
-      currentP += diff * 0.12;
+      // Dignified progression velocity cap
+      const maxVelocity = 0.85;
+      const maxStep = maxVelocity * dt;
+
+      // Exponential decay damping
+      const lerpRate = 4.2;
+      const rawStep = diff * (1 - Math.exp(-lerpRate * dt));
+      const clampedStep = Math.sign(rawStep) * Math.min(Math.abs(rawStep), maxStep);
+
+      currentP += clampedStep;
       render(currentP);
       rafId = requestAnimationFrame(tick);
     };
@@ -332,19 +236,15 @@ export function FinalCta() {
       if (!isIntersecting) return;
       targetP = computeTargetP();
       if (rafId === null) {
+        lastTime = null;
         rafId = requestAnimationFrame(tick);
       }
     };
 
-    const onScroll = () => {
-      requestTick();
-    };
+    const onScroll = () => requestTick();
+    const onResize = () => requestTick();
 
-    const onResize = () => {
-      requestTick();
-    };
-
-    // Use IntersectionObserver to ensure 0 scroll overhead when off-screen
+    // IntersectionObserver guarantees zero scroll overhead when off-screen
     const observer = new IntersectionObserver(
       ([entry]) => {
         isIntersecting = entry.isIntersecting;
@@ -365,6 +265,7 @@ export function FinalCta() {
           if (rafId !== null) {
             cancelAnimationFrame(rafId);
             rafId = null;
+            lastTime = null;
           }
         }
       },
@@ -391,316 +292,180 @@ export function FinalCta() {
     <section
       ref={sectionRef}
       id="final-cta"
-      className="relative w-full min-h-[640px] sm:min-h-[720px] lg:min-h-[800px] pt-24 pb-32 sm:pt-32 sm:pb-40 lg:pt-38 lg:pb-48 bg-[#111110] text-text-primary overflow-hidden flex flex-col justify-start select-none"
+      className="relative w-full h-[240vh] sm:h-[260vh] lg:h-[280vh] bg-[#111110] text-text-primary select-none"
       aria-labelledby="cta-heading"
     >
-      {/* Dynamic Keyframes for Subtle Terrain Lighting Drift */}
-      <style>{`
-        @keyframes terrainLightDrift {
-          0% {
-            opacity: 0.12;
-            transform: scale(0.98) translate3d(-1.5%, 0, 0);
-          }
-          50% {
-            opacity: 0.22;
-            transform: scale(1.02) translate3d(2%, -1%, 0);
-          }
-          100% {
-            opacity: 0.12;
-            transform: scale(0.98) translate3d(-1.5%, 0, 0);
-          }
-        }
-      `}</style>
-
       {/* =================================================================
-          LAYER 1 TO 5: INDEPENDENTLY EMERGING MOUNTAIN TERRAIN RIDGES
-          Organic terrain layers rising out of darkness based on scroll progress
+          LOCKED SCREEN STICKY VIEWPORT (Pins to viewport during scroll track)
           ================================================================= */}
       <div
-        className="absolute inset-x-0 bottom-0 pointer-events-none select-none overflow-hidden flex items-end justify-center w-full z-0 h-[380px] sm:h-[480px] lg:h-[580px]"
-        aria-hidden="true"
+        ref={viewportRef}
+        className="sticky top-0 w-full h-screen overflow-hidden flex flex-col justify-center items-center bg-[#111110] select-none"
       >
-        <div className="relative w-full max-w-[1920px] h-full flex items-end justify-center">
-          {/* Master Resting Composite (locks into 100% fidelity once settled) */}
-          <div
-            ref={masterLayerRef}
-            className="absolute inset-0 pointer-events-none will-change-[opacity]"
-            style={{ opacity: isReducedMotion ? 1 : 0 }}
-          >
-            <Image
-              src="/images/mountains-dark.webp"
-              alt=""
-              width={1924}
-              height={610}
-              priority
-              className="w-full h-auto min-h-[300px] sm:min-h-[420px] lg:min-h-[520px] object-cover object-bottom block opacity-95"
-            />
-          </div>
-
-          {/* Layer 1: Distant Ridge (First to emerge: soft low-contrast atmospheric silhouette) */}
-          <div
-            ref={layer1Ref}
-            className="absolute inset-0 pointer-events-none will-change-[transform,opacity]"
-            style={{
-              transformOrigin: "center bottom",
-              transform: isReducedMotion ? "translate3d(0, 0, 0)" : "translate3d(0, 280px, 0) scaleY(0.9)",
-              opacity: isReducedMotion ? 1 : 0,
-            }}
-          >
-            <Image
-              src="/images/mountains-layer-1-distant.webp"
-              alt=""
-              width={1924}
-              height={610}
-              priority
-              className="w-full h-auto min-h-[300px] sm:min-h-[420px] lg:min-h-[520px] object-cover object-bottom block"
-            />
-          </div>
-
-          {/* Layer 2: Left Mountain (Second: large rounded formation rising on the left) */}
-          <div
-            ref={layer2Ref}
-            className="absolute inset-0 pointer-events-none will-change-[transform,opacity]"
-            style={{
-              transformOrigin: "center bottom",
-              transform: isReducedMotion ? "translate3d(0, 0, 0)" : "translate3d(0, 460px, 0) scaleY(0.86)",
-              opacity: isReducedMotion ? 1 : 0,
-            }}
-          >
-            <Image
-              src="/images/mountains-layer-2-left.webp"
-              alt=""
-              width={1924}
-              height={610}
-              priority
-              className="w-full h-auto min-h-[300px] sm:min-h-[420px] lg:min-h-[520px] object-cover object-bottom block"
-            />
-          </div>
-
-          {/* Layer 3: Central Valley (Third: deeper valley & mid-ridge establishing spatial depth) */}
-          <div
-            ref={layer3Ref}
-            className="absolute inset-0 pointer-events-none will-change-[transform,opacity]"
-            style={{
-              transformOrigin: "center bottom",
-              transform: isReducedMotion ? "translate3d(0, 0, 0)" : "translate3d(0, 300px, 0) scaleY(0.88)",
-              opacity: isReducedMotion ? 1 : 0,
-            }}
-          >
-            <Image
-              src="/images/mountains-layer-3-center.webp"
-              alt=""
-              width={1924}
-              height={610}
-              priority
-              className="w-full h-auto min-h-[300px] sm:min-h-[420px] lg:min-h-[520px] object-cover object-bottom block"
-            />
-          </div>
-
-          {/* Layer 4: Right Mountain (Fourth: towering craggy peak rising independently) */}
-          <div
-            ref={layer4Ref}
-            className="absolute inset-0 pointer-events-none will-change-[transform,opacity]"
-            style={{
-              transformOrigin: "center bottom",
-              transform: isReducedMotion ? "translate3d(0, 0, 0)" : "translate3d(0, 480px, 0) scaleY(0.86)",
-              opacity: isReducedMotion ? 1 : 0,
-            }}
-          >
-            <Image
-              src="/images/mountains-layer-4-right.webp"
-              alt=""
-              width={1924}
-              height={610}
-              priority
-              className="w-full h-auto min-h-[300px] sm:min-h-[420px] lg:min-h-[520px] object-cover object-bottom block"
-            />
-          </div>
-
-          {/* Layer 5: Foreground Terrain (Fifth: closest foreground ridges & bright stippled crests) */}
-          <div
-            ref={layer5Ref}
-            className="absolute inset-0 pointer-events-none will-change-[transform,opacity]"
-            style={{
-              transformOrigin: "center bottom",
-              transform: isReducedMotion ? "translate3d(0, 0, 0)" : "translate3d(0, 320px, 0) scaleY(0.88)",
-              opacity: isReducedMotion ? 1 : 0,
-            }}
-          >
-            <Image
-              src="/images/mountains-layer-5-foreground.webp"
-              alt=""
-              width={1924}
-              height={610}
-              priority
-              className="w-full h-auto min-h-[300px] sm:min-h-[420px] lg:min-h-[520px] object-cover object-bottom block"
-            />
-          </div>
-
-          {/* Bedrock Ground Threshold: Solid dark base the mountains physically pierce and emerge through */}
-          <div
-            className="absolute inset-x-0 bottom-0 h-28 sm:h-36 pointer-events-none z-10"
-            style={{
-              background:
-                "linear-gradient(to top, #111110 0%, rgba(17,17,16,0.92) 35%, rgba(17,17,16,0) 100%)",
-            }}
-          />
-
-          {/* Subtle Ambient Light Shimmer Across Mountain Ridges */}
-          <div
-            ref={lightLayerRef}
-            className="absolute inset-0 pointer-events-none mix-blend-screen z-20"
-            style={{
-              background:
-                "radial-gradient(ellipse 65% 45% at 50% 88%, rgba(245,240,230,0.28) 0%, rgba(216,135,98,0.07) 48%, transparent 75%)",
-              animation: !isReducedMotion ? "terrainLightDrift 16s ease-in-out infinite" : "none",
-            }}
+        {/* =================================================================
+            LAYER 1: BACKGROUND MIST (z-[1]: Subtle, broad, slow-moving)
+            ================================================================= */}
+        <div
+          ref={cloudLeftBackRef}
+          className="absolute left-[-22%] sm:left-[-15%] lg:left-[-8%] top-1/2 -translate-y-1/2 w-[72%] sm:w-[60%] lg:w-[50%] max-w-[1050px] pointer-events-none select-none will-change-[transform,opacity] z-[1]"
+          aria-hidden="true"
+        >
+          <Image
+            src="/images/clouds/cloud-left-back.webp"
+            alt=""
+            width={1376}
+            height={768}
+            priority
+            className="w-full h-auto object-contain block mix-blend-screen opacity-50"
           />
         </div>
-      </div>
 
-      {/* =================================================================
-          ATMOSPHERIC VIGNETTE FOR UNCOMPROMISED TEXT LEGIBILITY
-          Soft radial falloff behind central text ensuring crisp contrast
-          ================================================================= */}
-      <div
-        className="absolute inset-0 pointer-events-none z-[5]"
-        style={{
-          background:
-            "radial-gradient(ellipse 75% 58% at 50% 32%, rgba(17,17,16,0.92) 0%, rgba(17,17,16,0.58) 55%, transparent 100%)",
-        }}
-        aria-hidden="true"
-      />
+        <div
+          ref={cloudRightBackRef}
+          className="absolute right-[-22%] sm:right-[-15%] lg:right-[-8%] top-1/2 -translate-y-1/2 w-[72%] sm:w-[60%] lg:w-[50%] max-w-[1050px] pointer-events-none select-none will-change-[transform,opacity] z-[1]"
+          aria-hidden="true"
+        >
+          <Image
+            src="/images/clouds/cloud-right-back.webp"
+            alt=""
+            width={1376}
+            height={768}
+            priority
+            className="w-full h-auto object-contain block mix-blend-screen opacity-50"
+          />
+        </div>
 
-      {/* =================================================================
-          EDITORIAL CONTENT & CALLS TO ACTION (z-10)
-          3D Perspective viewport where typography surges from back to front
-          ================================================================= */}
-      <div
-        className="layout-container w-full relative z-10"
-        style={{ perspective: "1200px" }}
-      >
-        <div className="max-w-4xl mx-auto text-center flex flex-col items-center select-text">
-          {/* Art-Directed Two-Statement Headline with Per-Character Kinetic Emergence */}
-          <h2
-            id="cta-heading"
-            className="font-sans text-[44px] sm:text-[58px] md:text-[68px] lg:text-[78px] xl:text-[84px] leading-[0.98] sm:leading-[1.02] tracking-[-0.04em] max-w-[880px] mx-auto select-text"
-          >
-            {/* Line 1: Your code. */}
-            <span className="block font-medium text-[#F2F0EB]">
-              {LINE_1_WORDS.map((w, wIdx) => {
-                const wordStartIdx = LINE_1_WORDS.slice(0, wIdx).reduce(
-                  (acc, item) => acc + item.chars.length,
-                  0
-                );
-                return (
-                  <span
-                    key={w.word}
-                    className="inline-block whitespace-nowrap mr-[0.26em] last:mr-0"
-                  >
-                    {w.chars.map((char, cIdx) => {
-                      const charIndex = wordStartIdx + cIdx;
-                      return (
-                        <span
-                          key={cIdx}
-                          ref={(el) => {
-                            charRefs.current[charIndex] = el;
-                          }}
-                          className="inline-block will-change-[transform,opacity,filter]"
-                          style={{
-                            transformOrigin: "center bottom",
-                            opacity: isReducedMotion ? 1 : 0,
-                          }}
-                        >
-                          {char}
-                        </span>
-                      );
-                    })}
-                  </span>
-                );
-              })}
-            </span>
-
-            {/* Line 2: Ready for what’s next. */}
-            <span className="block font-normal text-[#DDD9D0] mt-1.5 sm:mt-2">
-              {LINE_2_WORDS.map((w, wIdx) => {
-                const line2PrevChars = LINE_2_WORDS.slice(0, wIdx).reduce(
-                  (acc, item) => acc + item.chars.length,
-                  0
-                );
-                const wordStartIdx = TOTAL_LINE_1_CHARS + line2PrevChars;
-                return (
-                  <span
-                    key={w.word}
-                    className="inline-block whitespace-nowrap mr-[0.26em] last:mr-0"
-                  >
-                    {w.chars.map((char, cIdx) => {
-                      const charIndex = wordStartIdx + cIdx;
-                      return (
-                        <span
-                          key={cIdx}
-                          ref={(el) => {
-                            charRefs.current[charIndex] = el;
-                          }}
-                          className="inline-block will-change-[transform,opacity,filter]"
-                          style={{
-                            transformOrigin: "center bottom",
-                            opacity: isReducedMotion ? 1 : 0,
-                          }}
-                        >
-                          {char}
-                        </span>
-                      );
-                    })}
-                  </span>
-                );
-              })}
-            </span>
-          </h2>
-
-          {/* Refined Supporting Copy */}
-          <p
-            ref={paragraphRef}
-            className="font-sans text-[16.5px] sm:text-[18px] lg:text-[19.5px] leading-[1.55] text-[#9E9B93] max-w-[500px] mx-auto mt-7 sm:mt-8 mb-10 sm:mb-12 will-change-[transform,opacity,filter]"
-            style={{
-              transformOrigin: "center center",
-              opacity: isReducedMotion ? 1 : 0,
-            }}
-          >
-            Bring your next idea to life. Start with your code and build toward
-            something worth shipping.
-          </p>
-
-          {/* Actions: High-Contrast Burnt Orange Primary + Quiet Border-Defined Secondary */}
-          <div
-            ref={actionsRef}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-4.5 w-full sm:w-auto will-change-[transform,opacity,filter]"
-            style={{
-              transformOrigin: "center center",
-              opacity: isReducedMotion ? 1 : 0,
-            }}
-          >
-            {/* Primary Action: Direct jump to Onboarding */}
-            <Link
-              href="#getting-started"
-              className="inline-flex items-center justify-center gap-2.5 h-[54px] sm:h-[58px] px-8 sm:px-9 rounded-[8px] bg-accent-orange hover:bg-accent-orange-hover text-[#121110] text-[15px] sm:text-[15.5px] font-semibold transition-all duration-200 shadow-md shadow-accent-orange/15 hover:shadow-accent-orange/25 hover:-translate-y-0.5 active:translate-y-0 w-full sm:w-auto group"
+        {/* =================================================================
+            EDITORIAL CONTENT & CALLS TO ACTION (z-[10])
+            Surges forward from depth: scale(0.76) -> scale(1.0)
+            ================================================================= */}
+        <div
+          ref={contentWrapperRef}
+          className="layout-container w-full relative z-[10] will-change-[transform,opacity,filter]"
+          style={{ perspective: "1200px" }}
+        >
+          <div className="max-w-4xl mx-auto text-center flex flex-col items-center select-text">
+            {/* Art-Directed Two-Statement Headline */}
+            <h2
+              id="cta-heading"
+              className="font-sans text-[44px] sm:text-[58px] md:text-[68px] lg:text-[78px] xl:text-[84px] leading-[0.98] sm:leading-[1.02] tracking-[-0.04em] max-w-[880px] mx-auto select-text"
             >
-              <span>Get started</span>
-              <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
-            </Link>
+              <span className="block font-medium text-[#F2F0EB]">Your code.</span>
+              <span className="block font-normal text-[#DDD9D0] mt-1.5 sm:mt-2">
+                Ready for what’s next.
+              </span>
+            </h2>
 
-            {/* Secondary Action: Repository Destination */}
-            <Link
-              href="https://github.com/Deepanshu-2006/jetway"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 h-[54px] sm:h-[58px] px-7 sm:px-8 rounded-[8px] bg-[#181817]/90 hover:bg-[#222220] border border-white/12 hover:border-white/22 text-[#E8E6E0] hover:text-[#F5F5F3] text-[14.5px] sm:text-[15px] font-medium transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 backdrop-blur-sm w-full sm:w-auto group"
-            >
-              <span>GitHub repository</span>
-              <ExternalLink className="w-4 h-4 text-text-muted group-hover:text-text-primary transition-colors" />
-            </Link>
+            {/* Refined Supporting Copy */}
+            <p className="font-sans text-[16.5px] sm:text-[18px] lg:text-[19.5px] leading-[1.55] text-[#9E9B93] max-w-[500px] mx-auto mt-7 sm:mt-8 mb-10 sm:mb-12">
+              Bring your next idea to life. Start with your code and build toward
+              something worth shipping.
+            </p>
+
+            {/* Actions: High-Contrast Burnt Orange Primary + Quiet Border-Defined Secondary */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-4.5 w-full sm:w-auto">
+              {/* Primary Action: Direct jump to Onboarding */}
+              <Link
+                href="#getting-started"
+                className="inline-flex items-center justify-center gap-2.5 h-[54px] sm:h-[58px] px-8 sm:px-9 rounded-[8px] bg-accent-orange hover:bg-accent-orange-hover text-[#121110] text-[15px] sm:text-[15.5px] font-semibold transition-all duration-200 shadow-md shadow-accent-orange/15 hover:shadow-accent-orange/25 hover:-translate-y-0.5 active:translate-y-0 w-full sm:w-auto group"
+              >
+                <span>Get started</span>
+                <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
+              </Link>
+
+              {/* Secondary Action: Repository Destination */}
+              <Link
+                href="https://github.com/Deepanshu-2006/jetway"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 h-[54px] sm:h-[58px] px-7 sm:px-8 rounded-[8px] bg-[#181817]/90 hover:bg-[#222220] border border-white/12 hover:border-white/22 text-[#E8E6E0] hover:text-[#F5F5F3] text-[14.5px] sm:text-[15px] font-medium transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 backdrop-blur-sm w-full sm:w-auto group"
+              >
+                <span>GitHub repository</span>
+                <ExternalLink className="w-4 h-4 text-text-muted group-hover:text-text-primary transition-colors" />
+              </Link>
+            </div>
           </div>
         </div>
+
+        {/* =================================================================
+            LAYER 2: MIDDLE CLOUD FORMATIONS (z-[15]: Main visual masses)
+            Move out horizontally on scroll, close back when scrolling past
+            ================================================================= */}
+        <div
+          ref={cloudLeftMidRef}
+          className="absolute left-[-16%] sm:left-[-10%] lg:left-[-4%] top-1/2 -translate-y-1/2 w-[78%] sm:w-[64%] lg:w-[54%] max-w-[1150px] pointer-events-none select-none will-change-[transform,opacity] z-[15]"
+          aria-hidden="true"
+        >
+          <Image
+            src="/images/clouds/cloud-left-mid.webp"
+            alt=""
+            width={1376}
+            height={768}
+            priority
+            className="w-full h-auto object-contain block mix-blend-screen opacity-90"
+          />
+        </div>
+
+        <div
+          ref={cloudRightMidRef}
+          className="absolute right-[-16%] sm:right-[-10%] lg:right-[-4%] top-1/2 -translate-y-1/2 w-[78%] sm:w-[64%] lg:w-[54%] max-w-[1150px] pointer-events-none select-none will-change-[transform,opacity] z-[15]"
+          aria-hidden="true"
+        >
+          <Image
+            src="/images/clouds/cloud-right-mid.webp"
+            alt=""
+            width={1376}
+            height={768}
+            priority
+            className="w-full h-auto object-contain block mix-blend-screen opacity-90"
+          />
+        </div>
+
+        {/* =================================================================
+            LAYER 3: FOREGROUND WISPS (z-[20]: Delicate tendrils & depth)
+            ================================================================= */}
+        <div
+          ref={cloudLeftForeRef}
+          className="absolute left-[-8%] sm:left-[-2%] lg:left-[4%] top-[48%] -translate-y-1/2 w-[66%] sm:w-[56%] lg:w-[48%] max-w-[980px] pointer-events-none select-none will-change-[transform,opacity] z-[20]"
+          aria-hidden="true"
+        >
+          <Image
+            src="/images/clouds/cloud-left-fore.webp"
+            alt=""
+            width={1376}
+            height={768}
+            priority
+            className="w-full h-auto object-contain block mix-blend-screen opacity-75"
+          />
+        </div>
+
+        <div
+          ref={cloudRightForeRef}
+          className="absolute right-[-8%] sm:right-[-2%] lg:right-[4%] top-[48%] -translate-y-1/2 w-[66%] sm:w-[56%] lg:w-[48%] max-w-[980px] pointer-events-none select-none will-change-[transform,opacity] z-[20]"
+          aria-hidden="true"
+        >
+          <Image
+            src="/images/clouds/cloud-right-fore.webp"
+            alt=""
+            width={1376}
+            height={768}
+            priority
+            className="w-full h-auto object-contain block mix-blend-screen opacity-75"
+          />
+        </div>
+
+        {/* =================================================================
+            ATMOSPHERIC PERIMETER FALLOFF (z-[25])
+            Soft radial vignette dissolving edges seamlessly into #111110
+            ================================================================= */}
+        <div
+          className="absolute inset-0 pointer-events-none z-[25]"
+          style={{
+            background:
+              "radial-gradient(ellipse 92% 82% at 50% 50%, transparent 35%, rgba(17,17,16,0.55) 75%, #111110 100%)",
+          }}
+          aria-hidden="true"
+        />
       </div>
     </section>
   );

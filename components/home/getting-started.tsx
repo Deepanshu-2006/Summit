@@ -167,7 +167,7 @@ export function GettingStarted() {
     <section
       ref={sectionRef}
       id="getting-started"
-      className="relative w-full pt-16 pb-24 sm:pt-20 sm:pb-32 lg:pt-24 lg:pb-40 bg-[#111110] text-[#F2F0EB] overflow-hidden select-none"
+      className="relative w-full pt-16 pb-12 sm:pt-20 sm:pb-16 lg:pt-24 lg:pb-20 bg-[#111110] text-[#F2F0EB] overflow-hidden select-none"
       aria-labelledby="getting-started-heading"
     >
       <div className="layout-container w-full">
@@ -712,18 +712,6 @@ export function GettingStarted() {
 
         </div>
 
-        {/* =================================================================
-            DEMONSTRATION DISCLOSURE FOOTNOTE
-            ================================================================= */}
-        <div className="mt-20 pt-4 border-t border-[#262422]/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] font-mono text-[#77736D]">
-          <div className="flex items-center gap-2">
-            <span className="text-[#E58B65]">◆</span>
-            <span>Illustrative deployment sequence</span>
-            <span>—</span>
-            <span>Demonstrates workflow from source commit to live production</span>
-          </div>
-          <span className="hidden sm:inline">Zero live infrastructure claims</span>
-        </div>
       </div>
     </section>
   );
