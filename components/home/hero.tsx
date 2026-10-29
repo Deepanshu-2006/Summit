@@ -679,7 +679,7 @@ export function Hero() {
                 {/* Production Body: Service details */}
                 <div className="space-y-0.5 font-mono text-[10.5px]">
                   <div className="text-[#F5F5F3] font-medium truncate flex items-center justify-between">
-                    <span>app.jetway.demo</span>
+                    <span>app.summit.demo</span>
                     <span className="text-[9px] text-text-muted">https</span>
                   </div>
                   <div className="flex items-center justify-between text-[9.5px] text-text-muted">

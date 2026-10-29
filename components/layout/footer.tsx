@@ -5,7 +5,7 @@ import { BRAND } from "@/lib/brand";
 
 const CURRENT_YEAR = 2026;
 
-function JetwayLogo({ className = "w-5 h-5" }: { className?: string }) {
+function SummitLogo({ className = "w-5 h-5" }: { className?: string }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -14,14 +14,21 @@ function JetwayLogo({ className = "w-5 h-5" }: { className?: string }) {
       className={className}
       aria-hidden="true"
     >
+      {/* West Ascent Blade (Muted Graphite) */}
       <path
-        d="M3 4.5L10.5 12L3 19.5H7.5L15 12L7.5 4.5H3Z"
+        d="M3 20L9 8H12.5L6.5 20H3Z"
         fill="#B0B0AE"
-        fillOpacity="0.4"
+        fillOpacity="0.45"
       />
+      {/* Main Summit Spire with Archway Base (Burnt Orange) */}
       <path
-        d="M10 4.5L17.5 12L10 19.5H14.5L22 12L14.5 4.5H10Z"
+        d="M9.5 20L15.5 3.5L21.5 20H17.5L15.5 13L13.5 20H9.5Z"
         fill="#D88762"
+      />
+      {/* High Snowline Glacial Apex (Warm Ivory) */}
+      <path
+        d="M15.5 3.5L17.5 9H13.5L15.5 3.5Z"
+        fill="#F5F5F3"
       />
     </svg>
   );
@@ -44,10 +51,10 @@ export function Footer() {
             <Link
               href="/"
               className="inline-flex items-center gap-2.5 focus-visible:outline-2 focus-visible:outline-accent-orange rounded-[6px]"
-              aria-label="Jetway home"
+              aria-label="Summit home"
             >
-              <JetwayLogo className="w-5 h-5 shrink-0" />
-              <span className="text-[20px] font-semibold text-[#F5F5F3] tracking-[-0.02em] font-sans lowercase">
+              <SummitLogo className="w-5 h-5 shrink-0" />
+              <span className="text-[20px] font-semibold text-[#F5F5F3] tracking-[-0.02em] font-sans">
                 {BRAND.name}
               </span>
             </Link>

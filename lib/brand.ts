@@ -1,11 +1,11 @@
 /**
  * Central Brand and Navigation Configuration
- * Makes the temporary brand name and global links easy to rename or redirect later.
+ * Pure, minimal navigation hierarchy for Summit.
  */
 
 export const BRAND = {
-  name: "jetway",
-  tagline: "Cloud Deployment Platform",
+  name: "Summit",
+  tagline: "High-Altitude Cloud Infrastructure",
   links: {
     home: "/",
     docs: "/docs",
@@ -31,9 +31,7 @@ export interface NavDropdownItem {
   label: string;
   sections: NavSection[];
   featured?: {
-    tag: string;
     title: string;
-    description: string;
     href: string;
   };
 }
@@ -44,50 +42,48 @@ export const NAV_DROPDOWNS: NavDropdownItem[] = [
     label: "Product",
     sections: [
       {
-        title: "Compute & Deploy",
+        title: "Compute",
         items: [
           {
-            label: "Instant Deployments",
-            description: "Zero-config Git push to globally distributed containers",
+            label: "Deployments",
+            description: "Git push to global edge",
             href: "/product/deployments",
           },
           {
             label: "Serverless GPUs",
-            description: "On-demand H100 & A100 inference with fast cold starts",
+            description: "Sub-second H100 inference",
             href: "/product/gpus",
           },
           {
-            label: "Microservices & RPC",
-            description: "Encrypted private mesh networking with internal DNS",
+            label: "Private Mesh",
+            description: "Wire-speed encrypted RPC",
             href: "/product/microservices",
           },
         ],
       },
       {
-        title: "Data & Storage",
+        title: "Storage",
         items: [
           {
             label: "Managed Postgres",
-            description: "Autoscaling relational databases with point-in-time recovery",
+            description: "Autoscaling SQL with PITR",
             href: "/product/postgres",
           },
           {
-            label: "Distributed Key-Value",
-            description: "Ultra-low latency Valkey and Redis caching layer",
+            label: "Distributed Cache",
+            description: "In-memory Redis & Valkey",
             href: "/product/cache",
           },
           {
-            label: "S3-Compatible Object Store",
-            description: "Fast multi-region asset storage without egress markups",
+            label: "Object Storage",
+            description: "S3 with zero egress fees",
             href: "/product/storage",
           },
         ],
       },
     ],
     featured: {
-      tag: "Engine v2.4",
-      title: "Ephemeral Preview Envs",
-      description: "Automatic preview environments for every pull request.",
+      title: "Preview Environments v2.4",
       href: "/changelog/preview-environments",
     },
   },
@@ -96,81 +92,99 @@ export const NAV_DROPDOWNS: NavDropdownItem[] = [
     label: "Solutions",
     sections: [
       {
-        title: "Use Cases",
+        title: "Workloads",
         items: [
           {
-            label: "Full-Stack Web Applications",
-            description: "Optimized runtime for Next.js, Remix, Astro, and SvelteKit",
+            label: "Full-Stack Apps",
+            description: "Next.js, Remix, and Astro",
             href: "/solutions/full-stack",
           },
           {
             label: "AI & Model Serving",
-            description: "Run custom PyTorch, vLLM, and Ollama inference endpoints",
+            description: "vLLM, PyTorch & Ollama",
             href: "/solutions/ai-inference",
           },
           {
-            label: "Background Jobs & Queues",
-            description: "Durable distributed task scheduling and event workers",
+            label: "Background Jobs",
+            description: "Scheduled event queues",
             href: "/solutions/background-jobs",
           },
         ],
       },
       {
-        title: "Team Workflows",
+        title: "Teams",
         items: [
           {
-            label: "Platform Engineering",
-            description: "Self-service internal developer platforms with RBAC",
+            label: "Platform Teams",
+            description: "Internal developer portals",
             href: "/solutions/platform-engineering",
           },
           {
-            label: "Agencies & Client Projects",
-            description: "Granular workspace isolation and multi-tenant billing",
+            label: "Agencies",
+            description: "Isolated client workspaces",
             href: "/solutions/agencies",
+          },
+          {
+            label: "Enterprise",
+            description: "Dedicated VPCs & SOC 2",
+            href: "/solutions/enterprise",
           },
         ],
       },
     ],
+    featured: {
+      title: "Enterprise Architecture Recipes",
+      href: "/resources/blueprints",
+    },
   },
   {
     id: "resources",
     label: "Resources",
     sections: [
       {
-        title: "Learn & Build",
+        title: "Documentation",
         items: [
           {
-            label: "Documentation",
-            description: "Quickstarts, CLI references, and architecture guides",
+            label: "Quickstarts",
+            description: "Deploy in under 60 seconds",
             href: "/docs",
           },
           {
-            label: "Architecture Blueprints",
-            description: "Production-tested infrastructure patterns and terraform recipes",
+            label: "Architecture",
+            description: "Multi-region blueprints",
             href: "/resources/blueprints",
           },
           {
-            label: "CLI & Local Dev",
-            description: "Simulate cloud topology directly in your local terminal",
+            label: "CLI Reference",
+            description: "Local cloud emulator",
             href: "/resources/cli",
           },
         ],
       },
       {
-        title: "Platform Trust",
+        title: "Platform",
         items: [
           {
             label: "Changelog",
-            description: "Weekly platform updates, new regions, and performance gains",
+            description: "Weekly runtime updates",
             href: "/changelog",
           },
           {
             label: "System Status",
-            description: "Live real-time uptime metrics and incident history",
+            description: "99.99% edge telemetry",
             href: "/status",
+          },
+          {
+            label: "Community",
+            description: "GitHub & developer Discord",
+            href: "https://github.com/Deepanshu-2006/jetway",
           },
         ],
       },
     ],
+    featured: {
+      title: "Global Edge Network Status",
+      href: "/status",
+    },
   },
 ];
