@@ -12,36 +12,35 @@ interface HeroMountainIllustrationProps {
 /**
  * HeroMountainIllustration
  *
- * Full-Screen, Infinitely Living Monochromatic Mountain Landscape:
+ * Full-Viewport, Infinitely Living Monochromatic Mountain Landscape:
  *
- * 1. Edge-to-Edge Panoramic Composition:
- *    - Left Flank: Distant, low-contrast mountain contours emerging softly from darkness,
- *      preserving pristine contrast and readability for the headline, copy, and CTAs.
- *    - Center Saddle: Flowing midground passes, overlapping ridges, and valley mist creating
- *      a natural spatial transition.
- *    - Right Flank: Intricate, towering copperplate peaks with sculptural arête ridges,
- *      delicate cross-hatchings, and fine stippling framing the deployment interface.
- *    - Completely seamless: zero visible rectangular edges, blended into near-black (#111111).
+ * 1. Full-Viewport, Full-Bleed Composition:
+ *    - Fills the complete available height beneath the navbar and spans edge-to-edge.
+ *    - Left Region: Distant, low-contrast mountain contours emerge quietly from darkness,
+ *      maintaining 100% legibility and contrast for the headline, copy, and CTAs.
+ *    - Center Region: Overlapping midground mountain passes and valley mist creating depth
+ *      and a seamless spatial bridge.
+ *    - Right Region: Towering copperplate peaks with sculptural arête ridges, detailed
+ *      cross-hatching, and stippling framing the deployment interface.
+ *    - Lower Region: Valley contours naturally extend to the bottom edge without artificial cutoffs.
+ *    - Completely seamless: zero rectangular image bounds, 100% integrated with #111111.
  *
- * 2. Three Continuous Living Atmospheric Layers:
- *    A. Seamless Looping Valley Clouds:
- *       - Three staggered volumetric mist ribbons drifting along closed-loop 2D orbital paths
- *         (68s, 84s, 96s periods) with no mechanical oscillation, no sudden jumps, and no resets.
- *    B. Travelling Ambient Light:
- *       - A broad, soft illumination field (56s cycle) slowly gliding across the terrain,
+ * 2. Four Coordinated Continuous Living Animation Layers:
+ *    A. Atmospheric Clouds (Continuous Unidirectional Drift & Depth Parallax):
+ *       - Dual-phase conveyor ribbon drifting continuously westward across the valley (80s linear infinite)
+ *         with zero reversal, plus staggered 3D depth swell (36s) and ravine orbital mist (72s).
+ *    B. Travelling Ambient Light (Slow, Atmospheric Ridge Illumination):
+ *       - A broad, soft illumination field (58s continuous cycle) slowly gliding across the terrain,
  *         subtly revealing ridge contours and delicate linework before gently subsiding.
- *    C. Delicate Contour Currents:
- *       - Seamlessly flowing SVG elevation currents (stroke-dash flow at 60s) and slow-breathing
- *         ridge pulses (28s) that keep the environment alive while preserving mountain geometry.
+ *    C. Contour Highlights & Currents (Delicate Linework Movement):
+ *       - Seamlessly flowing elevation currents (stroke-dash flow at 60s & 75s) and slow-breathing
+ *         ridge pulses (26s) that keep the environment alive while preserving mountain geometry.
+ *    D. Barely Perceptible Depth Parallax:
+ *       - Multi-plane depth with inertia damping (disabled on prefers-reduced-motion).
  *
  * 3. Deployment Telemetry Synchronization:
  *    - Harmonic contour echoes illuminate burnt-orange (#D88762) during Build Engine compiling
- *      and sage-green (#83B69A) when Production goes live.
- *
- * 4. Micro-Parallax & Accessibility:
- *    - Gentle multi-plane depth responsive to pointer motion with inertia damping.
- *    - Fully respects prefers-reduced-motion with an exquisite, complete static composition.
- *    - Never blocks pointer interaction (pointer-events-none).
+ *      and sage-green (#83B69A) when Production is running.
  */
 export function HeroMountainIllustration({
   activeStage,
@@ -105,15 +104,15 @@ export function HeroMountainIllustration({
   const isProductionActive =
     animPhase === "packet2" || animPhase === "production" || activeStage === "production";
 
-  // Parallax offsets per visual plane
-  const mountainShiftX = isReducedMotion ? 0 : mouseOffset.x * 6;
-  const mountainShiftY = isReducedMotion ? 0 : mouseOffset.y * 4;
+  // Differentiated parallax offsets per visual plane (barely perceptible, structurally stable)
+  const mountainShiftX = isReducedMotion ? 0 : mouseOffset.x * 5;
+  const mountainShiftY = isReducedMotion ? 0 : mouseOffset.y * 3;
 
-  const mistShiftX = isReducedMotion ? 0 : mouseOffset.x * 12;
-  const mistShiftY = isReducedMotion ? 0 : mouseOffset.y * 7;
+  const mistShiftX = isReducedMotion ? 0 : mouseOffset.x * 10;
+  const mistShiftY = isReducedMotion ? 0 : mouseOffset.y * 6;
 
-  const vectorShiftX = isReducedMotion ? 0 : mouseOffset.x * 16;
-  const vectorShiftY = isReducedMotion ? 0 : mouseOffset.y * 9;
+  const vectorShiftX = isReducedMotion ? 0 : mouseOffset.x * 15;
+  const vectorShiftY = isReducedMotion ? 0 : mouseOffset.y * 8;
 
   return (
     <div
@@ -126,19 +125,20 @@ export function HeroMountainIllustration({
           Ultra-gentle warm radiance echoing through the central saddle pass
           ================================================================= */}
       <div
-        className="absolute inset-0 w-full h-full pointer-events-none opacity-35"
+        className="absolute inset-0 w-full h-full pointer-events-none opacity-30"
         style={{
           background:
-            "radial-gradient(ellipse 80% 60% at 65% 48%, rgba(216, 135, 98, 0.06) 0%, rgba(216, 135, 98, 0.02) 45%, transparent 75%)",
+            "radial-gradient(ellipse 80% 60% at 65% 50%, rgba(216, 135, 98, 0.06) 0%, rgba(216, 135, 98, 0.02) 45%, transparent 75%)",
         }}
       />
 
       {/* =================================================================
-          LAYER 2: FULL-SPAN PANORAMIC ENGRAVED MOUNTAIN TOPOGRAPHY
+          LAYER 2: FULL-BLEED PANORAMIC ENGRAVED MOUNTAIN TOPOGRAPHY
           Edge-to-edge antique copperplate / computational alpine environment:
           - Left: Distant low-contrast contours emerging from darkness
           - Center: Midground saddle ridges & atmospheric depth
           - Right: Sharp, towering sculptural peaks framing deployment runway
+          - Scaled proportionally (scale 1.05) to eliminate any visible rectangular borders
           ================================================================= */}
       <div
         className="absolute inset-0 w-full h-full will-change-transform transition-transform duration-100 ease-out"
@@ -148,31 +148,25 @@ export function HeroMountainIllustration({
       >
         <div className="relative w-full h-full">
           <Image
-            src="/images/hero/hero-engraved-mountains-panoramic.webp"
+            src="/images/hero/hero-engraved-mountains-fullbleed.webp"
             alt=""
             fill
             priority
-            quality={95}
+            quality={75}
             sizes="100vw"
-            className="w-full h-full object-cover object-bottom block opacity-95"
-            style={{
-              maskImage:
-                "linear-gradient(to bottom, transparent 0%, black 12%, black 86%, transparent 100%)",
-              WebkitMaskImage:
-                "linear-gradient(to bottom, transparent 0%, black 12%, black 86%, transparent 100%)",
-            }}
+            className="w-full h-full object-cover object-[center_60%] lg:object-[center_55%] block opacity-95 scale-[1.05]"
           />
         </div>
       </div>
 
       {/* =================================================================
-          LAYER 3: TRAVELLING ATMOSPHERIC AMBIENT LIGHT (56s Continuous Loop)
+          LAYER 3: TRAVELLING ATMOSPHERIC AMBIENT LIGHT (Layer B - 58s Continuous Loop)
           Slow-moving ambient illumination travelling gently across the mountain
           range, softly revealing ridge contours and subsiding without harsh spotlights
           ================================================================= */}
       {!isReducedMotion && (
         <div
-          className="absolute inset-0 w-full h-full pointer-events-none animate-[terrainLightSweep_56s_easeInOut_infinite] will-change-transform"
+          className="absolute inset-0 w-full h-full pointer-events-none animate-[terrainLightSweep_58s_easeInOut_infinite] will-change-transform"
           style={{
             background:
               "radial-gradient(ellipse 75% 55% at 50% 45%, rgba(242, 240, 235, 0.08) 0%, rgba(216, 135, 98, 0.04) 40%, transparent 75%)",
@@ -182,11 +176,10 @@ export function HeroMountainIllustration({
       )}
 
       {/* =================================================================
-          LAYER 4: SEAMLESS LIVING VOLUMETRIC VALLEY CLOUDS (Layers A)
-          Three staggered continuous orbital mist layers wafting through valleys:
-          - No mechanical back-and-forth oscillation
-          - Continuous 2D orbital drift with 0% matching 100%
-          - Asymmetric prime periods (68s, 84s, 96s) for infinite natural variance
+          LAYER 4: SEAMLESS LIVING VOLUMETRIC VALLEY CLOUDS (Layer A)
+          Continuous horizontal drift conveyor + depth swell:
+          - Infinite conveyor track (0% to -50% loop) with zero direction reversal
+          - Secondary orbital ravine mist and upper ridge veil
           ================================================================= */}
       <div
         className="absolute inset-0 w-full h-full will-change-transform pointer-events-none"
@@ -194,22 +187,54 @@ export function HeroMountainIllustration({
           transform: `translate3d(${mistShiftX}px, ${mistShiftY}px, 0)`,
         }}
       >
-        {/* Cloud Ribbon 1: Center-Left Valley Pass (wafts between headline & center peak) */}
-        <div
-          className={`absolute left-[18vw] sm:left-[24vw] top-[32%] sm:top-[28%] w-[420px] sm:w-[560px] lg:w-[680px] h-[190px] sm:h-[240px] rounded-full pointer-events-none ${
-            isReducedMotion ? "opacity-25" : "animate-[mistOrbitalA_68s_easeInOut_infinite]"
-          }`}
-          style={{
-            background:
-              "radial-gradient(ellipse 65% 45% at 50% 50%, rgba(242, 240, 235, 0.11) 0%, rgba(142, 140, 134, 0.07) 35%, rgba(28, 27, 25, 0.03) 65%, transparent 85%)",
-            filter: "blur(26px)",
-          }}
-        />
+        {/* Continuous Horizontal Conveyor: Infinite Westward Cloud Drift (80s loop) */}
+        {!isReducedMotion && (
+          <div className="absolute top-[28%] left-0 w-[200%] h-[240px] flex pointer-events-none animate-[cloudConveyorWest_80s_linear_infinite]">
+            {/* Ribbon Half 1 */}
+            <div className="w-1/2 h-full relative flex items-center">
+              <div
+                className="absolute left-[20%] w-[580px] h-[190px] rounded-full opacity-25 animate-[cloudDepthSwell_36s_easeInOut_infinite]"
+                style={{
+                  background:
+                    "radial-gradient(ellipse 65% 45% at 50% 50%, rgba(242, 240, 235, 0.10) 0%, rgba(142, 140, 134, 0.06) 35%, rgba(28, 27, 25, 0.03) 65%, transparent 85%)",
+                  filter: "blur(28px)",
+                }}
+              />
+              <div
+                className="absolute left-[62%] w-[480px] h-[170px] rounded-full opacity-22 animate-[cloudDepthSwell_44s_easeInOut_infinite]"
+                style={{
+                  background:
+                    "radial-gradient(ellipse 60% 40% at 50% 50%, rgba(216, 135, 98, 0.07) 0%, rgba(142, 140, 134, 0.05) 40%, transparent 80%)",
+                  filter: "blur(26px)",
+                }}
+              />
+            </div>
+            {/* Ribbon Half 2 (Exact Duplicate for Seamless 0%->-50% Loop) */}
+            <div className="w-1/2 h-full relative flex items-center">
+              <div
+                className="absolute left-[20%] w-[580px] h-[190px] rounded-full opacity-25 animate-[cloudDepthSwell_36s_easeInOut_infinite]"
+                style={{
+                  background:
+                    "radial-gradient(ellipse 65% 45% at 50% 50%, rgba(242, 240, 235, 0.10) 0%, rgba(142, 140, 134, 0.06) 35%, rgba(28, 27, 25, 0.03) 65%, transparent 85%)",
+                  filter: "blur(28px)",
+                }}
+              />
+              <div
+                className="absolute left-[62%] w-[480px] h-[170px] rounded-full opacity-22 animate-[cloudDepthSwell_44s_easeInOut_infinite]"
+                style={{
+                  background:
+                    "radial-gradient(ellipse 60% 40% at 50% 50%, rgba(216, 135, 98, 0.07) 0%, rgba(142, 140, 134, 0.05) 40%, transparent 80%)",
+                  filter: "blur(26px)",
+                }}
+              />
+            </div>
+          </div>
+        )}
 
-        {/* Cloud Ribbon 2: Center-Right Ravine Pass (drifts through midground ravine) */}
+        {/* Cloud Ribbon: Center-Right Ravine Pass (drifts through midground ravine, 72s loop) */}
         <div
           className={`absolute right-[8vw] sm:right-[16vw] top-[48%] sm:top-[44%] w-[380px] sm:w-[520px] lg:w-[640px] h-[180px] sm:h-[230px] rounded-full pointer-events-none ${
-            isReducedMotion ? "opacity-22" : "animate-[mistOrbitalB_84s_easeInOut_infinite]"
+            isReducedMotion ? "opacity-22" : "animate-[mistOrbitalB_72s_easeInOut_infinite]"
           }`}
           style={{
             background:
@@ -218,15 +243,27 @@ export function HeroMountainIllustration({
           }}
         />
 
-        {/* Cloud Ribbon 3: Upper High Ridge Wisp (subtle veil near right peak shoulder) */}
+        {/* Cloud Ribbon: Upper High Ridge Wisp (subtle veil near right peak shoulder, 94s loop) */}
         <div
-          className={`absolute right-[2vw] sm:right-[6vw] top-[18%] sm:top-[16%] w-[320px] sm:w-[440px] lg:w-[540px] h-[150px] sm:h-[200px] rounded-full pointer-events-none ${
-            isReducedMotion ? "opacity-18" : "animate-[mistOrbitalC_96s_easeInOut_infinite]"
+          className={`absolute right-[2vw] sm:right-[6vw] top-[16%] sm:top-[14%] w-[320px] sm:w-[440px] lg:w-[540px] h-[150px] sm:h-[200px] rounded-full pointer-events-none ${
+            isReducedMotion ? "opacity-18" : "animate-[mistOrbitalC_94s_easeInOut_infinite]"
           }`}
           style={{
             background:
               "radial-gradient(ellipse 60% 40% at 50% 50%, rgba(242, 240, 235, 0.09) 0%, rgba(142, 140, 134, 0.05) 45%, transparent 80%)",
             filter: "blur(24px)",
+          }}
+        />
+
+        {/* Cloud Ribbon: Sub-Stratosphere High Veil (drifts softly behind navbar, 110s loop) */}
+        <div
+          className={`absolute left-[30vw] sm:left-[38vw] top-[3%] sm:top-[4%] w-[420px] sm:w-[600px] h-[110px] sm:h-[140px] rounded-full pointer-events-none ${
+            isReducedMotion ? "opacity-12" : "animate-[mistOrbitalA_110s_easeInOut_infinite]"
+          }`}
+          style={{
+            background:
+              "radial-gradient(ellipse 65% 35% at 50% 50%, rgba(242, 240, 235, 0.065) 0%, rgba(216, 135, 98, 0.025) 40%, transparent 80%)",
+            filter: "blur(22px)",
           }}
         />
       </div>
@@ -283,12 +320,12 @@ export function HeroMountainIllustration({
           className="transition-all duration-500 animate-[contourCurrent_50s_linear_infinite]"
         />
 
-        {/* --- High Crest: Delicate Breathing Ridge Pulse (28s loop, stable geometry) --- */}
+        {/* --- High Crest: Delicate Breathing Ridge Pulse (26s loop, stable geometry) --- */}
         <path
           d="M 880 260 C 980 230, 1100 200, 1240 180 S 1360 210, 1440 230"
           strokeWidth="0.85"
           strokeDasharray="5 15"
-          className="animate-[ridgePulse_28s_easeInOut_infinite] animate-[contourCurrent_65s_linear_infinite]"
+          className="animate-[ridgePulse_26s_easeInOut_infinite] animate-[contourCurrent_65s_linear_infinite]"
         />
 
         {/* --- Right Flank: Grounding Arête Contours Framing Deployment Interface --- */}
@@ -382,25 +419,15 @@ export function HeroMountainIllustration({
       </svg>
 
       {/* =================================================================
-          LAYER 6: CONTENT CONTRAST GUARD & SEAMLESS PERIMETER FALLOFF
-          Feathers out top & bottom completely into #111111, while applying
-          a gentle contrast protector behind the left-hand text area
+          LAYER 6: CONTENT CONTRAST GUARD
+          A gentle, broad shadow behind the left typography column ensuring 100%
+          text contrast against the mountain backdrop without creating a visible box
           ================================================================= */}
-      {/* Subtle radial shadow behind the text column for 100% typographic clarity */}
       <div
-        className="absolute left-0 top-0 w-full sm:w-[55vw] lg:w-[48vw] h-full pointer-events-none opacity-40"
+        className="absolute left-0 top-0 w-full sm:w-[55vw] lg:w-[48vw] h-full pointer-events-none opacity-35"
         style={{
           background:
-            "radial-gradient(ellipse 70% 65% at 25% 42%, rgba(17, 17, 17, 0.75) 0%, rgba(17, 17, 17, 0.3) 60%, transparent 100%)",
-        }}
-      />
-
-      {/* Perimeter edge blending into #111111 */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background:
-            "linear-gradient(to bottom, #111111 0%, transparent 12%, transparent 86%, #111111 100%)",
+            "radial-gradient(ellipse 75% 65% at 25% 42%, rgba(17, 17, 17, 0.70) 0%, rgba(17, 17, 17, 0.25) 60%, transparent 100%)",
         }}
       />
     </div>
