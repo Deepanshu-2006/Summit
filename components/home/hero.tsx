@@ -232,7 +232,7 @@ export function Hero() {
   return (
     <section
       ref={heroRef}
-      className="relative w-full min-h-[560px] xl:min-h-[620px] flex flex-col justify-center pt-6 pb-4 sm:pt-8 sm:pb-6 lg:pt-8 lg:pb-8 overflow-hidden bg-bg-main"
+      className="relative w-full min-h-[560px] xl:min-h-[620px] flex flex-col justify-center pt-6 pb-4 sm:pt-8 sm:pb-6 lg:pt-8 lg:pb-8 overflow-hidden bg-transparent"
       aria-label="Deployment Runway Hero"
     >
       <div className="layout-container w-full">

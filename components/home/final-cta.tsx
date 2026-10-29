@@ -422,7 +422,7 @@ export function FinalCta() {
     <section
       ref={sectionRef}
       id="final-cta"
-      className="relative w-full h-[360vh] sm:h-[380vh] lg:h-[400vh] bg-[#111110] text-text-primary select-none"
+      className="relative w-full h-[360vh] sm:h-[380vh] lg:h-[400vh] bg-transparent text-text-primary select-none"
       aria-labelledby="cta-heading"
     >
       {/* =================================================================
@@ -430,7 +430,7 @@ export function FinalCta() {
           ================================================================= */}
       <div
         ref={viewportRef}
-        className="sticky top-0 w-full h-screen overflow-hidden flex flex-col justify-center items-center bg-[#111110] select-none"
+        className="sticky top-0 w-full h-screen overflow-hidden flex flex-col justify-center items-center bg-transparent select-none"
       >
         {/* =================================================================
             EMERGING MOUNTAIN HORIZON (z-[5]: Rises upward after clouds part, BEFORE text)

@@ -118,7 +118,7 @@ export function ProductionVisibility() {
     <section
       ref={sectionRef}
       id="production-visibility"
-      className="relative w-full pt-16 pb-28 sm:pt-20 sm:pb-36 lg:pt-24 lg:pb-48 bg-[#111110] text-[#F2F0EB] overflow-hidden select-none"
+      className="relative w-full pt-16 pb-28 sm:pt-20 sm:pb-36 lg:pt-24 lg:pb-48 bg-transparent text-[#F2F0EB] overflow-hidden select-none"
       aria-label="Production Visibility"
     >
       <div className="layout-container w-full">

@@ -82,7 +82,7 @@ export function ApplicationStack() {
   return (
     <section
       id="platform-stack"
-      className="relative w-full pt-12 pb-16 sm:pt-16 sm:pb-20 lg:pt-20 lg:pb-28 bg-bg-main text-text-primary overflow-hidden"
+      className="relative w-full pt-12 pb-16 sm:pt-16 sm:pb-20 lg:pt-20 lg:pb-28 bg-transparent text-text-primary overflow-hidden"
       aria-labelledby="stack-heading"
     >
       <div className="layout-container w-full">

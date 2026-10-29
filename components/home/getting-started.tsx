@@ -167,7 +167,7 @@ export function GettingStarted() {
     <section
       ref={sectionRef}
       id="getting-started"
-      className="relative w-full pt-16 pb-48 sm:pt-20 sm:pb-64 lg:pt-24 lg:pb-80 xl:pb-[380px] bg-[#111110] text-[#F2F0EB] overflow-hidden select-none"
+      className="relative w-full pt-16 pb-48 sm:pt-20 sm:pb-64 lg:pt-24 lg:pb-80 xl:pb-[380px] bg-transparent text-[#F2F0EB] overflow-hidden select-none"
       aria-labelledby="getting-started-heading"
     >
       <div className="layout-container w-full">

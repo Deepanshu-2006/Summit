@@ -8,12 +8,17 @@ import { DeveloperExperience } from "@/components/home/developer-experience";
 import { ProductionVisibility } from "@/components/home/production-visibility";
 import { GettingStarted } from "@/components/home/getting-started";
 import { FinalCta } from "@/components/home/final-cta";
+import { TopographicSculpture } from "@/components/visuals/topographic-sculpture";
 
 export default function Home() {
   return (
-    <div className="min-h-screen flex flex-col bg-bg-main text-text-primary selection:bg-accent-orange/25 selection:text-text-primary">
+    <div className="relative min-h-screen flex flex-col bg-bg-main text-text-primary selection:bg-accent-orange/25 selection:text-text-primary">
+      {/* Persistent 3D Topographic Wireframe Sculpture & Infrastructure Signal */}
+      <TopographicSculpture />
+
+      {/* Main Page Navigation & Editorial Layout */}
       <Navbar />
-      <main className="flex-1 flex flex-col">
+      <main className="flex-1 flex flex-col relative z-10">
         <Hero />
         <DeploymentExperience />
         <ProductExperience />
