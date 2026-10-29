@@ -37,7 +37,7 @@ function SummitLogo({ className = "w-5 h-5" }: { className?: string }) {
 export function Footer() {
   return (
     <footer
-      className="w-full bg-[#111111] border-t border-border-subtle/80 text-text-primary pt-14 pb-12 sm:pt-16 sm:pb-14 select-none relative z-30"
+      className="w-full bg-[#111111] border-t border-border-subtle/80 text-text-primary pt-20 pb-16 sm:pt-24 sm:pb-20 lg:pt-28 lg:pb-24 select-none relative z-30"
       role="contentinfo"
       aria-label="Site footer"
     >

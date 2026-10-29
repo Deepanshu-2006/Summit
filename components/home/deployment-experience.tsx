@@ -28,7 +28,7 @@ export function DeploymentExperience() {
   return (
     <section
       id="deployment-experience"
-      className="relative w-full pt-16 pb-24 sm:pt-20 sm:pb-28 lg:pt-24 lg:pb-36 bg-transparent text-text-primary overflow-hidden"
+      className="relative w-full pt-24 pb-28 sm:pt-32 sm:pb-36 lg:pt-40 lg:pb-44 xl:pt-48 xl:pb-52 bg-transparent text-text-primary overflow-hidden"
       aria-labelledby="deployment-heading"
     >
       <div className="layout-container w-full">

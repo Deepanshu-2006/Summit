@@ -82,7 +82,7 @@ export function ApplicationStack() {
   return (
     <section
       id="platform-stack"
-      className="relative w-full pt-12 pb-16 sm:pt-16 sm:pb-20 lg:pt-20 lg:pb-28 bg-transparent text-text-primary overflow-hidden"
+      className="relative w-full pt-24 pb-28 sm:pt-32 sm:pb-36 lg:pt-40 lg:pb-44 xl:pt-48 xl:pb-52 bg-transparent text-text-primary overflow-hidden"
       aria-labelledby="stack-heading"
     >
       <div className="layout-container w-full">
@@ -90,7 +90,7 @@ export function ApplicationStack() {
         {/* =================================================================
             EDITORIAL INTRODUCTION
             ================================================================= */}
-        <div className="max-w-3xl mb-6 sm:mb-8">
+        <div className="max-w-3xl mb-8 sm:mb-12 lg:mb-14">
 
           <h2
             id="stack-heading"

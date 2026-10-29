@@ -26,7 +26,7 @@ export function ProductExperience() {
   return (
     <section
       id="product-experience"
-      className="relative w-full pt-16 pb-24 sm:pt-20 sm:pb-28 lg:pt-24 lg:pb-36 bg-transparent text-text-primary overflow-hidden"
+      className="relative w-full pt-24 pb-28 sm:pt-32 sm:pb-36 lg:pt-40 lg:pb-44 xl:pt-48 xl:pb-52 bg-transparent text-text-primary overflow-hidden"
       aria-labelledby="experience-heading"
     >
       <div className="layout-container w-full">
@@ -34,7 +34,7 @@ export function ProductExperience() {
         {/* =================================================================
             EDITORIAL INTRODUCTION
             ================================================================= */}
-        <div className="max-w-3xl mb-6 sm:mb-8">
+        <div className="max-w-3xl mb-10 sm:mb-14 lg:mb-16">
           <h2
             id="experience-heading"
             className="font-sans text-[36px] sm:text-[44px] lg:text-[50px] xl:text-[54px] font-medium leading-[1.08] tracking-[-0.035em] text-[#F5F5F3] mb-4 sm:mb-5"

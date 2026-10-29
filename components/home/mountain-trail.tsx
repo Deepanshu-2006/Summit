@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import React, { useEffect, useRef, useState, useCallback, useSyncExternalStore } from "react";
 import { useLenis } from "@/components/layout/smooth-scroll-provider";
 
 // SSR-safe subscription for prefers-reduced-motion
@@ -25,59 +25,14 @@ interface Landmark {
   index: string;
   title: string;
   elevation: string;
-  x: number;
   y: number;
   passed: boolean;
 }
 
-interface Point {
-  x: number;
-  y: number;
-}
-
-interface ContourArc {
-  cx: number;
-  cy: number;
-  r1: number;
-  r2: number;
-  r3: number;
-  startAngle: number;
-  endAngle: number;
-}
-
 /**
- * Generate a smooth cubic Bezier path through arbitrary waypoints
- * using Catmull-Rom to Cubic Bezier conversion ($C^1$ continuity).
- */
-function catmullRomToBezier(points: Point[]): string {
-  if (points.length === 0) return "";
-  if (points.length === 1) return `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
-
-  const d: string[] = [`M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`];
-
-  for (let i = 0; i < points.length - 1; i++) {
-    const p0 = points[Math.max(0, i - 1)];
-    const p1 = points[i];
-    const p2 = points[i + 1];
-    const p3 = points[Math.min(points.length - 1, i + 2)];
-
-    const cp1x = p1.x + (p2.x - p0.x) / 6.0;
-    const cp1y = p1.y + (p2.y - p0.y) / 6.0;
-    const cp2x = p2.x - (p3.x - p1.x) / 6.0;
-    const cp2y = p2.y - (p3.y - p1.y) / 6.0;
-
-    d.push(
-      `C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`
-    );
-  }
-
-  return d.join(" ");
-}
-
-/**
- * Top-Down Miniature Hiker (Bird's Eye / Zenith View)
+ * TopDownHiker Component
  *
- * Meticulously illustrated miniature alpine expeditioner:
+ * Meticulously illustrated top-down miniature alpine expeditioner (zenith view):
  * - Wide-brim expedition sun hat with burnt-orange hatband
  * - Broad technical shoulders with alpine shell jacket
  * - Technical mountain backpack with burnt-orange top flap and rolled bedroll
@@ -102,7 +57,6 @@ function TopDownHiker({
   sway: number;
   isWalking: boolean;
 }) {
-  // Stride offsets (in pixels)
   const leftBootOffset = stride * 5.0;
   const rightBootOffset = -stride * 5.0;
   const leftArmOffset = -armStride * 4.5;
@@ -112,7 +66,7 @@ function TopDownHiker({
   return (
     <g
       transform={`translate(${x.toFixed(1)}, ${y.toFixed(1)}) rotate(${angle.toFixed(1)})`}
-      className="transition-transform duration-75 will-change-transform"
+      className="will-change-transform pointer-events-none"
       aria-hidden="true"
     >
       {/* 1. Ambient Ground Contact Shadow */}
@@ -122,10 +76,10 @@ function TopDownHiker({
         rx="11"
         ry="15"
         fill="#000000"
-        opacity="0.45"
+        opacity="0.5"
       />
 
-      {/* 2. Walking Legs & Boots (Alternating stride along travel axis) */}
+      {/* 2. Walking Legs & Boots (Alternating stride) */}
       <g id="hiker-boots">
         {/* Left Boot */}
         <g transform={`translate(-5.5, ${(7 + leftBootOffset).toFixed(1)})`}>
@@ -170,7 +124,6 @@ function TopDownHiker({
       <g id="hiker-poles">
         {/* Left Trekking Pole & Hand */}
         <g transform={`translate(-10, ${(-5 + leftArmOffset).toFixed(1)})`}>
-          {/* Carbon Pole Shaft (Angles forward slightly) */}
           <line
             x1="-1.5"
             y1="-9"
@@ -180,17 +133,13 @@ function TopDownHiker({
             strokeWidth="0.85"
             strokeLinecap="round"
           />
-          {/* Snow/Mud Basket Ring */}
           <circle cx="0.8" cy="8" r="2.2" fill="none" stroke="#FAF8F5" strokeWidth="0.6" />
-          {/* Tungsten Carbide Tip */}
           <circle cx="1.5" cy="11" r="0.8" fill="#FAF8F5" />
-          {/* Hand Grip */}
           <rect x="-1" y="-3" width="2" height="4.5" rx="0.8" fill="#FAF8F5" />
         </g>
 
         {/* Right Trekking Pole & Hand */}
         <g transform={`translate(10, ${(-5 + rightArmOffset).toFixed(1)})`}>
-          {/* Carbon Pole Shaft */}
           <line
             x1="1.5"
             y1="-9"
@@ -200,18 +149,15 @@ function TopDownHiker({
             strokeWidth="0.85"
             strokeLinecap="round"
           />
-          {/* Snow/Mud Basket Ring */}
           <circle cx="-0.8" cy="8" r="2.2" fill="none" stroke="#FAF8F5" strokeWidth="0.6" />
-          {/* Tungsten Carbide Tip */}
           <circle cx="-1.5" cy="11" r="0.8" fill="#FAF8F5" />
-          {/* Hand Grip */}
           <rect x="-1" y="-3" width="2" height="4.5" rx="0.8" fill="#FAF8F5" />
         </g>
       </g>
 
       {/* 4. Torso & Shoulders with subtle gait sway */}
       <g transform={`rotate(${sway.toFixed(1)})`}>
-        {/* Alpine Shell Jacket Torso */}
+        {/* Alpine Shell Jacket */}
         <path
           d="M -9 -5 C -9 -8, 9 -8, 9 -5 C 9.5 0, 8.5 4, 7.5 5 C 4 6, -4 6, -7.5 5 C -8.5 4, -9.5 0, -9 -5 Z"
           fill="#34322E"
@@ -219,7 +165,7 @@ function TopDownHiker({
           strokeWidth="0.75"
         />
 
-        {/* Technical Expedition Backpack (Anchored on back) */}
+        {/* Technical Expedition Backpack */}
         <g transform={`translate(0, ${(1 + packBob).toFixed(1)})`}>
           {/* Main Pack Body */}
           <rect
@@ -243,7 +189,7 @@ function TopDownHiker({
             stroke="#B96D4C"
             strokeWidth="0.5"
           />
-          {/* Twin Compression Straps */}
+          {/* Compression Straps */}
           <line x1="-3.5" y1="-3" x2="-3.5" y2="8" stroke="#111110" strokeWidth="0.75" />
           <line x1="3.5" y1="-3" x2="3.5" y2="8" stroke="#111110" strokeWidth="0.75" />
           {/* Rolled Sleeping Pad / Bedroll across top */}
@@ -257,14 +203,13 @@ function TopDownHiker({
             stroke="#A35C3E"
             strokeWidth="0.5"
           />
-          {/* Buckle Reticles */}
+          {/* Buckle Accents */}
           <rect x="-4" y="2" width="1" height="1.5" fill="#FAF8F5" />
           <rect x="3" y="2" width="1" height="1.5" fill="#FAF8F5" />
         </g>
 
         {/* 5. Head & Wide-Brim Expedition Hat */}
         <g transform="translate(0, -6)">
-          {/* Outer Hat Brim */}
           <ellipse
             cx="0"
             cy="0"
@@ -274,7 +219,6 @@ function TopDownHiker({
             stroke="#504C46"
             strokeWidth="0.75"
           />
-          {/* Burnt-Orange Hatband */}
           <ellipse
             cx="0"
             cy="0"
@@ -284,7 +228,6 @@ function TopDownHiker({
             stroke="#D88762"
             strokeWidth="0.85"
           />
-          {/* Hat Crown (Center peak viewed from directly above) */}
           <ellipse
             cx="0"
             cy="0"
@@ -292,7 +235,6 @@ function TopDownHiker({
             ry="4.0"
             fill="#2E2B27"
           />
-          {/* Vent grommets */}
           <circle cx="-2" cy="0" r="0.4" fill="#8E8C86" />
           <circle cx="2" cy="0" r="0.4" fill="#8E8C86" />
         </g>
@@ -304,28 +246,38 @@ function TopDownHiker({
 /**
  * MountainTrail Component
  *
- * Full-page continuous engraved mountain expedition trail with top-down miniature hiker:
- * - Connects all 8 homepage sections into one cohesive expedition journey.
- * - Dynamic SVG path generated using Catmull-Rom splines adapted to real section coordinates.
- * - Restrained cartographic aesthetic: dashed untraveled route, progressive warm-orange traveled line.
- * - Genuine walking gait: limbs stride and poles swing in response to scroll movement.
- * - 4 Sparse surveyor benchmarks marking Trailhead, Basecamp, High Pass, and Summit.
- * - Non-intrusive, sits behind content (`z-0`), lightweight hardware-accelerated 60fps rAF loop.
+ * Straight, clean vertical trail connecting:
+ * - Start: Bottom of Hero (where the mountain meets Section 2)
+ * - Section 2: Deployment Experience ("Ship without the ceremony.")
+ * - Section 3: Product Experience ("From repository to reality.")
+ * - Section 4: Application Stack ("One platform. Your entire stack.")
+ * - End: Section 5: Developer Experience ("Built for the way you work.")
+ *
+ * The trail is completely straight, positioned safely in the left margin gutter
+ * with zero text or UI collision. The top-down miniature hiker walks straight down
+ * the trail as the user scrolls through these sections.
  */
 export function MountainTrail() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const pathRef = useRef<SVGPathElement>(null);
-  const traveledPathRef = useRef<SVGPathElement>(null);
+  const traveledLineRef = useRef<SVGLineElement>(null);
 
-  const [pathData, setPathData] = useState<string>("");
-  const [contourArcs, setContourArcs] = useState<ContourArc[]>([]);
-  const [landmarks, setLandmarks] = useState<Landmark[]>([]);
-  const [dimensions, setDimensions] = useState<{ width: number; height: number }>({
+  const [lineCoords, setLineCoords] = useState<{
+    x: number;
+    startY: number;
+    endY: number;
+    totalHeight: number;
+    width: number;
+  }>({
+    x: 120,
+    startY: 800,
+    endY: 4000,
+    totalHeight: 6000,
     width: 1440,
-    height: 8000,
   });
 
-  // Hiker rendering state
+  const [landmarks, setLandmarks] = useState<Landmark[]>([]);
+
+  // Hiker state
   const [hikerPos, setHikerPos] = useState<{
     x: number;
     y: number;
@@ -335,9 +287,9 @@ export function MountainTrail() {
     sway: number;
     isWalking: boolean;
   }>({
-    x: 100,
-    y: 100,
-    angle: 0,
+    x: 120,
+    y: 800,
+    angle: 180,
     stride: 0,
     armStride: 0,
     sway: 0,
@@ -350,339 +302,182 @@ export function MountainTrail() {
     getReducedMotionServerSnapshot
   );
 
-  // Motion physics refs for buttery smooth 60fps rAF loop
-  const currentDistRef = useRef<number>(0);
-  const targetDistRef = useRef<number>(0);
-  const currentAngleRef = useRef<number>(0);
+  const targetYRef = useRef<number>(800);
+  const currentYRef = useRef<number>(800);
+  const lastYRef = useRef<number>(800);
   const strideAccumulatorRef = useRef<number>(0);
   const idleTimerRef = useRef<number>(0);
-  const totalLengthRef = useRef<number>(1000);
   const rafIdRef = useRef<number | null>(null);
 
-  // Measure sections and generate adaptive mountain route
+  // Measure sections and calculate straight line bounds
   useEffect(() => {
-    function computeRoute() {
+    function computeGeometry() {
       if (!containerRef.current) return;
       const mainEl = containerRef.current.parentElement;
       if (!mainEl) return;
 
       const mainWidth = mainEl.offsetWidth;
       const mainHeight = mainEl.scrollHeight;
-
       if (mainWidth === 0 || mainHeight === 0) return;
 
-      setDimensions({ width: mainWidth, height: mainHeight });
+      const heroEl = document.getElementById("hero");
+      const deployEl = document.getElementById("deployment-experience");
+      const stackEl = document.getElementById("platform-stack");
+      const devexEl = document.getElementById("developer-experience");
 
-      // Identify all 8 section anchors
-      const sectionIds = [
-        "hero",
-        "deployment-experience",
-        "product-experience",
-        "platform-stack",
-        "developer-experience",
-        "production-visibility",
-        "getting-started",
-        "final-cta",
-      ];
-
-      // Measure section rects relative to <main>
-      const sections = sectionIds.map((id) => {
-        const el = document.getElementById(id);
-        if (!el) {
-          return { id, top: 0, height: 800 };
-        }
-        return {
-          id,
-          top: el.offsetTop,
-          height: el.offsetHeight,
-        };
-      });
-
+      // Calculate container left and content edge
       const isMobile = mainWidth < 768;
       const isTablet = mainWidth >= 768 && mainWidth < 1024;
       const containerMax = Math.min(mainWidth, 1200);
       const gutterLeft = Math.max(16, (mainWidth - containerMax) / 2);
-      const pad = isMobile ? 20 : isTablet ? 32 : 48;
 
-      // Base left margin spine for the mountain path
-      const spineX = isMobile
-        ? 28
+      // Position line safely in the left gutter, well clear of any text or bullets
+      const lineX = isMobile
+        ? 18
         : isTablet
-        ? gutterLeft + 24
-        : gutterLeft + pad * 0.45;
+        ? Math.max(20, gutterLeft + 12)
+        : gutterLeft + 16;
 
-      const pts: Point[] = [];
-      const newLandmarks: Landmark[] = [];
-      const newContourArcs: ContourArc[] = [];
+      // Start: Bottom of Hero where mountain landscape transitions into Section 2
+      const heroBottom = heroEl ? heroEl.offsetTop + heroEl.offsetHeight : 900;
+      const deployTop = deployEl ? deployEl.offsetTop : heroBottom;
+      const startY = Math.round(deployTop - 60);
 
-      // Section 1: Hero
-      const s0 = sections[0];
-      const heroTop = s0.top;
-      const heroH = s0.height;
+      // End: In Section 5 (Developer Experience "Built for the way you work.")
+      const devexBottom = devexEl ? devexEl.offsetTop + devexEl.offsetHeight : startY + 2800;
+      const endY = Math.round(devexBottom - 60);
 
-      // Landmark 1: Trailhead
-      const trailheadPt = { x: spineX + 8, y: heroTop + 140 };
-      pts.push(trailheadPt);
-      newLandmarks.push({
-        id: "landmark-trailhead",
-        index: "01",
-        title: "TRAILHEAD",
-        elevation: "1,200M",
-        x: trailheadPt.x,
-        y: trailheadPt.y,
-        passed: false,
+      setLineCoords({
+        x: lineX,
+        startY,
+        endY,
+        totalHeight: mainHeight,
+        width: mainWidth,
       });
 
-      pts.push({ x: spineX - 10, y: heroTop + 380 });
-      pts.push({ x: spineX + 22, y: heroTop + 620 });
-      pts.push({ x: spineX + 48, y: heroTop + heroH - 140 });
-
-      // Switchback 1: Gap between Hero and Deployment Experience
-      const s1 = sections[1];
-      const deployTop = s1 ? s1.top : heroTop + heroH;
-      const sw1Y = (heroTop + heroH + deployTop) / 2;
-      pts.push({ x: spineX + (isMobile ? 24 : 75), y: sw1Y });
-      newContourArcs.push({
-        cx: spineX + (isMobile ? 24 : 75),
-        cy: sw1Y,
-        r1: 18,
-        r2: 30,
-        r3: 42,
-        startAngle: -45,
-        endAngle: 135,
-      });
-
-      // Section 2: Deployment Experience
-      if (s1) {
-        pts.push({ x: spineX + 12, y: s1.top + 50 });
-
-        // Landmark 2: Basecamp
-        const basecampPt = { x: spineX + 8, y: s1.top + 280 };
-        pts.push(basecampPt);
-        newLandmarks.push({
-          id: "landmark-basecamp",
+      // 4 Landmarks along this straight trail segment:
+      // 1. Trailhead (at bottom of hero)
+      // 2. Basecamp (at Section 2 Deployment Experience)
+      // 3. High Pass (at Section 4 Platform Stack)
+      // 4. Summit (at Section 5 Developer Experience end)
+      const lms: Landmark[] = [
+        {
+          id: "lm-trailhead",
+          index: "01",
+          title: "TRAILHEAD",
+          elevation: "1,200M",
+          y: startY,
+          passed: false,
+        },
+        {
+          id: "lm-basecamp",
           index: "02",
           title: "BASECAMP",
           elevation: "1,840M",
-          x: basecampPt.x,
-          y: basecampPt.y,
+          y: deployEl ? deployEl.offsetTop + 180 : startY + 400,
           passed: false,
-        });
-
-        pts.push({ x: spineX + 28, y: s1.top + 540 });
-        pts.push({ x: spineX + 54, y: s1.top + s1.height - 120 });
-      }
-
-      // Section 3: Product Experience
-      const s2 = sections[2];
-      if (s2) {
-        const sw2Y = ((s1 ? s1.top + s1.height : s2.top - 100) + s2.top) / 2;
-        pts.push({ x: spineX + (isMobile ? 20 : 85), y: sw2Y });
-        newContourArcs.push({
-          cx: spineX + (isMobile ? 20 : 85),
-          cy: sw2Y,
-          r1: 22,
-          r2: 36,
-          r3: 50,
-          startAngle: 30,
-          endAngle: 210,
-        });
-
-        pts.push({ x: spineX + 10, y: s2.top + 80 });
-        pts.push({ x: spineX + 24, y: s2.top + 340 });
-        pts.push({ x: spineX + 56, y: s2.top + s2.height - 140 });
-      }
-
-      // Section 4: Platform Stack
-      const s3 = sections[3];
-      if (s3) {
-        const sw3Y = ((s2 ? s2.top + s2.height : s3.top - 100) + s3.top) / 2;
-        pts.push({ x: spineX + (isMobile ? 22 : 70), y: sw3Y });
-
-        // Landmark 3: High Pass
-        const highPassPt = { x: spineX + 12, y: s3.top + 90 };
-        pts.push(highPassPt);
-        newLandmarks.push({
-          id: "landmark-highpass",
+        },
+        {
+          id: "lm-highpass",
           index: "03",
           title: "HIGH PASS",
           elevation: "2,680M",
-          x: highPassPt.x,
-          y: highPassPt.y,
+          y: stackEl ? stackEl.offsetTop + 180 : (startY + endY) / 2,
           passed: false,
-        });
-
-        pts.push({ x: spineX + 18, y: s3.top + 360 });
-        pts.push({ x: spineX + 46, y: s3.top + s3.height - 120 });
-      }
-
-      // Section 5: Developer Experience
-      const s4 = sections[4];
-      if (s4) {
-        const sw4Y = ((s3 ? s3.top + s3.height : s4.top - 100) + s4.top) / 2;
-        pts.push({ x: spineX + (isMobile ? 18 : 65), y: sw4Y });
-
-        pts.push({ x: spineX + 14, y: s4.top + 80 });
-        pts.push({ x: spineX + 22, y: s4.top + 320 });
-        pts.push({ x: spineX + 52, y: s4.top + s4.height - 120 });
-      }
-
-      // Section 6: Production Visibility (Extended Scroll Corridor)
-      const s5 = sections[5];
-      if (s5) {
-        pts.push({ x: spineX + 16, y: s5.top + s5.height * 0.22 });
-        pts.push({ x: spineX + (isMobile ? 26 : 60), y: s5.top + s5.height * 0.50 });
-        pts.push({ x: spineX + 14, y: s5.top + s5.height * 0.78 });
-      }
-
-      // Section 7: Getting Started
-      const s6 = sections[6];
-      if (s6) {
-        pts.push({ x: spineX + 12, y: s6.top + 90 });
-        pts.push({ x: spineX + 32, y: s6.top + 360 });
-        pts.push({ x: spineX + (isMobile ? 22 : 68), y: s6.top + s6.height - 180 });
-      }
-
-      // Section 8: Final CTA (Summit Apex)
-      const s7 = sections[7];
-      if (s7) {
-        pts.push({ x: spineX + 20, y: s7.top + s7.height * 0.25 });
-        pts.push({ x: spineX + (isMobile ? 28 : 72), y: s7.top + s7.height * 0.55 });
-
-        // Landmark 4: Summit Peak
-        const summitPt = {
-          x: spineX + (isMobile ? 20 : 54),
-          y: s7.top + s7.height * 0.88,
-        };
-        pts.push(summitPt);
-        newLandmarks.push({
-          id: "landmark-summit",
+        },
+        {
+          id: "lm-summit",
           index: "04",
-          title: "SUMMIT PEAK",
+          title: "SUMMIT",
           elevation: "3,428M",
-          x: summitPt.x,
-          y: summitPt.y,
+          y: endY,
           passed: false,
-        });
-      }
+        },
+      ];
 
-      // Build smooth Catmull-Rom spline path string
-      const d = catmullRomToBezier(pts);
-      setPathData(d);
-      setLandmarks(newLandmarks);
-      setContourArcs(newContourArcs);
+      setLandmarks(lms);
+      targetYRef.current = startY;
+      currentYRef.current = startY;
+      lastYRef.current = startY;
     }
 
-    computeRoute();
+    computeGeometry();
 
-    // ResizeObserver tracks document reflows and dynamic height shifts
-    let resizeObserver: ResizeObserver | null = null;
+    let ro: ResizeObserver | null = null;
     if (containerRef.current?.parentElement && typeof ResizeObserver !== "undefined") {
-      resizeObserver = new ResizeObserver(() => {
-        computeRoute();
-      });
-      resizeObserver.observe(containerRef.current.parentElement);
+      ro = new ResizeObserver(() => computeGeometry());
+      ro.observe(containerRef.current.parentElement);
     }
 
-    window.addEventListener("resize", computeRoute, { passive: true });
-
+    window.addEventListener("resize", computeGeometry, { passive: true });
     return () => {
-      window.removeEventListener("resize", computeRoute);
-      if (resizeObserver) resizeObserver.disconnect();
+      window.removeEventListener("resize", computeGeometry);
+      if (ro) ro.disconnect();
     };
   }, []);
 
-  // Update total path length when pathData settles
-  useEffect(() => {
-    if (pathRef.current) {
-      try {
-        const len = pathRef.current.getTotalLength();
-        if (len > 0) {
-          totalLengthRef.current = len;
-          if (traveledPathRef.current) {
-            traveledPathRef.current.style.strokeDasharray = `0 ${len}`;
-          }
-        }
-      } catch {
-        // Fallback for mock environments
-      }
-    }
-  }, [pathData]);
-
-  // Handle scroll progress update via Lenis or native scroll fallback
-  const handleScrollUpdate = () => {
-    if (!pathRef.current || typeof window === "undefined") return;
+  // Update target Y based on scroll position
+  const updateTargetY = useCallback(() => {
+    if (typeof window === "undefined") return;
 
     const scrollY = window.scrollY || document.documentElement.scrollTop;
-    const maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
-    const progress = Math.max(0, Math.min(1, scrollY / maxScroll));
+    const vh = window.innerHeight;
 
-    const totalLen = totalLengthRef.current;
-    targetDistRef.current = progress * totalLen;
-  };
+    // The hiker tracks with the user's viewport (~45% down the screen)
+    // while scrolling through the connected sections.
+    const viewportGuideY = scrollY + vh * 0.45;
+    const clampedY = Math.max(
+      lineCoords.startY,
+      Math.min(lineCoords.endY, viewportGuideY)
+    );
 
-  // Synchronize 1:1 with Lenis smooth scroll
-  useLenis((lenis) => {
-    if (lenis && typeof lenis.progress === "number") {
-      targetDistRef.current = Math.max(0, Math.min(1, lenis.progress)) * totalLengthRef.current;
-    } else {
-      handleScrollUpdate();
-    }
+    targetYRef.current = clampedY;
+  }, [lineCoords.startY, lineCoords.endY]);
+
+  // Lenis 1:1 synchronization
+  useLenis(() => {
+    updateTargetY();
   });
 
-  // Native scroll event fallback listener
+  // Native scroll fallback
   useEffect(() => {
-    window.addEventListener("scroll", handleScrollUpdate, { passive: true });
-    return () => window.removeEventListener("scroll", handleScrollUpdate);
-  }, []);
+    window.addEventListener("scroll", updateTargetY, { passive: true });
+    return () => window.removeEventListener("scroll", updateTargetY);
+  }, [updateTargetY]);
 
-  // Static positioning for reduced motion users
+  // Reduced motion fallback (instant static positioning without stride physics)
   useEffect(() => {
     if (!isReducedMotion) return;
 
-    const updateStatic = () => {
-      const pathEl = pathRef.current;
-      const totalLen = totalLengthRef.current;
-      if (!pathEl || totalLen <= 0) return;
-
+    const onScrollStatic = () => {
       const scrollY = window.scrollY || document.documentElement.scrollTop;
-      const maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
-      const progress = Math.max(0, Math.min(1, scrollY / maxScroll));
-      const dist = progress * totalLen;
+      const vh = window.innerHeight;
+      const targetY = Math.max(
+        lineCoords.startY,
+        Math.min(lineCoords.endY, scrollY + vh * 0.45)
+      );
 
-      try {
-        const pt = pathEl.getPointAtLength(dist);
-        const aheadDist = Math.min(totalLen, dist + 2);
-        const ptAhead = pathEl.getPointAtLength(aheadDist);
-        const dx = ptAhead.x - pt.x;
-        const dy = ptAhead.y - pt.y;
-        const deg = (Math.atan2(dy, dx) * 180) / Math.PI + 90;
+      setHikerPos({
+        x: lineCoords.x,
+        y: targetY,
+        angle: 180,
+        stride: 0,
+        armStride: 0,
+        sway: 0,
+        isWalking: false,
+      });
 
-        setHikerPos({
-          x: pt.x,
-          y: pt.y,
-          angle: deg,
-          stride: 0,
-          armStride: 0,
-          sway: 0,
-          isWalking: false,
-        });
-
-        if (traveledPathRef.current) {
-          traveledPathRef.current.style.strokeDasharray = `${dist} ${totalLen}`;
-          traveledPathRef.current.style.strokeDashoffset = "0";
-        }
-      } catch {
-        // Guard
+      if (traveledLineRef.current) {
+        traveledLineRef.current.setAttribute("y2", targetY.toFixed(1));
       }
     };
 
-    updateStatic();
-    window.addEventListener("scroll", updateStatic, { passive: true });
-    return () => window.removeEventListener("scroll", updateStatic);
-  }, [isReducedMotion, pathData]);
+    onScrollStatic();
+    window.addEventListener("scroll", onScrollStatic, { passive: true });
+    return () => window.removeEventListener("scroll", onScrollStatic);
+  }, [isReducedMotion, lineCoords]);
 
-  // Fluid 60fps Animation Loop: Hiker Motion, Tangent Orientation & Gait Physics
+  // Fluid 60fps Animation Loop: Straight Motion & Gait Physics
   useEffect(() => {
     if (isReducedMotion) return;
 
@@ -695,87 +490,66 @@ export function MountainTrail() {
       const dt = Math.min(32, time - lastTime);
       lastTime = time;
 
-      const target = targetDistRef.current;
-      const current = currentDistRef.current;
-      const totalLen = totalLengthRef.current;
+      const target = targetYRef.current;
+      const current = currentYRef.current;
 
-      // Snappy, organic damping interpolation (0.16)
-      const diff = target - current;
-      const moveDelta = diff * 0.16;
-      currentDistRef.current += moveDelta;
+      // Snappy, organic damping
+      const delta = (target - current) * 0.16;
+      currentYRef.current += delta;
 
-      const newDist = currentDistRef.current;
-      const pathEl = pathRef.current;
+      const newY = currentYRef.current;
+      const dy = newY - lastYRef.current;
+      lastYRef.current = newY;
 
-      if (pathEl && totalLen > 0) {
-        try {
-          const clampedDist = Math.max(0, Math.min(totalLen, newDist));
-          const pt = pathEl.getPointAtLength(clampedDist);
+      const speed = Math.abs(dy);
+      const isWalking = speed > 0.12;
 
-          // Tangent orientation calculation with lookahead and lookbehind
-          const aheadDist = Math.min(totalLen, clampedDist + 3.0);
-          const behindDist = Math.max(0, clampedDist - 3.0);
-          const ptAhead = pathEl.getPointAtLength(aheadDist);
-          const ptBehind = pathEl.getPointAtLength(behindDist);
-
-          const dx = ptAhead.x - ptBehind.x;
-          const dy = ptAhead.y - ptBehind.y;
-
-          // Hiker natural facing is UP (-y axis, so subtract 90 deg)
-          const targetDeg = (Math.atan2(dy, dx) * 180) / Math.PI + 90;
-
-          // Angle unwrap interpolation prevents 360-degree spin snap
-          let degDiff = ((targetDeg - currentAngleRef.current + 180) % 360) - 180;
-          if (degDiff < -180) degDiff += 360;
-          currentAngleRef.current += degDiff * 0.18;
-
-          // Gait & Stride physics driven by actual movement delta
-          const stepSpeed = Math.abs(moveDelta);
-          const isWalking = stepSpeed > 0.12;
-
-          if (isWalking) {
-            strideAccumulatorRef.current += moveDelta;
-            idleTimerRef.current = 0;
-          } else {
-            idleTimerRef.current += dt;
-          }
-
-          // Complete step stride every ~20px of path traveled
-          const walkPhase = strideAccumulatorRef.current * 0.32;
-
-          // If idle for > 200ms, smoothly ease limbs back to grounded resting pose
-          const idleFactor = Math.max(0, 1 - idleTimerRef.current / 220);
-          const strideVal = Math.sin(walkPhase) * idleFactor;
-          const armStrideVal = Math.cos(walkPhase) * idleFactor;
-          const swayVal = Math.sin(walkPhase) * 2.2 * idleFactor;
-
-          setHikerPos({
-            x: pt.x,
-            y: pt.y,
-            angle: currentAngleRef.current,
-            stride: strideVal,
-            armStride: armStrideVal,
-            sway: swayVal,
-            isWalking,
-          });
-
-          // Update traveled route trail stroke length
-          if (traveledPathRef.current) {
-            traveledPathRef.current.style.strokeDasharray = `${clampedDist.toFixed(1)} ${totalLen.toFixed(1)}`;
-            traveledPathRef.current.style.strokeDashoffset = "0";
-          }
-
-          // Update landmark active state
-          setLandmarks((prev) =>
-            prev.map((lm) => {
-              const isPassed = pt.y >= lm.y - 40;
-              return lm.passed !== isPassed ? { ...lm, passed: isPassed } : lm;
-            })
-          );
-        } catch {
-          // Guard for SVG path length parsing in edge cases
-        }
+      if (isWalking) {
+        strideAccumulatorRef.current += dy;
+        idleTimerRef.current = 0;
+      } else {
+        idleTimerRef.current += dt;
       }
+
+      // One full human step every ~20px of descent
+      const walkPhase = strideAccumulatorRef.current * 0.32;
+      const idleFactor = Math.max(0, 1 - idleTimerRef.current / 220);
+
+      const strideVal = Math.sin(walkPhase) * idleFactor;
+      const armStrideVal = Math.cos(walkPhase) * idleFactor;
+      const swayVal = Math.sin(walkPhase) * 2.2 * idleFactor;
+
+      // Facing direction: 180° when moving down, smoothly flips to 0° if scrolling up
+      const targetAngle = dy < -0.3 ? 0 : 180;
+
+      setHikerPos((prev) => {
+        let diff = ((targetAngle - prev.angle + 180) % 360) - 180;
+        if (diff < -180) diff += 360;
+        const nextAngle = prev.angle + diff * 0.20;
+
+        return {
+          x: lineCoords.x,
+          y: newY,
+          angle: nextAngle,
+          stride: strideVal,
+          armStride: armStrideVal,
+          sway: swayVal,
+          isWalking,
+        };
+      });
+
+      // Update traveled straight line end coordinate
+      if (traveledLineRef.current) {
+        traveledLineRef.current.setAttribute("y2", newY.toFixed(1));
+      }
+
+      // Update landmark highlight status
+      setLandmarks((prev) =>
+        prev.map((lm) => {
+          const isPassed = newY >= lm.y - 20;
+          return lm.passed !== isPassed ? { ...lm, passed: isPassed } : lm;
+        })
+      );
 
       rafIdRef.current = requestAnimationFrame(loop);
     };
@@ -788,17 +562,7 @@ export function MountainTrail() {
         cancelAnimationFrame(rafIdRef.current);
       }
     };
-  }, [isReducedMotion]);
-
-  if (!pathData) {
-    return (
-      <div
-        ref={containerRef}
-        className="absolute inset-0 w-full h-full pointer-events-none overflow-visible z-[5]"
-        aria-hidden="true"
-      />
-    );
-  }
+  }, [isReducedMotion, lineCoords]);
 
   return (
     <div
@@ -808,114 +572,72 @@ export function MountainTrail() {
     >
       <svg
         className="absolute inset-0 w-full h-full pointer-events-none overflow-visible"
-        viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
+        viewBox={`0 0 ${lineCoords.width} ${lineCoords.totalHeight}`}
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
       >
         <defs>
           {/* Luminous Traveled Route Gradient (Warm Ivory to Burnt Orange) */}
-          <linearGradient id="traveledTrailGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#FAF8F5" stopOpacity="0.85" />
-            <stop offset="60%" stopColor="#D88762" stopOpacity="0.90" />
+          <linearGradient id="straightTrailGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#FAF8F5" stopOpacity="0.8" />
+            <stop offset="60%" stopColor="#D88762" stopOpacity="0.9" />
             <stop offset="100%" stopColor="#FFA67E" stopOpacity="0.95" />
           </linearGradient>
-
-          {/* Restrained Hiker Glow Aura Filter */}
-          <filter id="hikerShadow" x="-50%" y="-50%" width="200%" height="200%">
-            <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#000000" floodOpacity="0.6" />
-          </filter>
         </defs>
 
         {/* =================================================================
-            LAYER 1: TOPOGRAPHIC CONTOUR DETAIL ARCS (Selected Trail Bends)
-            Vintage USGS/Swiss cartographic contour rings around switchbacks
+            1. BASE STRAIGHT UNTRAVELED TRAIL (Dashed Cartographic Line)
+            Spans strictly from bottom of Hero to Section 5
             ================================================================= */}
-        <g id="trail-contour-bends" className="opacity-30">
-          {contourArcs.map((arc, idx) => (
-            <g key={`contour-${idx}`}>
-              <circle
-                cx={arc.cx}
-                cy={arc.cy}
-                r={arc.r1}
-                fill="none"
-                stroke="#3A3733"
-                strokeWidth="0.7"
-                strokeDasharray="2 6"
-              />
-              <circle
-                cx={arc.cx}
-                cy={arc.cy}
-                r={arc.r2}
-                fill="none"
-                stroke="#2C2A26"
-                strokeWidth="0.65"
-                strokeDasharray="3 7"
-              />
-              <circle
-                cx={arc.cx}
-                cy={arc.cy}
-                r={arc.r3}
-                fill="none"
-                stroke="#24221F"
-                strokeWidth="0.6"
-                strokeDasharray="4 8"
-              />
-            </g>
-          ))}
-        </g>
-
-        {/* =================================================================
-            LAYER 2: UNTRAVELED MOUNTAIN TRAIL (Dashed Cartographic Path)
-            Vintage engraved footpath etched into the mountain topography
-            ================================================================= */}
-        {/* Soft casing backdrop */}
-        <path
-          d={pathData}
-          fill="none"
-          stroke="#181715"
+        {/* Soft dark casing backdrop */}
+        <line
+          x1={lineCoords.x}
+          y1={lineCoords.startY}
+          x2={lineCoords.x}
+          y2={lineCoords.endY}
+          stroke="#161513"
           strokeWidth="3.5"
           strokeLinecap="round"
-          strokeLinejoin="round"
           opacity="0.6"
         />
 
-        {/* Untraveled Dashed Footpath */}
-        <path
-          ref={pathRef}
-          d={pathData}
-          fill="none"
+        {/* Untraveled Stippled Dashed Footpath */}
+        <line
+          x1={lineCoords.x}
+          y1={lineCoords.startY}
+          x2={lineCoords.x}
+          y2={lineCoords.endY}
           stroke="#383430"
           strokeWidth="1.5"
-          strokeDasharray="5 5"
+          strokeDasharray="4 4"
           strokeLinecap="round"
-          strokeLinejoin="round"
           opacity="0.75"
         />
 
         {/* =================================================================
-            LAYER 3: PROGRESSIVE TRAVELED ROUTE (Burnt Orange / Warm Ivory)
-            Illuminates behind the hiker as the user explores down the page
+            2. PROGRESSIVE TRAVELED ROUTE (Solid Burnt-Orange Line)
+            Follows the hiker in real time as the user scrolls
             ================================================================= */}
-        <path
-          ref={traveledPathRef}
-          d={pathData}
-          fill="none"
-          stroke="url(#traveledTrailGrad)"
+        <line
+          ref={traveledLineRef}
+          x1={lineCoords.x}
+          y1={lineCoords.startY}
+          x2={lineCoords.x}
+          y2={hikerPos.y}
+          stroke="url(#straightTrailGrad)"
           strokeWidth="1.85"
           strokeLinecap="round"
-          strokeLinejoin="round"
-          className="will-change-[stroke-dasharray]"
         />
 
         {/* =================================================================
-            LAYER 4: SPARSE SURVEYOR BENCHMARK LANDMARKS
-            Authentic alpine geodesic checkpoints: Trailhead, Basecamp, High Pass, Summit
+            3. SPARSE SURVEYOR BENCHMARK LANDMARKS
+            4 checkpoints: Trailhead, Basecamp, High Pass, Summit
             ================================================================= */}
         <g id="trail-landmarks">
           {landmarks.map((lm) => (
             <g
               key={lm.id}
-              transform={`translate(${lm.x}, ${lm.y})`}
+              transform={`translate(${lineCoords.x}, ${lm.y})`}
               className="transition-opacity duration-300"
             >
               {/* Outer Benchmark Target Ring */}
@@ -974,7 +696,7 @@ export function MountainTrail() {
                   letterSpacing="0.12em"
                   className="transition-colors duration-300"
                 >
-                  ELEV {lm.elevation}
+                  {`ELEV ${lm.elevation}`}
                 </text>
               </g>
             </g>
@@ -982,8 +704,8 @@ export function MountainTrail() {
         </g>
 
         {/* =================================================================
-            LAYER 5: THE TOP-DOWN MINIATURE HIKER
-            Bird's-eye view expeditioner walking smoothly along the trail
+            4. THE TOP-DOWN MINIATURE HIKER
+            Walks straight down the vertical trail with dynamic gait
             ================================================================= */}
         <TopDownHiker
           x={hikerPos.x}
