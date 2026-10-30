@@ -83,23 +83,23 @@ function getReducedMotionServerSnapshot() {
  * then organically accelerates and decelerates while walking between stations.
  */
 function progressToTrailRatio(p: number): number {
-  if (p <= 0.12) return 0;
-  if (p < 0.33) {
-    const t = (p - 0.12) / 0.21;
-    // Smootherstep interpolation for organic walking acceleration/deceleration
-    const s = t * t * t * (t * (t * 6 - 15) + 10);
+  if (p <= 0.08) return 0;
+  if (p < 0.35) {
+    const t = (p - 0.08) / 0.27;
+    // Hermite smootherstep for continuous, organic acceleration/deceleration
+    const s = t * t * (3 - 2 * t);
     return (1 / 3) * s;
   }
-  if (p <= 0.45) return 1 / 3;
-  if (p < 0.66) {
-    const t = (p - 0.45) / 0.21;
-    const s = t * t * t * (t * (t * 6 - 15) + 10);
+  if (p <= 0.42) return 1 / 3;
+  if (p < 0.68) {
+    const t = (p - 0.42) / 0.26;
+    const s = t * t * (3 - 2 * t);
     return 1 / 3 + (1 / 3) * s;
   }
-  if (p <= 0.78) return 2 / 3;
+  if (p <= 0.74) return 2 / 3;
   if (p < 0.94) {
-    const t = (p - 0.78) / 0.16;
-    const s = t * t * t * (t * (t * 6 - 15) + 10);
+    const t = (p - 0.74) / 0.20;
+    const s = t * t * (3 - 2 * t);
     return 2 / 3 + (1 / 3) * s;
   }
   return 1;
@@ -137,7 +137,7 @@ function HorizontalTopDownHiker({
       aria-hidden="true"
     >
       {/* 1. Ambient Warm Ground Contact Shadow & Subtle Alpine Lantern Glow */}
-      <circle cx="0" cy="1" r="14" fill="#D88762" opacity="0.10" />
+      <circle cx="0" cy="1" r="18" fill="#D88762" opacity="0.16" />
       <ellipse cx="0" cy="1" rx="10" ry="13" fill="#000000" opacity="0.6" />
 
       {/* 2. Walking Legs & Boots (Alternating stride) */}
@@ -316,6 +316,35 @@ export function ApplicationStack() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const [benefitsInView, setBenefitsInView] = useState<boolean>(false);
+  const [transitionDirection, setTransitionDirection] = useState<"forward" | "backward">("forward");
+  const prevIndexRef = useRef<number>(0);
+
+  const isReducedMotion = useSyncExternalStore(
+    subscribeReducedMotion,
+    getReducedMotionSnapshot,
+    getReducedMotionServerSnapshot
+  );
+
+  // Helper to compute directional transition classes for service panels
+  const getPanelTransitionClasses = useCallback((viewIndex: number) => {
+    const isSelected = activeIndex === viewIndex;
+    const isPast = activeIndex > viewIndex;
+
+    if (isReducedMotion) {
+      return isSelected
+        ? "opacity-100 translate-x-0 pointer-events-auto z-10"
+        : "opacity-0 pointer-events-none absolute inset-0 pt-3 sm:pt-4 lg:pt-5 px-3 sm:px-5 lg:px-6 pb-0 z-0";
+    }
+
+    if (isSelected) {
+      return "opacity-100 translate-x-0 pointer-events-auto z-10 transition-all duration-450 ease-out";
+    }
+
+    // Exited views: if it's before current active stage, slide slightly left; if after, slide slightly right
+    return isPast
+      ? "opacity-0 -translate-x-3 pointer-events-none absolute inset-0 pt-3 sm:pt-4 lg:pt-5 px-3 sm:px-5 lg:px-6 pb-0 z-0 transition-all duration-350 ease-in"
+      : "opacity-0 translate-x-3 pointer-events-none absolute inset-0 pt-3 sm:pt-4 lg:pt-5 px-3 sm:px-5 lg:px-6 pb-0 z-0 transition-all duration-350 ease-in";
+  }, [activeIndex, isReducedMotion]);
 
   // SVG Trail Refs
   const pathRef = useRef<SVGPathElement>(null);
@@ -347,12 +376,6 @@ export function ApplicationStack() {
   });
 
   const activeIndexRef = useRef<number>(0);
-
-  const isReducedMotion = useSyncExternalStore(
-    subscribeReducedMotion,
-    getReducedMotionSnapshot,
-    getReducedMotionServerSnapshot
-  );
 
   // Shared Lenis scroll instance
   const lenis = useLenis();
@@ -509,17 +532,32 @@ export function ApplicationStack() {
 
       updateHikerAndTrail(targetDist, anim);
 
-      // Determine active stage based on progress
-      const stageIdx =
-        anim.currentProgress < 0.25
-          ? 0
-          : anim.currentProgress < 0.5
-          ? 1
-          : anim.currentProgress < 0.75
-          ? 2
-          : 3;
+      // Determine active stage based on progress with hysteresis to prevent flickering
+      let stageIdx = activeIndexRef.current;
+      const p = anim.currentProgress;
+
+      if (p < 0.20) {
+        stageIdx = 0;
+      } else if (p < 0.52) {
+        // Transition 0 -> 1 at 0.22, reverse 1 -> 0 at 0.18
+        if (stageIdx === 0 && p >= 0.22) stageIdx = 1;
+        if (stageIdx === 1 && p < 0.18) stageIdx = 0;
+        if (stageIdx > 1) stageIdx = 1;
+      } else if (p < 0.82) {
+        // Transition 1 -> 2 at 0.54, reverse 2 -> 1 at 0.50
+        if (stageIdx <= 1 && p >= 0.54) stageIdx = 2;
+        if (stageIdx === 2 && p < 0.50) stageIdx = 1;
+        if (stageIdx > 2) stageIdx = 2;
+      } else {
+        // Transition 2 -> 3 at 0.84, reverse 3 -> 2 at 0.80
+        if (stageIdx <= 2 && p >= 0.84) stageIdx = 3;
+        if (stageIdx === 3 && p < 0.80) stageIdx = 2;
+      }
 
       if (stageIdx !== activeIndexRef.current) {
+        const dir = stageIdx >= activeIndexRef.current ? "forward" : "backward";
+        setTransitionDirection(dir);
+        prevIndexRef.current = stageIdx;
         activeIndexRef.current = stageIdx;
         setActiveIndex(stageIdx);
         setSelectedId(SERVICE_KEYS[stageIdx]);
@@ -557,15 +595,20 @@ export function ApplicationStack() {
       animRef.current.currentProgress = clampedProgress;
       const trailRatio = progressToTrailRatio(clampedProgress);
       updateHikerAndTrail(trailRatio * pathLengthRef.current, animRef.current);
-      const stageIdx =
-        clampedProgress < 0.22
-          ? 0
-          : clampedProgress < 0.55
-          ? 1
-          : clampedProgress < 0.86
-          ? 2
-          : 3;
+      let stageIdx = activeIndexRef.current;
+      if (clampedProgress < 0.20) {
+        stageIdx = 0;
+      } else if (clampedProgress < 0.52) {
+        stageIdx = 1;
+      } else if (clampedProgress < 0.82) {
+        stageIdx = 2;
+      } else {
+        stageIdx = 3;
+      }
       if (stageIdx !== activeIndexRef.current) {
+        const dir = stageIdx >= activeIndexRef.current ? "forward" : "backward";
+        setTransitionDirection(dir);
+        prevIndexRef.current = stageIdx;
         activeIndexRef.current = stageIdx;
         setActiveIndex(stageIdx);
         setSelectedId(SERVICE_KEYS[stageIdx]);
@@ -624,6 +667,9 @@ export function ApplicationStack() {
   const handleStageClick = (idx: number) => {
     if (!sectionRef.current) return;
 
+    const dir = idx >= activeIndexRef.current ? "forward" : "backward";
+    setTransitionDirection(dir);
+    prevIndexRef.current = idx;
     setSelectedId(SERVICE_KEYS[idx]);
     setActiveIndex(idx);
     activeIndexRef.current = idx;
@@ -631,8 +677,8 @@ export function ApplicationStack() {
     const rect = sectionRef.current.getBoundingClientRect();
     const scrollDistance = sectionRef.current.offsetHeight - window.innerHeight;
 
-    // Target progress for stage centers: 0.06, 0.38, 0.70, 0.96
-    const targetP = idx === 0 ? 0.06 : idx === 1 ? 0.38 : idx === 2 ? 0.70 : 0.96;
+    // Target progress for stage centers: 0.05, 0.38, 0.70, 0.96
+    const targetP = idx === 0 ? 0.05 : idx === 1 ? 0.38 : idx === 2 ? 0.70 : 0.96;
     const sectionDocumentTop = window.scrollY + rect.top;
     const targetScrollY = sectionDocumentTop + targetP * scrollDistance;
 
@@ -763,7 +809,7 @@ export function ApplicationStack() {
                     {/* Stage Number & Service Name */}
                     <div className="flex items-baseline gap-1.5 sm:gap-2 mb-0.5 sm:mb-1 font-sans">
                       <span
-                        className={`font-mono text-[10px] sm:text-[11px] font-medium transition-colors duration-200 ${
+                        className={`font-mono text-[10px] sm:text-[11px] font-medium transition-colors duration-300 ${
                           isSelected
                             ? "text-accent-orange font-semibold"
                             : "text-[#66635D] group-hover:text-text-secondary"
@@ -773,10 +819,10 @@ export function ApplicationStack() {
                       </span>
                       <span className="text-[#3E3B37] text-[10px] sm:text-[11px]">—</span>
                       <span
-                        className={`text-[13px] sm:text-[15px] lg:text-[16px] font-medium tracking-tight transition-colors duration-200 ${
+                        className={`text-[13px] sm:text-[15px] lg:text-[16px] font-medium tracking-tight transition-colors duration-300 ${
                           isSelected
                             ? "text-[#FAF8F5] font-semibold"
-                            : "text-[#8E8B85] group-hover:text-[#F1F0EC]"
+                            : "text-[#77746E] group-hover:text-[#F1F0EC]"
                         }`}
                       >
                         <span className="sm:hidden">{service.shortName}</span>
@@ -786,8 +832,8 @@ export function ApplicationStack() {
 
                     {/* Stage Short Description (Desktop & Tablet) */}
                     <div
-                      className={`font-sans text-[11px] sm:text-[12px] leading-snug hidden sm:block transition-colors duration-200 ${
-                        isSelected ? "text-[#A8A59E]" : "text-[#5A5752] group-hover:text-[#7A7771]"
+                      className={`font-sans text-[11px] sm:text-[12px] leading-snug hidden sm:block transition-colors duration-300 ${
+                        isSelected ? "text-[#A8A59E]" : "text-[#55524E] group-hover:text-[#7A7771]"
                       }`}
                     >
                       {service.description}
@@ -856,24 +902,25 @@ export function ApplicationStack() {
 
                   return (
                     <g key={i} className="transition-all duration-300">
-                      {/* Luminous waypoint aura when active */}
-                      {isCurrent && (
-                        <circle
-                          cx={cx}
-                          cy="16"
-                          r="8"
-                          fill="#D88762"
-                          opacity="0.22"
-                        />
-                      )}
+                      {/* Luminous waypoint aura that gently blooms when active */}
+                      <circle
+                        cx={cx}
+                        cy="16"
+                        r={isCurrent ? "10" : "6"}
+                        fill="#D88762"
+                        className={`transition-all duration-400 ease-out ${
+                          isCurrent ? "opacity-25" : "opacity-0"
+                        }`}
+                      />
                       {/* Waypoint ring */}
                       <circle
                         cx={cx}
                         cy="16"
-                        r={isPassed ? "4" : "3"}
+                        r={isCurrent ? "4.8" : isPassed ? "4" : "3.2"}
                         fill={isPassed ? "#D88762" : "#1A1918"}
                         stroke={isPassed ? "#FAF8F5" : "#383531"}
-                        strokeWidth={isPassed ? "1.2" : "1"}
+                        strokeWidth={isPassed ? "1.2" : "0.9"}
+                        className="transition-all duration-300 ease-out"
                       />
                       {/* Center reticle */}
                       <circle
@@ -881,17 +928,18 @@ export function ApplicationStack() {
                         cy="16"
                         r="1.2"
                         fill={isPassed ? "#FAF8F5" : "#5A5752"}
+                        className="transition-all duration-300 ease-out"
                       />
                       {/* Elevation notation */}
                       <text
                         x={cx}
                         y="28"
                         textAnchor="middle"
-                        className={`font-mono text-[8.5px] sm:text-[9px] tracking-wider transition-colors duration-200 ${
+                        className={`font-mono text-[8.5px] sm:text-[9px] tracking-wider transition-colors duration-300 ${
                           isCurrent
-                            ? "fill-accent-orange font-medium"
+                            ? "fill-accent-orange font-semibold"
                             : isPassed
-                            ? "fill-[#8E8B85]"
+                            ? "fill-[#A8A59E]"
                             : "fill-[#4E4B46]"
                         }`}
                       >
@@ -927,31 +975,52 @@ export function ApplicationStack() {
           >
             {/* VIEW 1: WEB FRONTEND — Live Website Preview */}
             <div
-              className={`w-full h-full flex flex-col justify-between transition-all duration-300 ease-out ${
-                selectedId === "web"
-                  ? "opacity-100 translate-x-0 pointer-events-auto z-10"
-                  : "opacity-0 -translate-x-2 pointer-events-none absolute inset-0 pt-3 sm:pt-4 lg:pt-5 px-3 sm:px-5 lg:px-6 pb-0 z-0"
-              }`}
+              className={`w-full h-full flex flex-col justify-between ${getPanelTransitionClasses(0)}`}
               aria-hidden={selectedId !== "web"}
             >
-              {/* Header */}
+              {/* Header with directional staggered entrance */}
               <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 sm:gap-3 pb-2 sm:pb-2.5 border-b border-border-subtle/70 shrink-0">
                 <div className="space-y-0.5 max-w-xl">
-                  <div className="flex items-center gap-2 font-mono text-[10.5px] text-text-muted tracking-[0.14em] uppercase">
+                  <div
+                    className={`flex items-center gap-2 font-mono text-[10.5px] text-text-muted tracking-[0.14em] uppercase transition-all duration-350 ease-out delay-[30ms] ${
+                      selectedId === "web" ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1"
+                    }`}
+                  >
                     <span className="text-accent-orange font-medium">01</span>
                     <span>/</span>
                     <span>WEB FRONTEND</span>
                   </div>
-                  <h3 className="font-sans text-[18px] sm:text-[21px] font-medium text-[#F1F0EC] tracking-tight leading-tight">
+                  <h3
+                    className={`font-sans text-[18px] sm:text-[21px] font-medium text-[#F1F0EC] tracking-tight leading-tight transition-all duration-400 ease-out delay-[70ms] ${
+                      selectedId === "web" ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1.5"
+                    }`}
+                  >
                     Your website, live.
                   </h3>
-                  <p className="font-sans text-[12px] sm:text-[13px] text-text-secondary leading-relaxed line-clamp-1">
+                  <p
+                    className={`font-sans text-[12px] sm:text-[13px] text-text-secondary leading-relaxed line-clamp-1 transition-all duration-450 ease-out delay-[110ms] ${
+                      selectedId === "web" ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1"
+                    }`}
+                  >
                     From your first deploy to every release.
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2 font-mono text-[11px] self-start sm:self-auto shrink-0 pb-0.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
+                {/* Service Status Badge with subtle pulse focus moment */}
+                <div
+                  className={`flex items-center gap-2 font-mono text-[11px] self-start sm:self-auto shrink-0 pb-0.5 transition-all duration-400 ease-out delay-[130ms] ${
+                    selectedId === "web" ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1"
+                  }`}
+                >
+                  <span className="relative flex h-2 w-2">
+                    <span
+                      className={`absolute inline-flex h-full w-full rounded-full bg-semantic-success opacity-75 ${
+                        selectedId === "web" ? "animate-ping" : ""
+                      }`}
+                      style={{ animationDuration: "2.4s", animationIterationCount: 2 }}
+                    />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-semantic-success" />
+                  </span>
                   <span className="text-[#F1F0EC] font-medium tracking-tight">meridian.jetway.app</span>
                   <span className="text-semantic-success font-medium">Live</span>
                 </div>
@@ -966,7 +1035,9 @@ export function ApplicationStack() {
                 onMouseLeave={() => {
                   iframeRef.current?.contentWindow?.postMessage({ type: "JETWAY_PREVIEW_RESUME" }, "*");
                 }}
-                className="flex-1 w-full min-h-0 mt-2 sm:mt-2.5 rounded-t-[8px] bg-[#141618] border-t border-x border-border-default/80 overflow-hidden shadow-2xl flex flex-col"
+                className={`flex-1 w-full min-h-0 mt-2 sm:mt-2.5 rounded-t-[8px] bg-[#141618] border-t border-x border-border-default/80 overflow-hidden shadow-2xl flex flex-col transition-all duration-500 ease-out delay-[90ms] ${
+                  selectedId === "web" ? "opacity-100 scale-100" : "opacity-80 scale-[0.995]"
+                }`}
               >
                 {/* Browser Frame Header */}
                 <div className="flex items-center justify-between px-3 py-1.5 bg-[#141618] border-b border-border-subtle/80 text-[10.5px] font-mono select-none shrink-0">
@@ -1001,68 +1072,114 @@ export function ApplicationStack() {
 
             {/* VIEW 2: API SERVICE — Real Request Playground */}
             <div
-              className={`w-full h-full flex flex-col justify-between pb-3 sm:pb-4 lg:pb-4 transition-all duration-300 ease-out ${
-                selectedId === "api"
-                  ? "opacity-100 translate-x-0 pointer-events-auto z-10"
-                  : "opacity-0 translate-x-2 pointer-events-none absolute inset-0 pt-3 sm:pt-4 lg:pt-5 px-3 sm:px-5 lg:px-6 pb-3 sm:pb-4 lg:pb-4 z-0"
-              }`}
+              className={`w-full h-full flex flex-col justify-between pb-3 sm:pb-4 lg:pb-4 ${getPanelTransitionClasses(1)}`}
               aria-hidden={selectedId !== "api"}
             >
-              {/* Header */}
+              {/* Header with directional staggered entrance */}
               <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 sm:gap-3 pb-2 sm:pb-2.5 border-b border-border-subtle/70 shrink-0">
                 <div className="space-y-0.5 max-w-xl">
-                  <div className="flex items-center gap-2 font-mono text-[10.5px] text-text-muted tracking-[0.14em] uppercase">
+                  <div
+                    className={`flex items-center gap-2 font-mono text-[10.5px] text-text-muted tracking-[0.14em] uppercase transition-all duration-350 ease-out delay-[30ms] ${
+                      selectedId === "api" ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1"
+                    }`}
+                  >
                     <span className="text-accent-orange font-medium">02</span>
                     <span>/</span>
                     <span>API SERVICE</span>
                   </div>
-                  <h3 className="font-sans text-[18px] sm:text-[21px] font-medium text-[#F1F0EC] tracking-tight leading-tight">
+                  <h3
+                    className={`font-sans text-[18px] sm:text-[21px] font-medium text-[#F1F0EC] tracking-tight leading-tight transition-all duration-400 ease-out delay-[70ms] ${
+                      selectedId === "api" ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1.5"
+                    }`}
+                  >
                     Every request, handled.
                   </h3>
-                  <p className="font-sans text-[12px] sm:text-[13px] text-text-secondary leading-relaxed line-clamp-1">
+                  <p
+                    className={`font-sans text-[12px] sm:text-[13px] text-text-secondary leading-relaxed line-clamp-1 transition-all duration-450 ease-out delay-[110ms] ${
+                      selectedId === "api" ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1"
+                    }`}
+                  >
                     From endpoint to response.
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2 font-mono text-[11px] self-start sm:self-auto shrink-0 pb-0.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
+                {/* Service Status Badge with subtle ping indicator */}
+                <div
+                  className={`flex items-center gap-2 font-mono text-[11px] self-start sm:self-auto shrink-0 pb-0.5 transition-all duration-400 ease-out delay-[130ms] ${
+                    selectedId === "api" ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1"
+                  }`}
+                >
+                  <span className="relative flex h-2 w-2">
+                    <span
+                      className={`absolute inline-flex h-full w-full rounded-full bg-semantic-success opacity-75 ${
+                        selectedId === "api" ? "animate-ping" : ""
+                      }`}
+                      style={{ animationDuration: "2.4s", animationIterationCount: 2 }}
+                    />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-semantic-success" />
+                  </span>
                   <span className="text-text-secondary">API online</span>
                 </div>
               </div>
 
               {/* Functional API Playground */}
-              <div className="flex-1 min-h-0 mt-2.5 overflow-hidden">
+              <div
+                className={`flex-1 min-h-0 mt-2.5 overflow-hidden transition-all duration-500 ease-out delay-[90ms] ${
+                  selectedId === "api" ? "opacity-100 scale-100" : "opacity-80 scale-[0.995]"
+                }`}
+              >
                 <ApiServicePlayground />
               </div>
             </div>
 
             {/* VIEW 3: DATABASE — The Living PostgreSQL Database Engine */}
             <div
-              className={`w-full h-full flex flex-col justify-between pb-3 sm:pb-4 lg:pb-4 transition-all duration-300 ease-out ${
-                selectedId === "db"
-                  ? "opacity-100 translate-x-0 pointer-events-auto z-10"
-                  : "opacity-0 translate-x-2 pointer-events-none absolute inset-0 pt-3 sm:pt-4 lg:pt-5 px-3 sm:px-5 lg:px-6 pb-3 sm:pb-4 lg:pb-4 z-0"
-              }`}
+              className={`w-full h-full flex flex-col justify-between pb-3 sm:pb-4 lg:pb-4 ${getPanelTransitionClasses(2)}`}
               aria-hidden={selectedId !== "db"}
             >
-              {/* Header */}
+              {/* Header with directional staggered entrance */}
               <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 sm:gap-3 pb-2 sm:pb-2.5 border-b border-border-subtle/70 shrink-0">
                 <div className="space-y-0.5 max-w-xl">
-                  <div className="flex items-center gap-2 font-mono text-[10.5px] text-text-muted tracking-[0.14em] uppercase">
+                  <div
+                    className={`flex items-center gap-2 font-mono text-[10.5px] text-text-muted tracking-[0.14em] uppercase transition-all duration-350 ease-out delay-[30ms] ${
+                      selectedId === "db" ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1"
+                    }`}
+                  >
                     <span className="text-accent-orange font-medium">03</span>
                     <span>/</span>
                     <span>DATABASE</span>
                   </div>
-                  <h3 className="font-sans text-[18px] sm:text-[21px] font-medium text-[#F1F0EC] tracking-tight leading-tight">
+                  <h3
+                    className={`font-sans text-[18px] sm:text-[21px] font-medium text-[#F1F0EC] tracking-tight leading-tight transition-all duration-400 ease-out delay-[70ms] ${
+                      selectedId === "db" ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1.5"
+                    }`}
+                  >
                     Your data, always within reach.
                   </h3>
-                  <p className="font-sans text-[12px] sm:text-[13px] text-text-secondary leading-relaxed line-clamp-1">
+                  <p
+                    className={`font-sans text-[12px] sm:text-[13px] text-text-secondary leading-relaxed line-clamp-1 transition-all duration-450 ease-out delay-[110ms] ${
+                      selectedId === "db" ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1"
+                    }`}
+                  >
                     PostgreSQL storage, built for your application.
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2 font-mono text-[11px] self-start sm:self-auto shrink-0 pb-0.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
+                {/* Service Status Badge with soft data glow indicator */}
+                <div
+                  className={`flex items-center gap-2 font-mono text-[11px] self-start sm:self-auto shrink-0 pb-0.5 transition-all duration-400 ease-out delay-[130ms] ${
+                    selectedId === "db" ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1"
+                  }`}
+                >
+                  <span className="relative flex h-2 w-2">
+                    <span
+                      className={`absolute inline-flex h-full w-full rounded-full bg-semantic-success opacity-75 ${
+                        selectedId === "db" ? "animate-ping" : ""
+                      }`}
+                      style={{ animationDuration: "2.4s", animationIterationCount: 2 }}
+                    />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-semantic-success" />
+                  </span>
                   <span className="text-[#F1F0EC] font-medium tracking-tight">PostgreSQL 16</span>
                   <span className="text-border-default text-[10px]">·</span>
                   <span className="text-semantic-success font-medium text-[10.5px]">Connected</span>
@@ -1070,44 +1187,73 @@ export function ApplicationStack() {
               </div>
 
               {/* Living Database Engine Visualization */}
-              <div className="flex-1 min-h-0 mt-2.5 overflow-hidden">
+              <div
+                className={`flex-1 min-h-0 mt-2.5 overflow-hidden transition-all duration-500 ease-out delay-[90ms] ${
+                  selectedId === "db" ? "opacity-100 scale-100" : "opacity-80 scale-[0.995]"
+                }`}
+              >
                 <DatabaseServicePlayground />
               </div>
             </div>
 
             {/* VIEW 4: BACKGROUND WORKER — Living Job Queue */}
             <div
-              className={`w-full h-full flex flex-col justify-between pb-3 sm:pb-4 lg:pb-4 transition-all duration-300 ease-out ${
-                selectedId === "worker"
-                  ? "opacity-100 translate-x-0 pointer-events-auto z-10"
-                  : "opacity-0 translate-x-2 pointer-events-none absolute inset-0 pt-3 sm:pt-4 lg:pt-5 px-3 sm:px-5 lg:px-6 pb-3 sm:pb-4 lg:pb-4 z-0"
-              }`}
+              className={`w-full h-full flex flex-col justify-between pb-3 sm:pb-4 lg:pb-4 ${getPanelTransitionClasses(3)}`}
               aria-hidden={selectedId !== "worker"}
             >
-              {/* Header */}
+              {/* Header with directional staggered entrance */}
               <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 sm:gap-3 pb-2 sm:pb-2.5 border-b border-border-subtle/70 shrink-0">
                 <div className="space-y-0.5 max-w-xl">
-                  <div className="flex items-center gap-2 font-mono text-[10.5px] text-text-muted tracking-[0.14em] uppercase">
+                  <div
+                    className={`flex items-center gap-2 font-mono text-[10.5px] text-text-muted tracking-[0.14em] uppercase transition-all duration-350 ease-out delay-[30ms] ${
+                      selectedId === "worker" ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1"
+                    }`}
+                  >
                     <span className="text-accent-orange font-medium">04</span>
                     <span>/</span>
                     <span>BACKGROUND WORKER</span>
                   </div>
-                  <h3 className="font-sans text-[18px] sm:text-[21px] font-medium text-[#F1F0EC] tracking-tight leading-tight">
+                  <h3
+                    className={`font-sans text-[18px] sm:text-[21px] font-medium text-[#F1F0EC] tracking-tight leading-tight transition-all duration-400 ease-out delay-[70ms] ${
+                      selectedId === "worker" ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1.5"
+                    }`}
+                  >
                     Heavy work. Handled in the background.
                   </h3>
-                  <p className="font-sans text-[12px] sm:text-[13px] text-text-secondary leading-relaxed line-clamp-1">
+                  <p
+                    className={`font-sans text-[12px] sm:text-[13px] text-text-secondary leading-relaxed line-clamp-1 transition-all duration-450 ease-out delay-[110ms] ${
+                      selectedId === "worker" ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1"
+                    }`}
+                  >
                     Run jobs asynchronously without slowing down your application.
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2 font-mono text-[11px] self-start sm:self-auto shrink-0 pb-0.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
+                {/* Service Status Badge with worker progression status */}
+                <div
+                  className={`flex items-center gap-2 font-mono text-[11px] self-start sm:self-auto shrink-0 pb-0.5 transition-all duration-400 ease-out delay-[130ms] ${
+                    selectedId === "worker" ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1"
+                  }`}
+                >
+                  <span className="relative flex h-2 w-2">
+                    <span
+                      className={`absolute inline-flex h-full w-full rounded-full bg-semantic-success opacity-75 ${
+                        selectedId === "worker" ? "animate-ping" : ""
+                      }`}
+                      style={{ animationDuration: "2.4s", animationIterationCount: 2 }}
+                    />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-semantic-success" />
+                  </span>
                   <span className="text-semantic-success font-medium">Workers active</span>
                 </div>
               </div>
 
               {/* Living Background Worker Visualization */}
-              <div className="flex-1 min-h-0 mt-2.5 overflow-hidden">
+              <div
+                className={`flex-1 min-h-0 mt-2.5 overflow-hidden transition-all duration-500 ease-out delay-[90ms] ${
+                  selectedId === "worker" ? "opacity-100 scale-100" : "opacity-80 scale-[0.995]"
+                }`}
+              >
                 <WorkerServicePlayground />
               </div>
             </div>
