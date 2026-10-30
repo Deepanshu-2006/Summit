@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import Image from "next/image";
 import { HeroMountainClouds } from "./hero-mountain-clouds";
 import { HeroTerrainWake } from "./hero-terrain-wake";
@@ -20,6 +20,101 @@ interface HeroMountainIllustrationProps {
 }
 
 /**
+ * Editorial Percentage Counter for Preloader
+ *
+ * Direct DOM-mutating 60/120Hz display ticker that tracks the master animation clock
+ * without React state reconciliation batching or dropped frames.
+ *
+ * At 92% -> 100%, it seamlessly glides downward with a gentle blur,
+ * handcrafting a continuous handoff into the hero headline character lift.
+ */
+function HeroMountainPreloaderCounter() {
+  const { subscribeProgress, phase, progress } = usePreloader();
+  const numRef = useRef<HTMLSpanElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+  const statusRef = useRef<HTMLSpanElement>(null);
+  const [isExiting, setIsExiting] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = subscribeProgress((intPct, floatPct) => {
+      if (numRef.current) {
+        numRef.current.textContent = String(intPct).padStart(2, "0");
+      }
+      if (barRef.current) {
+        barRef.current.style.transform = `scaleX(${Math.min(1, floatPct / 100)})`;
+      }
+      if (floatPct >= 92 && !isExiting) {
+        setIsExiting(true);
+      }
+      if (statusRef.current) {
+        if (intPct >= 99) {
+          statusRef.current.textContent = "TOPOGRAPHY RESOLVED";
+        }
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [subscribeProgress, isExiting]);
+
+  const shouldExit = isExiting || phase === "revealing" && progress >= 92 || phase === "complete";
+
+  return (
+    <div
+      className="fixed left-6 sm:left-10 md:left-14 lg:left-20 bottom-8 sm:bottom-12 lg:bottom-16 z-30 pointer-events-none select-none transition-all duration-500 ease-out will-change-[transform,opacity,filter]"
+      style={{
+        opacity: shouldExit ? 0 : 1,
+        transform: shouldExit ? "translateY(28px)" : "translateY(0)",
+        filter: shouldExit ? "blur(4px)" : "blur(0px)",
+      }}
+    >
+      {/* Big Editorial Tabular Percentage */}
+      <div className="flex items-baseline gap-1 sm:gap-2">
+        <span
+          ref={numRef}
+          className="font-mono text-[80px] sm:text-[104px] md:text-[124px] lg:text-[144px] font-light leading-none tracking-[-0.04em] text-[#FAF8F5] tabular-nums"
+        >
+          {String(progress).padStart(2, "0")}
+        </span>
+        <span className="font-mono text-[26px] sm:text-[34px] lg:text-[42px] font-normal text-accent-orange leading-none">
+          %
+        </span>
+      </div>
+
+      {/* Precision Topographic Calibration Status */}
+      <div className="flex items-center gap-2.5 mt-3 sm:mt-4">
+        <span className="relative flex h-2 w-2">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-orange opacity-75" />
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-accent-orange" />
+        </span>
+        <span
+          ref={statusRef}
+          className="font-mono text-[10.5px] sm:text-[11.5px] uppercase tracking-[0.22em] text-[#A6A4A0] font-medium"
+        >
+          CALIBRATING TOPOGRAPHY
+        </span>
+        <span className="font-mono text-[10.5px] sm:text-[11.5px] text-[#666460] hidden xs:inline">
+          // ELEV 3,428M
+        </span>
+      </div>
+
+      {/* Fine Hairline Progress Track */}
+      <div className="w-[180px] sm:w-[240px] h-[1.5px] bg-[#22211F] rounded-full overflow-hidden mt-3">
+        <div
+          ref={barRef}
+          className="h-full bg-accent-orange origin-left will-change-transform"
+          style={{
+            transform: `scaleX(${progress / 100})`,
+            transition: "transform 60ms linear",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/**
  * HeroMountainIllustration
  *
  * Full-Viewport, Infinitely Living Monochromatic Mountain Landscape:
@@ -28,24 +123,59 @@ interface HeroMountainIllustrationProps {
  *    - Signature antique copperplate alpine artwork (hero-engraved-mountains-fullbleed.webp).
  *
  * 2. Preloader Contour Tracing from Scratch:
- *    - Big, bold, architectural percentage loader in the bottom-left corner.
+ *    - Big, bold, architectural percentage loader in the bottom-left corner with 120Hz smooth ticking.
  *    - Mountain topography plotted line-by-line from 0% to 100% against an empty dark canvas
- *      via HeroMountainCanvasTracer (280 true elevation contour lines).
- *    - Bold luminous primary skyline and summit arête vector strokes drawing across the crest.
- *    - Fills seamlessly into the full photorealistic mountain artwork with zero layout shift.
+ *      via HeroMountainCanvasTracer (280 true elevation contour lines with fractional interpolation).
+ *    - Luminous primary skyline and summit arête vector strokes drawing across the crest.
+ *    - Seamless, smooth mathematical dissolution into full photorealistic artwork (60% -> 92%).
  *
  * 3. Continuous Handoff:
- *    - Settle into exact coordinates, triggering headline and live infrastructure.
+ *    - Overlapping character entrance for headline as loader glides away, triggering live infrastructure.
  */
 export function HeroMountainIllustration({
   isReducedMotion,
   isInView = true,
 }: HeroMountainIllustrationProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { phase, progress, isComplete } = usePreloader();
+  const { progress, progressFloat, isComplete } = usePreloader();
 
-  // If reduced motion is requested, render directly as resolved
-  const isPreloaderActive = !isReducedMotion && !isComplete;
+  // Preloader active while sequence is running
+  const isPreloaderActive = !isComplete;
+
+  // Continuous smooth opacity calculation for seamless blending
+  const masterImageOpacity = !isPreloaderActive
+    ? 0.95
+    : progressFloat < 55
+    ? 0
+    : progressFloat < 92
+    ? ((progressFloat - 55) / 37) * 0.95
+    : 0.95;
+
+  const vectorLinesOpacity = !isPreloaderActive
+    ? 0
+    : progressFloat < 72
+    ? 1
+    : Math.max(0, 1 - (progressFloat - 72) / 22);
+
+  const radianceOpacity = !isPreloaderActive
+    ? 0.3
+    : progressFloat < 65
+    ? 0
+    : Math.min(0.3, ((progressFloat - 65) / 28) * 0.3);
+
+  const surveySvgOpacity = !isPreloaderActive
+    ? 1
+    : progressFloat < 55
+    ? 0
+    : progressFloat < 88
+    ? ((progressFloat - 55) / 33) * 1
+    : 1;
+
+  const contrastGuardOpacity = !isPreloaderActive
+    ? 0.5
+    : progressFloat < 70
+    ? 0
+    : Math.min(0.5, ((progressFloat - 70) / 24) * 0.5);
 
   return (
     <div
@@ -56,58 +186,18 @@ export function HeroMountainIllustration({
       {/* =================================================================
           BIG EDITORIAL PERCENTAGE LOADER (LEFT BOTTOM)
           Monumental monospaced numeral in the bottom-left corner
-          counting from 00% to 100% in lockstep with the mountain tracing.
+          counting smoothly from 00% to 100% in lockstep with the mountain tracing.
           ================================================================= */}
-      {isPreloaderActive && (
-        <div
-          className="fixed left-6 sm:left-10 md:left-14 lg:left-20 bottom-8 sm:bottom-12 lg:bottom-16 z-30 pointer-events-none select-none transition-all duration-500 ease-out"
-          style={{
-            opacity: phase === "revealing" ? 0 : 1,
-            transform: phase === "revealing" ? "translateY(24px)" : "translateY(0)",
-          }}
-        >
-          {/* Big Editorial Tabular Percentage */}
-          <div className="flex items-baseline gap-1 sm:gap-2">
-            <span className="font-mono text-[80px] sm:text-[104px] md:text-[124px] lg:text-[144px] font-light leading-none tracking-[-0.04em] text-[#FAF8F5] tabular-nums">
-              {String(progress).padStart(2, "0")}
-            </span>
-            <span className="font-mono text-[26px] sm:text-[34px] lg:text-[42px] font-normal text-accent-orange leading-none">
-              %
-            </span>
-          </div>
-
-          {/* Precision Topographic Calibration Status */}
-          <div className="flex items-center gap-2.5 mt-3 sm:mt-4">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-orange opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-accent-orange" />
-            </span>
-            <span className="font-mono text-[10.5px] sm:text-[11.5px] uppercase tracking-[0.22em] text-[#A6A4A0] font-medium">
-              CALIBRATING TOPOGRAPHY
-            </span>
-            <span className="font-mono text-[10.5px] sm:text-[11.5px] text-[#666460] hidden xs:inline">
-              // ELEV 3,428M
-            </span>
-          </div>
-
-          {/* Fine Hairline Progress Track */}
-          <div className="w-[180px] sm:w-[240px] h-[1.5px] bg-[#22211F] rounded-full overflow-hidden mt-3">
-            <div
-              className="h-full bg-accent-orange transition-all duration-75 ease-linear"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        </div>
-      )}
+      {isPreloaderActive && <HeroMountainPreloaderCounter />}
 
       {/* =================================================================
           LAYER 1: ATMOSPHERIC SADDLE RADIANT BASE
           Ultra-gentle warm radiance echoing through the central pass.
           ================================================================= */}
       <div
-        className="absolute inset-0 w-full h-full pointer-events-none transition-opacity duration-700 ease-out"
+        className="absolute inset-0 w-full h-full pointer-events-none transition-opacity duration-500 ease-out"
         style={{
-          opacity: isPreloaderActive && progress < 85 ? 0 : 0.3,
+          opacity: radianceOpacity,
           background:
             "radial-gradient(ellipse 80% 60% at 65% 50%, rgba(216, 135, 98, 0.05) 0%, rgba(216, 135, 98, 0.015) 45%, transparent 75%)",
         }}
@@ -116,7 +206,7 @@ export function HeroMountainIllustration({
       {/* =================================================================
           PRELOADER LAYER A: 280 TRUE MATHEMATICAL CONTOUR LINES ON CANVAS
           Hardware-accelerated plotter drawing the mountain from zero against
-          the dark screen, directly synced with the bottom-left percentage counter.
+          the dark screen with continuous fractional sub-segment interpolation.
           ================================================================= */}
       {isPreloaderActive && <HeroMountainCanvasTracer />}
 
@@ -129,9 +219,9 @@ export function HeroMountainIllustration({
           viewBox="0 0 1440 800"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
-          className="absolute inset-0 w-full h-full pointer-events-none z-10 transition-opacity duration-700 ease-out overflow-visible"
+          className="absolute inset-0 w-full h-full pointer-events-none z-10 transition-opacity duration-500 ease-out overflow-visible"
           style={{
-            opacity: phase === "revealing" ? 0.35 : 1,
+            opacity: vectorLinesOpacity,
           }}
           aria-hidden="true"
         >
@@ -154,7 +244,7 @@ export function HeroMountainIllustration({
             </filter>
           </defs>
 
-          {/* 1. Primary Mountain Skyline (progress 0 -> 75%) */}
+          {/* 1. Primary Mountain Skyline (progress 0 -> 70%) */}
           <path
             d={MOUNTAIN_SKYLINE_PATH}
             stroke="#FAF8F5"
@@ -164,14 +254,14 @@ export function HeroMountainIllustration({
             filter="url(#traceGlowMain)"
             pathLength="100"
             strokeDasharray="100"
-            strokeDashoffset={Math.max(0, 100 - (progress / 75) * 100)}
+            strokeDashoffset={Math.max(0, 100 - (progress / 70) * 100)}
             style={{
-              transition: "stroke-dashoffset 80ms linear",
+              transition: "stroke-dashoffset 60ms linear",
               willChange: "stroke-dashoffset",
             }}
           />
 
-          {/* 2. Main High Arête (progress 10 -> 80%) */}
+          {/* 2. Main High Arête (progress 8 -> 75%) */}
           <path
             d={MOUNTAIN_MAIN_ARETE_PATH}
             stroke="#FAF8F5"
@@ -181,14 +271,14 @@ export function HeroMountainIllustration({
             filter="url(#traceGlowMain)"
             pathLength="100"
             strokeDasharray="100"
-            strokeDashoffset={Math.max(0, 100 - (Math.max(0, progress - 10) / 70) * 100)}
+            strokeDashoffset={Math.max(0, 100 - (Math.max(0, progress - 8) / 67) * 100)}
             style={{
-              transition: "stroke-dashoffset 80ms linear",
+              transition: "stroke-dashoffset 60ms linear",
               willChange: "stroke-dashoffset",
             }}
           />
 
-          {/* 3. Eastern High Shoulder (progress 18 -> 82%) in Burnt Orange */}
+          {/* 3. Eastern High Shoulder (progress 18 -> 80%) in Burnt Orange */}
           <path
             d={MOUNTAIN_EAST_RIDGE_PATH}
             stroke="#D88762"
@@ -198,9 +288,9 @@ export function HeroMountainIllustration({
             filter="url(#traceGlowEast)"
             pathLength="100"
             strokeDasharray="100"
-            strokeDashoffset={Math.max(0, 100 - (Math.max(0, progress - 18) / 64) * 100)}
+            strokeDashoffset={Math.max(0, 100 - (Math.max(0, progress - 18) / 62) * 100)}
             style={{
-              transition: "stroke-dashoffset 80ms linear",
+              transition: "stroke-dashoffset 60ms linear",
               willChange: "stroke-dashoffset",
             }}
           />
@@ -210,12 +300,12 @@ export function HeroMountainIllustration({
       {/* =================================================================
           LAYER 2: FULL-BLEED PANORAMIC ENGRAVED MOUNTAIN TOPOGRAPHY
           Antique copperplate alpine artwork filling the hero edge-to-edge.
-          Fades smoothly into view behind the traced contours at 85%+.
+          Fades smoothly into view behind the traced contours between 55% and 92%.
           ================================================================= */}
       <div
-        className="absolute inset-0 w-full h-full pointer-events-none transition-opacity duration-700 ease-out"
+        className="absolute inset-0 w-full h-full pointer-events-none transition-opacity duration-500 ease-out"
         style={{
-          opacity: isPreloaderActive && progress < 85 ? 0 : 0.95,
+          opacity: masterImageOpacity,
         }}
       >
         <div className="relative w-full h-full">
@@ -235,7 +325,7 @@ export function HeroMountainIllustration({
           LAYER 3: TRAVELLING MOUNTAIN RIDGE ILLUMINATION (Ambient 54s Loop)
           Slow-moving ambient illumination travelling gently across the ridges.
           ================================================================= */}
-      {!isReducedMotion && (!isPreloaderActive || phase === "revealing" || phase === "complete") && (
+      {!isReducedMotion && (!isPreloaderActive || progress >= 88) && (
         <div
           className="absolute inset-0 w-full h-full pointer-events-none animate-[ridgeIlluminationSweep_54s_easeInOut_infinite] will-change-transform transition-opacity duration-700"
           style={{
@@ -250,7 +340,7 @@ export function HeroMountainIllustration({
           LAYER 4: LIVING ATMOSPHERIC MOUNTAIN VALLEY CLOUDS (CANVAS)
           Multi-layer procedural mist moving continuously through the valleys.
           ================================================================= */}
-      {(!isPreloaderActive || phase === "revealing" || phase === "complete") && (
+      {(!isPreloaderActive || progress >= 85) && (
         <HeroMountainClouds
           isInView={isInView}
           isReducedMotion={isReducedMotion}
@@ -277,9 +367,9 @@ export function HeroMountainIllustration({
         viewBox="0 0 1440 800"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        className="absolute inset-0 w-full h-full pointer-events-none transition-opacity duration-700 ease-out"
+        className="absolute inset-0 w-full h-full pointer-events-none transition-opacity duration-500 ease-out"
         style={{
-          opacity: isPreloaderActive && progress < 40 ? 0 : isPreloaderActive && progress < 85 ? 0.35 : 1,
+          opacity: surveySvgOpacity,
         }}
         aria-hidden="true"
       >
@@ -386,17 +476,17 @@ export function HeroMountainIllustration({
           Gentle, broad atmospheric shadow behind the left typography column.
           ================================================================= */}
       <div
-        className="absolute left-0 top-0 w-full sm:w-[60vw] lg:w-[52vw] h-full pointer-events-none transition-opacity duration-700 ease-out"
+        className="absolute left-0 top-0 w-full sm:w-[60vw] lg:w-[52vw] h-full pointer-events-none transition-opacity duration-500 ease-out"
         style={{
-          opacity: isPreloaderActive && progress < 85 ? 0 : 0.5,
+          opacity: contrastGuardOpacity,
           background:
             "radial-gradient(ellipse 75% 70% at 20% 46%, rgba(17, 17, 17, 0.88) 0%, rgba(17, 17, 17, 0.45) 55%, transparent 100%)",
         }}
       />
       <div
-        className="absolute left-0 top-0 w-[35vw] h-full pointer-events-none transition-opacity duration-700 ease-out hidden lg:block"
+        className="absolute left-0 top-0 w-[35vw] h-full pointer-events-none transition-opacity duration-500 ease-out hidden lg:block"
         style={{
-          opacity: isPreloaderActive && progress < 85 ? 0 : 0.3,
+          opacity: !isPreloaderActive ? 0.3 : contrastGuardOpacity * 0.6,
           background:
             "linear-gradient(to right, rgba(17, 17, 17, 0.75) 0%, rgba(17, 17, 17, 0.25) 50%, transparent 100%)",
         }}
