@@ -1,93 +1,70 @@
-# Summit Jetway PaaS Monorepo
+# Summit monorepo
 
-Enterprise multi-package monorepo for the Summit & Jetway Developer Platform, integrating an editorial Next.js frontend, an OpenAPI-standardized contract layer, and a dedicated backend service.
+Summit is organized as a pnpm workspace for the Next.js UI and shared TypeScript packages, alongside a Go service for the backend. The OpenAPI document is the API contract shared by the UI and backend teams.
 
-```
-.
-├── apps/
-│   ├── web/                    # Next.js 16 (Turbopack + Tailwind v4) Frontend
-│   └── backend/                # Fastify + TypeScript PaaS Control Plane API
-├── packages/
-│   └── api_spec/               # OpenAPI 3.1.0 Contract & Shared TypeScript Types
-├── docs/                       # System Architecture & Topology Diagrams
-├── pnpm-workspace.yaml         # PNPM Workspace Configuration
-└── package.json                # Root Workspace Scripts
+```text
+apps/
+  web/                 Next.js frontend
+  backend/             Go API service
+packages/
+  api_spec/            OpenAPI 3.1 contract and TypeScript API models
+docs/
+  system_architechture.png
 ```
 
----
+The OpenAPI file describes the intended HTTP API. A path in the spec does not mean the backend has implemented it yet; implementation status belongs in the relevant backend work.
 
-## Workspace Structure & Team Ownership
+The handed-off UI still contains Next.js route handlers and an in-memory Meridian demo store. Treat those as prototype behavior, not the platform API implementation. New backend endpoints belong in `apps/backend`; the UI can switch from its demo routes to the Go service as those endpoints are implemented.
 
-### 1. `apps/web` (Frontend Application)
-- **Framework**: Next.js 16.4.3, React 19, Tailwind CSS v4, Motion, Three.js
-- **Responsibility**: Houses the interactive marketing experience, isometric WebGL construction canvas, API sandbox, and live pipeline monitors.
-- **Contract Integration**: Consumes `@summit/api-spec` workspace types for zero-drift API models.
-- **Run Locally**:
-  ```bash
-  pnpm dev:web
-  # or from apps/web: pnpm dev (runs on http://localhost:3000)
-  ```
+## Requirements
 
-### 2. `apps/backend` (Backend Platform Service)
-- **Framework**: Fastify 5 + TypeScript + CORS
-- **Responsibility**: Implements the Kubernetes control plane endpoints, resource provisioning, build queue, and Prometheus/Loki observability APIs as defined in [system_architechture.png](docs/system_architechture.png).
-- **Interactive OpenAPI Spec**: Exposes `/openapi.yaml` and handles all `/api/v1/*` contracts.
-- **Run Locally**:
-  ```bash
-  pnpm dev:backend
-  # or from apps/backend: pnpm dev (runs on http://localhost:4000)
-  ```
+- Node.js supported by Next.js 16
+- pnpm 12.15.0 (declared in the root `package.json`)
+- Go 1.23 or newer
 
-### 3. `packages/api_spec` (OpenAPI Contract & Shared Types)
-- **Standard**: OpenAPI 3.1.0 specification (`openapi.yaml`).
-- **Exports**: Strongly-typed TypeScript interfaces (`HealthResponse`, `Project`, `ResourceItem`, `ReleaseItem`, `MetricsResponse`, etc.) shared across both frontend and backend.
-- **Build / Check**:
-  ```bash
-  pnpm --filter @summit/api-spec build
-  ```
+## Install and run
 
----
+Install the JavaScript workspace dependencies from the repository root:
 
-## Getting Started
-
-### Prerequisites
-- Node.js `>= 20` (Node 24 recommended via `mise`)
-- PNPM `>= 12.15.0`
-
-### Installation
-Install workspace dependencies:
 ```bash
 pnpm install
 ```
 
-### Development
-Run all services concurrently:
+Run the frontend and backend in separate terminals:
+
 ```bash
-pnpm dev:all
-```
-Or run individually:
-```bash
-pnpm dev:web       # Frontend at http://localhost:3000
-pnpm dev:backend   # Backend at http://localhost:4000
+pnpm dev:web
 ```
 
-### Production Build
-Build all apps and packages in topological order:
 ```bash
-pnpm build
+pnpm dev:backend
 ```
 
----
+The frontend runs at `http://localhost:3000`. The backend listens on its configured local address; see `apps/backend/README.md` for its port and environment settings.
 
-## API & OpenAPI Endpoints
+## Workspace commands
 
-| Endpoint | Method | Description |
-| :--- | :--- | :--- |
-| `/api/v1/health` | `GET` | Cluster heartbeat, uptime, and edge routing region |
-| `/api/v1/projects` | `GET` | List provisioned projects |
-| `/api/v1/projects/:slug` | `GET` | Real-time operational topology & service health |
-| `/api/v1/resources` | `GET`, `POST` | Infrastructure provisioning (Postgres, Key-Value, S3, SSL) |
-| `/api/v1/releases` | `GET`, `POST` | Release trigger with semver verification & deployment state |
-| `/api/v1/observability/metrics` | `GET` | Prometheus cluster telemetry (CPU, RAM, RPS) |
-| `/api/v1/observability/logs` | `GET` | Grafana Loki structured log stream |
-| `/openapi.yaml` | `GET` | Full raw OpenAPI 3.1.0 specification |
+| Command | Purpose |
+| --- | --- |
+| `pnpm dev:web` | Start the Next.js frontend |
+| `pnpm dev:backend` | Start the Go API service |
+| `pnpm build` | Build JavaScript workspace packages and the Go service |
+| `pnpm lint` | Lint JavaScript packages and run `go vet` on the backend |
+| `pnpm typecheck` | Type-check JavaScript/TypeScript workspace packages |
+| `pnpm typecheck:web` | Type-check the frontend |
+| `pnpm typecheck:api` | Type-check the shared API package |
+
+Go-only code changes can also be checked from the repository root with `go -C apps/backend vet ./...` and built with `go -C apps/backend build ./...`.
+
+## API contract workflow
+
+Edit `packages/api_spec/openapi.yaml` first when changing an HTTP endpoint, request, response, or error shape. Coordinate the contract change with both teams, then update the Go handler and frontend client to match. The OpenAPI document is the source of truth; generated clients or server stubs should be added only when the team chooses and maintains a generation workflow.
+
+## Ownership
+
+- `apps/web`: frontend UI and API client integration.
+- `apps/backend`: Go control-plane API implementation.
+- `packages/api_spec`: versioned API contract and shared TypeScript types.
+- `docs`: architecture references.
+
+Keep credentials in local environment files. Commit only safe placeholders such as `.env.example`.

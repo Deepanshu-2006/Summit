@@ -1,6 +1,12 @@
 /**
  * Summit Jetway PaaS API Specification & Shared TypeScript Types
- * Generated and aligned with packages/api_spec/openapi.yaml
+ * Aligned with packages/api_spec/openapi.yaml (canonical OpenAPI 3.1 contract)
+ *
+ * This package defines the shared contract between the Go backend (apps/backend)
+ * and the Next.js frontend (apps/web).
+ *
+ * Note: These types represent the API contract specification. Specification
+ * of an endpoint or schema does not imply implementation status in the backend.
  */
 
 export interface HealthResponse {
@@ -44,6 +50,11 @@ export interface Project {
   environments: Environment[];
   services: Record<string, ServiceStatus>;
   updated_at: string;
+}
+
+export interface ProjectListResponse {
+  data: Project[];
+  total: number;
 }
 
 export type ResourceType =
@@ -91,6 +102,11 @@ export interface ResourceCreatedResponse {
   data: ResourceItem;
 }
 
+export interface DeleteResourceResponse {
+  success: boolean;
+  message: string;
+}
+
 export interface ReleaseItem {
   id: string;
   version: string;
@@ -109,14 +125,21 @@ export interface CreateReleaseRequest {
   changelog?: string;
 }
 
+export interface ReleaseListResponse {
+  data: ReleaseItem[];
+  total?: number;
+}
+
+export interface ReleaseCreatedData extends ReleaseItem {
+  changelog?: string;
+  traffic_allocation?: string;
+  edge_regions?: string[];
+}
+
 export interface ReleaseCreatedResponse {
   success: boolean;
   message: string;
-  data: ReleaseItem & {
-    changelog?: string;
-    traffic_allocation?: string;
-    edge_regions?: string[];
-  };
+  data: ReleaseCreatedData;
 }
 
 export interface MetricsResponse {
@@ -132,6 +155,11 @@ export interface LogEntry {
   level: "debug" | "info" | "warn" | "error";
   message: string;
   pod: string;
+}
+
+export interface LogStreamResponse {
+  service?: string;
+  entries: LogEntry[];
 }
 
 export interface ErrorResponse {

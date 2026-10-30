@@ -15,11 +15,17 @@ out/
 build/
 dist/
 .turbo/
+.unlazy/
+.claude/settings.local.json
+.unlazy-hook-state.json
 
 # Testing & Coverage
 coverage/
 *.lcov
 .nyc_output/
+coverage.out
+*.test
+*.prof
 
 # Environment Variables & Secrets
 .env
@@ -52,6 +58,9 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 .pnpm-debug.log*
+*.log
+*.txt
+*.raw.html
 
 # Python & Linter Caches (workspace hygiene)
 __pycache__/

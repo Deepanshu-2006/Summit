@@ -3,9 +3,11 @@ info:
   title: Summit Jetway PaaS Control Plane API
   version: 1.0.0
   description: >-
-    Unified OpenAPI specification for the Summit / Jetway Developer Platform
-    monorepo. Defines contracts between the Next.js frontend (apps/web), the
-    backend control plane service (apps/backend), Kubernetes operators, and edge routing.
+    Canonical OpenAPI 3.1 contract for the Summit Jetway developer platform.
+    Defines HTTP API specifications shared between the Go backend service (apps/backend)
+    and the Next.js frontend application (apps/web).
+    Note: Endpoints and schemas describe the target specification; inclusion in this contract
+    does not denote that an endpoint is currently implemented by the backend service.
 servers:
   - url: http://localhost:4000
     description: Local Backend Service
@@ -14,9 +16,23 @@ servers:
   - url: https://meridian.jetway.app
     description: Production Edge Gateway
 
+tags:
+  - name: System
+    description: System heartbeat, cluster health, and routing telemetry
+  - name: Projects
+    description: Project topology, environments, and services
+  - name: Resources
+    description: Infrastructure provisioning and lifecycle management
+  - name: Releases
+    description: Deployment releases and pipeline states
+  - name: Observability
+    description: Real-time Prometheus metrics and structured log streams
+
 paths:
   /api/v1/health:
     get:
+      tags:
+        - System
       summary: System Health & Heartbeat
       description: Returns cluster and service health, uptime, and edge routing region.
       operationId: getHealth
@@ -27,9 +43,17 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthResponse"
+        "503":
+          description: Service is degraded or unhealthy.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /api/v1/projects:
     get:
+      tags:
+        - Projects
       summary: List Projects
       description: Retrieve all provisioned projects in the tenant namespace.
       operationId: listProjects
@@ -39,21 +63,18 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - data
-                  - total
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Project"
-                  total:
-                    type: integer
-                    example: 1
+                $ref: "#/components/schemas/ProjectListResponse"
+        "500":
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /api/v1/projects/{slug}:
     get:
+      tags:
+        - Projects
       summary: Get Project Topology
       description: Fetch real-time operational topology, active environments, and service status for a project.
       operationId: getProjectBySlug
@@ -77,9 +98,17 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /api/v1/resources:
     get:
+      tags:
+        - Resources
       summary: List Provisioned Resources
       description: Returns all infrastructure resources (databases, caches, object storage, compute, certificates).
       operationId: listResources
@@ -96,7 +125,15 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ResourceListResponse"
+        "500":
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     post:
+      tags:
+        - Resources
       summary: Provision Infrastructure Resource
       description: Provision a new stateful database, key-value broker, S3 bucket, or edge certificate.
       operationId: createResource
@@ -119,9 +156,17 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /api/v1/resources/{id}:
     get:
+      tags:
+        - Resources
       summary: Get Resource Details
       operationId: getResourceById
       parameters:
@@ -143,7 +188,15 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     delete:
+      tags:
+        - Resources
       summary: Deprovision Resource
       operationId: deleteResource
       parameters:
@@ -158,16 +211,24 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
+                $ref: "#/components/schemas/DeleteResourceResponse"
+        "404":
+          description: Resource not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /api/v1/releases:
     get:
+      tags:
+        - Releases
       summary: List Deployment Releases
       description: Retrieve historical releases and automated deployment pipeline states.
       operationId: listReleases
@@ -177,15 +238,16 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - data
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/ReleaseItem"
+                $ref: "#/components/schemas/ReleaseListResponse"
+        "500":
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     post:
+      tags:
+        - Releases
       summary: Trigger Release Deployment
       description: Queue an immutable build and deploy artifact to the gVisor build pool and edge router mesh.
       operationId: createRelease
@@ -208,9 +270,17 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /api/v1/observability/metrics:
     get:
+      tags:
+        - Observability
       summary: Cluster & Service Prometheus Metrics
       description: Queries Prometheus metrics-server for CPU, memory, RPS, and edge latency.
       operationId: getMetrics
@@ -221,9 +291,17 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MetricsResponse"
+        "500":
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /api/v1/observability/logs:
     get:
+      tags:
+        - Observability
       summary: Stream Fluent Bit & Loki Logs
       description: Retrieve structured logs emitted by backend pods, build workers, or edge gateways.
       operationId: getLogs
@@ -246,19 +324,19 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  service:
-                    type: string
-                  entries:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/LogEntry"
+                $ref: "#/components/schemas/LogStreamResponse"
+        "500":
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
 components:
   schemas:
     HealthResponse:
       type: object
+      description: System health status and routing telemetry.
       required:
         - status
         - service
@@ -270,6 +348,7 @@ components:
       properties:
         status:
           type: string
+          enum: [healthy, degraded, unhealthy]
           example: healthy
         service:
           type: string
@@ -285,6 +364,7 @@ components:
           example: anycast
         uptime_seconds:
           type: integer
+          minimum: 0
           example: 4120
         timestamp:
           type: string
@@ -292,6 +372,7 @@ components:
 
     Environment:
       type: object
+      description: Deployment target environment configuration.
       required:
         - name
         - url
@@ -310,6 +391,7 @@ components:
 
     ServiceStatus:
       type: object
+      description: Real-time operational metrics for an attached microservice or component.
       properties:
         status:
           type: string
@@ -344,6 +426,7 @@ components:
 
     Project:
       type: object
+      description: Tenant project configuration, environment list, and service topology.
       required:
         - id
         - name
@@ -394,18 +477,36 @@ components:
           type: string
           format: date-time
 
+    ProjectListResponse:
+      type: object
+      description: Paginated or full list of provisioned tenant projects.
+      required:
+        - data
+        - total
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Project"
+        total:
+          type: integer
+          example: 1
+
     ResourceType:
       type: string
+      description: Categorization of provisioned infrastructure resources.
       enum: [database, key-value, storage, compute, certificate, web]
       example: database
 
     ResourceStatus:
       type: string
+      description: Lifecycle provisioning status of an infrastructure resource.
       enum: [available, provisioned, active, terminating]
       example: available
 
     ResourceItem:
       type: object
+      description: Managed infrastructure resource record.
       required:
         - id
         - name
@@ -437,6 +538,7 @@ components:
 
     CreateResourceRequest:
       type: object
+      description: Parameters for provisioning a new infrastructure resource.
       required:
         - name
         - type
@@ -458,6 +560,7 @@ components:
 
     ResourceListResponse:
       type: object
+      description: Response payload containing a collection of provisioned resources.
       required:
         - data
         - total
@@ -484,6 +587,7 @@ components:
 
     ResourceCreatedResponse:
       type: object
+      description: Acknowledgment response upon successful resource provisioning.
       required:
         - success
         - message
@@ -498,8 +602,23 @@ components:
         data:
           $ref: "#/components/schemas/ResourceItem"
 
+    DeleteResourceResponse:
+      type: object
+      description: Acknowledgment response when an infrastructure resource is queued for deprovisioning.
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Resource successfully queued for deprovisioning.
+
     ReleaseItem:
       type: object
+      description: Immutable deployment release artifact and pipeline state.
       required:
         - id
         - version
@@ -538,6 +657,7 @@ components:
 
     CreateReleaseRequest:
       type: object
+      description: Parameters for queueing a new deployment release.
       required:
         - version
         - branch
@@ -557,8 +677,42 @@ components:
           type: string
           example: Optimize WebGL rendering and deploy cache invalidation worker
 
+    ReleaseListResponse:
+      type: object
+      description: List of historical deployment releases and pipeline statuses.
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReleaseItem"
+        total:
+          type: integer
+          example: 1
+
+    ReleaseCreatedData:
+      type: object
+      description: Release details returned upon creation, including deployment routing metadata.
+      allOf:
+        - $ref: "#/components/schemas/ReleaseItem"
+        - type: object
+          properties:
+            changelog:
+              type: string
+              example: Optimize WebGL rendering and deploy cache invalidation worker
+            traffic_allocation:
+              type: string
+              example: "100%"
+            edge_regions:
+              type: array
+              items:
+                type: string
+              example: ["cdg-1", "fra-1", "lhr-1", "iad-1", "nrt-1"]
+
     ReleaseCreatedResponse:
       type: object
+      description: Acknowledgment response upon queueing or publishing a release.
       required:
         - success
         - message
@@ -571,23 +725,11 @@ components:
           type: string
           example: Release published to distributed edge mesh.
         data:
-          allOf:
-            - $ref: "#/components/schemas/ReleaseItem"
-            - type: object
-              properties:
-                changelog:
-                  type: string
-                traffic_allocation:
-                  type: string
-                  example: "100%"
-                edge_regions:
-                  type: array
-                  items:
-                    type: string
-                  example: ["cdg-1", "fra-1", "lhr-1", "iad-1", "nrt-1"]
+          $ref: "#/components/schemas/ReleaseCreatedData"
 
     MetricsResponse:
       type: object
+      description: Aggregated telemetry and resource utilization metrics.
       required:
         - cluster_cpu_usage_pct
         - cluster_memory_usage_pct
@@ -613,6 +755,7 @@ components:
 
     LogEntry:
       type: object
+      description: Single structured log entry emitted by platform pods or services.
       required:
         - timestamp
         - level
@@ -633,8 +776,23 @@ components:
           type: string
           example: web-service-cdg1-778dfb9-4k2x
 
+    LogStreamResponse:
+      type: object
+      description: Stream or collection of structured logs emitted by pods or services.
+      required:
+        - entries
+      properties:
+        service:
+          type: string
+          example: meridian-api
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/LogEntry"
+
     ErrorResponse:
       type: object
+      description: Standard API error envelope.
       required:
         - error
         - message

@@ -4,12 +4,15 @@
   "private": true,
   "packageManager": "pnpm@12.15.0",
   "scripts": {
-    "dev": "pnpm --filter @summit/web dev",
-    "dev:all": "pnpm -r --parallel run dev",
+    "dev": "pnpm dev:web",
     "dev:web": "pnpm --filter @summit/web dev",
-    "dev:backend": "pnpm --filter @summit/backend dev",
-    "build": "pnpm -r run build",
-    "lint": "pnpm -r run lint",
-    "typecheck": "pnpm -r run typecheck"
+    "dev:backend": "go -C apps/backend run ./cmd/api",
+    "build": "pnpm -r --if-present run build && pnpm build:backend",
+    "build:backend": "go -C apps/backend build ./...",
+    "lint": "pnpm -r --if-present run lint && pnpm lint:backend",
+    "lint:backend": "go -C apps/backend vet ./...",
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "typecheck:web": "pnpm --filter @summit/web typecheck",
+    "typecheck:api": "pnpm --filter @summit/api-spec typecheck"
   }
 }
