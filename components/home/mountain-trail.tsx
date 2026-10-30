@@ -363,12 +363,12 @@ export function MountainTrail() {
       const cp1Y = deployEl ? deployEl.offsetTop + 140 : startY + 140;
       const cp2Y = productEl ? productEl.offsetTop + 140 : startY + 1100;
       const cp3Y = stackEl ? stackEl.offsetTop + 140 : startY + 2100;
-      // Section 4 exit / lower trail start coordinate: at the top of platform-benefits conduit
-      const resumeY = benefitsEl
-        ? benefitsEl.offsetTop + 70
+      // Section 4 exit / lower trail start coordinate: at the top of Section 5 (Developer Experience)
+      const resumeY = devexEl
+        ? devexEl.offsetTop + 40
         : stackEl
         ? stackEl.offsetTop + stackEl.offsetHeight
-        : cp3Y + 1400;
+        : cp3Y + 1800;
       const cp4Y = devexEl ? devexEl.offsetTop + 140 : resumeY + 900;
 
       // End: In Section 5 Developer Experience, right below Checkpoint 4
@@ -487,12 +487,11 @@ export function MountainTrail() {
 
     // Check if user is currently inside Section 4's pinned exploration track
     const stackEl = document.getElementById("platform-stack");
-    const stackTop = stackEl ? stackEl.offsetTop : 0;
-    const stackHeight = stackEl ? stackEl.offsetHeight : 0;
-    const isInsideStack = stackEl
-      ? scrollY >= stackTop - 40 && scrollY <= stackTop + stackHeight - vh - 20
+    const stackRect = stackEl ? stackEl.getBoundingClientRect() : null;
+    const isInsideStack = stackRect
+      ? stackRect.top <= vh * 0.55 && stackRect.bottom >= vh * 0.15
       : false;
-    const isPastStack = stackEl ? scrollY > stackTop + stackHeight - vh - 20 : false;
+    const isPastStack = stackRect ? stackRect.bottom < vh * 0.15 : false;
 
     // Hiker only becomes visible once the user scrolls past Hero.
     // While inside Section 4, the vertical hiker is hidden and converts to the horizontal hiker.
@@ -552,12 +551,11 @@ export function MountainTrail() {
       const vh = window.innerHeight;
 
       const stackEl = document.getElementById("platform-stack");
-      const stackTop = stackEl ? stackEl.offsetTop : 0;
-      const stackHeight = stackEl ? stackEl.offsetHeight : 0;
-      const isInsideStack = stackEl
-        ? scrollY >= stackTop - 40 && scrollY <= stackTop + stackHeight - vh - 20
+      const stackRect = stackEl ? stackEl.getBoundingClientRect() : null;
+      const isInsideStack = stackRect
+        ? stackRect.top <= vh * 0.55 && stackRect.bottom >= vh * 0.15
         : false;
-      const isPastStack = stackEl ? scrollY > stackTop + stackHeight - vh - 20 : false;
+      const isPastStack = stackRect ? stackRect.bottom < vh * 0.15 : false;
 
       const targetY = isInsideStack
         ? lineCoords.cp3Y

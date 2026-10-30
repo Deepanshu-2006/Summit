@@ -133,7 +133,8 @@ function HorizontalTopDownHiker({
   return (
     <g
       ref={hikerRef}
-      className="will-change-transform pointer-events-none"
+      className="will-change-transform pointer-events-none transition-opacity duration-300"
+      style={{ opacity: 0 }}
       aria-hidden="true"
     >
       {/* 1. Ambient Warm Ground Contact Shadow & Subtle Alpine Lantern Glow */}
@@ -483,6 +484,12 @@ export function ApplicationStack() {
 
     // Apply hiker transforms directly
     if (hikerRef.current) {
+      if (sectionRef.current && typeof window !== "undefined") {
+        const sRect = sectionRef.current.getBoundingClientRect();
+        const vh = window.innerHeight;
+        const isInside = sRect.top <= vh * 0.55 && sRect.bottom >= vh * 0.15;
+        hikerRef.current.style.opacity = isInside ? "1" : "0";
+      }
       hikerRef.current.setAttribute(
         "transform",
         `translate(${pt.x.toFixed(1)}, ${pt.y.toFixed(1)}) rotate(${baseAngle.toFixed(1)}) scale(0.85)`
@@ -704,13 +711,12 @@ export function ApplicationStack() {
     window.addEventListener("scroll", onScroll, { passive: true });
 
     let ro: ResizeObserver | null = null;
-    if (typeof ResizeObserver !== "undefined" && sectionRef.current) {
+    if (typeof ResizeObserver !== "undefined" && switcherRef.current) {
       ro = new ResizeObserver(() => {
         measureTabCenters();
         computeScrollProgress();
-        checkBenefitsPosition();
       });
-      ro.observe(sectionRef.current);
+      ro.observe(switcherRef.current);
     }
 
     // Initial calculation on mount

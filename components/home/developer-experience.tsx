@@ -43,7 +43,7 @@ export function DeveloperExperience() {
   return (
     <section
       id="developer-experience"
-      className="relative w-full pt-24 pb-28 sm:pt-32 sm:pb-36 lg:pt-40 lg:pb-44 xl:pt-48 xl:pb-52 bg-transparent text-[#F0EEE9] overflow-hidden select-none"
+      className="relative w-full pt-24 pb-24 sm:pt-32 sm:pb-28 lg:pt-36 lg:pb-32 xl:pt-40 xl:pb-36 bg-transparent text-[#F0EEE9] overflow-hidden select-none"
       aria-labelledby="devex-heading"
     >
       <div className="layout-container w-full">
