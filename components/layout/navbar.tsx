@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ChevronDown, Menu, X, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { BRAND, NAV_DROPDOWNS, type NavDropdownItem } from "@/lib/brand";
+import { usePreloader } from "@/components/layout/preloader-context";
 
 /**
  * Geometric Brand Logo Mark for Summit
@@ -269,6 +270,7 @@ function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
  * Boundary-free integration over the mountain backdrop with zero separation line.
  */
 export function Navbar() {
+  const { isComplete } = usePreloader();
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -340,12 +342,17 @@ export function Navbar() {
   return (
     <header
       ref={navContainerRef}
-      className={`fixed top-0 left-0 right-0 z-50 w-full h-[72px] transition-all duration-300 select-none ${
+      className={`fixed top-0 left-0 right-0 z-50 w-full h-[72px] transition-all duration-500 select-none ${
+        !isComplete ? "opacity-0 pointer-events-none -translate-y-2" : "opacity-100 pointer-events-auto translate-y-0"
+      } ${
         isScrolled || isMobileOpen
           ? "bg-[#111111]/88 backdrop-blur-md shadow-lg shadow-black/40"
           : "bg-transparent border-none"
       }`}
       style={{
+        transitionProperty: "opacity, transform, background-color, border-color, box-shadow",
+        transitionDuration: "500ms",
+        transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
         background:
           isScrolled || isMobileOpen
             ? undefined
