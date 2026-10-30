@@ -44,6 +44,7 @@ export function ProductExperience() {
   );
 
   const sectionRef = useRef<HTMLElement>(null);
+  const diagramRef = useRef<HTMLDivElement>(null);
   
   // Animation state machine:
   // "dormant" -> "assembling" -> "connected" -> "working"
@@ -52,7 +53,7 @@ export function ProductExperience() {
   );
   const [telemetryStep, setTelemetryStep] = useState<number>(isReducedMotion ? 3 : 0);
 
-  // Trigger assembly on scroll into view using IntersectionObserver
+  // Trigger assembly on scroll into view with deliberate delay once diagram is comfortably visible
   useEffect(() => {
     if (isReducedMotion) {
       setAnimStage("working");
@@ -60,68 +61,78 @@ export function ProductExperience() {
       return;
     }
 
-    const section = sectionRef.current;
-    if (!section || typeof IntersectionObserver === "undefined") {
+    const diagram = diagramRef.current || sectionRef.current;
+    if (!diagram || typeof IntersectionObserver === "undefined") {
       setAnimStage("working");
       setTelemetryStep(3);
       return;
     }
 
+    let t0: NodeJS.Timeout;
     let t1: NodeJS.Timeout;
     let t2: NodeJS.Timeout;
     let t3: NodeJS.Timeout;
     let t4: NodeJS.Timeout;
     let t5: NodeJS.Timeout;
 
+    const clearAllTimers = () => {
+      clearTimeout(t0);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(t4);
+      clearTimeout(t5);
+    };
+
     const observer = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
         if (entry.isIntersecting) {
-          // Trigger assembly sequence
-          setAnimStage((prev) => (prev === "working" ? "working" : "assembling"));
+          clearAllTimers();
 
-          // Sequence timing:
-          // 0ms: Foundations & bases slide in
-          // 300ms: Upper bays, mid plinth, display extrude
-          // 550ms: Core processor nucleus locks in
-          // 800ms: Conduits draw and connect
-          t1 = setTimeout(() => {
-            setAnimStage("connected");
-          }, 1100);
+          // Deliberate grace delay (400ms):
+          // Ensures the user arrives at the diagram and sees the floating components
+          // before the cinematic assembly begins right before their eyes
+          t0 = setTimeout(() => {
+            setAnimStage("assembling");
 
-          // 1400ms: Machine is fully assembled and starts working
-          t2 = setTimeout(() => {
-            setAnimStage("working");
-          }, 1450);
+            // 1. T + 1150ms: Conduits finish drawing and snap couplings
+            t1 = setTimeout(() => {
+              setAnimStage("connected");
+            }, 1250);
 
-          // Telemetry sequence ticking in
-          t3 = setTimeout(() => setTelemetryStep(1), 1600);
-          t4 = setTimeout(() => setTelemetryStep(2), 2000);
-          t5 = setTimeout(() => setTelemetryStep(3), 2400);
+            // 2. T + 1750ms: System is fully joined and powers on ("starts working")
+            t2 = setTimeout(() => {
+              setAnimStage("working");
+            }, 1800);
+
+            // 3. Telemetry build steps execute in real-time sequence
+            t3 = setTimeout(() => setTelemetryStep(1), 2050);
+            t4 = setTimeout(() => setTelemetryStep(2), 2550);
+            t5 = setTimeout(() => setTelemetryStep(3), 3050);
+          }, 400);
         } else {
+          clearAllTimers();
+
           // Reset when scrolled far off-screen so user can experience the assembly again
           const rect = entry.boundingClientRect;
-          if (rect.top > window.innerHeight * 1.3 || rect.bottom < -window.innerHeight * 0.3) {
+          if (rect.top > window.innerHeight * 1.15 || rect.bottom < -window.innerHeight * 0.25) {
             setAnimStage("dormant");
             setTelemetryStep(0);
           }
         }
       },
       {
-        threshold: 0.18,
-        rootMargin: "0px 0px -50px 0px",
+        threshold: 0.35, // Diagram must be at least 35% visible inside the viewport
+        rootMargin: "0px 0px -80px 0px", // Guard against premature trigger while scrolling through header
       }
     );
 
-    observer.observe(section);
+    observer.observe(diagram);
 
     return () => {
       observer.disconnect();
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-      clearTimeout(t4);
-      clearTimeout(t5);
+      clearAllTimers();
     };
   }, [isReducedMotion]);
 
@@ -168,7 +179,7 @@ export function ProductExperience() {
         {/* =================================================================
             ART-DIRECTED DIAGONAL INFRASTRUCTURE ILLUSTRATION
             ================================================================= */}
-        <div className="w-full relative">
+        <div ref={diagramRef} className="w-full relative">
           
           {/* -------------------------------------------------------------
               DESKTOP SCENE: Large Diagonal Engineering Architecture

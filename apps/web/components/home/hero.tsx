@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Check } from "lucide-react";
 import { BRAND } from "@/lib/brand";
 import { HeroMountainIllustration } from "@/components/home/hero-mountain-illustration";
+import { usePreloader } from "@/components/layout/preloader-context";
 
 type AnimPhase = "source" | "packet1" | "building" | "packet2" | "production";
 
@@ -14,12 +15,12 @@ const LINE2_TEXT = "up here.";
 
 const LINE1_CHARS = Array.from(LINE1_TEXT).map((char, index) => ({
   char,
-  delay: +(0.08 + index * 0.032).toFixed(3),
+  delay: +(0.06 + index * 0.026).toFixed(3),
 }));
 
 const LINE2_CHARS = Array.from(LINE2_TEXT).map((char, index) => ({
   char,
-  delay: +(0.58 + index * 0.048).toFixed(3),
+  delay: +(0.48 + index * 0.038).toFixed(3),
 }));
 
 // SSR-safe subscription for prefers-reduced-motion
@@ -54,6 +55,7 @@ function getReducedMotionServerSnapshot() {
  *     3. Station 03: Production (Summit peak destination beacon)
  */
 export function Hero() {
+  const { isComplete, isHeroActive } = usePreloader();
   const [animPhase, setAnimPhase] = useState<AnimPhase>("source");
   const [buildStep, setBuildStep] = useState<number>(0); // 0: idle, 1: installing, 2: compiling, 3: ready
   const heroRef = useRef<HTMLElement>(null);
@@ -64,6 +66,8 @@ export function Hero() {
     getReducedMotionSnapshot,
     getReducedMotionServerSnapshot
   );
+
+  const isRevealed = isHeroActive;
 
   // Intersection observer to pause animations when outside viewport
   useEffect(() => {
@@ -81,7 +85,7 @@ export function Hero() {
 
   // Autonomous deployment sequence animation (9.6s loop: 4.8s progression + 4.8s live hold)
   useEffect(() => {
-    if (isReducedMotion || !isInView) {
+    if (isReducedMotion || !isInView || !isRevealed) {
       return;
     }
 
@@ -172,7 +176,7 @@ export function Hero() {
       clearInterval(interval);
       timeouts.forEach((t) => clearTimeout(t));
     };
-  }, [isReducedMotion, isInView]);
+  }, [isReducedMotion, isInView, isRevealed]);
 
   // Visual stage active states
   const activeStage =
@@ -233,6 +237,8 @@ export function Hero() {
                     style={
                       isReducedMotion
                         ? { opacity: 1, transform: "none", filter: "none" }
+                        : !isRevealed
+                        ? { opacity: 0, transform: "translateY(20px)", filter: "blur(4px)" }
                         : {
                             animation: "heroCharEntrance 0.48s cubic-bezier(0.16, 1, 0.3, 1) both",
                             animationDelay: `${item.delay}s`,
@@ -256,6 +262,8 @@ export function Hero() {
                     style={
                       isReducedMotion
                         ? { opacity: 1, transform: "none", filter: "none" }
+                        : !isRevealed
+                        ? { opacity: 0, transform: "translateY(20px)", filter: "blur(4px)" }
                         : {
                             animation: "heroCharEntrance 0.48s cubic-bezier(0.16, 1, 0.3, 1) both",
                             animationDelay: `${item.delay}s`,
@@ -274,9 +282,11 @@ export function Hero() {
               style={
                 isReducedMotion
                   ? { opacity: 1, transform: "none" }
+                  : !isRevealed
+                  ? { opacity: 0, transform: "translateY(16px)" }
                   : {
                       animation: "heroFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both",
-                      animationDelay: "0.80s",
+                      animationDelay: "0.70s",
                     }
               }
             >
@@ -289,9 +299,11 @@ export function Hero() {
               style={
                 isReducedMotion
                   ? { opacity: 1, transform: "none" }
+                  : !isRevealed
+                  ? { opacity: 0, transform: "translateY(16px)" }
                   : {
                       animation: "heroFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both",
-                      animationDelay: "1.00s",
+                      animationDelay: "0.85s",
                     }
               }
             >
@@ -327,7 +339,11 @@ export function Hero() {
                 viewBox="0 0 680 490"
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
-                className="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-visible"
+                className="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-visible transition-opacity duration-700 ease-out"
+                style={{
+                  opacity: !isRevealed ? 0 : 1,
+                  transitionDelay: isRevealed ? "400ms" : "0ms",
+                }}
                 aria-hidden="true"
               >
                 <defs>
@@ -489,6 +505,8 @@ export function Hero() {
                   width: 220,
                   ...(isReducedMotion
                     ? {}
+                    : !isRevealed
+                    ? { opacity: 0, transform: "translateY(16px)" }
                     : {
                         animation: "heroFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both",
                         animationDelay: "0.55s",
@@ -558,6 +576,8 @@ export function Hero() {
                   width: 254,
                   ...(isReducedMotion
                     ? {}
+                    : !isRevealed
+                    ? { opacity: 0, transform: "translateY(16px)" }
                     : {
                         animation: "heroFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both",
                         animationDelay: "0.80s",
@@ -670,6 +690,8 @@ export function Hero() {
                   width: 250,
                   ...(isReducedMotion
                     ? {}
+                    : !isRevealed
+                    ? { opacity: 0, transform: "translateY(16px)" }
                     : {
                         animation: "heroFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both",
                         animationDelay: "1.05s",

@@ -149,6 +149,7 @@ html {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  scrollbar-gutter: stable;
 }
 
 body {
@@ -463,12 +464,15 @@ body {
 @keyframes heroCharEntrance {
   0% {
     opacity: 0;
-    transform: translateY(20px);
-    filter: blur(4px);
+    transform: translateY(26px) scale(0.93) translateZ(0);
+    filter: blur(6px);
+  }
+  60% {
+    filter: blur(0px);
   }
   100% {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1) translateZ(0);
     filter: blur(0px);
   }
 }
