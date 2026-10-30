@@ -312,9 +312,10 @@ export function ApplicationStack() {
   const stickyRef = useRef<HTMLDivElement>(null);
   const switcherRef = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  const benefitRef = useRef<HTMLDivElement>(null);
+  const benefitRef = useRef<HTMLElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
+  const [benefitsInView, setBenefitsInView] = useState<boolean>(false);
 
   // SVG Trail Refs
   const pathRef = useRef<SVGPathElement>(null);
@@ -541,10 +542,9 @@ export function ApplicationStack() {
 
     const rect = sectionRef.current.getBoundingClientRect();
     const vh = window.innerHeight;
-    const benefitHeight = benefitRef.current?.offsetHeight || 280;
 
-    // Pinned travel distance
-    const scrollDistance = rect.height - vh - benefitHeight;
+    // Pinned travel distance strictly across the 4-stage exploration track
+    const scrollDistance = rect.height - vh;
     if (scrollDistance <= 0) return;
 
     const currentScroll = -rect.top;
@@ -558,11 +558,11 @@ export function ApplicationStack() {
       const trailRatio = progressToTrailRatio(clampedProgress);
       updateHikerAndTrail(trailRatio * pathLengthRef.current, animRef.current);
       const stageIdx =
-        clampedProgress < 0.25
+        clampedProgress < 0.22
           ? 0
-          : clampedProgress < 0.5
+          : clampedProgress < 0.55
           ? 1
-          : clampedProgress < 0.75
+          : clampedProgress < 0.86
           ? 2
           : 3;
       if (stageIdx !== activeIndexRef.current) {
@@ -629,16 +629,15 @@ export function ApplicationStack() {
     activeIndexRef.current = idx;
 
     const rect = sectionRef.current.getBoundingClientRect();
-    const benefitHeight = benefitRef.current?.offsetHeight || 280;
-    const scrollDistance = sectionRef.current.offsetHeight - window.innerHeight - benefitHeight;
+    const scrollDistance = sectionRef.current.offsetHeight - window.innerHeight;
 
-    // Target progress for stage centers: 0.08, 0.38, 0.68, 0.95
-    const targetP = idx === 0 ? 0.08 : idx === 1 ? 0.38 : idx === 2 ? 0.68 : 0.95;
+    // Target progress for stage centers: 0.06, 0.38, 0.70, 0.96
+    const targetP = idx === 0 ? 0.06 : idx === 1 ? 0.38 : idx === 2 ? 0.70 : 0.96;
     const sectionDocumentTop = window.scrollY + rect.top;
     const targetScrollY = sectionDocumentTop + targetP * scrollDistance;
 
     if (lenis) {
-      lenis.scrollTo(targetScrollY, { duration: isReducedMotion ? 0 : 0.9 });
+      lenis.scrollTo(targetScrollY, { duration: isReducedMotion ? 0 : 0.8 });
     } else {
       window.scrollTo({
         top: targetScrollY,
@@ -677,22 +676,42 @@ export function ApplicationStack() {
     return () => observer.disconnect();
   }, [selectedId]);
 
+  // Observe entrance of architectural benefit pillars below the pinned stack
+  useEffect(() => {
+    if (!benefitRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setBenefitsInView(true);
+          }
+        });
+      },
+      { threshold: 0.15 }
+    );
+
+    observer.observe(benefitRef.current);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <section
-      ref={sectionRef}
-      id="platform-stack"
-      className="relative w-full h-[270vh] sm:h-[290vh] lg:h-[310vh] bg-transparent text-text-primary"
-      aria-labelledby="stack-heading"
-    >
-      {/* =================================================================
-          STICKY VIEWPORT CONTAINER
-          Pins during the 4-stage exploration track, keeping the experience
-          perfectly centered and in focus.
-          ================================================================= */}
-      <div
-        ref={stickyRef}
-        className="sticky top-0 z-20 w-full h-screen overflow-hidden flex flex-col justify-between pt-[76px] pb-4 sm:pb-6 select-none"
+    <>
+      <section
+        ref={sectionRef}
+        id="platform-stack"
+        className="relative w-full h-[320vh] sm:h-[360vh] lg:h-[400vh] bg-bg-main text-text-primary"
+        aria-labelledby="stack-heading"
       >
+        {/* =================================================================
+            STICKY VIEWPORT CONTAINER
+            Pins during the 4-stage exploration track, keeping the experience
+            perfectly centered and in focus.
+            ================================================================= */}
+        <div
+          ref={stickyRef}
+          className="sticky top-0 z-20 w-full h-screen overflow-hidden flex flex-col justify-between pt-[76px] pb-4 sm:pb-6 select-none bg-bg-main"
+        >
         <div className="layout-container w-full flex-1 flex flex-col justify-between min-h-0 select-text">
 
           {/* =============================================================
@@ -1096,23 +1115,50 @@ export function ApplicationStack() {
 
         </div>
       </div>
+    </section>
 
       {/* =================================================================
           NATURAL FLOW EXIT: THREE BENEFIT PILLARS
           Revealed as normal scrolling seamlessly resumes after Stage 4.
+          Features a smooth staggered entrance animation as the section enters.
           ================================================================= */}
-      <div
+      <section
         ref={benefitRef}
-        className="relative z-10 w-full bg-transparent pt-14 pb-20 sm:pt-18 sm:pb-24 border-t border-border-subtle"
+        id="platform-benefits"
+        className="relative z-10 w-full bg-bg-main pt-20 pb-28 sm:pt-28 sm:pb-36 border-t border-border-subtle"
+        aria-label="Platform Architecture Benefits"
       >
         <div className="layout-container w-full">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-10 w-full max-w-6xl">
+          {/* Subtle Section Eyebrow */}
+          <div
+            className={`flex items-center gap-2 mb-8 sm:mb-12 transition-all duration-700 ease-out ${
+              benefitsInView || isReducedMotion
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 translate-y-6"
+            }`}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-accent-orange" />
+            <span className="font-mono text-[11px] text-text-muted tracking-[0.16em] uppercase">
+              Architectural Foundations
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 w-full max-w-6xl">
             {/* Column 01 */}
-            <div className="space-y-2">
-              <div className="font-mono text-[11px] text-accent-orange font-medium tracking-wider">
+            <div
+              className={`p-6 sm:p-7 rounded-[10px] bg-surface-card/60 border border-border-subtle/80 backdrop-blur-sm transition-all duration-700 ease-out hover:border-accent-orange/40 hover:bg-surface-card/90 ${
+                benefitsInView || isReducedMotion
+                  ? "opacity-100 translate-y-0"
+                  : "opacity-0 translate-y-8"
+              }`}
+              style={{
+                transitionDelay: benefitsInView && !isReducedMotion ? "120ms" : "0ms",
+              }}
+            >
+              <div className="font-mono text-[11px] text-accent-orange font-medium tracking-wider mb-3">
                 01
               </div>
-              <h3 className="font-sans text-[16px] sm:text-[17px] font-medium text-[#F1F0EC] tracking-[-0.015em]">
+              <h3 className="font-sans text-[17px] sm:text-[18px] font-medium text-[#F1F0EC] tracking-[-0.015em] mb-2.5">
                 Connected services
               </h3>
               <p className="font-sans text-[13.5px] text-text-secondary leading-[1.6]">
@@ -1121,11 +1167,20 @@ export function ApplicationStack() {
             </div>
 
             {/* Column 02 */}
-            <div className="space-y-2">
-              <div className="font-mono text-[11px] text-accent-orange font-medium tracking-wider">
+            <div
+              className={`p-6 sm:p-7 rounded-[10px] bg-surface-card/60 border border-border-subtle/80 backdrop-blur-sm transition-all duration-700 ease-out hover:border-accent-orange/40 hover:bg-surface-card/90 ${
+                benefitsInView || isReducedMotion
+                  ? "opacity-100 translate-y-0"
+                  : "opacity-0 translate-y-8"
+              }`}
+              style={{
+                transitionDelay: benefitsInView && !isReducedMotion ? "260ms" : "0ms",
+              }}
+            >
+              <div className="font-mono text-[11px] text-accent-orange font-medium tracking-wider mb-3">
                 02
               </div>
-              <h3 className="font-sans text-[16px] sm:text-[17px] font-medium text-[#F1F0EC] tracking-[-0.015em]">
+              <h3 className="font-sans text-[17px] sm:text-[18px] font-medium text-[#F1F0EC] tracking-[-0.015em] mb-2.5">
                 One developer workflow
               </h3>
               <p className="font-sans text-[13.5px] text-text-secondary leading-[1.6]">
@@ -1134,11 +1189,20 @@ export function ApplicationStack() {
             </div>
 
             {/* Column 03 */}
-            <div className="space-y-2">
-              <div className="font-mono text-[11px] text-accent-orange font-medium tracking-wider">
+            <div
+              className={`p-6 sm:p-7 rounded-[10px] bg-surface-card/60 border border-border-subtle/80 backdrop-blur-sm transition-all duration-700 ease-out hover:border-accent-orange/40 hover:bg-surface-card/90 ${
+                benefitsInView || isReducedMotion
+                  ? "opacity-100 translate-y-0"
+                  : "opacity-0 translate-y-8"
+              }`}
+              style={{
+                transitionDelay: benefitsInView && !isReducedMotion ? "400ms" : "0ms",
+              }}
+            >
+              <div className="font-mono text-[11px] text-accent-orange font-medium tracking-wider mb-3">
                 03
               </div>
-              <h3 className="font-sans text-[16px] sm:text-[17px] font-medium text-[#F1F0EC] tracking-[-0.015em]">
+              <h3 className="font-sans text-[17px] sm:text-[18px] font-medium text-[#F1F0EC] tracking-[-0.015em] mb-2.5">
                 Room to grow
               </h3>
               <p className="font-sans text-[13.5px] text-text-secondary leading-[1.6]">
@@ -1147,8 +1211,8 @@ export function ApplicationStack() {
             </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </>
   );
 }
 
