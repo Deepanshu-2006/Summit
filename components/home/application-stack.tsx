@@ -700,7 +700,7 @@ export function ApplicationStack() {
       <section
         ref={sectionRef}
         id="platform-stack"
-        className="relative w-full h-[320vh] sm:h-[360vh] lg:h-[400vh] bg-bg-main text-text-primary"
+        className="relative w-full h-[320vh] sm:h-[360vh] lg:h-[400vh] bg-transparent text-text-primary"
         aria-labelledby="stack-heading"
       >
         {/* =================================================================
@@ -710,7 +710,7 @@ export function ApplicationStack() {
             ================================================================= */}
         <div
           ref={stickyRef}
-          className="sticky top-0 z-20 w-full h-screen overflow-hidden flex flex-col justify-between pt-[76px] pb-4 sm:pb-6 select-none bg-bg-main"
+          className="sticky top-0 z-20 w-full h-screen overflow-hidden flex flex-col justify-between pt-[76px] pb-4 sm:pb-6 select-none bg-transparent"
         >
         <div className="layout-container w-full flex-1 flex flex-col justify-between min-h-0 select-text">
 
@@ -1120,92 +1120,132 @@ export function ApplicationStack() {
       {/* =================================================================
           NATURAL FLOW EXIT: THREE BENEFIT PILLARS
           Revealed as normal scrolling seamlessly resumes after Stage 4.
-          Features a smooth staggered entrance animation as the section enters.
+          Features a smooth line-by-line staggered entrance animation.
           ================================================================= */}
       <section
         ref={benefitRef}
         id="platform-benefits"
-        className="relative z-10 w-full bg-bg-main pt-20 pb-28 sm:pt-28 sm:pb-36 border-t border-border-subtle"
+        className="relative z-10 w-full bg-transparent pt-16 pb-24 sm:pt-20 sm:pb-32"
         aria-label="Platform Architecture Benefits"
       >
         <div className="layout-container w-full">
-          {/* Subtle Section Eyebrow */}
-          <div
-            className={`flex items-center gap-2 mb-8 sm:mb-12 transition-all duration-700 ease-out ${
-              benefitsInView || isReducedMotion
-                ? "opacity-100 translate-y-0"
-                : "opacity-0 translate-y-6"
-            }`}
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-accent-orange" />
-            <span className="font-mono text-[11px] text-text-muted tracking-[0.16em] uppercase">
-              Architectural Foundations
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 w-full max-w-6xl">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-12 w-full max-w-6xl">
             {/* Column 01 */}
-            <div
-              className={`p-6 sm:p-7 rounded-[10px] bg-surface-card/60 border border-border-subtle/80 backdrop-blur-sm transition-all duration-700 ease-out hover:border-accent-orange/40 hover:bg-surface-card/90 ${
-                benefitsInView || isReducedMotion
-                  ? "opacity-100 translate-y-0"
-                  : "opacity-0 translate-y-8"
-              }`}
-              style={{
-                transitionDelay: benefitsInView && !isReducedMotion ? "120ms" : "0ms",
-              }}
-            >
-              <div className="font-mono text-[11px] text-accent-orange font-medium tracking-wider mb-3">
+            <div className="space-y-2">
+              <div
+                className={`font-mono text-[11px] text-accent-orange font-medium tracking-wider transition-all duration-700 ease-out ${
+                  benefitsInView || isReducedMotion
+                    ? "opacity-100 translate-y-0"
+                    : "opacity-0 translate-y-4"
+                }`}
+                style={{
+                  transitionDelay: benefitsInView && !isReducedMotion ? "100ms" : "0ms",
+                }}
+              >
                 01
               </div>
-              <h3 className="font-sans text-[17px] sm:text-[18px] font-medium text-[#F1F0EC] tracking-[-0.015em] mb-2.5">
+              <h3
+                className={`font-sans text-[16px] sm:text-[17px] font-medium text-[#F1F0EC] tracking-[-0.015em] transition-all duration-700 ease-out ${
+                  benefitsInView || isReducedMotion
+                    ? "opacity-100 translate-y-0"
+                    : "opacity-0 translate-y-4"
+                }`}
+                style={{
+                  transitionDelay: benefitsInView && !isReducedMotion ? "220ms" : "0ms",
+                }}
+              >
                 Connected services
               </h3>
-              <p className="font-sans text-[13.5px] text-text-secondary leading-[1.6]">
+              <p
+                className={`font-sans text-[13.5px] text-text-secondary leading-[1.6] transition-all duration-700 ease-out ${
+                  benefitsInView || isReducedMotion
+                    ? "opacity-100 translate-y-0"
+                    : "opacity-0 translate-y-4"
+                }`}
+                style={{
+                  transitionDelay: benefitsInView && !isReducedMotion ? "340ms" : "0ms",
+                }}
+              >
                 Keep the relationships between application components understandable through a shared internal network.
               </p>
             </div>
 
             {/* Column 02 */}
-            <div
-              className={`p-6 sm:p-7 rounded-[10px] bg-surface-card/60 border border-border-subtle/80 backdrop-blur-sm transition-all duration-700 ease-out hover:border-accent-orange/40 hover:bg-surface-card/90 ${
-                benefitsInView || isReducedMotion
-                  ? "opacity-100 translate-y-0"
-                  : "opacity-0 translate-y-8"
-              }`}
-              style={{
-                transitionDelay: benefitsInView && !isReducedMotion ? "260ms" : "0ms",
-              }}
-            >
-              <div className="font-mono text-[11px] text-accent-orange font-medium tracking-wider mb-3">
+            <div className="space-y-2">
+              <div
+                className={`font-mono text-[11px] text-accent-orange font-medium tracking-wider transition-all duration-700 ease-out ${
+                  benefitsInView || isReducedMotion
+                    ? "opacity-100 translate-y-0"
+                    : "opacity-0 translate-y-4"
+                }`}
+                style={{
+                  transitionDelay: benefitsInView && !isReducedMotion ? "240ms" : "0ms",
+                }}
+              >
                 02
               </div>
-              <h3 className="font-sans text-[17px] sm:text-[18px] font-medium text-[#F1F0EC] tracking-[-0.015em] mb-2.5">
+              <h3
+                className={`font-sans text-[16px] sm:text-[17px] font-medium text-[#F1F0EC] tracking-[-0.015em] transition-all duration-700 ease-out ${
+                  benefitsInView || isReducedMotion
+                    ? "opacity-100 translate-y-0"
+                    : "opacity-0 translate-y-4"
+                }`}
+                style={{
+                  transitionDelay: benefitsInView && !isReducedMotion ? "360ms" : "0ms",
+                }}
+              >
                 One developer workflow
               </h3>
-              <p className="font-sans text-[13.5px] text-text-secondary leading-[1.6]">
+              <p
+                className={`font-sans text-[13.5px] text-text-secondary leading-[1.6] transition-all duration-700 ease-out ${
+                  benefitsInView || isReducedMotion
+                    ? "opacity-100 translate-y-0"
+                    : "opacity-0 translate-y-4"
+                }`}
+                style={{
+                  transitionDelay: benefitsInView && !isReducedMotion ? "480ms" : "0ms",
+                }}
+              >
                 Reduce the need to think about every component as an entirely separate project. Manage routing, environment, and code from one place.
               </p>
             </div>
 
             {/* Column 03 */}
-            <div
-              className={`p-6 sm:p-7 rounded-[10px] bg-surface-card/60 border border-border-subtle/80 backdrop-blur-sm transition-all duration-700 ease-out hover:border-accent-orange/40 hover:bg-surface-card/90 ${
-                benefitsInView || isReducedMotion
-                  ? "opacity-100 translate-y-0"
-                  : "opacity-0 translate-y-8"
-              }`}
-              style={{
-                transitionDelay: benefitsInView && !isReducedMotion ? "400ms" : "0ms",
-              }}
-            >
-              <div className="font-mono text-[11px] text-accent-orange font-medium tracking-wider mb-3">
+            <div className="space-y-2">
+              <div
+                className={`font-mono text-[11px] text-accent-orange font-medium tracking-wider transition-all duration-700 ease-out ${
+                  benefitsInView || isReducedMotion
+                    ? "opacity-100 translate-y-0"
+                    : "opacity-0 translate-y-4"
+                }`}
+                style={{
+                  transitionDelay: benefitsInView && !isReducedMotion ? "380ms" : "0ms",
+                }}
+              >
                 03
               </div>
-              <h3 className="font-sans text-[17px] sm:text-[18px] font-medium text-[#F1F0EC] tracking-[-0.015em] mb-2.5">
+              <h3
+                className={`font-sans text-[16px] sm:text-[17px] font-medium text-[#F1F0EC] tracking-[-0.015em] transition-all duration-700 ease-out ${
+                  benefitsInView || isReducedMotion
+                    ? "opacity-100 translate-y-0"
+                    : "opacity-0 translate-y-4"
+                }`}
+                style={{
+                  transitionDelay: benefitsInView && !isReducedMotion ? "500ms" : "0ms",
+                }}
+              >
                 Room to grow
               </h3>
-              <p className="font-sans text-[13.5px] text-text-secondary leading-[1.6]">
+              <p
+                className={`font-sans text-[13.5px] text-text-secondary leading-[1.6] transition-all duration-700 ease-out ${
+                  benefitsInView || isReducedMotion
+                    ? "opacity-100 translate-y-0"
+                    : "opacity-0 translate-y-4"
+                }`}
+                style={{
+                  transitionDelay: benefitsInView && !isReducedMotion ? "620ms" : "0ms",
+                }}
+              >
                 Start with a single frontend service, then attach background workers, queues, and databases as your application evolves.
               </p>
             </div>
