@@ -78,7 +78,7 @@ function getReducedMotionServerSnapshot() {
 }
 
 /**
- * Maps pinned scroll progress [0, 1] across the 4 stages into a continuous trail ratio [0, 1].
+ * Maps pinned scroll progress [0, 1] across the 4 stages into a continuous trail progress [0, 1].
  * Dwells comfortably at each station so users can read the active stage content,
  * then organically accelerates and decelerates while walking between stations.
  */
@@ -301,8 +301,7 @@ function HorizontalTopDownHiker({
  * - Hiker advances along the alpine path as user scrolls, illuminating conquered waypoints in Summit burnt orange.
  * - Clicking any stage label smoothly scrolls the page and animates the hiker to that station.
  * - Smooth, zero-height-jump crossfades between the four infrastructure views.
- * - The three architectural benefit pillars reside outside the sticky container in normal document flow,
- *   becoming visible only after the 4-stage exploration scroll completes.
+ * - Releases cleanly into normal page flow revealing the three architectural benefit pillars.
  */
 export function ApplicationStack() {
   const [selectedId, setSelectedId] = useState<ServiceId>("web");
@@ -381,7 +380,7 @@ export function ApplicationStack() {
     }
   }, []);
 
-  // Compute SVG trail path starting from the left edge (where vertical mountain trail arrives)
+  // Compute SVG trail path with subtle organic mountain contour bends
   const pathD = React.useMemo(() => {
     if (tabCenters.length < 4) return "M 0 16 L 600 16";
     const [x0, x1, x2, x3] = tabCenters;
@@ -389,10 +388,8 @@ export function ApplicationStack() {
     const dx12 = x2 - x1;
     const dx23 = x3 - x2;
 
-    // Connects horizontally from left edge (x=0) where the vertical mountain trail arrives,
-    // then traverses across all 4 stage stations with organic alpine contour curvature
-    return `M 0 16.0 ` +
-      `C ${(x0 * 0.4).toFixed(1)} 16.0, ${(x0 * 0.75).toFixed(1)} 16.0, ${x0.toFixed(1)} 16.0 ` +
+    // Organic mountain trail curvature through subtle topographic saddles and knolls
+    return `M ${x0.toFixed(1)} 16.0 ` +
       `C ${(x0 + dx01 * 0.35).toFixed(1)} 12.5, ${(x0 + dx01 * 0.68).toFixed(1)} 19.5, ${x1.toFixed(1)} 16.0 ` +
       `C ${(x1 + dx12 * 0.32).toFixed(1)} 20.0, ${(x1 + dx12 * 0.70).toFixed(1)} 13.0, ${x2.toFixed(1)} 16.0 ` +
       `C ${(x2 + dx23 * 0.35).toFixed(1)} 12.0, ${(x2 + dx23 * 0.65).toFixed(1)} 18.5, ${x3.toFixed(1)} 16.0`;
@@ -486,8 +483,7 @@ export function ApplicationStack() {
 
       const trailRatio = progressToTrailRatio(anim.currentProgress);
       const totalLen = pathLengthRef.current;
-      const entryDist = tabCenters.length > 0 ? tabCenters[0] : 0;
-      const targetDist = entryDist + trailRatio * Math.max(0, totalLen - entryDist);
+      const targetDist = trailRatio * totalLen;
       const deltaD = targetDist - anim.lastDistance;
       anim.lastDistance = targetDist;
 
@@ -537,7 +533,7 @@ export function ApplicationStack() {
     };
 
     anim.rafId = requestAnimationFrame(tick);
-  }, [updateHikerAndTrail, tabCenters]);
+  }, [updateHikerAndTrail]);
 
   // Compute scroll progress from sticky section position
   const computeScrollProgress = useCallback(() => {
@@ -545,9 +541,10 @@ export function ApplicationStack() {
 
     const rect = sectionRef.current.getBoundingClientRect();
     const vh = window.innerHeight;
+    const benefitHeight = benefitRef.current?.offsetHeight || 280;
 
-    // Pinned travel distance strictly across the sticky section
-    const scrollDistance = rect.height - vh;
+    // Pinned travel distance
+    const scrollDistance = rect.height - vh - benefitHeight;
     if (scrollDistance <= 0) return;
 
     const currentScroll = -rect.top;
@@ -559,10 +556,7 @@ export function ApplicationStack() {
     if (isReducedMotion) {
       animRef.current.currentProgress = clampedProgress;
       const trailRatio = progressToTrailRatio(clampedProgress);
-      const totalLen = pathLengthRef.current;
-      const entryDist = tabCenters.length > 0 ? tabCenters[0] : 0;
-      const targetDist = entryDist + trailRatio * Math.max(0, totalLen - entryDist);
-      updateHikerAndTrail(targetDist, animRef.current);
+      updateHikerAndTrail(trailRatio * pathLengthRef.current, animRef.current);
       const stageIdx =
         clampedProgress < 0.25
           ? 0
@@ -580,7 +574,7 @@ export function ApplicationStack() {
     }
 
     startTick();
-  }, [isReducedMotion, startTick, updateHikerAndTrail, tabCenters]);
+  }, [isReducedMotion, startTick, updateHikerAndTrail]);
 
   // Lenis scroll listener
   useLenis(() => {
@@ -635,7 +629,8 @@ export function ApplicationStack() {
     activeIndexRef.current = idx;
 
     const rect = sectionRef.current.getBoundingClientRect();
-    const scrollDistance = sectionRef.current.offsetHeight - window.innerHeight;
+    const benefitHeight = benefitRef.current?.offsetHeight || 280;
+    const scrollDistance = sectionRef.current.offsetHeight - window.innerHeight - benefitHeight;
 
     // Target progress for stage centers: 0.08, 0.38, 0.68, 0.95
     const targetP = idx === 0 ? 0.08 : idx === 1 ? 0.38 : idx === 2 ? 0.68 : 0.95;
@@ -655,10 +650,7 @@ export function ApplicationStack() {
     if (isReducedMotion) {
       animRef.current.currentProgress = targetP;
       const trailRatio = progressToTrailRatio(targetP);
-      const totalLen = pathLengthRef.current;
-      const entryDist = tabCenters.length > 0 ? tabCenters[0] : 0;
-      const targetDist = entryDist + trailRatio * Math.max(0, totalLen - entryDist);
-      updateHikerAndTrail(targetDist, animRef.current);
+      updateHikerAndTrail(trailRatio * pathLengthRef.current, animRef.current);
     } else {
       startTick();
     }
@@ -686,436 +678,432 @@ export function ApplicationStack() {
   }, [selectedId]);
 
   return (
-    <>
-      <section
-        ref={sectionRef}
-        id="platform-stack"
-        className="relative w-full h-[260vh] sm:h-[280vh] lg:h-[300vh] bg-transparent text-text-primary"
-        aria-labelledby="stack-heading"
+    <section
+      ref={sectionRef}
+      id="platform-stack"
+      className="relative w-full h-[270vh] sm:h-[290vh] lg:h-[310vh] bg-transparent text-text-primary"
+      aria-labelledby="stack-heading"
+    >
+      {/* =================================================================
+          STICKY VIEWPORT CONTAINER
+          Pins during the 4-stage exploration track, keeping the experience
+          perfectly centered and in focus.
+          ================================================================= */}
+      <div
+        ref={stickyRef}
+        className="sticky top-0 z-20 w-full h-screen overflow-hidden flex flex-col justify-between pt-[76px] pb-4 sm:pb-6 select-none"
       >
-        {/* =================================================================
-            STICKY VIEWPORT CONTAINER
-            Pins during the 4-stage exploration track, keeping the experience
-            perfectly centered and in focus.
-            ================================================================= */}
-        <div
-          ref={stickyRef}
-          className="sticky top-0 z-20 w-full h-screen overflow-hidden flex flex-col justify-between pt-[76px] pb-6 sm:pb-8 select-none"
-        >
-          <div className="layout-container w-full flex-1 flex flex-col justify-between min-h-0 select-text">
+        <div className="layout-container w-full flex-1 flex flex-col justify-between min-h-0 select-text">
 
-            {/* =============================================================
-                EDITORIAL INTRODUCTION
-                ============================================================= */}
-            <div className="max-w-3xl mb-2 sm:mb-3 shrink-0">
-              <h2
-                id="stack-heading"
-                className="font-sans text-[28px] sm:text-[36px] lg:text-[44px] font-medium leading-[1.08] tracking-[-0.03em] text-[#F1F0EC] mb-1.5 sm:mb-2"
-              >
-                One platform. Your entire stack.
-              </h2>
-              <p className="font-sans text-[13px] sm:text-[14.5px] text-text-secondary leading-[1.5] max-w-[580px] hidden sm:block">
-                From the interface your users see to the services working behind the
-                scenes, bring your application components together in one
-                developer-focused workflow.
-              </p>
-            </div>
+          {/* =============================================================
+              EDITORIAL INTRODUCTION
+              ============================================================= */}
+          <div className="max-w-3xl mb-2 sm:mb-3 shrink-0">
+            <h2
+              id="stack-heading"
+              className="font-sans text-[28px] sm:text-[36px] lg:text-[44px] font-medium leading-[1.08] tracking-[-0.03em] text-[#F1F0EC] mb-1.5 sm:mb-2"
+            >
+              One platform. Your entire stack.
+            </h2>
+            <p className="font-sans text-[13px] sm:text-[14.5px] text-text-secondary leading-[1.5] max-w-[580px] hidden sm:block">
+              From the interface your users see to the services working behind the
+              scenes, bring your application components together in one
+              developer-focused workflow.
+            </p>
+          </div>
 
-            {/* =============================================================
-                STAGE NAVIGATION & HORIZONTAL MOUNTAIN TRAIL
-                The conventional underline is completely replaced by an authentic
-                engraved mountain trail with a top-down mountaineer.
-                ============================================================= */}
-            <div ref={switcherRef} className="w-full relative shrink-0 mb-3 sm:mb-4">
-              {/* 4-Stage Horizontal Navigation Buttons */}
-              <div
-                role="tablist"
-                aria-label="Application Services"
-                className="grid grid-cols-4 gap-2 sm:gap-4 lg:gap-8 pb-1"
-              >
-                {SERVICE_KEYS.map((id, idx) => {
-                  const service = SERVICES[id];
-                  const isSelected = selectedId === id;
+          {/* =============================================================
+              STAGE NAVIGATION & HORIZONTAL MOUNTAIN TRAIL
+              The conventional underline is completely replaced by an authentic
+              engraved mountain trail with a top-down mountaineer.
+              ============================================================= */}
+          <div ref={switcherRef} className="w-full relative shrink-0 mb-3 sm:mb-4">
+            {/* 4-Stage Horizontal Navigation Buttons */}
+            <div
+              role="tablist"
+              aria-label="Application Services"
+              className="grid grid-cols-4 gap-2 sm:gap-4 lg:gap-8 pb-1"
+            >
+              {SERVICE_KEYS.map((id, idx) => {
+                const service = SERVICES[id];
+                const isSelected = selectedId === id;
 
-                  return (
-                    <button
-                      key={id}
-                      ref={(el) => {
-                        tabRefs.current[idx] = el;
-                      }}
-                      role="tab"
-                      id={`tab-${id}`}
-                      aria-selected={isSelected}
-                      aria-controls={`panel-${id}`}
-                      onClick={() => handleStageClick(idx)}
-                      className="group pt-1 pb-1 text-left transition-all relative flex flex-col justify-start focus:outline-none cursor-pointer select-none"
-                    >
-                      {/* Stage Number & Service Name */}
-                      <div className="flex items-baseline gap-1.5 sm:gap-2 mb-0.5 sm:mb-1 font-sans">
-                        <span
-                          className={`font-mono text-[10px] sm:text-[11px] font-medium transition-colors duration-200 ${
-                            isSelected
-                              ? "text-accent-orange font-semibold"
-                              : "text-[#66635D] group-hover:text-text-secondary"
-                          }`}
-                        >
-                          {service.index}
-                        </span>
-                        <span className="text-[#3E3B37] text-[10px] sm:text-[11px]">—</span>
-                        <span
-                          className={`text-[13px] sm:text-[15px] lg:text-[16px] font-medium tracking-tight transition-colors duration-200 ${
-                            isSelected
-                              ? "text-[#FAF8F5] font-semibold"
-                              : "text-[#8E8B85] group-hover:text-[#F1F0EC]"
-                          }`}
-                        >
-                          <span className="sm:hidden">{service.shortName}</span>
-                          <span className="hidden sm:inline">{service.name}</span>
-                        </span>
-                      </div>
-
-                      {/* Stage Short Description (Desktop & Tablet) */}
-                      <div
-                        className={`font-sans text-[11px] sm:text-[12px] leading-snug hidden sm:block transition-colors duration-200 ${
-                          isSelected ? "text-[#A8A59E]" : "text-[#5A5752] group-hover:text-[#7A7771]"
+                return (
+                  <button
+                    key={id}
+                    ref={(el) => {
+                      tabRefs.current[idx] = el;
+                    }}
+                    role="tab"
+                    id={`tab-${id}`}
+                    aria-selected={isSelected}
+                    aria-controls={`panel-${id}`}
+                    onClick={() => handleStageClick(idx)}
+                    className="group pt-1 pb-1 text-left transition-all relative flex flex-col justify-start focus:outline-none cursor-pointer select-none"
+                  >
+                    {/* Stage Number & Service Name */}
+                    <div className="flex items-baseline gap-1.5 sm:gap-2 mb-0.5 sm:mb-1 font-sans">
+                      <span
+                        className={`font-mono text-[10px] sm:text-[11px] font-medium transition-colors duration-200 ${
+                          isSelected
+                            ? "text-accent-orange font-semibold"
+                            : "text-[#66635D] group-hover:text-text-secondary"
                         }`}
                       >
-                        {service.description}
-                      </div>
-                    </button>
+                        {service.index}
+                      </span>
+                      <span className="text-[#3E3B37] text-[10px] sm:text-[11px]">—</span>
+                      <span
+                        className={`text-[13px] sm:text-[15px] lg:text-[16px] font-medium tracking-tight transition-colors duration-200 ${
+                          isSelected
+                            ? "text-[#FAF8F5] font-semibold"
+                            : "text-[#8E8B85] group-hover:text-[#F1F0EC]"
+                        }`}
+                      >
+                        <span className="sm:hidden">{service.shortName}</span>
+                        <span className="hidden sm:inline">{service.name}</span>
+                      </span>
+                    </div>
+
+                    {/* Stage Short Description (Desktop & Tablet) */}
+                    <div
+                      className={`font-sans text-[11px] sm:text-[12px] leading-snug hidden sm:block transition-colors duration-200 ${
+                        isSelected ? "text-[#A8A59E]" : "text-[#5A5752] group-hover:text-[#7A7771]"
+                      }`}
+                    >
+                      {service.description}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Continuous Mountain Trail with Top-Down Hiker */}
+            <div className="w-full relative h-[32px] sm:h-[36px] mt-0.5 overflow-visible select-none pointer-events-none">
+              <svg
+                className="w-full h-full overflow-visible"
+                aria-hidden="true"
+              >
+                <defs>
+                  {/* Subtle Burnt-Orange Trail Ambient Glow */}
+                  <filter id="trail-orange-glow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="2.2" result="blur" />
+                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                  </filter>
+                </defs>
+
+                {/* Untraveled Mountain Path: Subdued engraved footpath */}
+                <path
+                  ref={pathRef}
+                  d={pathD}
+                  fill="none"
+                  stroke="#262422"
+                  strokeWidth="1.5"
+                  strokeDasharray="4 2.5"
+                />
+
+                {/* Traveled Mountain Path: Glowing Summit Burnt-Orange Trail */}
+                <path
+                  ref={traveledGlowRef}
+                  d={pathD}
+                  fill="none"
+                  stroke="#D88762"
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                  opacity="0.32"
+                  filter="url(#trail-orange-glow)"
+                />
+                <path
+                  ref={traveledPathRef}
+                  d={pathD}
+                  fill="none"
+                  stroke="#D88762"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                />
+                <path
+                  ref={traveledCoreRef}
+                  d={pathD}
+                  fill="none"
+                  stroke="#FFA67E"
+                  strokeWidth="0.85"
+                  strokeLinecap="round"
+                />
+
+                {/* Waypoint Stations: Circular nodes mapped beneath each stage */}
+                {tabCenters.map((cx, i) => {
+                  const isPassed = i <= activeIndex;
+                  const isCurrent = i === activeIndex;
+
+                  return (
+                    <g key={i} className="transition-all duration-300">
+                      {/* Luminous waypoint aura when active */}
+                      {isCurrent && (
+                        <circle
+                          cx={cx}
+                          cy="16"
+                          r="8"
+                          fill="#D88762"
+                          opacity="0.22"
+                        />
+                      )}
+                      {/* Waypoint ring */}
+                      <circle
+                        cx={cx}
+                        cy="16"
+                        r={isPassed ? "4" : "3"}
+                        fill={isPassed ? "#D88762" : "#1A1918"}
+                        stroke={isPassed ? "#FAF8F5" : "#383531"}
+                        strokeWidth={isPassed ? "1.2" : "1"}
+                      />
+                      {/* Center reticle */}
+                      <circle
+                        cx={cx}
+                        cy="16"
+                        r="1.2"
+                        fill={isPassed ? "#FAF8F5" : "#5A5752"}
+                      />
+                      {/* Elevation notation */}
+                      <text
+                        x={cx}
+                        y="28"
+                        textAnchor="middle"
+                        className={`font-mono text-[8.5px] sm:text-[9px] tracking-wider transition-colors duration-200 ${
+                          isCurrent
+                            ? "fill-accent-orange font-medium"
+                            : isPassed
+                            ? "fill-[#8E8B85]"
+                            : "fill-[#4E4B46]"
+                        }`}
+                      >
+                        {SERVICES[SERVICE_KEYS[i]].elevation}
+                      </text>
+                    </g>
                   );
                 })}
-              </div>
 
-              {/* Continuous Mountain Trail with Top-Down Hiker */}
-              <div className="w-full relative h-[32px] sm:h-[36px] mt-0.5 overflow-visible select-none pointer-events-none">
-                <svg
-                  className="w-full h-full overflow-visible"
-                  aria-hidden="true"
-                >
-                  <defs>
-                    {/* Subtle Burnt-Orange Trail Ambient Glow */}
-                    <filter id="trail-orange-glow" x="-20%" y="-20%" width="140%" height="140%">
-                      <feGaussianBlur stdDeviation="2.2" result="blur" />
-                      <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                    </filter>
-                  </defs>
-
-                  {/* Untraveled Mountain Path: Subdued engraved footpath */}
-                  <path
-                    ref={pathRef}
-                    d={pathD}
-                    fill="none"
-                    stroke="#262422"
-                    strokeWidth="1.5"
-                    strokeDasharray="4 2.5"
-                  />
-
-                  {/* Traveled Mountain Path: Glowing Summit Burnt-Orange Trail */}
-                  <path
-                    ref={traveledGlowRef}
-                    d={pathD}
-                    fill="none"
-                    stroke="#D88762"
-                    strokeWidth="3.5"
-                    strokeLinecap="round"
-                    opacity="0.32"
-                    filter="url(#trail-orange-glow)"
-                  />
-                  <path
-                    ref={traveledPathRef}
-                    d={pathD}
-                    fill="none"
-                    stroke="#D88762"
-                    strokeWidth="2.2"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    ref={traveledCoreRef}
-                    d={pathD}
-                    fill="none"
-                    stroke="#FFA67E"
-                    strokeWidth="0.85"
-                    strokeLinecap="round"
-                  />
-
-                  {/* Waypoint Stations: Circular nodes mapped beneath each stage */}
-                  {tabCenters.map((cx, i) => {
-                    const isPassed = i <= activeIndex;
-                    const isCurrent = i === activeIndex;
-
-                    return (
-                      <g key={i} className="transition-all duration-300">
-                        {/* Luminous waypoint aura when active */}
-                        {isCurrent && (
-                          <circle
-                            cx={cx}
-                            cy="16"
-                            r="8"
-                            fill="#D88762"
-                            opacity="0.22"
-                          />
-                        )}
-                        {/* Waypoint ring */}
-                        <circle
-                          cx={cx}
-                          cy="16"
-                          r={isPassed ? "4" : "3"}
-                          fill={isPassed ? "#D88762" : "#1A1918"}
-                          stroke={isPassed ? "#FAF8F5" : "#383531"}
-                          strokeWidth={isPassed ? "1.2" : "1"}
-                        />
-                        {/* Center reticle */}
-                        <circle
-                          cx={cx}
-                          cy="16"
-                          r="1.2"
-                          fill={isPassed ? "#FAF8F5" : "#5A5752"}
-                        />
-                        {/* Elevation notation */}
-                        <text
-                          x={cx}
-                          y="28"
-                          textAnchor="middle"
-                          className={`font-mono text-[8.5px] sm:text-[9px] tracking-wider transition-colors duration-200 ${
-                            isCurrent
-                              ? "fill-accent-orange font-medium"
-                              : isPassed
-                              ? "fill-[#8E8B85]"
-                              : "fill-[#4E4B46]"
-                          }`}
-                        >
-                          {SERVICES[SERVICE_KEYS[i]].elevation}
-                        </text>
-                      </g>
-                    );
-                  })}
-
-                  {/* Top-Down Alpine Hiker navigating along the mountain path */}
-                  <HorizontalTopDownHiker
-                    hikerRef={hikerRef}
-                    leftBootRef={leftBootRef}
-                    rightBootRef={rightBootRef}
-                    leftPoleRef={leftPoleRef}
-                    rightPoleRef={rightPoleRef}
-                    torsoRef={torsoRef}
-                  />
-                </svg>
-              </div>
+                {/* Top-Down Alpine Hiker navigating along the mountain path */}
+                <HorizontalTopDownHiker
+                  hikerRef={hikerRef}
+                  leftBootRef={leftBootRef}
+                  rightBootRef={rightBootRef}
+                  leftPoleRef={leftPoleRef}
+                  rightPoleRef={rightPoleRef}
+                  torsoRef={torsoRef}
+                />
+              </svg>
             </div>
-
-            {/* =============================================================
-                MAIN SERVICE STAGE: Fixed Equal-Height Interactive Card
-                Zero height jumping when switching stages.
-                Refined crossfade reveals the active infrastructure layer.
-                ============================================================= */}
-            <div
-              id={`panel-${selectedId}`}
-              role="tabpanel"
-              aria-labelledby={`tab-${selectedId}`}
-              className="w-full rounded-[10px] bg-surface-card border border-border-default shadow-2xl pt-3 sm:pt-4 lg:pt-5 px-3 sm:px-5 lg:px-6 pb-0 mb-1 sm:mb-2 flex-1 min-h-[380px] max-h-[500px] flex flex-col justify-between overflow-hidden relative"
-            >
-              {/* VIEW 1: WEB FRONTEND — Live Website Preview */}
-              <div
-                className={`w-full h-full flex flex-col justify-between transition-all duration-300 ease-out ${
-                  selectedId === "web"
-                    ? "opacity-100 translate-x-0 pointer-events-auto z-10"
-                    : "opacity-0 -translate-x-2 pointer-events-none absolute inset-0 pt-3 sm:pt-4 lg:pt-5 px-3 sm:px-5 lg:px-6 pb-0 z-0"
-                }`}
-                aria-hidden={selectedId !== "web"}
-              >
-                {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 sm:gap-3 pb-2 sm:pb-2.5 border-b border-border-subtle/70 shrink-0">
-                  <div className="space-y-0.5 max-w-xl">
-                    <div className="flex items-center gap-2 font-mono text-[10.5px] text-text-muted tracking-[0.14em] uppercase">
-                      <span className="text-accent-orange font-medium">01</span>
-                      <span>/</span>
-                      <span>WEB FRONTEND</span>
-                    </div>
-                    <h3 className="font-sans text-[18px] sm:text-[21px] font-medium text-[#F1F0EC] tracking-tight leading-tight">
-                      Your website, live.
-                    </h3>
-                    <p className="font-sans text-[12px] sm:text-[13px] text-text-secondary leading-relaxed line-clamp-1">
-                      From your first deploy to every release.
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2 font-mono text-[11px] self-start sm:self-auto shrink-0 pb-0.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
-                    <span className="text-[#F1F0EC] font-medium tracking-tight">meridian.jetway.app</span>
-                    <span className="text-semantic-success font-medium">Live</span>
-                  </div>
-                </div>
-
-                {/* Viewport Middle Area: Extended all the way to bottom edge */}
-                <div
-                  ref={previewContainerRef}
-                  onMouseEnter={() => {
-                    iframeRef.current?.contentWindow?.postMessage({ type: "JETWAY_PREVIEW_PAUSE" }, "*");
-                  }}
-                  onMouseLeave={() => {
-                    iframeRef.current?.contentWindow?.postMessage({ type: "JETWAY_PREVIEW_RESUME" }, "*");
-                  }}
-                  className="flex-1 w-full min-h-0 mt-2 sm:mt-2.5 rounded-t-[8px] bg-[#141618] border-t border-x border-border-default/80 overflow-hidden shadow-2xl flex flex-col"
-                >
-                  {/* Browser Frame Header */}
-                  <div className="flex items-center justify-between px-3 py-1.5 bg-[#141618] border-b border-border-subtle/80 text-[10.5px] font-mono select-none shrink-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-[#2A2E33]" />
-                      <span className="w-2 h-2 rounded-full bg-[#2A2E33]" />
-                      <span className="w-2 h-2 rounded-full bg-[#2A2E33]" />
-                    </div>
-
-                    <div className="flex items-center gap-2 px-2.5 py-0.5 rounded-[4px] bg-[#1A1D20] border border-border-subtle/80 text-[10.5px] text-text-secondary max-w-sm w-full justify-center">
-                      <span className="w-1.5 h-1.5 rounded-full bg-semantic-success shrink-0" />
-                      <span className="text-text-muted">https://</span>
-                      <span className="text-[#F1F0EC] font-medium">meridian.jetway.app</span>
-                    </div>
-
-                    <div className="text-[10px] text-text-muted shrink-0 hidden sm:block">
-                      Anycast Edge
-                    </div>
-                  </div>
-
-                  {/* Real Scrollable Website Iframe Viewport */}
-                  <div className="flex-1 w-full min-h-0 bg-[#F7F5F0] overflow-hidden relative">
-                    <iframe
-                      ref={iframeRef}
-                      src="/preview/meridian"
-                      title="Meridian Architecture Studio — Live Frontend Preview on Jetway"
-                      className="w-full h-full border-0 select-text"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* VIEW 2: API SERVICE — Real Request Playground */}
-              <div
-                className={`w-full h-full flex flex-col justify-between pb-3 sm:pb-4 lg:pb-4 transition-all duration-300 ease-out ${
-                  selectedId === "api"
-                    ? "opacity-100 translate-x-0 pointer-events-auto z-10"
-                    : "opacity-0 translate-x-2 pointer-events-none absolute inset-0 pt-3 sm:pt-4 lg:pt-5 px-3 sm:px-5 lg:px-6 pb-3 sm:pb-4 lg:pb-4 z-0"
-                }`}
-                aria-hidden={selectedId !== "api"}
-              >
-                {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 sm:gap-3 pb-2 sm:pb-2.5 border-b border-border-subtle/70 shrink-0">
-                  <div className="space-y-0.5 max-w-xl">
-                    <div className="flex items-center gap-2 font-mono text-[10.5px] text-text-muted tracking-[0.14em] uppercase">
-                      <span className="text-accent-orange font-medium">02</span>
-                      <span>/</span>
-                      <span>API SERVICE</span>
-                    </div>
-                    <h3 className="font-sans text-[18px] sm:text-[21px] font-medium text-[#F1F0EC] tracking-tight leading-tight">
-                      Every request, handled.
-                    </h3>
-                    <p className="font-sans text-[12px] sm:text-[13px] text-text-secondary leading-relaxed line-clamp-1">
-                      From endpoint to response.
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2 font-mono text-[11px] self-start sm:self-auto shrink-0 pb-0.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
-                    <span className="text-text-secondary">API online</span>
-                  </div>
-                </div>
-
-                {/* Functional API Playground */}
-                <div className="flex-1 min-h-0 mt-2.5 overflow-hidden">
-                  <ApiServicePlayground />
-                </div>
-              </div>
-
-              {/* VIEW 3: DATABASE — The Living PostgreSQL Database Engine */}
-              <div
-                className={`w-full h-full flex flex-col justify-between pb-3 sm:pb-4 lg:pb-4 transition-all duration-300 ease-out ${
-                  selectedId === "db"
-                    ? "opacity-100 translate-x-0 pointer-events-auto z-10"
-                    : "opacity-0 translate-x-2 pointer-events-none absolute inset-0 pt-3 sm:pt-4 lg:pt-5 px-3 sm:px-5 lg:px-6 pb-3 sm:pb-4 lg:pb-4 z-0"
-                }`}
-                aria-hidden={selectedId !== "db"}
-              >
-                {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 sm:gap-3 pb-2 sm:pb-2.5 border-b border-border-subtle/70 shrink-0">
-                  <div className="space-y-0.5 max-w-xl">
-                    <div className="flex items-center gap-2 font-mono text-[10.5px] text-text-muted tracking-[0.14em] uppercase">
-                      <span className="text-accent-orange font-medium">03</span>
-                      <span>/</span>
-                      <span>DATABASE</span>
-                    </div>
-                    <h3 className="font-sans text-[18px] sm:text-[21px] font-medium text-[#F1F0EC] tracking-tight leading-tight">
-                      Your data, always within reach.
-                    </h3>
-                    <p className="font-sans text-[12px] sm:text-[13px] text-text-secondary leading-relaxed line-clamp-1">
-                      PostgreSQL storage, built for your application.
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2 font-mono text-[11px] self-start sm:self-auto shrink-0 pb-0.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
-                    <span className="text-[#F1F0EC] font-medium tracking-tight">PostgreSQL 16</span>
-                    <span className="text-border-default text-[10px]">·</span>
-                    <span className="text-semantic-success font-medium text-[10.5px]">Connected</span>
-                  </div>
-                </div>
-
-                {/* Living Database Engine Visualization */}
-                <div className="flex-1 min-h-0 mt-2.5 overflow-hidden">
-                  <DatabaseServicePlayground />
-                </div>
-              </div>
-
-              {/* VIEW 4: BACKGROUND WORKER — Living Job Queue */}
-              <div
-                className={`w-full h-full flex flex-col justify-between pb-3 sm:pb-4 lg:pb-4 transition-all duration-300 ease-out ${
-                  selectedId === "worker"
-                    ? "opacity-100 translate-x-0 pointer-events-auto z-10"
-                    : "opacity-0 translate-x-2 pointer-events-none absolute inset-0 pt-3 sm:pt-4 lg:pt-5 px-3 sm:px-5 lg:px-6 pb-3 sm:pb-4 lg:pb-4 z-0"
-                }`}
-                aria-hidden={selectedId !== "worker"}
-              >
-                {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 sm:gap-3 pb-2 sm:pb-2.5 border-b border-border-subtle/70 shrink-0">
-                  <div className="space-y-0.5 max-w-xl">
-                    <div className="flex items-center gap-2 font-mono text-[10.5px] text-text-muted tracking-[0.14em] uppercase">
-                      <span className="text-accent-orange font-medium">04</span>
-                      <span>/</span>
-                      <span>BACKGROUND WORKER</span>
-                    </div>
-                    <h3 className="font-sans text-[18px] sm:text-[21px] font-medium text-[#F1F0EC] tracking-tight leading-tight">
-                      Heavy work. Handled in the background.
-                    </h3>
-                    <p className="font-sans text-[12px] sm:text-[13px] text-text-secondary leading-relaxed line-clamp-1">
-                      Run jobs asynchronously without slowing down your application.
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2 font-mono text-[11px] self-start sm:self-auto shrink-0 pb-0.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
-                    <span className="text-semantic-success font-medium">Workers active</span>
-                  </div>
-                </div>
-
-                {/* Living Background Worker Visualization */}
-                <div className="flex-1 min-h-0 mt-2.5 overflow-hidden">
-                  <WorkerServicePlayground />
-                </div>
-              </div>
-            </div>
-
           </div>
+
+          {/* =============================================================
+              MAIN SERVICE STAGE: Fixed Equal-Height Interactive Card
+              Zero height jumping when switching stages.
+              Refined crossfade reveals the active infrastructure layer.
+              ============================================================= */}
+          <div
+            id={`panel-${selectedId}`}
+            role="tabpanel"
+            aria-labelledby={`tab-${selectedId}`}
+            className="w-full rounded-[10px] bg-surface-card border border-border-default shadow-2xl pt-3 sm:pt-4 lg:pt-5 px-3 sm:px-5 lg:px-6 pb-0 mb-1 sm:mb-2 flex-1 min-h-[380px] max-h-[500px] flex flex-col justify-between overflow-hidden relative"
+          >
+            {/* VIEW 1: WEB FRONTEND — Live Website Preview */}
+            <div
+              className={`w-full h-full flex flex-col justify-between transition-all duration-300 ease-out ${
+                selectedId === "web"
+                  ? "opacity-100 translate-x-0 pointer-events-auto z-10"
+                  : "opacity-0 -translate-x-2 pointer-events-none absolute inset-0 pt-3 sm:pt-4 lg:pt-5 px-3 sm:px-5 lg:px-6 pb-0 z-0"
+              }`}
+              aria-hidden={selectedId !== "web"}
+            >
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 sm:gap-3 pb-2 sm:pb-2.5 border-b border-border-subtle/70 shrink-0">
+                <div className="space-y-0.5 max-w-xl">
+                  <div className="flex items-center gap-2 font-mono text-[10.5px] text-text-muted tracking-[0.14em] uppercase">
+                    <span className="text-accent-orange font-medium">01</span>
+                    <span>/</span>
+                    <span>WEB FRONTEND</span>
+                  </div>
+                  <h3 className="font-sans text-[18px] sm:text-[21px] font-medium text-[#F1F0EC] tracking-tight leading-tight">
+                    Your website, live.
+                  </h3>
+                  <p className="font-sans text-[12px] sm:text-[13px] text-text-secondary leading-relaxed line-clamp-1">
+                    From your first deploy to every release.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 font-mono text-[11px] self-start sm:self-auto shrink-0 pb-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
+                  <span className="text-[#F1F0EC] font-medium tracking-tight">meridian.jetway.app</span>
+                  <span className="text-semantic-success font-medium">Live</span>
+                </div>
+              </div>
+
+              {/* Viewport Middle Area: Extended all the way to bottom edge */}
+              <div
+                ref={previewContainerRef}
+                onMouseEnter={() => {
+                  iframeRef.current?.contentWindow?.postMessage({ type: "JETWAY_PREVIEW_PAUSE" }, "*");
+                }}
+                onMouseLeave={() => {
+                  iframeRef.current?.contentWindow?.postMessage({ type: "JETWAY_PREVIEW_RESUME" }, "*");
+                }}
+                className="flex-1 w-full min-h-0 mt-2 sm:mt-2.5 rounded-t-[8px] bg-[#141618] border-t border-x border-border-default/80 overflow-hidden shadow-2xl flex flex-col"
+              >
+                {/* Browser Frame Header */}
+                <div className="flex items-center justify-between px-3 py-1.5 bg-[#141618] border-b border-border-subtle/80 text-[10.5px] font-mono select-none shrink-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-[#2A2E33]" />
+                    <span className="w-2 h-2 rounded-full bg-[#2A2E33]" />
+                    <span className="w-2 h-2 rounded-full bg-[#2A2E33]" />
+                  </div>
+
+                  <div className="flex items-center gap-2 px-2.5 py-0.5 rounded-[4px] bg-[#1A1D20] border border-border-subtle/80 text-[10.5px] text-text-secondary max-w-sm w-full justify-center">
+                    <span className="w-1.5 h-1.5 rounded-full bg-semantic-success shrink-0" />
+                    <span className="text-text-muted">https://</span>
+                    <span className="text-[#F1F0EC] font-medium">meridian.jetway.app</span>
+                  </div>
+
+                  <div className="text-[10px] text-text-muted shrink-0 hidden sm:block">
+                    Anycast Edge
+                  </div>
+                </div>
+
+                {/* Real Scrollable Website Iframe Viewport */}
+                <div className="flex-1 w-full min-h-0 bg-[#F7F5F0] overflow-hidden relative">
+                  <iframe
+                    ref={iframeRef}
+                    src="/preview/meridian"
+                    title="Meridian Architecture Studio — Live Frontend Preview on Jetway"
+                    className="w-full h-full border-0 select-text"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* VIEW 2: API SERVICE — Real Request Playground */}
+            <div
+              className={`w-full h-full flex flex-col justify-between pb-3 sm:pb-4 lg:pb-4 transition-all duration-300 ease-out ${
+                selectedId === "api"
+                  ? "opacity-100 translate-x-0 pointer-events-auto z-10"
+                  : "opacity-0 translate-x-2 pointer-events-none absolute inset-0 pt-3 sm:pt-4 lg:pt-5 px-3 sm:px-5 lg:px-6 pb-3 sm:pb-4 lg:pb-4 z-0"
+              }`}
+              aria-hidden={selectedId !== "api"}
+            >
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 sm:gap-3 pb-2 sm:pb-2.5 border-b border-border-subtle/70 shrink-0">
+                <div className="space-y-0.5 max-w-xl">
+                  <div className="flex items-center gap-2 font-mono text-[10.5px] text-text-muted tracking-[0.14em] uppercase">
+                    <span className="text-accent-orange font-medium">02</span>
+                    <span>/</span>
+                    <span>API SERVICE</span>
+                  </div>
+                  <h3 className="font-sans text-[18px] sm:text-[21px] font-medium text-[#F1F0EC] tracking-tight leading-tight">
+                    Every request, handled.
+                  </h3>
+                  <p className="font-sans text-[12px] sm:text-[13px] text-text-secondary leading-relaxed line-clamp-1">
+                    From endpoint to response.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 font-mono text-[11px] self-start sm:self-auto shrink-0 pb-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
+                  <span className="text-text-secondary">API online</span>
+                </div>
+              </div>
+
+              {/* Functional API Playground */}
+              <div className="flex-1 min-h-0 mt-2.5 overflow-hidden">
+                <ApiServicePlayground />
+              </div>
+            </div>
+
+            {/* VIEW 3: DATABASE — The Living PostgreSQL Database Engine */}
+            <div
+              className={`w-full h-full flex flex-col justify-between pb-3 sm:pb-4 lg:pb-4 transition-all duration-300 ease-out ${
+                selectedId === "db"
+                  ? "opacity-100 translate-x-0 pointer-events-auto z-10"
+                  : "opacity-0 translate-x-2 pointer-events-none absolute inset-0 pt-3 sm:pt-4 lg:pt-5 px-3 sm:px-5 lg:px-6 pb-3 sm:pb-4 lg:pb-4 z-0"
+              }`}
+              aria-hidden={selectedId !== "db"}
+            >
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 sm:gap-3 pb-2 sm:pb-2.5 border-b border-border-subtle/70 shrink-0">
+                <div className="space-y-0.5 max-w-xl">
+                  <div className="flex items-center gap-2 font-mono text-[10.5px] text-text-muted tracking-[0.14em] uppercase">
+                    <span className="text-accent-orange font-medium">03</span>
+                    <span>/</span>
+                    <span>DATABASE</span>
+                  </div>
+                  <h3 className="font-sans text-[18px] sm:text-[21px] font-medium text-[#F1F0EC] tracking-tight leading-tight">
+                    Your data, always within reach.
+                  </h3>
+                  <p className="font-sans text-[12px] sm:text-[13px] text-text-secondary leading-relaxed line-clamp-1">
+                    PostgreSQL storage, built for your application.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 font-mono text-[11px] self-start sm:self-auto shrink-0 pb-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
+                  <span className="text-[#F1F0EC] font-medium tracking-tight">PostgreSQL 16</span>
+                  <span className="text-border-default text-[10px]">·</span>
+                  <span className="text-semantic-success font-medium text-[10.5px]">Connected</span>
+                </div>
+              </div>
+
+              {/* Living Database Engine Visualization */}
+              <div className="flex-1 min-h-0 mt-2.5 overflow-hidden">
+                <DatabaseServicePlayground />
+              </div>
+            </div>
+
+            {/* VIEW 4: BACKGROUND WORKER — Living Job Queue */}
+            <div
+              className={`w-full h-full flex flex-col justify-between pb-3 sm:pb-4 lg:pb-4 transition-all duration-300 ease-out ${
+                selectedId === "worker"
+                  ? "opacity-100 translate-x-0 pointer-events-auto z-10"
+                  : "opacity-0 translate-x-2 pointer-events-none absolute inset-0 pt-3 sm:pt-4 lg:pt-5 px-3 sm:px-5 lg:px-6 pb-3 sm:pb-4 lg:pb-4 z-0"
+              }`}
+              aria-hidden={selectedId !== "worker"}
+            >
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 sm:gap-3 pb-2 sm:pb-2.5 border-b border-border-subtle/70 shrink-0">
+                <div className="space-y-0.5 max-w-xl">
+                  <div className="flex items-center gap-2 font-mono text-[10.5px] text-text-muted tracking-[0.14em] uppercase">
+                    <span className="text-accent-orange font-medium">04</span>
+                    <span>/</span>
+                    <span>BACKGROUND WORKER</span>
+                  </div>
+                  <h3 className="font-sans text-[18px] sm:text-[21px] font-medium text-[#F1F0EC] tracking-tight leading-tight">
+                    Heavy work. Handled in the background.
+                  </h3>
+                  <p className="font-sans text-[12px] sm:text-[13px] text-text-secondary leading-relaxed line-clamp-1">
+                    Run jobs asynchronously without slowing down your application.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 font-mono text-[11px] self-start sm:self-auto shrink-0 pb-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
+                  <span className="text-semantic-success font-medium">Workers active</span>
+                </div>
+              </div>
+
+              {/* Living Background Worker Visualization */}
+              <div className="flex-1 min-h-0 mt-2.5 overflow-hidden">
+                <WorkerServicePlayground />
+              </div>
+            </div>
+          </div>
+
         </div>
-      </section>
+      </div>
 
       {/* =================================================================
           NATURAL FLOW EXIT: THREE BENEFIT PILLARS
-          Positioned in normal document flow AFTER the 4-stage sticky scroll
-          runway completes, so they are cleanly revealed only when normal
-          scrolling resumes.
+          Revealed as normal scrolling seamlessly resumes after Stage 4.
           ================================================================= */}
       <div
         ref={benefitRef}
-        className="relative z-10 w-full bg-transparent pt-20 pb-24 sm:pt-24 sm:pb-28 border-t border-border-subtle"
+        className="relative z-10 w-full bg-transparent pt-14 pb-20 sm:pt-18 sm:pb-24 border-t border-border-subtle"
       >
         <div className="layout-container w-full">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-10 w-full max-w-6xl">
@@ -1160,7 +1148,7 @@ export function ApplicationStack() {
           </div>
         </div>
       </div>
-    </>
+    </section>
   );
 }
 
