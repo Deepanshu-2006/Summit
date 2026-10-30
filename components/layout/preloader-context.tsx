@@ -18,6 +18,7 @@ interface PreloaderContextValue {
   progress: number;
   progressFloat: number;
   isComplete: boolean;
+  isTransitionDone: boolean;
   isHeroActive: boolean;
   subscribeProgress: (cb: ProgressListener) => () => void;
   replay: () => void;
@@ -28,6 +29,7 @@ const PreloaderContext = createContext<PreloaderContextValue>({
   progress: 100,
   progressFloat: 100,
   isComplete: true,
+  isTransitionDone: true,
   isHeroActive: true,
   subscribeProgress: () => () => {},
   replay: () => {},
@@ -51,6 +53,7 @@ export function PreloaderProvider({ children }: { children: React.ReactNode }) {
   const [phase, setPhase] = useState<PreloaderPhase>("dark");
   const [progress, setProgress] = useState<number>(0);
   const [progressFloat, setProgressFloat] = useState<number>(0);
+  const [isTransitionDone, setIsTransitionDone] = useState<boolean>(false);
   const [isHeroActive, setIsHeroActive] = useState<boolean>(false);
 
   const listenersRef = useRef<Set<ProgressListener>>(new Set());
@@ -76,10 +79,15 @@ export function PreloaderProvider({ children }: { children: React.ReactNode }) {
   const runSequence = useCallback(() => {
     clearAllTimers();
 
+    if (typeof window !== "undefined") {
+      window.scrollTo(0, 0);
+    }
+
     // Reset initial state
     setPhase("dark");
     setProgress(0);
     setProgressFloat(0);
+    setIsTransitionDone(false);
     setIsHeroActive(false);
 
     // Preload critical mountain images immediately
@@ -91,10 +99,9 @@ export function PreloaderProvider({ children }: { children: React.ReactNode }) {
     }
 
     const startTime = performance.now();
-    const duration = 2400; // 2.4s calibrated duration
+    const duration = 2100; // 2.1s duration for mountain contour drawing & full reveal
 
     let lastInt = -1;
-    let heroTriggered = false;
     let currentPhase: PreloaderPhase = "dark";
 
     const tick = (now: number) => {
@@ -122,10 +129,8 @@ export function PreloaderProvider({ children }: { children: React.ReactNode }) {
         nextPhase = "dark";
       } else if (floatPct < 65) {
         nextPhase = "tracing";
-      } else if (floatPct < 96) {
-        nextPhase = "revealing";
       } else {
-        nextPhase = "complete";
+        nextPhase = "revealing";
       }
 
       if (nextPhase !== currentPhase) {
@@ -133,14 +138,7 @@ export function PreloaderProvider({ children }: { children: React.ReactNode }) {
         setPhase(nextPhase);
       }
 
-      // 3. Fluid Hero text handoff at ~92%
-      // Begins headline character entrance right as mountain resolves
-      if (!heroTriggered && floatPct >= 92) {
-        heroTriggered = true;
-        setIsHeroActive(true);
-      }
-
-      // 4. Update React progress state on integer changes
+      // 3. Update React progress state on integer changes
       if (intPct !== lastInt) {
         lastInt = intPct;
         setProgress(intPct);
@@ -150,16 +148,24 @@ export function PreloaderProvider({ children }: { children: React.ReactNode }) {
       if (rawT < 1) {
         rafRef.current = requestAnimationFrame(tick);
       } else {
-        // Final frame lock
+        // Preloader mountain tracing and counter transition is 100% DONE
         setProgress(100);
         setProgressFloat(100);
-        setPhase("complete");
-        setIsHeroActive(true);
+        setIsTransitionDone(true);
+
         listenersRef.current.forEach((cb) => {
           try {
             cb(100, 100);
           } catch {}
         });
+
+        // "when transition done after that heading and illustration should appear with their animation after a little delay"
+        // Hold for a deliberate cinematic breath (340ms little delay) so the resolved mountain can be absorbed
+        const delayTimer = setTimeout(() => {
+          setIsHeroActive(true);
+          setPhase("complete");
+        }, 340);
+        timeoutsRef.current.push(delayTimer);
       }
     };
 
@@ -172,8 +178,9 @@ export function PreloaderProvider({ children }: { children: React.ReactNode }) {
     if (isReduced) {
       setProgress(100);
       setProgressFloat(100);
-      setPhase("complete");
+      setIsTransitionDone(true);
       setIsHeroActive(true);
+      setPhase("complete");
       return;
     }
 
@@ -195,18 +202,17 @@ export function PreloaderProvider({ children }: { children: React.ReactNode }) {
     }
   }, [replay]);
 
-  // Lock body scroll during preloader, release as hero resolves
+  // Lock body scroll during preloader, release smoothly as hero heading and illustrations enter
   useEffect(() => {
-    if (phase !== "complete") {
+    if (!isHeroActive) {
       document.body.style.overflow = "hidden";
-      window.scrollTo(0, 0);
     } else {
       document.body.style.overflow = "";
     }
     return () => {
       document.body.style.overflow = "";
     };
-  }, [phase]);
+  }, [isHeroActive]);
 
   return (
     <PreloaderContext.Provider
@@ -215,6 +221,7 @@ export function PreloaderProvider({ children }: { children: React.ReactNode }) {
         progress,
         progressFloat,
         isComplete: phase === "complete",
+        isTransitionDone,
         isHeroActive,
         subscribeProgress,
         replay,

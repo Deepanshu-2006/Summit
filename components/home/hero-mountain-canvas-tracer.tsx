@@ -232,14 +232,14 @@ export function HeroMountainCanvasTracer() {
     };
   }, [subscribeProgress]);
 
-  if (isComplete) {
-    return null;
-  }
-
   return (
     <canvas
       ref={canvasRef}
-      className="absolute inset-0 w-full h-full pointer-events-none z-10 block"
+      className="absolute inset-0 w-full h-full pointer-events-none z-10 block will-change-transform"
+      style={{
+        transform: "translate3d(0, 0, 0)",
+        backfaceVisibility: "hidden",
+      }}
       aria-hidden="true"
     />
   );

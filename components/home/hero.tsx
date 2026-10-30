@@ -67,7 +67,7 @@ export function Hero() {
     getReducedMotionServerSnapshot
   );
 
-  const isRevealed = isReducedMotion || isHeroActive || isComplete;
+  const isRevealed = isHeroActive;
 
   // Intersection observer to pause animations when outside viewport
   useEffect(() => {

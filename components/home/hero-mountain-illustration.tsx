@@ -62,7 +62,7 @@ function HeroMountainPreloaderCounter() {
     };
   }, [subscribeProgress, isExiting]);
 
-  const shouldExit = isExiting || (phase === "revealing" && progress >= 92) || phase === "complete";
+  const shouldExit = isExiting || progress >= 92 || phase === "complete";
 
   return (
     <div
@@ -112,7 +112,6 @@ function HeroMountainPreloaderCounter() {
           className="h-full bg-accent-orange origin-left will-change-transform"
           style={{
             transform: `scaleX(${progress / 100})`,
-            transition: "transform 60ms linear",
           }}
         />
       </div>
@@ -145,16 +144,20 @@ export function HeroMountainIllustration({
   isInView = true,
 }: HeroMountainIllustrationProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { progress, progressFloat, isComplete } = usePreloader();
+  const { phase, progress, progressFloat, isComplete, isTransitionDone } = usePreloader();
 
-  // Preloader active while sequence is running
-  const isPreloaderActive = !isComplete;
+  // Preloader active while mountain contour tracing and counter transition are running
+  const isPreloaderActive = !isComplete && !isTransitionDone;
 
-  // Anamorphic Camera Motion: Pull back from scale(1.032) to scale(1)
-  const isCameraSettled = !isPreloaderActive || progress >= 88;
-  const cameraTransform = isReducedMotion || isCameraSettled
+  // Cinematic Anamorphic Camera Motion:
+  // Starts gently pushed in (scale 1.022, translateY 5px) on dark screen,
+  // then glides smoothly to rest (scale 1, translateY 0) over 2400ms on the GPU compositor.
+  const isPushedIn = phase === "dark";
+  const cameraTransform = isReducedMotion
     ? "scale(1) translate3d(0, 0px, 0)"
-    : "scale(1.032) translate3d(0, 8px, 0)";
+    : isPushedIn
+    ? "scale(1.022) translate3d(0, 5px, 0)"
+    : "scale(1) translate3d(0, 0px, 0)";
 
   // Continuous smooth opacity calculation for seamless blending
   const masterImageOpacity = !isPreloaderActive
@@ -201,18 +204,20 @@ export function HeroMountainIllustration({
           BIG EDITORIAL PERCENTAGE LOADER (LEFT BOTTOM)
           Monumental monospaced numeral in the bottom-left corner
           counting smoothly from 00% to 100% in lockstep with the mountain tracing.
+          Remains mounted until the entire sequence & breath delay completes.
           ================================================================= */}
-      {isPreloaderActive && <HeroMountainPreloaderCounter />}
+      {!isComplete && <HeroMountainPreloaderCounter />}
 
       {/* =================================================================
           ANAMORPHIC CAMERA RIG (CONTAINING ALL MOUNTAIN ARTWORK & CONTOURS)
-          Physical camera breathe and settle: scale(1.032) -> scale(1.000)
+          Continuous physical camera ease: scale(1.022) -> scale(1.000)
           ================================================================= */}
       <div
         className="absolute inset-0 w-full h-full will-change-transform"
         style={{
           transform: cameraTransform,
-          transition: "transform 1500ms cubic-bezier(0.16, 1, 0.3, 1)",
+          transition: isReducedMotion ? "none" : "transform 2400ms cubic-bezier(0.16, 1, 0.3, 1)",
+          backfaceVisibility: "hidden",
         }}
       >
         {/* =================================================================
@@ -220,7 +225,7 @@ export function HeroMountainIllustration({
             Ultra-gentle warm radiance echoing through the central pass.
             ================================================================= */}
         <div
-          className="absolute inset-0 w-full h-full pointer-events-none transition-opacity duration-700 ease-out"
+          className="absolute inset-0 w-full h-full pointer-events-none"
           style={{
             opacity: radianceOpacity,
             background:
@@ -232,19 +237,20 @@ export function HeroMountainIllustration({
             PRELOADER LAYER A: 280 TRUE MATHEMATICAL CONTOUR LINES ON CANVAS
             Hardware-accelerated plotter drawing the mountain from zero against
             the dark screen with continuous fractional sub-segment interpolation.
+            Kept permanently mounted to preserve GPU layer continuity without frame drops.
             ================================================================= */}
-        {isPreloaderActive && <HeroMountainCanvasTracer />}
+        <HeroMountainCanvasTracer />
 
         {/* =================================================================
             PRELOADER LAYER B: LUMINOUS PRIMARY SKYLINE & ARÊTE VECTORS
             Bold, glowing razor-sharp silhouette lines tracing across the peaks.
             ================================================================= */}
-        {isPreloaderActive && (
+        {!isComplete && (
           <svg
             viewBox="0 0 1440 800"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
-            className="absolute inset-0 w-full h-full pointer-events-none z-10 transition-opacity duration-500 ease-out overflow-visible"
+            className="absolute inset-0 w-full h-full pointer-events-none z-10 overflow-visible"
             style={{
               opacity: vectorLinesOpacity,
             }}
@@ -281,7 +287,6 @@ export function HeroMountainIllustration({
               strokeDasharray="100"
               strokeDashoffset={Math.max(0, 100 - (progress / 70) * 100)}
               style={{
-                transition: "stroke-dashoffset 60ms linear",
                 willChange: "stroke-dashoffset",
               }}
             />
@@ -298,7 +303,6 @@ export function HeroMountainIllustration({
               strokeDasharray="100"
               strokeDashoffset={Math.max(0, 100 - (Math.max(0, progress - 8) / 67) * 100)}
               style={{
-                transition: "stroke-dashoffset 60ms linear",
                 willChange: "stroke-dashoffset",
               }}
             />
@@ -315,7 +319,6 @@ export function HeroMountainIllustration({
               strokeDasharray="100"
               strokeDashoffset={Math.max(0, 100 - (Math.max(0, progress - 18) / 62) * 100)}
               style={{
-                transition: "stroke-dashoffset 60ms linear",
                 willChange: "stroke-dashoffset",
               }}
             />
@@ -327,7 +330,7 @@ export function HeroMountainIllustration({
             A brilliant beam of dawn light sweeping across the jagged peak ridge
             as the mountain contours resolve into full photographic presence.
             ================================================================= */}
-        {isPreloaderActive && progress >= 75 && (
+        {!isComplete && progress >= 72 && (
           <svg
             viewBox="0 0 1440 800"
             fill="none"
@@ -367,7 +370,6 @@ export function HeroMountainIllustration({
               strokeDasharray="24 76"
               strokeDashoffset={100 - ((Math.min(98, Math.max(78, progress)) - 78) / 20) * 124}
               style={{
-                transition: "stroke-dashoffset 80ms linear",
                 willChange: "stroke-dashoffset",
               }}
             />
@@ -380,9 +382,11 @@ export function HeroMountainIllustration({
             Fades smoothly into view behind the traced contours between 55% and 92%.
             ================================================================= */}
         <div
-          className="absolute inset-0 w-full h-full pointer-events-none transition-opacity duration-500 ease-out"
+          className="absolute inset-0 w-full h-full pointer-events-none will-change-[opacity]"
           style={{
             opacity: masterImageOpacity,
+            transform: "translate3d(0, 0, 0)",
+            backfaceVisibility: "hidden",
           }}
         >
           <div className="relative w-full h-full">
@@ -402,10 +406,11 @@ export function HeroMountainIllustration({
             LAYER 3: TRAVELLING MOUNTAIN RIDGE ILLUMINATION (Ambient 54s Loop)
             Slow-moving ambient illumination travelling gently across the ridges.
             ================================================================= */}
-        {!isReducedMotion && (!isPreloaderActive || progress >= 88) && (
+        {!isReducedMotion && (
           <div
             className="absolute inset-0 w-full h-full pointer-events-none animate-[ridgeIlluminationSweep_54s_easeInOut_infinite] will-change-transform transition-opacity duration-700"
             style={{
+              opacity: isPreloaderActive ? Math.max(0, (progressFloat - 80) / 20) : 1,
               background:
                 "radial-gradient(ellipse 75% 55% at 54% 45%, rgba(247, 244, 238, 0.11) 0%, rgba(238, 225, 212, 0.07) 28%, rgba(216, 135, 98, 0.04) 52%, rgba(142, 140, 134, 0.012) 75%, transparent 95%)",
               mixBlendMode: "screen",
@@ -416,24 +421,38 @@ export function HeroMountainIllustration({
         {/* =================================================================
             LAYER 4: LIVING ATMOSPHERIC MOUNTAIN VALLEY CLOUDS (CANVAS)
             Multi-layer procedural mist moving continuously through the valleys.
+            Pre-allocated and smoothly faded in to eliminate canvas creation hitches.
             ================================================================= */}
-        {(!isPreloaderActive || progress >= 85) && (
+        <div
+          className="absolute inset-0 w-full h-full pointer-events-none transition-opacity duration-700 ease-out"
+          style={{
+            opacity: isPreloaderActive && progressFloat < 75 ? 0 : 1,
+            transform: "translate3d(0, 0, 0)",
+          }}
+        >
           <HeroMountainClouds
             isInView={isInView}
             isReducedMotion={isReducedMotion}
           />
-        )}
+        </div>
 
         {/* =================================================================
             LAYER 5: SIGNATURE TERRAIN WAKE (CANVAS)
             Delicate, flowing topographic strands created by cursor movement.
+            Pre-allocated and smoothly activated to eliminate canvas creation hitches.
             ================================================================= */}
-        {!isPreloaderActive && (
+        <div
+          className="absolute inset-0 w-full h-full pointer-events-none transition-opacity duration-700 ease-out"
+          style={{
+            opacity: isTransitionDone || isComplete ? 1 : 0,
+            transform: "translate3d(0, 0, 0)",
+          }}
+        >
           <HeroTerrainWake
             isInView={isInView}
             isReducedMotion={isReducedMotion}
           />
-        )}
+        </div>
 
         {/* =================================================================
             LAYER 6: CARTOGRAPHIC SURVEY CONTOURS & BENCHMARKS (STATIONARY SVG)
@@ -444,7 +463,7 @@ export function HeroMountainIllustration({
           viewBox="0 0 1440 800"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
-          className="absolute inset-0 w-full h-full pointer-events-none transition-opacity duration-500 ease-out"
+          className="absolute inset-0 w-full h-full pointer-events-none"
           style={{
             opacity: surveySvgOpacity,
           }}
