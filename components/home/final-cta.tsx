@@ -165,11 +165,15 @@ export function FinalCta() {
       const xLeft = (-entrySeparation - outOffset * openFactor).toFixed(2);
       const xRight = (entrySeparation + outOffset * openFactor).toFixed(2);
 
-      // Subtle atmospheric dissipation
+      // Subtle atmospheric dissipation with graceful approach fade-in
+      const approachFade =
+        rect.top <= 0
+          ? 1.0
+          : Math.max(0.0, 1.0 - rect.top / (vh * 0.45));
       const sCloud = (1.0 + 0.035 * openFactor).toFixed(3);
       const yCloud = (-10 * openFactor).toFixed(2);
       const opCloud = (
-        (0.72 + 0.24 * entrySeal) * (1.0 - 0.35 * openFactor)
+        approachFade * (0.72 + 0.24 * entrySeal) * (1.0 - 0.35 * openFactor)
       ).toFixed(3);
 
       if (cloudLeftRef.current) {
@@ -263,11 +267,11 @@ export function FinalCta() {
       // Reset clouds to separated pre-entry stance
       if (cloudLeftRef.current) {
         cloudLeftRef.current.style.transform = `translate3d(-${initialSep}px, 0, 0) scale(1)`;
-        cloudLeftRef.current.style.opacity = "0.72";
+        cloudLeftRef.current.style.opacity = "0";
       }
       if (cloudRightRef.current) {
         cloudRightRef.current.style.transform = `translate3d(${initialSep}px, 0, 0) scale(1)`;
-        cloudRightRef.current.style.opacity = "0.72";
+        cloudRightRef.current.style.opacity = "0";
       }
 
       // Reset mountain to hidden stance below horizon

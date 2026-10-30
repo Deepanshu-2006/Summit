@@ -8,7 +8,7 @@ import { ConstructionStagePreset } from "./construction-system/types";
 import { ConstructionTimelineManager, CONSTRUCTION_MILESTONES } from "./construction-system/timeline";
 
 interface ArchitecturalConstructionCanvasProps {
-  progress: number; // Normalized construction progress [0 .. 1]
+  progress?: number; // Normalized construction progress [0 .. 1] (optional; defaults to auto-scroll measurement)
   isReducedMotion?: boolean;
 }
 
@@ -29,16 +29,18 @@ function checkWebGLSupport(): boolean {
 }
 
 /**
- * ArchitecturalConstructionCanvas: Jetway Modular Construction System (Phase 2)
+ * ArchitecturalConstructionCanvas: Jetway Modular Construction System (Phase 4: Connected to Scroll)
  *
- * Implements a decoupled, modular construction system:
+ * Implements a decoupled, modular construction system synchronized with page scroll:
+ * - Direct section scroll measurement at display refresh rate (zero React re-renders)
  * - Central construction manifest defining real building components and dependencies
  * - Independently controllable architectural components across 7 main categories
  * - Full fidelity reproduction of the contemporary bungalow at 100% completion
- * - Developer-only stage preview shortcuts (keys 1-6 or window.__jetwayPreviewStage)
+ * - Responsive camera framing across mobile, tablet, laptop, and ultrawide monitors
+ * - Developer-only stage preview shortcuts (keys 1-6, Space for play/pause, [ / ] for milestones)
  */
 export function ArchitecturalConstructionCanvas({
-  progress,
+  progress = 0,
   isReducedMotion = false,
 }: ArchitecturalConstructionCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -72,45 +74,101 @@ export function ArchitecturalConstructionCanvas({
     // 1. Scene, Camera & Atmospheric Setup
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0c0e10);
-    scene.fog = new THREE.FogExp2(0x0c0e10, 0.014);
+    scene.fog = new THREE.FogExp2(0x0c0e10, 0.013);
 
     const width = container.clientWidth || window.innerWidth;
     const height = container.clientHeight || window.innerHeight;
 
+    // Responsive FOV and distance calculation for mobile / tablet / desktop
+    const calcCameraParams = (w: number, h: number) => {
+      const a = w / Math.max(1, h);
+      let fov = 34;
+      let distFactor = 1.0;
+      if (a < 1.4 && a >= 1.0) {
+        fov = 34 + (1.4 - a) * 14;
+        distFactor = 1.0 + (1.4 - a) * 0.12;
+      } else if (a < 1.0) {
+        fov = 39.6 + (1.0 - a) * 16;
+        distFactor = 1.05 + (1.0 - a) * 0.20;
+      }
+      return { fov, distFactor, aspect: a };
+    };
+
+    const initialParams = calcCameraParams(width, height);
+
     // Cinematic Three-Quarter Architectural Camera
-    const camera = new THREE.PerspectiveCamera(34, width / height, 0.5, 300);
-    camera.position.set(24.0, 11.5, 28.0);
-    camera.lookAt(1.2, 2.5, 0.2);
+    const camera = new THREE.PerspectiveCamera(initialParams.fov, initialParams.aspect, 0.5, 300);
+    camera.position.set(
+      24.4 * initialParams.distFactor,
+      11.8 * initialParams.distFactor,
+      28.4 * initialParams.distFactor
+    );
+    camera.lookAt(1.0, 2.0, 0.2);
 
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.16;
+    renderer.toneMappingExposure = 1.18;
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFShadowMap;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(renderer.domElement);
 
+    // Architectural Image-Based Lighting (IBL) Environment Map via PMREMGenerator
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    pmremGenerator.compileEquirectangularShader();
+
+    const skyCanvas = document.createElement("canvas");
+    skyCanvas.width = 512;
+    skyCanvas.height = 512;
+    const skyCtx = skyCanvas.getContext("2d");
+    if (skyCtx) {
+      const grad = skyCtx.createLinearGradient(0, 0, 0, 512);
+      grad.addColorStop(0.0, "#222f3e"); // Zenith: deep slate-blue architectural sky
+      grad.addColorStop(0.40, "#485b6b"); // Cool daylight horizon
+      grad.addColorStop(0.52, "#73604f"); // Warm amber twilight horizon band
+      grad.addColorStop(0.68, "#28231c"); // Warm soil ground bounce
+      grad.addColorStop(1.0, "#0c0e10"); // Forest floor nadir
+      skyCtx.fillStyle = grad;
+      skyCtx.fillRect(0, 0, 512, 512);
+    }
+    const skyTexture = new THREE.CanvasTexture(skyCanvas);
+    skyTexture.mapping = THREE.EquirectangularReflectionMapping;
+    const skyScene = new THREE.Scene();
+    skyScene.add(
+      new THREE.Mesh(
+        new THREE.SphereGeometry(120, 24, 16),
+        new THREE.MeshBasicMaterial({ map: skyTexture, side: THREE.BackSide })
+      )
+    );
+    const envMap = pmremGenerator.fromScene(skyScene).texture;
+    scene.environment = envMap;
+
     // 2. Cinematic Natural Environmental Lighting
-    const sunLight = new THREE.DirectionalLight(0xffeed8, 3.5);
-    sunLight.position.set(36, 32, 22);
+    const sunLight = new THREE.DirectionalLight(0xffedd4, 3.6);
+    sunLight.position.set(38, 34, 24);
     sunLight.castShadow = true;
-    sunLight.shadow.mapSize.width = 1024;
-    sunLight.shadow.mapSize.height = 1024;
-    sunLight.shadow.camera.near = 10;
-    sunLight.shadow.camera.far = 120;
+    sunLight.shadow.mapSize.width = 2048;
+    sunLight.shadow.mapSize.height = 2048;
+    sunLight.shadow.camera.near = 8;
+    sunLight.shadow.camera.far = 130;
     sunLight.shadow.camera.left = -28;
     sunLight.shadow.camera.right = 28;
     sunLight.shadow.camera.top = 28;
     sunLight.shadow.camera.bottom = -28;
-    sunLight.shadow.bias = -0.0003;
+    sunLight.shadow.bias = -0.00018;
+    sunLight.shadow.normalBias = 0.025;
     scene.add(sunLight);
 
-    const hemiLight = new THREE.HemisphereLight(0x38444e, 0x161819, 1.1);
+    const hemiLight = new THREE.HemisphereLight(0x4a5d6e, 0x1a1c1d, 1.15);
     scene.add(hemiLight);
 
-    const bounceLight = new THREE.DirectionalLight(0xd88762, 0.4);
-    bounceLight.position.set(-25, 12, -20);
+    const bounceLight = new THREE.DirectionalLight(0xd88762, 0.45);
+    bounceLight.position.set(-28, 14, -22);
     scene.add(bounceLight);
+
+    const rimLight = new THREE.DirectionalLight(0x9bb5c9, 0.35);
+    rimLight.position.set(-18, 22, 32);
+    scene.add(rimLight);
 
     // 3. PBR Texture Loading
     const textureLoader = new THREE.TextureLoader();
@@ -287,6 +345,11 @@ export function ArchitecturalConstructionCanvas({
       { x: 23, z: 16, h: 11.0, r: 2.7, s: 14 },
       { x: -18, z: 27, h: 10.5, r: 2.6, s: 15 },
       { x: 22, z: 28, h: 11.0, r: 2.7, s: 16 },
+      // Foreground & Deep Canopy Framing Trees
+      { x: -35, z: -24, h: 19.0, r: 4.4, s: 17 },
+      { x: 33, z: -20, h: 17.5, r: 4.1, s: 18 },
+      { x: -25, z: 24, h: 12.0, r: 3.0, s: 19 },
+      { x: 26, z: 24, h: 11.5, r: 2.9, s: 20 },
     ];
 
     treeSpots.forEach((ts) => {
@@ -339,62 +402,80 @@ export function ArchitecturalConstructionCanvas({
     // Instantiate Construction Controller
     const controller = new ConstructionController();
 
-    // Architectural Materials
+    // Architectural PBR Materials
     const concreteMat = new THREE.MeshStandardMaterial({
       map: concreteDiff,
       normalMap: concreteNor,
       roughnessMap: concreteRough,
-      roughness: 0.82,
-      metalness: 0.04,
+      color: 0xded9d2,
+      roughness: 0.74,
+      metalness: 0.03,
+      envMapIntensity: 0.65,
     });
 
     const basaltChimneyMat = new THREE.MeshStandardMaterial({
       map: concreteDiff,
       normalMap: concreteNor,
       roughnessMap: concreteRough,
-      color: 0x484643,
-      roughness: 0.85,
+      color: 0x3d3b38,
+      roughness: 0.88,
       metalness: 0.08,
+      envMapIntensity: 0.55,
     });
 
     const woodMat = new THREE.MeshStandardMaterial({
       map: woodDiff,
       normalMap: woodNor,
       roughnessMap: woodRough,
-      roughness: 0.65,
-      metalness: 0.04,
+      color: 0x9b6b47,
+      roughness: 0.60,
+      metalness: 0.02,
+      envMapIntensity: 0.75,
     });
 
     const steelMat = new THREE.MeshStandardMaterial({
-      color: 0x181a1c,
-      roughness: 0.32,
-      metalness: 0.88,
+      color: 0x141618,
+      roughness: 0.28,
+      metalness: 0.90,
+      envMapIntensity: 1.25,
     });
 
     const zincRoofMat = new THREE.MeshStandardMaterial({
-      color: 0x1e2124,
-      roughness: 0.38,
-      metalness: 0.75,
+      color: 0x22262a,
+      roughness: 0.32,
+      metalness: 0.80,
+      envMapIntensity: 1.15,
     });
 
     const glassMat = new THREE.MeshStandardMaterial({
-      color: 0xa4c6df,
+      color: 0xd2e8f8,
       transparent: true,
-      opacity: 0.36,
+      opacity: 0.38,
       roughness: 0.03,
-      metalness: 0.28,
+      metalness: 0.22,
+      envMapIntensity: 1.85,
     });
 
     const doorMat = new THREE.MeshStandardMaterial({
-      color: 0x3d2b1f,
-      roughness: 0.52,
-      metalness: 0.08,
+      map: woodDiff,
+      color: 0x3e2819,
+      roughness: 0.48,
+      metalness: 0.05,
+      envMapIntensity: 0.85,
     });
 
     const travertineFloorMat = new THREE.MeshStandardMaterial({
-      color: 0x332c26,
-      roughness: 0.55,
-      metalness: 0.12,
+      color: 0x3e352b,
+      roughness: 0.46,
+      metalness: 0.10,
+      envMapIntensity: 0.80,
+    });
+
+    const gravelMat = new THREE.MeshStandardMaterial({
+      color: 0x242220,
+      roughness: 0.94,
+      metalness: 0.04,
+      envMapIntensity: 0.40,
     });
 
     const blueprintMat = new THREE.LineBasicMaterial({
@@ -937,12 +1018,14 @@ export function ArchitecturalConstructionCanvas({
     window.addEventListener("scroll", handleScroll, { passive: true });
 
     // =================================================================
-    // 8. Deliberate Construction Progression Loop
+    // 8. Deliberate Construction Progression Loop (Scroll-Connected)
     // =================================================================
     let smoothedProgress = progressRef.current;
     let lastTime = performance.now();
     let isVisible = true;
     let animationFrameId: number;
+
+    const section = container.closest("#getting-started") || document.getElementById("getting-started");
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -960,16 +1043,38 @@ export function ArchitecturalConstructionCanvas({
       const delta = Math.min((now - lastTime) / 1000, 0.1);
       lastTime = now;
 
-      const activeTarget = previewProgressRef.current !== null
-        ? previewProgressRef.current
-        : Math.max(0, Math.min(1, progressRef.current));
-      smoothedProgress += (activeTarget - smoothedProgress) * 0.16;
+      // Single Source of Truth for Progress:
+      // Priority 1: Interactive Dev Preview / Timeline Playback
+      // Priority 2: Direct Page Scroll Progress through #getting-started
+      // Priority 3: Fallback prop progressRef.current
+      let scrollTarget = Math.max(0, Math.min(1, progressRef.current));
+      if (previewProgressRef.current !== null) {
+        scrollTarget = previewProgressRef.current;
+      } else if (section) {
+        const rect = section.getBoundingClientRect();
+        const vh = window.innerHeight;
+        const scrollDist = rect.height - vh;
+        if (scrollDist > 0) {
+          const raw = -rect.top / scrollDist;
+          scrollTarget = Math.max(0, Math.min(1, raw));
+        }
+      }
+
+      // Responsive Dynamic Lerp: Swift during rapid scrolling, silky smooth during micro-scrubs
+      const diff = scrollTarget - smoothedProgress;
+      if (Math.abs(diff) < 0.0002) {
+        smoothedProgress = scrollTarget;
+      } else {
+        const speed = Math.min(0.28, 0.14 + Math.abs(diff) * 0.22);
+        smoothedProgress += diff * speed;
+      }
+
       const p = isReducedMotion ? 1.0 : smoothedProgress;
 
       // Blueprint visibility in Stage 1 Source (fades out as foundation sets)
       if (p < 0.24) {
         blueprintGroup.visible = true;
-        blueprintMat.opacity = Math.max(0.1, 1.0 - (p / 0.24));
+        blueprintMat.opacity = Math.max(0.08, 1.0 - (p / 0.24));
       } else {
         blueprintGroup.visible = false;
       }
@@ -977,34 +1082,52 @@ export function ArchitecturalConstructionCanvas({
       // Delegate all component transforms, assembly order & reveals to the Controller
       controller.setAssemblyProgress(p);
 
-      // Environment sunlight twilight shift in Stage 3
-      if (p >= 0.86) {
-        const lightGlow = Math.min(1, (p - 0.86) / 0.14);
-        sunLight.intensity = 3.5 - lightGlow * 1.5;
+      // Environment sunlight twilight shift in Stage 3 (0.84 to 1.00)
+      if (p >= 0.84) {
+        const lightGlow = Math.min(1, (p - 0.84) / 0.16);
+        sunLight.intensity = 3.5 - lightGlow * 1.6;
         sunLight.color.setHex(0xffcb9e);
+        hemiLight.intensity = 1.1 - lightGlow * 0.3;
       } else {
         sunLight.intensity = 3.5;
         sunLight.color.setHex(0xffeed8);
+        hemiLight.intensity = 1.1;
       }
 
-      // Smooth, deliberate architectural camera drift framing the bungalow
-      const targetCamX = 24.0 - p * 3.8;
-      const targetCamY = 11.5 - p * 1.4;
-      const targetCamZ = 28.0 - p * 2.4;
+      // Responsive Camera Progression:
+      // Calculate current container dimensions and distance factor for mobile/tablet framing
+      const curW = container.clientWidth || window.innerWidth;
+      const curH = container.clientHeight || window.innerHeight;
+      const { distFactor } = calcCameraParams(curW, curH);
+
+      // Hermite smoothstep for natural architectural dolly movement
+      // At 0.00: High 3/4 establishing viewpoint (clearing + footprint)
+      // At 0.40 - 0.60: Eye-level structural framing (columns + beams + joists)
+      // At 0.90 - 1.00: Exquisite architectural twilight composition (finished bungalow)
+      const s = p * p * (3 - 2 * p);
+      const targetCamX = (24.4 - s * 4.0) * distFactor;
+      const targetCamY = (11.8 - s * 1.6) * distFactor;
+      const targetCamZ = (28.4 - s * 3.0) * distFactor;
+      const lookX = 1.0 + s * 0.2;
+      const lookY = 2.0 + s * 0.4;
+      const lookZ = 0.2 - s * 0.1;
+
       camera.position.set(targetCamX, targetCamY, targetCamZ);
-      camera.lookAt(1.2, 2.5, 0.2);
+      camera.lookAt(lookX, lookY, lookZ);
 
       renderer.render(scene, camera);
     };
 
     render();
 
-    // Resize handler
+    // Resize handler with responsive FOV updates
     const handleResize = () => {
       if (!container) return;
       const w = container.clientWidth || window.innerWidth;
       const h = container.clientHeight || window.innerHeight;
-      camera.aspect = w / h;
+      const params = calcCameraParams(w, h);
+      camera.fov = params.fov;
+      camera.aspect = params.aspect;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));

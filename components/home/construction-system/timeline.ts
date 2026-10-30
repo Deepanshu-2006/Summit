@@ -36,7 +36,7 @@ export const CONSTRUCTION_MILESTONES: ConstructionMilestone[] = [
     step: 3,
     name: "Foundation Footings & Plinths",
     stage: "SOURCE",
-    start: 0.08,
+    start: 0.04,
     end: 0.20,
     componentIds: [
       "foundation-living-slab",

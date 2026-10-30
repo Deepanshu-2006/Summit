@@ -23,8 +23,8 @@ export default function Home() {
         <ProductExperience />
         <ApplicationStack />
         <DeveloperExperience />
-        <ProductionVisibility />
         <GettingStarted />
+        <ProductionVisibility />
         <FinalCta />
       </main>
       <Footer />

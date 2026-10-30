@@ -8,19 +8,19 @@ import { ConstructionComponentDef } from "./types";
 export const BUNGALOW_CONSTRUCTION_MANIFEST: ConstructionComponentDef[] = [
   // ===================================================================
   // STAGE A — SOURCE: PREPARING THE SITE (0.00 - 0.20)
-  // Step 3: Foundation construction
+  // Step 3: Foundation construction (descending from above onto surveyed ground)
   // ===================================================================
   {
     id: "foundation-living-slab",
     name: "Living Pavilion Foundation Plinth",
     category: "foundation",
     constructionOrder: 1,
-    startProgress: 0.08,
-    endProgress: 0.16,
+    startProgress: 0.04,
+    endProgress: 0.13,
     dependencies: [],
-    revealMethod: "rise",
+    revealMethod: "assemble",
     initialTransform: {
-      positionOffset: [0, -0.45, 0],
+      positionOffset: [0, 9.5, 0],
     },
     finalTransform: {
       position: [5.7, 0.21, 0.2],
@@ -31,12 +31,12 @@ export const BUNGALOW_CONSTRUCTION_MANIFEST: ConstructionComponentDef[] = [
     name: "Bedroom Wing Foundation Plinth",
     category: "foundation",
     constructionOrder: 2,
-    startProgress: 0.10,
-    endProgress: 0.17,
+    startProgress: 0.06,
+    endProgress: 0.15,
     dependencies: [],
-    revealMethod: "rise",
+    revealMethod: "assemble",
     initialTransform: {
-      positionOffset: [0, -0.45, 0],
+      positionOffset: [0, 9.5, 0],
     },
     finalTransform: {
       position: [-5.8, 0.21, -0.7],
@@ -47,12 +47,12 @@ export const BUNGALOW_CONSTRUCTION_MANIFEST: ConstructionComponentDef[] = [
     name: "Entrance Porch Foundation Plinth",
     category: "foundation",
     constructionOrder: 3,
-    startProgress: 0.12,
-    endProgress: 0.18,
+    startProgress: 0.09,
+    endProgress: 0.17,
     dependencies: ["foundation-living-slab", "foundation-bed-slab"],
-    revealMethod: "rise",
+    revealMethod: "assemble",
     initialTransform: {
-      positionOffset: [0, -0.40, 0],
+      positionOffset: [0, 8.5, 0],
     },
     finalTransform: {
       position: [-0.7, 0.18, 2.3],
@@ -63,12 +63,12 @@ export const BUNGALOW_CONSTRUCTION_MANIFEST: ConstructionComponentDef[] = [
     name: "Cantilevered Concrete Front Terrace",
     category: "foundation",
     constructionOrder: 4,
-    startProgress: 0.14,
-    endProgress: 0.19,
+    startProgress: 0.12,
+    endProgress: 0.18,
     dependencies: ["foundation-living-slab"],
-    revealMethod: "rise",
+    revealMethod: "assemble",
     initialTransform: {
-      positionOffset: [0, -0.30, 0],
+      positionOffset: [0, 7.5, 0],
     },
     finalTransform: {
       position: [5.7, 0.11, 6.6],
@@ -79,12 +79,12 @@ export const BUNGALOW_CONSTRUCTION_MANIFEST: ConstructionComponentDef[] = [
     name: "Floating Concrete Approach Steps",
     category: "foundation",
     constructionOrder: 5,
-    startProgress: 0.16,
+    startProgress: 0.14,
     endProgress: 0.20,
     dependencies: ["foundation-terrace"],
-    revealMethod: "rise",
+    revealMethod: "assemble",
     initialTransform: {
-      positionOffset: [0, -0.20, 0],
+      positionOffset: [0, 6.5, 0],
     },
     finalTransform: {
       position: [5.7, 0.055, 8.3],

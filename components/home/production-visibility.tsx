@@ -186,7 +186,7 @@ export function ProductionVisibility() {
       className={
         isReducedMotion
           ? "relative w-full py-28 sm:py-36 lg:py-48 xl:py-56 bg-transparent text-[#F5F5F3]"
-          : "relative w-full h-[240vh] my-[24vh] sm:my-[30vh] lg:my-[36vh] bg-transparent text-[#F5F5F3]"
+          : "relative w-full h-[240vh] my-[8vh] sm:my-[12vh] lg:my-[14vh] bg-transparent text-[#F5F5F3]"
       }
       aria-label="Production Visibility"
     >
