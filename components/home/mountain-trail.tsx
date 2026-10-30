@@ -485,13 +485,10 @@ export function MountainTrail() {
     // Viewport focal line: ~45% down the screen
     const viewportGuideY = scrollY + vh * 0.45;
 
-    // Check if user is currently inside Section 4's pinned exploration track
-    const stackEl = document.getElementById("platform-stack");
-    const stackRect = stackEl ? stackEl.getBoundingClientRect() : null;
-    const isInsideStack = stackRect
-      ? stackRect.top <= vh * 0.55 && stackRect.bottom >= vh * 0.15
-      : false;
-    const isPastStack = stackRect ? stackRect.bottom < vh * 0.15 : false;
+    // Check if user is currently inside Section 4's pinned exploration track (zero DOM reads)
+    const isInsideStack =
+      viewportGuideY >= lineCoords.cp3Y && viewportGuideY < lineCoords.resumeY;
+    const isPastStack = viewportGuideY >= lineCoords.resumeY;
 
     // Hiker only becomes visible once the user scrolls past Hero.
     // While inside Section 4, the vertical hiker is hidden and converts to the horizontal hiker.
@@ -550,12 +547,9 @@ export function MountainTrail() {
       const scrollY = window.scrollY || document.documentElement.scrollTop;
       const vh = window.innerHeight;
 
-      const stackEl = document.getElementById("platform-stack");
-      const stackRect = stackEl ? stackEl.getBoundingClientRect() : null;
-      const isInsideStack = stackRect
-        ? stackRect.top <= vh * 0.55 && stackRect.bottom >= vh * 0.15
-        : false;
-      const isPastStack = stackRect ? stackRect.bottom < vh * 0.15 : false;
+      const guideY = scrollY + vh * 0.45;
+      const isInsideStack = guideY >= lineCoords.cp3Y && guideY < lineCoords.resumeY;
+      const isPastStack = guideY >= lineCoords.resumeY;
 
       const targetY = isInsideStack
         ? lineCoords.cp3Y

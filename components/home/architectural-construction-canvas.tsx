@@ -6,6 +6,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { ConstructionController } from "./construction-system/controller";
 import { ConstructionStagePreset } from "./construction-system/types";
 import { ConstructionTimelineManager, CONSTRUCTION_MILESTONES } from "./construction-system/timeline";
+import { useLenis } from "@/components/layout/smooth-scroll-provider";
 
 interface ArchitecturalConstructionCanvasProps {
   progress?: number; // Normalized construction progress [0 .. 1] (optional; defaults to auto-scroll measurement)
@@ -46,7 +47,13 @@ export function ArchitecturalConstructionCanvas({
   const containerRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<number>(progress);
   progressRef.current = progress;
+  const scrollYRef = useRef<number>(0);
   const [webGLError, setWebGLError] = useState<boolean>(false);
+
+  // Synchronize directly with Lenis smooth scroll tick
+  useLenis((lenis) => {
+    scrollYRef.current = lenis.scroll;
+  });
 
   useEffect(() => {
     const container = containerRef.current;
@@ -392,6 +399,61 @@ export function ArchitecturalConstructionCanvas({
       undefined,
       (err) => console.warn("Rock model load note:", err)
     );
+
+    // =================================================================
+    // 6.5. PROCEDURAL 3D CANOPY MIST DECK (Option C: Atmospheric Valley Mist Dive)
+    // Soft Gaussian puffs floating at canopy level (Y = 15m - 20m).
+    // The camera starts high above this deck, then plunges through the mist
+    // directly into the sunlit woodland clearing. Zero external images used.
+    // =================================================================
+    const canopyMistGroup = new THREE.Group();
+    const mistCanvas = document.createElement("canvas");
+    mistCanvas.width = 128;
+    mistCanvas.height = 128;
+    const mCtx = mistCanvas.getContext("2d");
+    if (mCtx) {
+      const grad = mCtx.createRadialGradient(64, 64, 0, 64, 64, 64);
+      grad.addColorStop(0.0, "rgba(232, 240, 250, 0.48)");
+      grad.addColorStop(0.35, "rgba(215, 228, 242, 0.28)");
+      grad.addColorStop(0.70, "rgba(200, 215, 230, 0.09)");
+      grad.addColorStop(1.0, "rgba(200, 215, 230, 0.0)");
+      mCtx.fillStyle = grad;
+      mCtx.fillRect(0, 0, 128, 128);
+    }
+    const mistTexture = new THREE.CanvasTexture(mistCanvas);
+    const mistGeo = new THREE.PlaneGeometry(38, 14);
+    mistGeo.rotateX(-Math.PI / 2);
+
+    const mistPlanes: THREE.Mesh[] = [];
+    const mistMat = new THREE.MeshBasicMaterial({
+      map: mistTexture,
+      transparent: true,
+      opacity: 0.42,
+      depthWrite: false,
+      blending: THREE.NormalBlending,
+      side: THREE.DoubleSide,
+    });
+
+    const mistConfigs = [
+      { x: 4, y: 15.5, z: 6, rot: 0.2, scale: 1.1 },
+      { x: 18, y: 17.0, z: 16, rot: -0.3, scale: 1.25 },
+      { x: -12, y: 16.0, z: 8, rot: 0.5, scale: 1.0 },
+      { x: 10, y: 18.5, z: 24, rot: 0.1, scale: 1.3 },
+      { x: -6, y: 19.0, z: 20, rot: -0.4, scale: 1.15 },
+      { x: 22, y: 16.5, z: 28, rot: 0.35, scale: 1.2 },
+      { x: -16, y: 17.5, z: -4, rot: -0.15, scale: 1.05 },
+      { x: 6, y: 20.0, z: 32, rot: 0.25, scale: 1.35 },
+    ];
+
+    mistConfigs.forEach((cfg) => {
+      const p = new THREE.Mesh(mistGeo, mistMat);
+      p.position.set(cfg.x, cfg.y, cfg.z);
+      p.rotation.y = cfg.rot;
+      p.scale.set(cfg.scale, 1, cfg.scale);
+      canopyMistGroup.add(p);
+      mistPlanes.push(p);
+    });
+    scene.add(canopyMistGroup);
 
     // =================================================================
     // 7. MODULAR BUNGALOW MODEL & COMPONENT CONTROLLER
@@ -1017,59 +1079,74 @@ export function ArchitecturalConstructionCanvas({
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
 
+    // Pre-warm shaders immediately during mount to eliminate first-scroll compile stutter
+    try {
+      renderer.compile(scene, camera);
+    } catch {
+      // Graceful fallback
+    }
+
     // =================================================================
-    // 8. Deliberate Construction Progression Loop (Scroll-Connected)
+    // 8. Deliberate Construction Progression Loop (Scroll-Connected, Zero-Reflow)
     // =================================================================
-    let smoothedProgress = progressRef.current;
-    let lastTime = performance.now();
     let isVisible = true;
     let animationFrameId: number;
 
     const section = container.closest("#getting-started") || document.getElementById("getting-started");
 
+    // Geometry caching: measures ONLY on mount and resize, eliminates getBoundingClientRect in render()
+    let cachedSectionTop = 0;
+    let cachedScrollDist = 1;
+    let cachedDistFactor = initialParams.distFactor;
+
+    const measureGeometry = () => {
+      if (!section || !container) return;
+      const rect = section.getBoundingClientRect();
+      cachedSectionTop = rect.top + window.scrollY;
+      cachedScrollDist = Math.max(1, rect.height - window.innerHeight);
+      const w = container.clientWidth || window.innerWidth;
+      const h = container.clientHeight || window.innerHeight;
+      const params = calcCameraParams(w, h);
+      cachedDistFactor = params.distFactor;
+    };
+
+    measureGeometry();
+    const geomTimer = setTimeout(measureGeometry, 120);
+
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined" && section) {
+      ro = new ResizeObserver(() => measureGeometry());
+      ro.observe(section);
+    }
+
     const observer = new IntersectionObserver(
       (entries) => {
         isVisible = entries[0]?.isIntersecting ?? true;
       },
-      { threshold: 0.02 }
+      { threshold: 0.01, rootMargin: "250px 0px 250px 0px" }
     );
     observer.observe(container);
+
+    const initialMistX = mistConfigs.map((c) => c.x);
 
     const render = () => {
       animationFrameId = requestAnimationFrame(render);
       if (!isVisible) return;
 
       const now = performance.now();
-      const delta = Math.min((now - lastTime) / 1000, 0.1);
-      lastTime = now;
 
-      // Single Source of Truth for Progress:
-      // Priority 1: Interactive Dev Preview / Timeline Playback
-      // Priority 2: Direct Page Scroll Progress through #getting-started
-      // Priority 3: Fallback prop progressRef.current
-      let scrollTarget = Math.max(0, Math.min(1, progressRef.current));
+      // Direct, buttery-smooth progress from Lenis (zero layout reads)
+      const scrollY = scrollYRef.current;
+      let scrollTarget = 0;
       if (previewProgressRef.current !== null) {
         scrollTarget = previewProgressRef.current;
-      } else if (section) {
-        const rect = section.getBoundingClientRect();
-        const vh = window.innerHeight;
-        const scrollDist = rect.height - vh;
-        if (scrollDist > 0) {
-          const raw = -rect.top / scrollDist;
-          scrollTarget = Math.max(0, Math.min(1, raw));
-        }
-      }
-
-      // Responsive Dynamic Lerp: Swift during rapid scrolling, silky smooth during micro-scrubs
-      const diff = scrollTarget - smoothedProgress;
-      if (Math.abs(diff) < 0.0002) {
-        smoothedProgress = scrollTarget;
       } else {
-        const speed = Math.min(0.28, 0.14 + Math.abs(diff) * 0.22);
-        smoothedProgress += diff * speed;
+        const raw = (scrollY - cachedSectionTop) / cachedScrollDist;
+        scrollTarget = Math.max(0, Math.min(1, raw));
       }
 
-      const p = isReducedMotion ? 1.0 : smoothedProgress;
+      // Exact 1:1 synchronization with Lenis sub-pixel inertia
+      const p = isReducedMotion ? 1.0 : scrollTarget;
 
       // Blueprint visibility in Stage 1 Source (fades out as foundation sets)
       if (p < 0.24) {
@@ -1094,22 +1171,45 @@ export function ArchitecturalConstructionCanvas({
         hemiLight.intensity = 1.1;
       }
 
-      // Responsive Camera Progression:
-      // Calculate current container dimensions and distance factor for mobile/tablet framing
-      const curW = container.clientWidth || window.innerWidth;
-      const curH = container.clientHeight || window.innerHeight;
-      const { distFactor } = calcCameraParams(curW, curH);
+      // Atmospheric Valley Mist Dive (Option C, Zero-Reflow):
+      const currentTop = cachedSectionTop - scrollY;
+      let diveProgress = 1.0;
+      if (section && !isReducedMotion) {
+        if (currentTop > 0) {
+          diveProgress = 0.0;
+        } else {
+          diveProgress = Math.max(0.0, Math.min(1.0, scrollTarget / 0.08));
+        }
+      }
+      const diveEase = diveProgress * diveProgress * (3 - 2 * diveProgress);
 
-      // Hermite smoothstep for natural architectural dolly movement
-      // At 0.00: High 3/4 establishing viewpoint (clearing + footprint)
-      // At 0.40 - 0.60: Eye-level structural framing (columns + beams + joists)
-      // At 0.90 - 1.00: Exquisite architectural twilight composition (finished bungalow)
-      const s = p * p * (3 - 2 * p);
-      const targetCamX = (24.4 - s * 4.0) * distFactor;
-      const targetCamY = (11.8 - s * 1.6) * distFactor;
-      const targetCamZ = (28.4 - s * 3.0) * distFactor;
+      // Animate and modulate 3D canopy mist deck
+      if (diveEase < 0.99) {
+        canopyMistGroup.visible = true;
+        mistMat.opacity = (1.0 - diveEase) * 0.42;
+        const t = now * 0.0006;
+        mistPlanes.forEach((plane, idx) => {
+          const dir = idx % 2 === 0 ? 1 : -1;
+          plane.position.x = initialMistX[idx] + Math.sin(t * 0.8 + idx) * 3.5 * dir;
+          plane.position.y = mistConfigs[idx].y + Math.sin(t + idx) * 0.15;
+        });
+      } else {
+        canopyMistGroup.visible = false;
+      }
+
+      // Camera dolly during dive and subsequent architectural construction
+      const diveDollyX = (1.0 - diveEase) * 7.6;
+      const diveDollyY = (1.0 - diveEase) * 18.2;
+      const diveDollyZ = (1.0 - diveEase) * 11.6;
+
+      // Architectural construction camera progression (normalized after mist dive: 0.06 to 1.00)
+      const archP = Math.max(0.0, Math.min(1.0, (p - 0.06) / 0.94));
+      const s = archP * archP * (3 - 2 * archP);
+      const targetCamX = (24.4 - s * 4.0 + diveDollyX) * cachedDistFactor;
+      const targetCamY = (11.8 - s * 1.6 + diveDollyY) * cachedDistFactor;
+      const targetCamZ = (28.4 - s * 3.0 + diveDollyZ) * cachedDistFactor;
       const lookX = 1.0 + s * 0.2;
-      const lookY = 2.0 + s * 0.4;
+      const lookY = 2.0 + s * 0.4 - (1.0 - diveEase) * 1.2;
       const lookZ = 0.2 - s * 0.1;
 
       camera.position.set(targetCamX, targetCamY, targetCamZ);
@@ -1123,6 +1223,7 @@ export function ArchitecturalConstructionCanvas({
     // Resize handler with responsive FOV updates
     const handleResize = () => {
       if (!container) return;
+      measureGeometry();
       const w = container.clientWidth || window.innerWidth;
       const h = container.clientHeight || window.innerHeight;
       const params = calcCameraParams(w, h);
@@ -1138,6 +1239,8 @@ export function ArchitecturalConstructionCanvas({
     // Resource cleanup
     return () => {
       cancelAnimationFrame(animationFrameId);
+      if (ro) ro.disconnect();
+      clearTimeout(geomTimer);
       window.removeEventListener("resize", handleResize);
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("scroll", handleScroll);
@@ -1161,6 +1264,10 @@ export function ArchitecturalConstructionCanvas({
       woodDiff.dispose();
       woodNor.dispose();
       woodRough.dispose();
+
+      mistGeo.dispose();
+      mistMat.dispose();
+      mistTexture.dispose();
 
       renderer.dispose();
       if (renderer.domElement && container.contains(renderer.domElement)) {

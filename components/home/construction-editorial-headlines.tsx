@@ -29,11 +29,11 @@ const HEADLINES: HeadlineDef[] = [
       { text: "starts" },
       { text: "somewhere.", accent: true },
     ],
-    // Reveals during early clearing & foundation touchdown
-    enterStart: 0.01,
-    enterEnd: 0.07,
-    exitStart: 0.17,
-    exitEnd: 0.22,
+    // Reveals as camera breaks through mist dive into sunlit clearing
+    enterStart: 0.05,
+    enterEnd: 0.09,
+    exitStart: 0.18,
+    exitEnd: 0.23,
   },
   {
     id: "build",
@@ -47,7 +47,7 @@ const HEADLINES: HeadlineDef[] = [
     // Reveals as columns anchor and roof frame takes shape
     enterStart: 0.24,
     enterEnd: 0.30,
-    exitStart: 0.53,
+    exitStart: 0.54,
     exitEnd: 0.58,
   },
   {
@@ -63,7 +63,7 @@ const HEADLINES: HeadlineDef[] = [
     enterStart: 0.62,
     enterEnd: 0.68,
     exitStart: 0.98,
-    exitEnd: 1.05, // Sustained through completion of the architectural sequence
+    exitEnd: 1.05,
   },
 ];
 
@@ -85,14 +85,11 @@ function smoothstep(t: number): number {
  * 2. BUILD: "From commit to creation."
  * 3. PRODUCTION: "Built to go live."
  *
- * Characteristics:
- * - Large, carefully proportioned Space Grotesk display typography
- * - Restrained burnt-orange accent on the operative keyword
- * - Smooth word-by-word upward entrance with temporary softening resolving to crisp typography
- * - Natural upward exit drift without abrupt cuts
- * - Deterministic, 100% reversible scroll synchronization
- * - Direct DOM style mutations with zero React re-render overhead at 60/120fps
- * - Respects prefers-reduced-motion with instant clean typography
+ * Performance Characteristics:
+ * - High-Performance compositor-only animations (translate3d + opacity)
+ * - Zero CSS blur convolution filters on text to avoid GPU rasterization stalls
+ * - Cached geometric coordinates eliminating getBoundingClientRect layout thrashing
+ * - 100% deterministic & reversible on backward scrolling
  */
 export function ConstructionEditorialHeadlines({
   sectionRef,
@@ -100,47 +97,57 @@ export function ConstructionEditorialHeadlines({
   isReducedMotion,
 }: ConstructionEditorialHeadlinesProps) {
   const containerRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const wordRefs = useRef<(HTMLSpanElement | null)[][]>([[], [], []]);
-  const rafIdRef = useRef<number | null>(null);
+  const wordRefs = useRef<(HTMLSpanElement | null)[][]>([]);
+
+  // Cached geometry to eliminate getBoundingClientRect layout thrashing during scroll
+  const geoRef = useRef({
+    sectionTop: 0,
+    scrollDistance: 1,
+  });
+
+  const measure = useCallback(() => {
+    if (!sectionRef.current) return;
+    const rect = sectionRef.current.getBoundingClientRect();
+    const vh = window.innerHeight;
+    geoRef.current = {
+      sectionTop: rect.top + window.scrollY,
+      scrollDistance: Math.max(1, rect.height - vh),
+    };
+  }, [sectionRef]);
 
   const updateHeadlines = useCallback(
-    (p: number) => {
+    (progress: number) => {
+      const p = clamp01(progress);
+
       HEADLINES.forEach((def, k) => {
         const container = containerRefs.current[k];
         if (!container) return;
 
-        // Reduced motion fallback: instant full contrast on active stage
         if (isReducedMotion) {
-          const isActive = currentStage === def.stageNum;
+          const isActive = def.stageNum === currentStage;
           container.style.opacity = isActive ? "1" : "0";
-          container.style.visibility = isActive ? "visible" : "hidden";
           container.style.transform = "none";
-          container.style.filter = "none";
-          container.setAttribute("aria-hidden", (!isActive).toString());
+          container.style.visibility = isActive ? "visible" : "hidden";
           return;
         }
 
-        const numWords = def.words.length;
-
-        // 1. Completely before entrance or after exit
+        // 1. Outside Active Timeline Window: fully hidden
         if (p < def.enterStart || p > def.exitEnd) {
           container.style.opacity = "0";
           container.style.visibility = "hidden";
-          container.setAttribute("aria-hidden", "true");
           return;
         }
 
         container.style.visibility = "visible";
-        container.setAttribute("aria-hidden", "false");
+        const numWords = def.words.length;
 
-        // 2. Entrance Phase: Refined word-by-word upward reveal with soft resolving blur
+        // 2. Entrance Phase: Word-by-word upward ascent (Compositor accelerated)
         if (p >= def.enterStart && p < def.enterEnd) {
+          container.style.transform = "translate3d(0, 0, 0)";
+          container.style.opacity = "1";
+
           const enterRange = def.enterEnd - def.enterStart;
           const normEnter = (p - def.enterStart) / enterRange;
-
-          container.style.opacity = "1";
-          container.style.transform = "translate3d(0, 0, 0)";
-          container.style.filter = "none";
 
           for (let w = 0; w < numWords; w++) {
             const wordEl = wordRefs.current[k]?.[w];
@@ -150,28 +157,24 @@ export function ConstructionEditorialHeadlines({
             const wordDur = 0.55;
             const wordT = clamp01((normEnter - wordStart) / wordDur);
             const easeT = smoothstep(wordT);
-            const yOffset = (22 * (1 - easeT)).toFixed(2);
-            const blur = ((1 - easeT) * 4).toFixed(2);
+            const yOffset = (18 * (1 - easeT)).toFixed(2);
 
             wordEl.style.transform = `translate3d(0, ${yOffset}px, 0)`;
             wordEl.style.opacity = easeT.toFixed(3);
-            wordEl.style.filter = parseFloat(blur) > 0.05 ? `blur(${blur}px)` : "none";
           }
           return;
         }
 
-        // 3. Settled Plateau: Rock-solid, razor-sharp typography with zero blur
+        // 3. Settled Plateau: Rock-solid, razor-sharp typography
         if (p >= def.enterEnd && p <= def.exitStart) {
           container.style.opacity = "1";
           container.style.transform = "translate3d(0, 0, 0)";
-          container.style.filter = "none";
 
           for (let w = 0; w < numWords; w++) {
             const wordEl = wordRefs.current[k]?.[w];
             if (!wordEl) continue;
             wordEl.style.transform = "translate3d(0, 0, 0)";
             wordEl.style.opacity = "1";
-            wordEl.style.filter = "none";
           }
           return;
         }
@@ -181,20 +184,17 @@ export function ConstructionEditorialHeadlines({
           const exitRange = def.exitEnd - def.exitStart;
           const normExit = (p - def.exitStart) / exitRange;
           const easeExit = smoothstep(normExit);
-          const exitY = (-18 * easeExit).toFixed(2);
+          const exitY = (-16 * easeExit).toFixed(2);
           const exitOp = (1 - easeExit).toFixed(3);
-          const exitBlur = (easeExit * 3).toFixed(2);
 
           container.style.transform = `translate3d(0, ${exitY}px, 0)`;
           container.style.opacity = exitOp;
-          container.style.filter = parseFloat(exitBlur) > 0.05 ? `blur(${exitBlur}px)` : "none";
 
           for (let w = 0; w < numWords; w++) {
             const wordEl = wordRefs.current[k]?.[w];
             if (!wordEl) continue;
             wordEl.style.transform = "translate3d(0, 0, 0)";
             wordEl.style.opacity = "1";
-            wordEl.style.filter = "none";
           }
         }
       });
@@ -202,53 +202,50 @@ export function ConstructionEditorialHeadlines({
     [currentStage, isReducedMotion]
   );
 
-  const measureAndApply = useCallback(() => {
-    if (!sectionRef.current) return;
-    const rect = sectionRef.current.getBoundingClientRect();
-    const vh = window.innerHeight;
-    const scrollDistance = rect.height - vh;
-    if (scrollDistance <= 0) {
-      updateHeadlines(0);
-      return;
-    }
+  const applyScroll = useCallback(
+    (scrollY: number) => {
+      const { sectionTop, scrollDistance } = geoRef.current;
+      const raw = (scrollY - sectionTop) / scrollDistance;
+      updateHeadlines(clamp01(raw));
+    },
+    [updateHeadlines]
+  );
 
-    const raw = -rect.top / scrollDistance;
-    const clamped = clamp01(raw);
-    updateHeadlines(clamped);
-  }, [sectionRef, updateHeadlines]);
-
-  const scheduleUpdate = useCallback(() => {
-    if (rafIdRef.current !== null) return;
-    rafIdRef.current = requestAnimationFrame(() => {
-      rafIdRef.current = null;
-      measureAndApply();
-    });
-  }, [measureAndApply]);
-
-  useLenis(() => {
-    measureAndApply();
+  // Synchronize directly with Lenis smooth scroll tick
+  useLenis((lenis) => {
+    applyScroll(lenis.scroll);
   });
 
   useEffect(() => {
-    window.addEventListener("scroll", scheduleUpdate, { passive: true });
-    window.addEventListener("resize", scheduleUpdate, { passive: true });
+    const onNativeScroll = () => {
+      applyScroll(window.scrollY);
+    };
 
-    measureAndApply();
-    const timer = setTimeout(measureAndApply, 60);
+    const onResize = () => {
+      measure();
+      applyScroll(window.scrollY);
+    };
+
+    window.addEventListener("scroll", onNativeScroll, { passive: true });
+    window.addEventListener("resize", onResize, { passive: true });
+
+    measure();
+    applyScroll(window.scrollY);
+    const timer = setTimeout(() => {
+      measure();
+      applyScroll(window.scrollY);
+    }, 100);
 
     return () => {
       clearTimeout(timer);
-      window.removeEventListener("scroll", scheduleUpdate);
-      window.removeEventListener("resize", scheduleUpdate);
-      if (rafIdRef.current !== null) {
-        cancelAnimationFrame(rafIdRef.current);
-      }
+      window.removeEventListener("scroll", onNativeScroll);
+      window.removeEventListener("resize", onResize);
     };
-  }, [scheduleUpdate, measureAndApply]);
+  }, [measure, applyScroll]);
 
   return (
     <div
-      className="absolute top-20 sm:top-24 lg:top-28 left-6 sm:left-12 lg:left-16 xl:left-20 max-w-[320px] sm:max-w-[460px] md:max-w-[560px] lg:max-w-[640px] pointer-events-none select-none z-10"
+      className="absolute top-20 sm:top-24 lg:top-28 left-6 sm:left-12 lg:left-16 xl:left-20 max-w-[320px] sm:max-w-[460px] md:max-w-[560px] lg:max-w-[640px] pointer-events-none select-none z-10 transform-gpu contain-layout"
       aria-label="Construction stage narrative headlines"
     >
       {HEADLINES.map((def, k) => (
@@ -257,7 +254,7 @@ export function ConstructionEditorialHeadlines({
           ref={(el) => {
             containerRefs.current[k] = el;
           }}
-          className="absolute top-0 left-0 w-full will-change-[transform,opacity,filter]"
+          className="absolute top-0 left-0 w-full will-change-[transform,opacity] transform-gpu"
           style={{ opacity: 0, visibility: "hidden" }}
         >
           <h2 className="font-sans text-[32px] sm:text-[44px] md:text-[50px] lg:text-[58px] xl:text-[64px] font-medium leading-[1.10] sm:leading-[1.08] lg:leading-[1.05] tracking-[-0.035em] text-[#F5F5F3] [text-wrap:balance]">
@@ -268,7 +265,7 @@ export function ConstructionEditorialHeadlines({
                   if (!wordRefs.current[k]) wordRefs.current[k] = [];
                   wordRefs.current[k][wIdx] = el;
                 }}
-                className={`inline-block mr-[0.26em] will-change-[transform,opacity,filter] ${
+                className={`inline-block mr-[0.26em] will-change-[transform,opacity] transform-gpu ${
                   word.accent ? "text-accent-orange" : "text-[#F5F5F3]"
                 }`}
               >
@@ -283,4 +280,3 @@ export function ConstructionEditorialHeadlines({
 }
 
 export default ConstructionEditorialHeadlines;
-
