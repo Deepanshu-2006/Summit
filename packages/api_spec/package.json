@@ -1,0 +1,39 @@
+{
+  "name": "@summit/api-spec",
+  "version": "0.1.0",
+  "description": "Canonical OpenAPI 3.1 specification and shared TypeScript API contracts for Summit (Go backend + Next.js frontend)",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./openapi.yaml": "./openapi.yaml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "src",
+    "openapi.yaml",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5"
+  },
+  "keywords": [
+    "openapi",
+    "api-spec",
+    "contracts",
+    "summit",
+    "typescript",
+    "go"
+  ]
+}

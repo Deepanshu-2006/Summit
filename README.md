@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Summit monorepo
 
-## Getting Started
+Summit is organized as a pnpm workspace for the Next.js UI and shared TypeScript packages, alongside a Go service for the backend. The OpenAPI document is the API contract shared by the UI and backend teams.
 
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```text
+apps/
+  web/                 Next.js frontend
+  backend/             Go API service
+packages/
+  api_spec/            OpenAPI 3.1 contract and TypeScript API models
+docs/
+  system_architechture.png
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The OpenAPI file describes the intended HTTP API. A path in the spec does not mean the backend has implemented it yet; implementation status belongs in the relevant backend work.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+The handed-off UI still contains Next.js route handlers and an in-memory Meridian demo store. Treat those as prototype behavior, not the platform API implementation. New backend endpoints belong in `apps/backend`; the UI can switch from its demo routes to the Go service as those endpoints are implemented.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Requirements
 
-## Learn More
+- Node.js supported by Next.js 16
+- pnpm 12.15.0 (declared in the root `package.json`)
+- Go 1.23 or newer
 
-To learn more about Next.js, take a look at the following resources:
+## Install and run
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Install the JavaScript workspace dependencies from the repository root:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+pnpm install
+```
 
-## Deploy on Vercel
+Run the frontend and backend in separate terminals:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+pnpm dev:web
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+pnpm dev:backend
+```
+
+The frontend runs at `http://localhost:3000`. The backend listens on its configured local address; see `apps/backend/README.md` for its port and environment settings.
+
+## Workspace commands
+
+| Command | Purpose |
+| --- | --- |
+| `pnpm dev:web` | Start the Next.js frontend |
+| `pnpm dev:backend` | Start the Go API service |
+| `pnpm build` | Build JavaScript workspace packages and the Go service |
+| `pnpm lint` | Lint JavaScript packages and run `go vet` on the backend |
+| `pnpm typecheck` | Type-check JavaScript/TypeScript workspace packages |
+| `pnpm typecheck:web` | Type-check the frontend |
+| `pnpm typecheck:api` | Type-check the shared API package |
+
+Go-only code changes can also be checked from the repository root with `go -C apps/backend vet ./...` and built with `go -C apps/backend build ./...`.
+
+## API contract workflow
+
+Edit `packages/api_spec/openapi.yaml` first when changing an HTTP endpoint, request, response, or error shape. Coordinate the contract change with both teams, then update the Go handler and frontend client to match. The OpenAPI document is the source of truth; generated clients or server stubs should be added only when the team chooses and maintains a generation workflow.
+
+## Ownership
+
+- `apps/web`: frontend UI and API client integration.
+- `apps/backend`: Go control-plane API implementation.
+- `packages/api_spec`: versioned API contract and shared TypeScript types.
+- `docs`: architecture references.
+
+Keep credentials in local environment files. Commit only safe placeholders such as `.env.example`.

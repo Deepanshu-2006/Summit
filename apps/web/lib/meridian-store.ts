@@ -4,26 +4,8 @@
  * to dynamically update and be reflected in subsequent GET calls.
  */
 
-export interface ResourceItem {
-  id: string;
-  name: string;
-  type: "database" | "key-value" | "storage" | "compute" | "certificate" | "web";
-  status: "available" | "provisioned" | "active";
-  tier: string;
-  region: string;
-  created_at: string;
-}
-
-export interface ReleaseItem {
-  id: string;
-  version: string;
-  branch: string;
-  commit: string;
-  status: "published" | "queued" | "verified";
-  deployed_to: string;
-  deployed_at: string;
-  author: string;
-}
+import type { ResourceItem, ReleaseItem } from "@summit/api-spec";
+export type { ResourceItem, ReleaseItem };
 
 // Initial seed data
 const initialResources: ResourceItem[] = [
