@@ -8,7 +8,7 @@ import React, {
   useSyncExternalStore,
 } from "react";
 import Image from "next/image";
-import { GitCommit, ExternalLink, Terminal, CheckCircle2 } from "lucide-react";
+import { GitCommit, ExternalLink, Check } from "lucide-react";
 import { useLenis } from "@/components/layout/smooth-scroll-provider";
 
 // SSR-safe subscription for prefers-reduced-motion
@@ -61,7 +61,7 @@ function TopDownAscentHiker({
       aria-hidden="true"
     >
       {/* 1. Ambient Warm Ground Contact Shadow & Subtle Alpine Lantern Glow */}
-      <circle cx="0" cy="1" r="14" fill="#D88762" opacity="0.12" />
+      <circle cx="0" cy="1" r="16" fill="#D88762" opacity="0.14" />
       <ellipse cx="0" cy="1" rx="10" ry="13" fill="#000000" opacity="0.65" />
 
       {/* 2. Walking Legs & Boots (Alternating stride) */}
@@ -218,12 +218,13 @@ function TopDownAscentHiker({
  * GettingStarted: Section 07 — The Deployment Journey
  * "From first commit to first deploy."
  *
- * Completely Redesigned as an Authentic Ascent to Production:
- * - 01 SOURCE: Lower foothills (Code committed, acme/web-app, main · 8f3a21c)
- * - 02 BUILD & RELEASE: Mid-mountain pass (Artifact verified, hermetic build sequence)
- * - 03 LIVE DESTINATION: High alpine summit (Traffic shifted, web-app.jetway.demo, Live 200 OK)
+ * Minimal, Editorial, Cinematic Mountain Ascent:
+ * - Stage 01 Source (Lower-left): Code committed.
+ * - Stage 02 Build (Center pass): Build verified.
+ * - Stage 03 Production (High peak): Live in production.
  *
- * Driven by an engraved topographic mountain contour path with our miniature mountaineer.
+ * Atmospheric mountain landscape blending naturally into the black background
+ * with a continuous glowing burnt-orange trail and miniature alpine mountaineer.
  */
 export function GettingStarted() {
   const isReducedMotion = useSyncExternalStore(
@@ -245,9 +246,9 @@ export function GettingStarted() {
   // Mobile SVG Trail Refs
   const mobilePathRef = useRef<SVGPathElement>(null);
   const mobileTraveledPathRef = useRef<SVGPathElement>(null);
-  const mobilePathLengthRef = useRef<number>(800);
+  const mobilePathLengthRef = useRef<number>(600);
 
-  // Hiker DOM Refs for direct 60fps/120fps RAF transforms
+  // Desktop Hiker DOM Refs
   const hikerRef = useRef<SVGGElement>(null);
   const leftBootRef = useRef<SVGGElement>(null);
   const rightBootRef = useRef<SVGGElement>(null);
@@ -263,277 +264,215 @@ export function GettingStarted() {
   const mobileRightPoleRef = useRef<SVGGElement>(null);
   const mobileTorsoRef = useRef<SVGGElement>(null);
 
-  // Animation and storytelling state tracking
-  const animRef = useRef({
-    targetProgress: 0,
-    currentProgress: 0,
+  // Storytelling milestone activation states
+  const [activeStage, setActiveStage] = useState<number>(1);
+  const activeStageRef = useRef<number>(1);
+
+  const [buildSteps, setBuildSteps] = useState<{
+    step1: boolean;
+    step2: boolean;
+    step3: boolean;
+    isLive: boolean;
+  }>({
+    step1: false,
+    step2: false,
+    step3: false,
+    isLive: false,
+  });
+  const buildStepsRef = useRef(buildSteps);
+
+  // Animation motion tracking
+  const motionRef = useRef({
+    lastDistance: 0,
     walkCycle: 0,
     stride: 0,
     armStride: 0,
     sway: 0,
-    isWalking: false,
-    lastDistance: 0,
     rafId: null as number | null,
   });
 
-  // Storytelling milestone activation states [0, 1, 2, 3]
-  const [activeStage, setActiveStage] = useState<number>(0);
-  const [buildStepState, setBuildStepState] = useState<{
-    step1: "queued" | "running" | "done";
-    step2: "waiting" | "compiling" | "done";
-    step3: "pending" | "verifying" | "done";
-    releaseVerified: boolean;
-    isLive: boolean;
-  }>({
-    step1: "queued",
-    step2: "waiting",
-    step3: "pending",
-    releaseVerified: false,
-    isLive: false,
-  });
-
   // Desktop Trail Path Coordinates:
-  // Starts at lower-left foothills (140, 360)
-  // Ascends through center mountain pass (580, 230)
-  // Reaches high alpine summit crest (1050, 95)
+  // Starts at lower-left foothills (140, 370)
+  // Ascends through center saddle pass (580, 230)
+  // Reaches high alpine summit crest (1040, 85)
   const desktopTrailD =
-    "M 140 360 " +
-    "C 240 360, 340 330, 430 290 " +
-    "C 480 268, 530 245, 580 230 " +
-    "C 660 210, 750 180, 840 145 " +
-    "C 910 120, 980 102, 1050 95";
+    "M 140 370 " +
+    "C 260 370, 420 280, 580 230 " +
+    "C 740 180, 900 120, 1040 85";
 
   // Mobile Vertical Trail Path Coordinates:
-  // Downhill winding topographic route connecting the 3 vertically stacked milestones
+  // Graceful vertical winding topographic route
   const mobileTrailD =
-    "M 36 60 " +
-    "C 68 120, 12 180, 48 240 " +
-    "C 60 268, 50 295, 36 320 " +
-    "C 18 355, 62 430, 22 500 " +
-    "C 8 540, 52 590, 36 640";
+    "M 30 50 " +
+    "C 46 130, 14 210, 30 290 " +
+    "C 46 370, 14 450, 30 540";
 
   // Measure path lengths on mount and window resize
-  useEffect(() => {
+  const measurePaths = useCallback(() => {
     if (pathRef.current) {
       try {
         const len = pathRef.current.getTotalLength();
-        if (len > 0) pathLengthRef.current = len;
+        if (len > 0) {
+          pathLengthRef.current = len;
+          if (traveledPathRef.current) traveledPathRef.current.style.strokeDasharray = `${len}px ${len}px`;
+          if (traveledGlowRef.current) traveledGlowRef.current.style.strokeDasharray = `${len}px ${len}px`;
+        }
       } catch {}
     }
     if (mobilePathRef.current) {
       try {
         const len = mobilePathRef.current.getTotalLength();
-        if (len > 0) mobilePathLengthRef.current = len;
+        if (len > 0) {
+          mobilePathLengthRef.current = len;
+          if (mobileTraveledPathRef.current) mobileTraveledPathRef.current.style.strokeDasharray = `${len}px ${len}px`;
+        }
       } catch {}
     }
   }, []);
 
-  // Update hiker transform and SVG traveled path with direct DOM manipulation
-  const updateHikerAndTrail = useCallback(
-    (dist: number, anim: typeof animRef.current) => {
-      // 1. Desktop Hiker & Path
-      const desktopPath = pathRef.current;
-      const totalLen = pathLengthRef.current;
+  // Synchronous Direct DOM Updates for Trail & Hiker (0-drift, 0-lag behind scroll)
+  const applyProgress = useCallback((progress: number) => {
+    const desktopTotal = pathLengthRef.current;
+    const desktopPath = pathRef.current;
+    const desktopDist = Math.max(0, Math.min(desktopTotal, progress * desktopTotal));
 
-      if (desktopPath && totalLen > 0) {
-        const clampedDist = Math.max(0, Math.min(totalLen, dist));
-        const pt = desktopPath.getPointAtLength(clampedDist);
+    // 1. Reveal Desktop Traveled Trail
+    const desktopOffset = Math.max(0, desktopTotal - desktopDist);
+    if (traveledPathRef.current) {
+      traveledPathRef.current.style.strokeDashoffset = `${desktopOffset.toFixed(1)}px`;
+    }
+    if (traveledGlowRef.current) {
+      traveledGlowRef.current.style.strokeDashoffset = `${desktopOffset.toFixed(1)}px`;
+    }
 
-        // Compute tangent angle for natural hiker facing
-        const sampleDist = Math.min(totalLen, clampedDist + 2.0);
-        const samplePt = desktopPath.getPointAtLength(sampleDist);
-        const dx = samplePt.x - pt.x;
-        const dy = samplePt.y - pt.y;
-        let angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+    // 2. Position Desktop Hiker
+    if (desktopPath && desktopTotal > 0 && hikerRef.current) {
+      const pt = desktopPath.getPointAtLength(desktopDist);
+      const sampleDist = Math.min(desktopTotal, desktopDist + 2.0);
+      const samplePt = desktopPath.getPointAtLength(sampleDist);
+      const dx = samplePt.x - pt.x;
+      const dy = samplePt.y - pt.y;
+      const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
 
-        // Apply direct transform on desktop hiker
-        if (hikerRef.current) {
-          hikerRef.current.setAttribute(
-            "transform",
-            `translate(${pt.x.toFixed(2)}, ${pt.y.toFixed(2)}) rotate(${angle.toFixed(1)})`
-          );
-        }
+      hikerRef.current.setAttribute(
+        "transform",
+        `translate(${pt.x.toFixed(1)}, ${pt.y.toFixed(1)}) rotate(${angle.toFixed(1)})`
+      );
 
-        // Gait mechanics (boots and poles)
-        const strideOffset = anim.stride * 4.5;
-        const armOffset = anim.armStride * 4.0;
-        const swayAngle = anim.sway * 1.5;
+      // Stride & gait physics
+      const deltaD = desktopDist - motionRef.current.lastDistance;
+      motionRef.current.lastDistance = desktopDist;
 
-        if (leftBootRef.current) {
-          leftBootRef.current.setAttribute(
-            "transform",
-            `translate(-5.5, ${(7 + strideOffset).toFixed(2)})`
-          );
-        }
-        if (rightBootRef.current) {
-          rightBootRef.current.setAttribute(
-            "transform",
-            `translate(5.5, ${(7 - strideOffset).toFixed(2)})`
-          );
-        }
-        if (leftPoleRef.current) {
-          leftPoleRef.current.setAttribute(
-            "transform",
-            `translate(-9, ${(-5 - armOffset).toFixed(2)})`
-          );
-        }
-        if (rightPoleRef.current) {
-          rightPoleRef.current.setAttribute(
-            "transform",
-            `translate(9, ${(-5 + armOffset).toFixed(2)})`
-          );
-        }
-        if (torsoRef.current) {
-          torsoRef.current.setAttribute(
-            "transform",
-            `rotate(${swayAngle.toFixed(2)})`
-          );
-        }
-
-        // Traveled path strokeDashoffset (illuminates behind hiker)
-        const offsetVal = Math.max(0, totalLen - clampedDist);
-        if (traveledPathRef.current) {
-          traveledPathRef.current.style.strokeDashoffset = `${offsetVal.toFixed(1)}px`;
-        }
-        if (traveledGlowRef.current) {
-          traveledGlowRef.current.style.strokeDashoffset = `${offsetVal.toFixed(1)}px`;
-        }
-      }
-
-      // 2. Mobile Hiker & Path
-      const mobilePath = mobilePathRef.current;
-      const mobileTotalLen = mobilePathLengthRef.current;
-
-      if (mobilePath && mobileTotalLen > 0) {
-        const mobileDist = Math.max(0, Math.min(mobileTotalLen, anim.currentProgress * mobileTotalLen));
-        const pt = mobilePath.getPointAtLength(mobileDist);
-
-        const sampleDist = Math.min(mobileTotalLen, mobileDist + 2.0);
-        const samplePt = mobilePath.getPointAtLength(sampleDist);
-        const dx = samplePt.x - pt.x;
-        const dy = samplePt.y - pt.y;
-        let angle = (Math.atan2(dy, dx) * 180) / Math.PI;
-
-        if (mobileHikerRef.current) {
-          mobileHikerRef.current.setAttribute(
-            "transform",
-            `translate(${pt.x.toFixed(2)}, ${pt.y.toFixed(2)}) rotate(${angle.toFixed(1)})`
-          );
-        }
-
-        const strideOffset = anim.stride * 4.5;
-        const armOffset = anim.armStride * 4.0;
-        const swayAngle = anim.sway * 1.5;
-
-        if (mobileLeftBootRef.current) {
-          mobileLeftBootRef.current.setAttribute(
-            "transform",
-            `translate(-5.5, ${(7 + strideOffset).toFixed(2)})`
-          );
-        }
-        if (mobileRightBootRef.current) {
-          mobileRightBootRef.current.setAttribute(
-            "transform",
-            `translate(5.5, ${(7 - strideOffset).toFixed(2)})`
-          );
-        }
-        if (mobileLeftPoleRef.current) {
-          mobileLeftPoleRef.current.setAttribute(
-            "transform",
-            `translate(-9, ${(-5 - armOffset).toFixed(2)})`
-          );
-        }
-        if (mobileRightPoleRef.current) {
-          mobileRightPoleRef.current.setAttribute(
-            "transform",
-            `translate(9, ${(-5 + armOffset).toFixed(2)})`
-          );
-        }
-        if (mobileTorsoRef.current) {
-          mobileTorsoRef.current.setAttribute(
-            "transform",
-            `rotate(${swayAngle.toFixed(2)})`
-          );
-        }
-
-        const mobileOffset = Math.max(0, mobileTotalLen - mobileDist);
-        if (mobileTraveledPathRef.current) {
-          mobileTraveledPathRef.current.style.strokeDashoffset = `${mobileOffset.toFixed(1)}px`;
-        }
-      }
-    },
-    []
-  );
-
-  // Smooth animation tick loop (60fps/120fps with damping)
-  const startTick = useCallback(() => {
-    const anim = animRef.current;
-    if (anim.rafId !== null) return;
-
-    let lastTime = performance.now();
-
-    const tick = (now: number) => {
-      const dt = Math.min(32, now - lastTime);
-      lastTime = now;
-
-      // Smooth damping (0.14)
-      const diff = anim.targetProgress - anim.currentProgress;
-
-      if (Math.abs(diff) < 0.0008) {
-        anim.currentProgress = anim.targetProgress;
-        anim.isWalking = false;
-        anim.stride = 0;
-        anim.armStride = 0;
-        anim.sway = 0;
-
-        const targetDist = anim.currentProgress * pathLengthRef.current;
-        updateHikerAndTrail(targetDist, anim);
-        anim.rafId = null;
-        return;
-      }
-
-      anim.currentProgress += diff * 0.14;
-      const targetDist = anim.currentProgress * pathLengthRef.current;
-      const deltaD = targetDist - anim.lastDistance;
-      anim.lastDistance = targetDist;
-
-      // Realistic alpine stride kinematics
-      anim.isWalking = Math.abs(deltaD) > 0.08;
-      if (anim.isWalking) {
-        anim.walkCycle += deltaD * 0.22;
-        anim.stride = Math.sin(anim.walkCycle);
-        anim.armStride = Math.cos(anim.walkCycle);
-        anim.sway = Math.sin(anim.walkCycle * 0.5);
+      if (Math.abs(deltaD) > 0.05) {
+        motionRef.current.walkCycle += deltaD * 0.22;
+        motionRef.current.stride = Math.sin(motionRef.current.walkCycle);
+        motionRef.current.armStride = Math.cos(motionRef.current.walkCycle);
+        motionRef.current.sway = Math.sin(motionRef.current.walkCycle * 0.5) * 1.5;
       } else {
-        anim.stride *= 0.85;
-        anim.armStride *= 0.85;
-        anim.sway *= 0.85;
+        motionRef.current.stride *= 0.82;
+        motionRef.current.armStride *= 0.82;
+        motionRef.current.sway *= 0.82;
       }
 
-      updateHikerAndTrail(targetDist, anim);
+      const strideOffset = motionRef.current.stride * 4.5;
+      const armOffset = motionRef.current.armStride * 4.0;
 
-      // Coordinated Stage & Milestone State updates
-      const p = anim.currentProgress;
-      const stage = p < 0.25 ? 1 : p < 0.70 ? 2 : 3;
-      setActiveStage(stage);
+      if (leftBootRef.current) {
+        leftBootRef.current.setAttribute("transform", `translate(-5.5, ${(7 + strideOffset).toFixed(1)})`);
+      }
+      if (rightBootRef.current) {
+        rightBootRef.current.setAttribute("transform", `translate(5.5, ${(7 - strideOffset).toFixed(1)})`);
+      }
+      if (leftPoleRef.current) {
+        leftPoleRef.current.setAttribute("transform", `translate(-9, ${(-5 - armOffset).toFixed(1)})`);
+      }
+      if (rightPoleRef.current) {
+        rightPoleRef.current.setAttribute("transform", `translate(9, ${(-5 + armOffset).toFixed(1)})`);
+      }
+      if (torsoRef.current) {
+        torsoRef.current.setAttribute("transform", `rotate(${motionRef.current.sway.toFixed(1)})`);
+      }
+    }
 
-      // Build sequence step updates
-      setBuildStepState({
-        step1: p >= 0.44 ? "done" : p >= 0.34 ? "running" : "queued",
-        step2: p >= 0.54 ? "done" : p >= 0.44 ? "compiling" : "waiting",
-        step3: p >= 0.64 ? "done" : p >= 0.54 ? "verifying" : "pending",
-        releaseVerified: p >= 0.64,
-        isLive: p >= 0.85,
-      });
+    // 3. Reveal Mobile Traveled Trail & Position Mobile Hiker
+    const mobileTotal = mobilePathLengthRef.current;
+    const mobilePath = mobilePathRef.current;
+    const mobileDist = Math.max(0, Math.min(mobileTotal, progress * mobileTotal));
 
-      anim.rafId = requestAnimationFrame(tick);
+    if (mobileTraveledPathRef.current) {
+      const mobileOffset = Math.max(0, mobileTotal - mobileDist);
+      mobileTraveledPathRef.current.style.strokeDashoffset = `${mobileOffset.toFixed(1)}px`;
+    }
+
+    if (mobilePath && mobileTotal > 0 && mobileHikerRef.current) {
+      const pt = mobilePath.getPointAtLength(mobileDist);
+      const sampleDist = Math.min(mobileTotal, mobileDist + 2.0);
+      const samplePt = mobilePath.getPointAtLength(sampleDist);
+      const dx = samplePt.x - pt.x;
+      const dy = samplePt.y - pt.y;
+      const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+
+      mobileHikerRef.current.setAttribute(
+        "transform",
+        `translate(${pt.x.toFixed(1)}, ${pt.y.toFixed(1)}) rotate(${angle.toFixed(1)})`
+      );
+
+      const strideOffset = motionRef.current.stride * 4.5;
+      const armOffset = motionRef.current.armStride * 4.0;
+
+      if (mobileLeftBootRef.current) {
+        mobileLeftBootRef.current.setAttribute("transform", `translate(-5.5, ${(7 + strideOffset).toFixed(1)})`);
+      }
+      if (mobileRightBootRef.current) {
+        mobileRightBootRef.current.setAttribute("transform", `translate(5.5, ${(7 - strideOffset).toFixed(1)})`);
+      }
+      if (mobileLeftPoleRef.current) {
+        mobileLeftPoleRef.current.setAttribute("transform", `translate(-9, ${(-5 - armOffset).toFixed(1)})`);
+      }
+      if (mobileRightPoleRef.current) {
+        mobileRightPoleRef.current.setAttribute("transform", `translate(9, ${(-5 + armOffset).toFixed(1)})`);
+      }
+      if (mobileTorsoRef.current) {
+        mobileTorsoRef.current.setAttribute("transform", `rotate(${motionRef.current.sway.toFixed(1)})`);
+      }
+    }
+
+    // 4. Update Storytelling Stages with Hysteresis (Prevents rapid state thrashing)
+    let newStage = activeStageRef.current;
+    if (progress < 0.28) {
+      newStage = 1;
+    } else if (progress < 0.68) {
+      newStage = 2;
+    } else {
+      newStage = 3;
+    }
+
+    if (newStage !== activeStageRef.current) {
+      activeStageRef.current = newStage;
+      setActiveStage(newStage);
+    }
+
+    // 5. Update Sequential Build Engine State
+    const nextBuild = {
+      step1: progress >= 0.36,
+      step2: progress >= 0.46,
+      step3: progress >= 0.58,
+      isLive: progress >= 0.78,
     };
 
-    anim.rafId = requestAnimationFrame(tick);
-  }, [updateHikerAndTrail]);
+    if (
+      nextBuild.step1 !== buildStepsRef.current.step1 ||
+      nextBuild.step2 !== buildStepsRef.current.step2 ||
+      nextBuild.step3 !== buildStepsRef.current.step3 ||
+      nextBuild.isLive !== buildStepsRef.current.isLive
+    ) {
+      buildStepsRef.current = nextBuild;
+      setBuildSteps(nextBuild);
+    }
+  }, []);
 
   // Compute scroll progress from sticky container position
-  const computeScrollProgress = useCallback(() => {
+  const computeProgress = useCallback(() => {
     if (!sectionRef.current) return;
 
     const rect = sectionRef.current.getBoundingClientRect();
@@ -545,79 +484,54 @@ export function GettingStarted() {
     const rawProgress = currentScroll / scrollDistance;
     const clampedProgress = Math.max(0, Math.min(1, rawProgress));
 
-    animRef.current.targetProgress = clampedProgress;
+    applyProgress(clampedProgress);
+  }, [applyProgress]);
 
-    if (isReducedMotion) {
-      animRef.current.currentProgress = clampedProgress;
-      updateHikerAndTrail(clampedProgress * pathLengthRef.current, animRef.current);
-      const stage = clampedProgress < 0.25 ? 1 : clampedProgress < 0.70 ? 2 : 3;
-      setActiveStage(stage);
-      setBuildStepState({
-        step1: clampedProgress >= 0.44 ? "done" : clampedProgress >= 0.34 ? "running" : "queued",
-        step2: clampedProgress >= 0.54 ? "done" : clampedProgress >= 0.44 ? "compiling" : "waiting",
-        step3: clampedProgress >= 0.64 ? "done" : clampedProgress >= 0.54 ? "verifying" : "pending",
-        releaseVerified: clampedProgress >= 0.64,
-        isLive: clampedProgress >= 0.85,
-      });
-      return;
-    }
-
-    startTick();
-  }, [isReducedMotion, startTick, updateHikerAndTrail]);
-
-  // Lenis scroll listener
+  // Synchronize 1:1 with Lenis smooth scroll
   useLenis(() => {
-    computeScrollProgress();
+    computeProgress();
   });
 
-  // Native scroll and resize listeners
+  // Setup listeners and measurements
   useEffect(() => {
+    measurePaths();
+    computeProgress();
+
     const onResize = () => {
-      if (pathRef.current) {
-        try {
-          const len = pathRef.current.getTotalLength();
-          if (len > 0) pathLengthRef.current = len;
-        } catch {}
-      }
-      if (mobilePathRef.current) {
-        try {
-          const len = mobilePathRef.current.getTotalLength();
-          if (len > 0) mobilePathLengthRef.current = len;
-        } catch {}
-      }
-      computeScrollProgress();
+      measurePaths();
+      computeProgress();
     };
 
     window.addEventListener("resize", onResize, { passive: true });
-    window.addEventListener("scroll", computeScrollProgress, { passive: true });
+    window.addEventListener("scroll", computeProgress, { passive: true });
 
-    // Initial measurement
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined" && sectionRef.current) {
+      ro = new ResizeObserver(() => {
+        measurePaths();
+        computeProgress();
+      });
+      ro.observe(sectionRef.current);
+    }
+
     const timer = setTimeout(() => {
-      onResize();
-    }, 60);
+      measurePaths();
+      computeProgress();
+    }, 80);
 
-    const anim = animRef.current;
     return () => {
       clearTimeout(timer);
       window.removeEventListener("resize", onResize);
-      window.removeEventListener("scroll", computeScrollProgress);
-      if (anim.rafId !== null) {
-        cancelAnimationFrame(anim.rafId);
-      }
+      window.removeEventListener("scroll", computeProgress);
+      if (ro) ro.disconnect();
     };
-  }, [computeScrollProgress]);
+  }, [measurePaths, computeProgress]);
 
-  // Reduced motion static fallback values
+  // Fallback for reduced motion
   const effectiveStage = isReducedMotion ? 3 : activeStage;
   const effectiveBuild = isReducedMotion
-    ? {
-        step1: "done" as const,
-        step2: "done" as const,
-        step3: "done" as const,
-        releaseVerified: true,
-        isLive: true,
-      }
-    : buildStepState;
+    ? { step1: true, step2: true, step3: true, isLive: true }
+    : buildSteps;
 
   return (
     <section
@@ -625,8 +539,8 @@ export function GettingStarted() {
       id="getting-started"
       className={
         isReducedMotion
-          ? "relative w-full my-28 sm:my-36 lg:my-48 bg-transparent text-[#F2F0EB] select-none"
-          : "relative w-full h-[260vh] sm:h-[280vh] lg:h-[300vh] my-[32vh] sm:my-[38vh] lg:my-[44vh] bg-transparent text-[#F2F0EB] select-none"
+          ? "relative w-full py-20 sm:py-28 bg-transparent text-[#F2F0EB] select-none"
+          : "relative w-full h-[260vh] sm:h-[280vh] lg:h-[300vh] py-16 sm:py-24 bg-transparent text-[#F2F0EB] select-none"
       }
       aria-labelledby="getting-started-heading"
     >
@@ -652,7 +566,7 @@ export function GettingStarted() {
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 lg:gap-12 mb-4 sm:mb-6 shrink-0">
             <div>
               {/* Understated Section Identifier */}
-              <div className="flex items-center gap-2 mb-2.5">
+              <div className="flex items-center gap-2 mb-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-accent-orange" />
                 <span className="font-mono text-[11px] text-[#A8A49C] tracking-[0.16em] uppercase">
                   THE DEPLOYMENT JOURNEY · AN ASCENT TO PRODUCTION
@@ -662,179 +576,113 @@ export function GettingStarted() {
               {/* Confident Heading with deliberate line break */}
               <h2
                 id="getting-started-heading"
-                className="font-sans text-[32px] sm:text-[42px] lg:text-[50px] font-medium leading-[1.06] tracking-[-0.035em] text-[#F2F0EB]"
+                className="font-sans text-[32px] sm:text-[42px] lg:text-[48px] font-medium leading-[1.08] tracking-[-0.035em] text-[#F2F0EB]"
               >
                 From first commit<br className="hidden sm:inline" /> to first deploy.
               </h2>
             </div>
 
             {/* Supporting Copy */}
-            <p className="font-sans text-[13.5px] sm:text-[14.5px] text-[#8E8A82] leading-[1.6] max-w-[440px] pb-0.5 shrink-0">
+            <p className="font-sans text-[13.5px] sm:text-[14.5px] text-[#8E8A82] leading-[1.6] max-w-[420px] pb-0.5 shrink-0">
               Your next deployment doesn’t need a complicated setup. Start with your
               code, configure your application, and get ready to ship.
             </p>
           </div>
 
           {/* =============================================================
-              MAIN VISUAL STAGE: THE MOUNTAIN ASCENT TO PRODUCTION
-              An authentic panoramic alpine landscape connecting 3 milestones:
-                01 SOURCE (Foothills) -> 02 BUILD ENGINE (Pass) -> 03 LIVE (Peak)
+              MAIN VISUAL STAGE: THE MOUNTAIN ASCENT CANVAS
+              Open, expansive alpine landscape with subtle edge vignetting.
+              No card borders, no heavy dashboard boxes.
               ============================================================= */}
-          <div className="relative w-full flex-1 min-h-[460px] max-h-[580px] rounded-xl border border-[#22201E]/70 bg-[#121315]/40 backdrop-blur-[2px] overflow-hidden flex flex-col justify-between p-4 sm:p-6 lg:p-8">
+          <div className="relative w-full flex-1 min-h-[440px] sm:min-h-[500px] flex flex-col justify-between overflow-hidden">
 
             {/* -----------------------------------------------------------
                 LAYER 1: BACKGROUND ENGRAVED ALPINE ARTWORK & VIGNETTE
+                Blends seamlessly into the black background.
                 ----------------------------------------------------------- */}
             <div className="absolute inset-0 pointer-events-none select-none overflow-hidden" aria-hidden="true">
-              <div className="relative w-full h-full opacity-15 mix-blend-screen">
+              <div
+                className="relative w-full h-full opacity-25 mix-blend-screen"
+                style={{
+                  maskImage: "radial-gradient(ellipse 95% 80% at 50% 65%, black 40%, transparent 100%)",
+                  WebkitMaskImage: "radial-gradient(ellipse 95% 80% at 50% 65%, black 40%, transparent 100%)",
+                }}
+              >
                 <Image
-                  src="/images/hero/hero-engraved-mountains-panoramic.webp"
+                  src="/images/mountains-dark-v2.webp"
                   alt=""
                   fill
-                  quality={80}
-                  className="object-cover object-[center_bottom]"
+                  priority={false}
+                  className="object-cover object-bottom"
                 />
               </div>
-              {/* Radial gradient shading behind text flank */}
-              <div
-                className="absolute inset-0 w-full h-full"
-                style={{
-                  background:
-                    "radial-gradient(ellipse 90% 80% at 50% 50%, transparent 40%, rgba(17, 17, 17, 0.75) 100%)",
-                }}
-              />
             </div>
 
             {/* -----------------------------------------------------------
                 LAYER 2: DESKTOP / TABLET PANORAMIC MOUNTAIN PATH & CONTOURS
-                (Hidden on mobile; renders SVG viewBox with exact coordinates)
                 ----------------------------------------------------------- */}
             <div className="hidden lg:block absolute inset-0 w-full h-full pointer-events-none" aria-hidden="true">
               <svg
-                viewBox="0 0 1200 480"
+                viewBox="0 0 1200 460"
                 preserveAspectRatio="none"
                 fill="none"
                 className="w-full h-full overflow-visible"
               >
-                {/* Defs: Burnt Orange to Sage Green Gradient for Summit Arrival */}
                 <defs>
+                  {/* Burnt Orange to Sage Green Gradient for Summit Arrival */}
                   <linearGradient id="ascentTrailGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                     <stop offset="0%" stopColor="#D88762" />
-                    <stop offset="70%" stopColor="#E58B65" />
+                    <stop offset="72%" stopColor="#E58B65" />
                     <stop offset="100%" stopColor="#82B89D" />
                   </linearGradient>
 
                   <filter id="ascentGlow" x="-20%" y="-20%" width="140%" height="140%">
-                    <feGaussianBlur stdDeviation="3" result="blur" />
+                    <feGaussianBlur stdDeviation="3.5" result="blur" />
                     <feComposite in="SourceGraphic" in2="blur" operator="over" />
                   </filter>
                 </defs>
 
-                {/* --- 1. Background Cartographic Elevation Contours --- */}
-                {/* Lower Valley Foot Contour */}
+                {/* Subtle Topographic Saddle Contour Lines */}
                 <path
-                  d="M 0 420 C 220 420, 360 395, 540 375 S 900 350, 1200 330"
+                  d="M 60 410 C 260 395, 460 340, 640 310 S 980 270, 1200 240"
                   stroke="#262421"
                   strokeWidth="1"
                   strokeDasharray="4 14"
-                  className="opacity-45"
+                  className="opacity-40"
                 />
-                {/* Saddle Pass Contour */}
                 <path
-                  d="M 60 360 C 260 340, 420 295, 600 255 S 960 195, 1200 160"
+                  d="M 120 310 C 340 280, 560 215, 760 175 S 1020 120, 1200 100"
                   stroke="#2F2C28"
                   strokeWidth="1"
-                  strokeDasharray="3 11"
-                  className="opacity-45"
-                />
-                {/* Summit High Peak Contour */}
-                <path
-                  d="M 280 260 C 480 220, 680 165, 880 115 S 1080 75, 1200 65"
-                  stroke="#383430"
-                  strokeWidth="1.2"
-                  strokeDasharray="5 15"
-                  className="opacity-50"
+                  strokeDasharray="3 12"
+                  className="opacity-40"
                 />
 
-                {/* --- 2. Geodesic Mountain Benchmarks --- */}
-                {/* Benchmark 01: Valley Origin */}
-                <g transform="translate(140, 395)" className="opacity-40">
-                  <circle cx="0" cy="0" r="2.5" fill="#8E8C86" />
-                  <line x1="-5" y1="0" x2="5" y2="0" stroke="#77736D" strokeWidth="0.75" />
-                  <line x1="0" y1="-5" x2="0" y2="5" stroke="#77736D" strokeWidth="0.75" />
-                  <text
-                    x="8"
-                    y="3"
-                    fill="#8E8A82"
-                    fontSize="9"
-                    fontFamily="var(--font-geist-mono)"
-                    letterSpacing="0.14em"
-                  >
-                    ORIGIN // ELEV 1,240M
-                  </text>
-                </g>
-
-                {/* Benchmark 02: Engine Pass */}
-                <g transform="translate(580, 205)" className="opacity-40">
-                  <circle cx="0" cy="0" r="2.5" fill="#8E8C86" />
-                  <line x1="-5" y1="0" x2="5" y2="0" stroke="#77736D" strokeWidth="0.75" />
-                  <line x1="0" y1="-5" x2="0" y2="5" stroke="#77736D" strokeWidth="0.75" />
-                  <text
-                    x="8"
-                    y="3"
-                    fill="#8E8A82"
-                    fontSize="9"
-                    fontFamily="var(--font-geist-mono)"
-                    letterSpacing="0.14em"
-                  >
-                    PASS // ELEV 2,180M
-                  </text>
-                </g>
-
-                {/* Benchmark 03: High Summit Peak */}
-                <g transform="translate(1050, 65)" className="opacity-45">
-                  <circle cx="0" cy="0" r="3" fill="#FAF8F5" />
-                  <line x1="-6" y1="0" x2="6" y2="0" stroke="#FAF8F5" strokeWidth="0.8" />
-                  <line x1="0" y1="-6" x2="0" y2="6" stroke="#FAF8F5" strokeWidth="0.8" />
-                  <text
-                    x="9"
-                    y="3.5"
-                    fill="#FAF8F5"
-                    fontSize="9"
-                    fontFamily="var(--font-geist-mono)"
-                    letterSpacing="0.16em"
-                  >
-                    SUMMIT // ELEV 3,420M
-                  </text>
-                </g>
-
-                {/* --- 3. The Mountain Trail (Continuous Organic Ascent) --- */}
-                {/* A. Baseline Engraved Trail (Muted) */}
+                {/* --- The Continuous Ascending Mountain Trail --- */}
+                {/* 1. Muted Untraveled Route */}
                 <path
                   ref={pathRef}
                   d={desktopTrailD}
-                  stroke="#2E2C29"
-                  strokeWidth="2"
+                  stroke="#2A2825"
+                  strokeWidth="1.8"
                   strokeDasharray="3 7"
                   strokeLinecap="round"
                 />
 
-                {/* B. Traveled Path Ambient Burnt-Orange Glow */}
+                {/* 2. Traveled Active Burnt-Orange Glowing Trail */}
                 <path
                   ref={traveledGlowRef}
                   d={desktopTrailD}
                   stroke="url(#ascentTrailGradient)"
                   strokeWidth="6"
                   strokeLinecap="round"
-                  opacity="0.30"
+                  opacity="0.32"
                   filter="url(#ascentGlow)"
                   style={{
                     strokeDasharray: "1000px 1000px",
                     strokeDashoffset: isReducedMotion ? "0px" : "1000px",
                   }}
                 />
-
-                {/* C. Traveled Path Core Solid Conquered Trail */}
                 <path
                   ref={traveledPathRef}
                   d={desktopTrailD}
@@ -847,56 +695,61 @@ export function GettingStarted() {
                   }}
                 />
 
-                {/* D. Waypoint Markers along Trail */}
-                {/* Station 01 Marker */}
+                {/* Station 01 Waypoint Reticle */}
                 <circle
                   cx="140"
-                  cy="360"
+                  cy="370"
                   r="5"
                   fill="#111110"
-                  stroke={effectiveStage >= 1 ? "#D88762" : "#44403B"}
-                  strokeWidth="2"
+                  stroke={effectiveStage >= 1 ? "#D88762" : "#383531"}
+                  strokeWidth="1.8"
+                  className="transition-colors duration-400"
                 />
                 <circle
                   cx="140"
-                  cy="360"
+                  cy="370"
                   r="2"
-                  fill={effectiveStage >= 1 ? "#D88762" : "#2E2C29"}
+                  fill={effectiveStage >= 1 ? "#D88762" : "#22201E"}
+                  className="transition-colors duration-400"
                 />
 
-                {/* Station 02 Marker */}
+                {/* Station 02 Waypoint Reticle */}
                 <circle
                   cx="580"
                   cy="230"
+                  r="5"
+                  fill="#111110"
+                  stroke={effectiveBuild.step3 ? "#82B89D" : effectiveStage >= 2 ? "#D88762" : "#383531"}
+                  strokeWidth="1.8"
+                  className="transition-colors duration-400"
+                />
+                <circle
+                  cx="580"
+                  cy="230"
+                  r="2"
+                  fill={effectiveBuild.step3 ? "#82B89D" : effectiveStage >= 2 ? "#D88762" : "#22201E"}
+                  className="transition-colors duration-400"
+                />
+
+                {/* Station 03 Waypoint Reticle (Peak) */}
+                <circle
+                  cx="1040"
+                  cy="85"
                   r="5.5"
                   fill="#111110"
-                  stroke={effectiveBuild.releaseVerified ? "#82B89D" : effectiveStage >= 2 ? "#D88762" : "#44403B"}
+                  stroke={effectiveBuild.isLive ? "#82B89D" : "#383531"}
                   strokeWidth="2"
+                  className="transition-colors duration-400"
                 />
                 <circle
-                  cx="580"
-                  cy="230"
-                  r="2.5"
-                  fill={effectiveBuild.releaseVerified ? "#82B89D" : effectiveStage >= 2 ? "#D88762" : "#2E2C29"}
+                  cx="1040"
+                  cy="85"
+                  r="2.2"
+                  fill={effectiveBuild.isLive ? "#82B89D" : "#22201E"}
+                  className="transition-colors duration-400"
                 />
 
-                {/* Station 03 Marker (Summit Peak) */}
-                <circle
-                  cx="1050"
-                  cy="95"
-                  r="6"
-                  fill="#111110"
-                  stroke={effectiveBuild.isLive ? "#82B89D" : "#44403B"}
-                  strokeWidth="2"
-                />
-                <circle
-                  cx="1050"
-                  cy="95"
-                  r="3"
-                  fill={effectiveBuild.isLive ? "#82B89D" : "#2E2C29"}
-                />
-
-                {/* --- 4. The Miniature Top-Down Mountaineer (Ascent Hiker) --- */}
+                {/* Top-Down Miniature Alpine Mountaineer (Ascent Hiker) */}
                 <TopDownAscentHiker
                   hikerRef={hikerRef}
                   leftBootRef={leftBootRef}
@@ -909,258 +762,155 @@ export function GettingStarted() {
             </div>
 
             {/* -----------------------------------------------------------
-                LAYER 3: ASYMMETRIC DEPLOYMENT MILESTONES (DESKTOP)
-                Integrated directly into the mountain composition without
-                identical cards or cluttered boxes.
+                LAYER 3: THE THREE MINIMAL REFINED MILESTONES (DESKTOP)
                 ----------------------------------------------------------- */}
-            <div className="hidden lg:grid grid-cols-12 gap-6 w-full h-full relative z-10 pointer-events-none">
+            <div className="hidden lg:grid grid-cols-12 gap-8 w-full h-full relative z-10 pointer-events-none py-2">
 
               {/* =========================================================
-                  MILESTONE 01: SOURCE (Lower Left Foothills · Elev 1,240M)
-                  The origin of the journey: clean, grounded code entry.
+                  STAGE 01 — SOURCE (Lower-left foothills)
                   ========================================================= */}
-              <div className="col-span-3 flex flex-col justify-end pb-2 pointer-events-auto">
+              <div className="col-span-4 flex flex-col justify-end pb-4 pointer-events-auto">
                 <div
-                  className={`space-y-2.5 transition-all duration-500 ${
-                    effectiveStage >= 1 ? "opacity-100 translate-y-0" : "opacity-35 translate-y-2"
+                  className={`space-y-2 max-w-[320px] transition-all duration-500 ease-out ${
+                    effectiveStage === 1
+                      ? "opacity-100 translate-y-0"
+                      : effectiveStage > 1
+                      ? "opacity-65 translate-y-0"
+                      : "opacity-35 translate-y-2"
                   }`}
                 >
-                  {/* Eyebrow & Elevation */}
-                  <div className="flex items-center justify-between font-mono text-[10.5px] text-[#8E8A82] tracking-[0.14em] uppercase">
-                    <span className="text-accent-orange font-medium">01 / SOURCE</span>
-                    <span>1,240M</span>
+                  {/* Stage Number */}
+                  <div className="font-mono text-[11px] font-medium text-accent-orange tracking-wider">
+                    01
                   </div>
 
-                  {/* Confident Heading */}
-                  <h3 className="font-sans text-[22px] font-medium text-[#F2F0EB] tracking-tight">
+                  {/* Heading */}
+                  <h3 className="font-sans text-[24px] sm:text-[26px] font-medium text-[#F2F0EB] tracking-[-0.02em] leading-tight">
                     Code committed.
                   </h3>
 
-                  {/* Repository Identity */}
-                  <div className="font-mono text-[14.5px] font-medium text-[#F2F0EB] pt-0.5">
-                    acme/web-app
-                  </div>
-
-                  {/* Commit Badge */}
-                  <div className="flex items-center gap-2 font-mono text-[12px] text-[#A8A49C]">
-                    <GitCommit className="w-3.5 h-3.5 text-accent-orange shrink-0" />
-                    <span>main · 8f3a21c</span>
-                  </div>
-
-                  {/* Supporting Trigger Status */}
-                  <p className="font-mono text-[11px] text-[#77736D] leading-relaxed pt-1">
-                    Webhook received · Pipeline triggered
+                  {/* Supporting Sentence */}
+                  <p className="font-sans text-[13.5px] sm:text-[14px] text-[#8E8A82] leading-[1.6]">
+                    Your repository is connected and ready to build.
                   </p>
+
+                  {/* Discreet Repository Indicator */}
+                  <div className="pt-1 flex items-center gap-2 font-mono text-[12px] text-[#A8A49C]">
+                    <GitCommit className="w-3.5 h-3.5 text-accent-orange shrink-0" />
+                    <span>acme/web-app · main</span>
+                  </div>
                 </div>
               </div>
 
               {/* =========================================================
-                  MILESTONE 02: BUILD & RELEASE ENGINE (Center Saddle Pass · Elev 2,180M)
-                  The active crucible of compilation and verification.
+                  STAGE 02 — BUILD (Center saddle pass)
                   ========================================================= */}
-              <div className="col-span-5 flex flex-col justify-center items-center pointer-events-auto pt-6">
+              <div className="col-span-4 flex flex-col justify-center items-center pointer-events-auto">
                 <div
-                  className={`w-full max-w-[400px] space-y-3 transition-all duration-500 ${
-                    effectiveStage >= 2 ? "opacity-100 translate-y-0" : "opacity-40 translate-y-2"
+                  className={`space-y-2.5 max-w-[320px] w-full transition-all duration-500 ease-out ${
+                    effectiveStage === 2
+                      ? "opacity-100 translate-y-0"
+                      : effectiveStage > 2
+                      ? "opacity-65 translate-y-0"
+                      : "opacity-35 translate-y-2"
                   }`}
                 >
-                  {/* Eyebrow & Elevation */}
-                  <div className="flex items-center justify-between font-mono text-[10.5px] text-[#8E8A82] tracking-[0.14em] uppercase">
-                    <span className="text-accent-orange font-medium">02 / BUILD & RELEASE</span>
-                    <span>2,180M PASS</span>
+                  {/* Stage Number */}
+                  <div className="font-mono text-[11px] font-medium text-accent-orange tracking-wider">
+                    02
                   </div>
 
-                  {/* Confident Heading */}
-                  <h3 className="font-sans text-[22px] font-medium text-[#F2F0EB] tracking-tight">
-                    Artifact verified.
+                  {/* Heading */}
+                  <h3 className="font-sans text-[24px] sm:text-[26px] font-medium text-[#F2F0EB] tracking-[-0.02em] leading-tight">
+                    Build verified.
                   </h3>
 
-                  {/* Compact Engineered Build Runner Terminal Panel */}
-                  <div className="w-full rounded-lg bg-[#141618]/90 border border-[#26282B] shadow-2xl p-3.5 space-y-2.5">
-                    {/* Panel Header */}
-                    <div className="flex items-center justify-between pb-1.5 border-b border-[#22201E] font-mono text-[10.5px] text-[#77736D]">
-                      <div className="flex items-center gap-1.5">
-                        <Terminal className="w-3 h-3 text-accent-orange" />
-                        <span className="text-[#A8A49C]">BUILD RUNNER</span>
-                      </div>
-                      <span className="text-[10px]">linux-amd64</span>
+                  {/* Supporting Sentence */}
+                  <p className="font-sans text-[13.5px] sm:text-[14px] text-[#8E8A82] leading-[1.6]">
+                    Dependencies resolved. Application ready to ship.
+                  </p>
+
+                  {/* Simplified, Compact Build Verification Snippet */}
+                  <div className="mt-2 w-full rounded-lg border border-[#262421]/80 bg-[#141517]/75 backdrop-blur-sm p-3 font-mono text-[11.5px] space-y-1.5 shadow-xl">
+                    <div className="flex items-center justify-between text-[#8E8A82]">
+                      <span>Dependencies resolved</span>
+                      <span className={effectiveBuild.step1 ? "text-semantic-success flex items-center gap-1 font-medium" : "text-[#4A4742]"}>
+                        {effectiveBuild.step1 ? <Check className="w-3 h-3 stroke-[2.5]" /> : "·"}
+                      </span>
                     </div>
 
-                    {/* Sequential Build Operations */}
-                    <div className="space-y-2 font-mono text-[11.5px]">
-                      {/* Op 1: Resolving dependencies */}
-                      <div className="flex items-center justify-between">
-                        <span
-                          className={
-                            effectiveBuild.step1 === "running"
-                              ? "text-[#F2F0EB] font-medium"
-                              : effectiveBuild.step1 === "done"
-                              ? "text-[#8E8A82]"
-                              : "text-[#44423E]"
-                          }
-                        >
-                          Resolving dependencies
-                        </span>
-                        {effectiveBuild.step1 === "done" ? (
-                          <span className="text-semantic-success text-[10.5px] flex items-center gap-1">
-                            <span>DONE</span>
-                            <span className="text-[#44423E]">·</span>
-                            <span className="text-[#77736D]">1.2s</span>
-                          </span>
-                        ) : effectiveBuild.step1 === "running" ? (
-                          <span className="text-accent-orange text-[10.5px] font-medium tracking-wider animate-pulse">
-                            RESOLVING
-                          </span>
-                        ) : (
-                          <span className="text-[#383532] text-[10.5px]">QUEUED</span>
-                        )}
-                      </div>
-
-                      {/* Op 2: Compiling application */}
-                      <div className="flex items-center justify-between">
-                        <span
-                          className={
-                            effectiveBuild.step2 === "compiling"
-                              ? "text-[#F2F0EB] font-medium"
-                              : effectiveBuild.step2 === "done"
-                              ? "text-[#8E8A82]"
-                              : "text-[#44423E]"
-                          }
-                        >
-                          Compiling application
-                        </span>
-                        {effectiveBuild.step2 === "done" ? (
-                          <span className="text-semantic-success text-[10.5px] flex items-center gap-1">
-                            <span>DONE</span>
-                            <span className="text-[#44423E]">·</span>
-                            <span className="text-[#77736D]">2.4s</span>
-                          </span>
-                        ) : effectiveBuild.step2 === "compiling" ? (
-                          <span className="text-accent-orange text-[10.5px] font-medium tracking-wider animate-pulse">
-                            COMPILING
-                          </span>
-                        ) : (
-                          <span className="text-[#383532] text-[10.5px]">WAITING</span>
-                        )}
-                      </div>
-
-                      {/* Op 3: Verifying build output */}
-                      <div className="flex items-center justify-between">
-                        <span
-                          className={
-                            effectiveBuild.step3 === "verifying"
-                              ? "text-[#F2F0EB] font-medium"
-                              : effectiveBuild.step3 === "done"
-                              ? "text-[#8E8A82]"
-                              : "text-[#44423E]"
-                          }
-                        >
-                          Verifying build output
-                        </span>
-                        {effectiveBuild.step3 === "done" ? (
-                          <span className="text-semantic-success text-[10.5px] flex items-center gap-1 font-medium">
-                            <CheckCircle2 className="w-3 h-3 text-semantic-success" />
-                            <span>HERMETIC</span>
-                          </span>
-                        ) : effectiveBuild.step3 === "verifying" ? (
-                          <span className="text-accent-orange text-[10.5px] font-medium tracking-wider animate-pulse">
-                            VERIFYING
-                          </span>
-                        ) : (
-                          <span className="text-[#383532] text-[10.5px]">PENDING</span>
-                        )}
-                      </div>
+                    <div className="flex items-center justify-between text-[#8E8A82]">
+                      <span>Application compiled</span>
+                      <span className={effectiveBuild.step2 ? "text-semantic-success flex items-center gap-1 font-medium" : "text-[#4A4742]"}>
+                        {effectiveBuild.step2 ? <Check className="w-3 h-3 stroke-[2.5]" /> : "·"}
+                      </span>
                     </div>
 
-                    {/* Thin Progress Line */}
-                    <div className="w-full h-[1.5px] bg-[#22201E] overflow-hidden rounded-full my-1" aria-hidden="true">
-                      <div
-                        className={`h-full transition-all duration-500 ease-out ${
-                          effectiveBuild.releaseVerified ? "bg-semantic-success" : "bg-accent-orange"
+                    <div className="flex items-center justify-between pt-1 border-t border-[#22201D] text-[#8E8A82]">
+                      <span className="text-[#F2F0EB] font-medium">Artifact hermetic</span>
+                      <span className={effectiveBuild.step3 ? "text-semantic-success font-medium flex items-center gap-1" : "text-[#4A4742]"}>
+                        {effectiveBuild.step3 ? (
+                          <>
+                            <Check className="w-3 h-3 stroke-[2.5]" />
+                            <span>Verified</span>
+                          </>
+                        ) : (
+                          "Pending"
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* =========================================================
+                  STAGE 03 — PRODUCTION (High summit peak)
+                  ========================================================= */}
+              <div className="col-span-4 flex flex-col justify-start pt-3 items-end text-right pointer-events-auto">
+                <div
+                  className={`space-y-2 max-w-[320px] transition-all duration-500 ease-out ${
+                    effectiveStage === 3
+                      ? "opacity-100 translate-y-0"
+                      : "opacity-35 -translate-y-2"
+                  }`}
+                >
+                  {/* Stage Number */}
+                  <div className="font-mono text-[11px] font-medium text-semantic-success tracking-wider">
+                    03
+                  </div>
+
+                  {/* Heading */}
+                  <h3 className="font-sans text-[24px] sm:text-[26px] font-medium text-[#F2F0EB] tracking-[-0.02em] leading-tight">
+                    Live in production.
+                  </h3>
+
+                  {/* Supporting Sentence */}
+                  <p className="font-sans text-[13.5px] sm:text-[14px] text-[#8E8A82] leading-[1.6]">
+                    Deployed globally. Ready for real traffic.
+                  </p>
+
+                  {/* Understated Production Indicator */}
+                  <div className="pt-1.5 flex items-center justify-end gap-2.5 font-mono text-[13.5px]">
+                    <span className="relative flex h-2 w-2">
+                      <span
+                        className={`absolute inline-flex h-full w-full rounded-full bg-semantic-success opacity-75 ${
+                          effectiveBuild.isLive ? "animate-ping" : ""
                         }`}
-                        style={{
-                          width: effectiveBuild.releaseVerified
-                            ? "100%"
-                            : effectiveBuild.step3 === "verifying"
-                            ? "80%"
-                            : effectiveBuild.step2 === "compiling"
-                            ? "50%"
-                            : effectiveBuild.step1 === "running"
-                            ? "20%"
-                            : "0%",
-                        }}
+                        style={{ animationDuration: "2.5s", animationIterationCount: 2 }}
                       />
-                    </div>
-
-                    {/* Verified Release Tag Output */}
-                    <div
-                      className={`pt-1 flex items-center justify-between font-mono text-[11px] transition-opacity duration-500 ${
-                        effectiveBuild.releaseVerified ? "opacity-100" : "opacity-30"
-                      }`}
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-semibold text-[#F2F0EB]">release-v1.4.2</span>
-                        <span className="text-semantic-success text-[10px]">Verified</span>
-                      </div>
-                      <span className="text-[#77736D] text-[10.5px]">sha256:8f3a21c</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* =========================================================
-                  MILESTONE 03: LIVE DESTINATION (High Summit Peak · Elev 3,420M)
-                  The triumphant arrival: prominent domain & live edge status.
-                  ========================================================= */}
-              <div className="col-span-4 flex flex-col justify-start pt-2 items-end pointer-events-auto text-right">
-                <div
-                  className={`space-y-3 transition-all duration-600 max-w-[320px] ${
-                    effectiveStage >= 3 ? "opacity-100 translate-y-0" : "opacity-35 -translate-y-2"
-                  }`}
-                >
-                  {/* Eyebrow & Elevation */}
-                  <div className="flex items-center justify-end gap-2 font-mono text-[10.5px] text-[#8E8A82] tracking-[0.14em] uppercase">
-                    <span className="text-semantic-success font-medium">03 / LIVE DESTINATION</span>
-                    <span>·</span>
-                    <span className="text-[#FAF8F5]">3,420M PEAK</span>
-                  </div>
-
-                  {/* Confident Heading */}
-                  <h3 className="font-sans text-[22px] font-medium text-[#F2F0EB] tracking-tight">
-                    Traffic shifted.
-                  </h3>
-
-                  {/* Monumental Typographic Deployed Domain (Never wraps) */}
-                  <div className="pt-0.5">
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-semantic-success" />
+                    </span>
                     <a
                       href="https://meridian.jetway.app"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="group inline-flex items-center gap-2 font-mono text-[20px] xl:text-[23px] font-bold tracking-tight text-[#F2F0EB] hover:text-accent-orange transition-colors whitespace-nowrap"
+                      className="text-[#F2F0EB] hover:text-accent-orange transition-colors font-semibold flex items-center gap-1.5"
                     >
-                      <span>web-app.jetway.demo</span>
-                      <ExternalLink className="w-4 h-4 opacity-40 group-hover:opacity-100 transition-opacity shrink-0" />
+                      <span>web-app.jetway.app</span>
+                      <ExternalLink className="w-3.5 h-3.5 opacity-50" />
                     </a>
+                    <span className="text-semantic-success text-[11px] font-medium">Live</span>
                   </div>
-
-                  {/* Sage-Green Live Status Confirmation */}
-                  <div
-                    className={`flex items-center justify-end gap-2 font-mono text-[12px] transition-opacity duration-500 ${
-                      effectiveBuild.isLive ? "opacity-100 text-semantic-success font-medium" : "opacity-25 text-[#44423E]"
-                    }`}
-                  >
-                    <span className="w-2 h-2 rounded-full bg-semantic-success animate-pulse" />
-                    <span>LIVE</span>
-                    <span className="text-[#44423E]">·</span>
-                    <span className="text-[#F2F0EB]">200 OK</span>
-                    <span className="text-[#44423E]">·</span>
-                    <span className="text-[#8E8A82]">Global Edge</span>
-                  </div>
-
-                  {/* Supporting Cutover Telemetry */}
-                  <p className="font-mono text-[11px] text-[#77736D] leading-relaxed">
-                    100% traffic cutover · Zero downtime release
-                  </p>
                 </div>
               </div>
 
@@ -1170,12 +920,12 @@ export function GettingStarted() {
                 LAYER 4: MOBILE / TABLET VERTICAL MOUNTAIN TRAIL & MILESTONES
                 (< 1024px: High-legibility vertical progression with hiker)
                 ----------------------------------------------------------- */}
-            <div className="block lg:hidden relative w-full h-full min-h-[660px] pl-14 sm:pl-16 py-2">
+            <div className="block lg:hidden relative w-full h-full min-h-[580px] pl-12 sm:pl-16 py-4">
 
               {/* Vertical Alpine Trail SVG Track */}
-              <div className="absolute left-2 top-0 bottom-0 w-12 h-full pointer-events-none" aria-hidden="true">
+              <div className="absolute left-2 top-0 bottom-0 w-10 h-full pointer-events-none" aria-hidden="true">
                 <svg
-                  viewBox="0 0 72 700"
+                  viewBox="0 0 60 600"
                   preserveAspectRatio="none"
                   fill="none"
                   className="w-full h-full overflow-visible"
@@ -1183,8 +933,8 @@ export function GettingStarted() {
                   <path
                     ref={mobilePathRef}
                     d={mobileTrailD}
-                    stroke="#2E2C29"
-                    strokeWidth="2"
+                    stroke="#2A2825"
+                    strokeWidth="1.8"
                     strokeDasharray="3 7"
                     strokeLinecap="round"
                   />
@@ -1195,15 +945,15 @@ export function GettingStarted() {
                     strokeWidth="2.2"
                     strokeLinecap="round"
                     style={{
-                      strokeDasharray: "800px 800px",
-                      strokeDashoffset: isReducedMotion ? "0px" : "800px",
+                      strokeDasharray: "600px 600px",
+                      strokeDashoffset: isReducedMotion ? "0px" : "600px",
                     }}
                   />
 
                   {/* Mobile Waypoint Reticles */}
-                  <circle cx="36" cy="60" r="4.5" fill="#111110" stroke="#D88762" strokeWidth="2" />
-                  <circle cx="36" cy="320" r="4.5" fill="#111110" stroke={effectiveBuild.releaseVerified ? "#82B89D" : "#D88762"} strokeWidth="2" />
-                  <circle cx="36" cy="640" r="5" fill="#111110" stroke={effectiveBuild.isLive ? "#82B89D" : "#44403B"} strokeWidth="2" />
+                  <circle cx="30" cy="50" r="4.5" fill="#111110" stroke="#D88762" strokeWidth="1.8" />
+                  <circle cx="30" cy="290" r="4.5" fill="#111110" stroke={effectiveBuild.step3 ? "#82B89D" : "#D88762"} strokeWidth="1.8" />
+                  <circle cx="30" cy="540" r="5" fill="#111110" stroke={effectiveBuild.isLive ? "#82B89D" : "#383531"} strokeWidth="2" />
 
                   {/* Mobile Top-Down Hiker */}
                   <TopDownAscentHiker
@@ -1218,116 +968,86 @@ export function GettingStarted() {
               </div>
 
               {/* Vertically Stacked Mobile Milestones */}
-              <div className="space-y-10 sm:space-y-12">
+              <div className="space-y-12 sm:space-y-16">
 
                 {/* Mobile Milestone 01: Source */}
                 <div
-                  className={`space-y-2 transition-all duration-500 ${
+                  className={`space-y-1.5 transition-all duration-500 ${
                     effectiveStage >= 1 ? "opacity-100" : "opacity-35"
                   }`}
                 >
-                  <div className="flex items-center gap-2 font-mono text-[10.5px] text-[#8E8A82] tracking-[0.14em] uppercase">
-                    <span className="text-accent-orange font-medium">01 / SOURCE</span>
-                    <span>·</span>
-                    <span>ELEV 1,240M</span>
+                  <div className="font-mono text-[10.5px] font-medium text-accent-orange tracking-wider">
+                    01
                   </div>
                   <h3 className="font-sans text-[20px] font-medium text-[#F2F0EB]">
                     Code committed.
                   </h3>
-                  <div className="font-mono text-[14px] font-medium text-[#F2F0EB]">
-                    acme/web-app
-                  </div>
-                  <div className="flex items-center gap-2 font-mono text-[11.5px] text-[#A8A49C]">
+                  <p className="font-sans text-[13px] text-[#8E8A82]">
+                    Your repository is connected and ready to build.
+                  </p>
+                  <div className="pt-0.5 flex items-center gap-1.5 font-mono text-[11.5px] text-[#A8A49C]">
                     <GitCommit className="w-3.5 h-3.5 text-accent-orange" />
-                    <span>main · 8f3a21c</span>
+                    <span>acme/web-app · main</span>
                   </div>
                 </div>
 
-                {/* Mobile Milestone 02: Build Engine */}
+                {/* Mobile Milestone 02: Build */}
                 <div
-                  className={`space-y-2.5 transition-all duration-500 ${
+                  className={`space-y-1.5 transition-all duration-500 ${
                     effectiveStage >= 2 ? "opacity-100" : "opacity-35"
                   }`}
                 >
-                  <div className="flex items-center gap-2 font-mono text-[10.5px] text-[#8E8A82] tracking-[0.14em] uppercase">
-                    <span className="text-accent-orange font-medium">02 / BUILD & RELEASE</span>
-                    <span>·</span>
-                    <span>ELEV 2,180M</span>
+                  <div className="font-mono text-[10.5px] font-medium text-accent-orange tracking-wider">
+                    02
                   </div>
                   <h3 className="font-sans text-[20px] font-medium text-[#F2F0EB]">
-                    Artifact verified.
+                    Build verified.
                   </h3>
-
-                  <div className="rounded-lg bg-[#141618]/90 border border-[#26282B] p-3 space-y-2 font-mono text-[11.5px] max-w-sm">
-                    <div className="flex items-center justify-between text-[10px] text-[#77736D] border-b border-[#22201E] pb-1">
-                      <span>BUILD RUNNER</span>
-                      <span>linux-amd64</span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className={effectiveBuild.step1 === "done" ? "text-[#8E8A82]" : "text-[#F2F0EB]"}>
-                        Resolving dependencies
+                  <p className="font-sans text-[13px] text-[#8E8A82]">
+                    Dependencies resolved. Application ready to ship.
+                  </p>
+                  <div className="rounded-lg border border-[#262421]/80 bg-[#141517]/75 p-2.5 font-mono text-[11px] space-y-1 max-w-xs">
+                    <div className="flex items-center justify-between text-[#8E8A82]">
+                      <span>Dependencies</span>
+                      <span className={effectiveBuild.step1 ? "text-semantic-success" : "text-[#4A4742]"}>
+                        {effectiveBuild.step1 ? "✓" : "·"}
                       </span>
-                      {effectiveBuild.step1 === "done" ? (
-                        <span className="text-semantic-success text-[10px]">DONE · 1.2s</span>
-                      ) : (
-                        <span className="text-accent-orange text-[10px]">ACTIVE</span>
-                      )}
                     </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className={effectiveBuild.step2 === "done" ? "text-[#8E8A82]" : "text-[#F2F0EB]"}>
-                        Compiling application
+                    <div className="flex items-center justify-between text-[#8E8A82]">
+                      <span>Compilation</span>
+                      <span className={effectiveBuild.step2 ? "text-semantic-success" : "text-[#4A4742]"}>
+                        {effectiveBuild.step2 ? "✓" : "·"}
                       </span>
-                      {effectiveBuild.step2 === "done" ? (
-                        <span className="text-semantic-success text-[10px]">DONE · 2.4s</span>
-                      ) : (
-                        <span className="text-[#44423E] text-[10px]">WAITING</span>
-                      )}
                     </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className={effectiveBuild.step3 === "done" ? "text-[#8E8A82]" : "text-[#44423E]"}>
-                        Verifying build output
+                    <div className="flex items-center justify-between text-[#8E8A82]">
+                      <span className="text-[#F2F0EB]">Artifact</span>
+                      <span className={effectiveBuild.step3 ? "text-semantic-success font-medium" : "text-[#4A4742]"}>
+                        {effectiveBuild.step3 ? "Verified ✓" : "Pending"}
                       </span>
-                      {effectiveBuild.step3 === "done" ? (
-                        <span className="text-semantic-success text-[10px]">HERMETIC</span>
-                      ) : (
-                        <span className="text-[#44423E] text-[10px]">PENDING</span>
-                      )}
-                    </div>
-
-                    <div className="pt-1.5 border-t border-[#22201E] flex items-center justify-between text-[10.5px]">
-                      <span className="text-[#F2F0EB] font-semibold">release-v1.4.2</span>
-                      <span className="text-semantic-success">Verified</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Mobile Milestone 03: Live Destination */}
+                {/* Mobile Milestone 03: Production */}
                 <div
-                  className={`space-y-2 transition-all duration-500 ${
+                  className={`space-y-1.5 transition-all duration-500 ${
                     effectiveStage >= 3 ? "opacity-100" : "opacity-35"
                   }`}
                 >
-                  <div className="flex items-center gap-2 font-mono text-[10.5px] text-[#8E8A82] tracking-[0.14em] uppercase">
-                    <span className="text-semantic-success font-medium">03 / LIVE DESTINATION</span>
-                    <span>·</span>
-                    <span className="text-[#FAF8F5]">ELEV 3,420M</span>
+                  <div className="font-mono text-[10.5px] font-medium text-semantic-success tracking-wider">
+                    03
                   </div>
                   <h3 className="font-sans text-[20px] font-medium text-[#F2F0EB]">
-                    Traffic shifted.
+                    Live in production.
                   </h3>
-                  <div className="font-mono text-[17px] sm:text-[19px] font-bold text-[#F2F0EB] break-all">
-                    web-app.jetway.demo
-                  </div>
-                  <div className="flex items-center gap-2 font-mono text-[11.5px] text-semantic-success font-medium">
-                    <span className="w-1.5 h-1.5 rounded-full bg-semantic-success animate-pulse" />
-                    <span>LIVE · 200 OK · Global Edge</span>
-                  </div>
-                  <p className="font-mono text-[10.5px] text-[#77736D]">
-                    100% traffic cutover · Zero downtime release
+                  <p className="font-sans text-[13px] text-[#8E8A82]">
+                    Deployed globally. Ready for real traffic.
                   </p>
+                  <div className="pt-0.5 flex items-center gap-2 font-mono text-[12px]">
+                    <span className="w-2 h-2 rounded-full bg-semantic-success animate-pulse" />
+                    <span className="text-[#F2F0EB] font-semibold">web-app.jetway.app</span>
+                    <span className="text-semantic-success font-medium">Live</span>
+                  </div>
                 </div>
 
               </div>
