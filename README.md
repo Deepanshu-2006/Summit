@@ -1,36 +1,93 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Summit Jetway PaaS Monorepo
+
+Enterprise multi-package monorepo for the Summit & Jetway Developer Platform, integrating an editorial Next.js frontend, an OpenAPI-standardized contract layer, and a dedicated backend service.
+
+```
+.
+├── apps/
+│   ├── web/                    # Next.js 16 (Turbopack + Tailwind v4) Frontend
+│   └── backend/                # Fastify + TypeScript PaaS Control Plane API
+├── packages/
+│   └── api_spec/               # OpenAPI 3.1.0 Contract & Shared TypeScript Types
+├── docs/                       # System Architecture & Topology Diagrams
+├── pnpm-workspace.yaml         # PNPM Workspace Configuration
+└── package.json                # Root Workspace Scripts
+```
+
+---
+
+## Workspace Structure & Team Ownership
+
+### 1. `apps/web` (Frontend Application)
+- **Framework**: Next.js 16.4.3, React 19, Tailwind CSS v4, Motion, Three.js
+- **Responsibility**: Houses the interactive marketing experience, isometric WebGL construction canvas, API sandbox, and live pipeline monitors.
+- **Contract Integration**: Consumes `@summit/api-spec` workspace types for zero-drift API models.
+- **Run Locally**:
+  ```bash
+  pnpm dev:web
+  # or from apps/web: pnpm dev (runs on http://localhost:3000)
+  ```
+
+### 2. `apps/backend` (Backend Platform Service)
+- **Framework**: Fastify 5 + TypeScript + CORS
+- **Responsibility**: Implements the Kubernetes control plane endpoints, resource provisioning, build queue, and Prometheus/Loki observability APIs as defined in [system_architechture.png](docs/system_architechture.png).
+- **Interactive OpenAPI Spec**: Exposes `/openapi.yaml` and handles all `/api/v1/*` contracts.
+- **Run Locally**:
+  ```bash
+  pnpm dev:backend
+  # or from apps/backend: pnpm dev (runs on http://localhost:4000)
+  ```
+
+### 3. `packages/api_spec` (OpenAPI Contract & Shared Types)
+- **Standard**: OpenAPI 3.1.0 specification (`openapi.yaml`).
+- **Exports**: Strongly-typed TypeScript interfaces (`HealthResponse`, `Project`, `ResourceItem`, `ReleaseItem`, `MetricsResponse`, etc.) shared across both frontend and backend.
+- **Build / Check**:
+  ```bash
+  pnpm --filter @summit/api-spec build
+  ```
+
+---
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+- Node.js `>= 20` (Node 24 recommended via `mise`)
+- PNPM `>= 12.15.0`
 
+### Installation
+Install workspace dependencies:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Development
+Run all services concurrently:
+```bash
+pnpm dev:all
+```
+Or run individually:
+```bash
+pnpm dev:web       # Frontend at http://localhost:3000
+pnpm dev:backend   # Backend at http://localhost:4000
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Production Build
+Build all apps and packages in topological order:
+```bash
+pnpm build
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## API & OpenAPI Endpoints
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Endpoint | Method | Description |
+| :--- | :--- | :--- |
+| `/api/v1/health` | `GET` | Cluster heartbeat, uptime, and edge routing region |
+| `/api/v1/projects` | `GET` | List provisioned projects |
+| `/api/v1/projects/:slug` | `GET` | Real-time operational topology & service health |
+| `/api/v1/resources` | `GET`, `POST` | Infrastructure provisioning (Postgres, Key-Value, S3, SSL) |
+| `/api/v1/releases` | `GET`, `POST` | Release trigger with semver verification & deployment state |
+| `/api/v1/observability/metrics` | `GET` | Prometheus cluster telemetry (CPU, RAM, RPS) |
+| `/api/v1/observability/logs` | `GET` | Grafana Loki structured log stream |
+| `/openapi.yaml` | `GET` | Full raw OpenAPI 3.1.0 specification |

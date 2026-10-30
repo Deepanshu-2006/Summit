@@ -1,6 +1,7 @@
-# Dependencies
-/node_modules
-/.pnp
+# Monorepo Dependencies
+node_modules/
+.pnpm-store/
+.pnp/
 .pnp.*
 .yarn/*
 !.yarn/patches
@@ -8,33 +9,42 @@
 !.yarn/releases
 !.yarn/versions
 
-# Next.js & Build Output
-/.next/
-/out/
-/build
-/dist
+# Next.js & Build Outputs
+.next/
+out/
+build/
+dist/
 .turbo/
 
 # Testing & Coverage
-/coverage
+coverage/
+*.lcov
+.nyc_output/
 
-# Environment Variables
+# Environment Variables & Secrets
 .env
 .env.*
 .env*.local
 !.env.example
+*.pem
+*.key
+*.cert
 
-# IDE & Editors
+# IDE & Editor Configurations
 .idea/
-.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
 *.swp
 *.swo
 
-# OS Clutter
+# OS Clutter & WSL
 .DS_Store
 Thumbs.db
 Desktop.ini
-*.pem
+*:Zone.Identifier
 
 # Package Manager & Debug Logs
 npm-debug.log*
@@ -42,8 +52,6 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 .pnpm-debug.log*
-*.txt
-*.raw.html
 
 # Python & Linter Caches (workspace hygiene)
 __pycache__/
@@ -54,4 +62,4 @@ __pycache__/
 # TypeScript & Vercel
 *.tsbuildinfo
 next-env.d.ts
-.vercel
+.vercel/
