@@ -15,12 +15,12 @@ const LINE2_TEXT = "up here.";
 
 const LINE1_CHARS = Array.from(LINE1_TEXT).map((char, index) => ({
   char,
-  delay: +(0.08 + index * 0.032).toFixed(3),
+  delay: +(0.06 + index * 0.026).toFixed(3),
 }));
 
 const LINE2_CHARS = Array.from(LINE2_TEXT).map((char, index) => ({
   char,
-  delay: +(0.58 + index * 0.048).toFixed(3),
+  delay: +(0.48 + index * 0.038).toFixed(3),
 }));
 
 // SSR-safe subscription for prefers-reduced-motion
@@ -286,7 +286,7 @@ export function Hero() {
                   ? { opacity: 0, transform: "translateY(16px)" }
                   : {
                       animation: "heroFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both",
-                      animationDelay: "0.80s",
+                      animationDelay: "0.70s",
                     }
               }
             >
@@ -303,7 +303,7 @@ export function Hero() {
                   ? { opacity: 0, transform: "translateY(16px)" }
                   : {
                       animation: "heroFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both",
-                      animationDelay: "1.00s",
+                      animationDelay: "0.85s",
                     }
               }
             >
