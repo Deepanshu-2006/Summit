@@ -539,8 +539,8 @@ export function GettingStarted() {
       id="getting-started"
       className={
         isReducedMotion
-          ? "relative w-full py-20 sm:py-28 bg-transparent text-[#F2F0EB] select-none"
-          : "relative w-full h-[260vh] sm:h-[280vh] lg:h-[300vh] py-16 sm:py-24 bg-transparent text-[#F2F0EB] select-none"
+          ? "relative w-full mt-24 mb-32 sm:mt-32 sm:mb-44 lg:mt-40 lg:mb-56 bg-transparent text-[#F2F0EB] select-none"
+          : "relative w-full h-[260vh] sm:h-[280vh] lg:h-[300vh] mt-[28vh] sm:mt-[34vh] lg:mt-[40vh] mb-[40vh] sm:mb-[48vh] lg:mb-[56vh] bg-transparent text-[#F2F0EB] select-none"
       }
       aria-labelledby="getting-started-heading"
     >

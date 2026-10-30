@@ -58,7 +58,6 @@ export function FinalCta() {
   const charRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const subcopyRef = useRef<HTMLParagraphElement>(null);
   const ctaAreaRef = useRef<HTMLDivElement>(null);
-  const detailsRef = useRef<HTMLDivElement>(null);
 
   // Synchronously subscribe to reduced motion preference
   const isReducedMotion = useSyncExternalStore(
@@ -85,7 +84,6 @@ export function FinalCta() {
       charRefs.current.forEach((el) => resetEl(el, "none", "1"));
       resetEl(subcopyRef.current, "none", "1");
       resetEl(ctaAreaRef.current, "none", "1");
-      resetEl(detailsRef.current, "none", "1");
       return;
     }
 
@@ -245,7 +243,6 @@ export function FinalCta() {
 
       applyStagger(subcopyRef.current, subcopyFactor, 16);
       applyStagger(ctaAreaRef.current, ctaFactor, 16);
-      applyStagger(detailsRef.current, detailsFactor, 12);
     };
 
     const resetToInitialState = () => {
@@ -298,10 +295,6 @@ export function FinalCta() {
       if (ctaAreaRef.current) {
         ctaAreaRef.current.style.transform = "translate3d(0, 16px, 0)";
         ctaAreaRef.current.style.opacity = "0";
-      }
-      if (detailsRef.current) {
-        detailsRef.current.style.transform = "translate3d(0, 12px, 0)";
-        detailsRef.current.style.opacity = "0";
       }
     };
 
@@ -563,18 +556,6 @@ export function FinalCta() {
                   ↗
                 </span>
               </Link>
-            </div>
-
-            {/* Subtle Editorial Anchor Detail */}
-            <div
-              ref={detailsRef}
-              className="mt-8 pt-4 border-t border-[#252523] flex items-center gap-3 select-text will-change-[transform,opacity]"
-              style={{ opacity: 0 }}
-            >
-              <span className="w-1 h-1 rounded-full bg-[#524E48]" aria-hidden="true" />
-              <span className="font-mono text-[10.5px] tracking-[0.16em] uppercase text-[#6B6760]">
-                BUILT TO SHIP // LATENCY 14MS
-              </span>
             </div>
           </div>
         </div>

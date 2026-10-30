@@ -307,12 +307,17 @@ export function ApplicationStack() {
   const [selectedId, setSelectedId] = useState<ServiceId>("web");
   const [activeIndex, setActiveIndex] = useState<number>(0);
   const [tabCenters, setTabCenters] = useState<number[]>([]);
+  const [tabWidths, setTabWidths] = useState<number[]>([]);
+  const tabCentersRef = useRef<number[]>([]);
+  const tabWidthsRef = useRef<number[]>([]);
 
   const sectionRef = useRef<HTMLElement>(null);
   const stickyRef = useRef<HTMLDivElement>(null);
   const switcherRef = useRef<HTMLDivElement>(null);
+  const underlineRef = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const benefitRef = useRef<HTMLElement>(null);
+  const benefitsTriggeredRef = useRef<boolean>(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const [benefitsInView, setBenefitsInView] = useState<boolean>(false);
@@ -380,7 +385,7 @@ export function ApplicationStack() {
   // Shared Lenis scroll instance
   const lenis = useLenis();
 
-  // Measure tab centers for dynamic path coordinates
+  // Measure tab centers and widths for dynamic path and underline indicator
   const measureTabCenters = useCallback(() => {
     if (!switcherRef.current) return;
     const containerRect = switcherRef.current.getBoundingClientRect();
@@ -388,19 +393,32 @@ export function ApplicationStack() {
     if (width <= 0) return;
 
     const centers: number[] = [];
+    const widths: number[] = [];
     tabRefs.current.forEach((tab) => {
       if (tab) {
         const tabRect = tab.getBoundingClientRect();
         const cx = tabRect.left - containerRect.left + tabRect.width / 2;
         centers.push(cx);
+        widths.push(tabRect.width);
       }
     });
 
+    const isSame = (a: number[], b: number[]) =>
+      a.length === b.length && a.every((v, i) => Math.abs(v - b[i]) < 0.5);
+
     if (centers.length === 4) {
-      setTabCenters(centers);
+      tabCentersRef.current = centers;
+      tabWidthsRef.current = widths;
+      setTabCenters((prev) => (isSame(prev, centers) ? prev : centers));
+      setTabWidths((prev) => (isSame(prev, widths) ? prev : widths));
     } else {
       // Default fallback grid distribution
-      setTabCenters([width * 0.125, width * 0.375, width * 0.625, width * 0.875]);
+      const fallbackCenters = [width * 0.125, width * 0.375, width * 0.625, width * 0.875];
+      const fallbackWidths = [width * 0.22, width * 0.22, width * 0.22, width * 0.22];
+      tabCentersRef.current = fallbackCenters;
+      tabWidthsRef.current = fallbackWidths;
+      setTabCenters((prev) => (isSame(prev, fallbackCenters) ? prev : fallbackCenters));
+      setTabWidths((prev) => (isSame(prev, fallbackWidths) ? prev : fallbackWidths));
     }
   }, []);
 
@@ -438,7 +456,7 @@ export function ApplicationStack() {
   }, [pathD]);
 
   // Direct RAF render loop updating hiker & trail without React reconciler overhead
-  const updateHikerAndTrail = useCallback((dist: number, anim: typeof animRef.current) => {
+  const updateHikerAndTrail = useCallback((dist: number, anim: typeof animRef.current, trailRatio?: number) => {
     const totalLen = pathLengthRef.current;
     if (totalLen <= 0 || !pathRef.current) return;
 
@@ -489,6 +507,31 @@ export function ApplicationStack() {
     if (torsoRef.current) {
       torsoRef.current.setAttribute("transform", `rotate(${anim.sway.toFixed(1)})`);
     }
+
+    // Synchronize continuous travelling orange underline indicator across the 4 switcher tabs
+    const centers = tabCentersRef.current;
+    const widths = tabWidthsRef.current;
+    if (underlineRef.current && centers.length === 4) {
+      const ratio = typeof trailRatio === "number" ? trailRatio : (totalLen > 0 ? clampedDist / totalLen : 0);
+      const scaledP = Math.max(0, Math.min(3, ratio * 3));
+      const segIdx = Math.min(2, Math.floor(scaledP));
+      const localT = Math.max(0, Math.min(1, scaledP - segIdx));
+      const smoothT = localT * localT * (3 - 2 * localT);
+
+      const c0 = centers[segIdx];
+      const c1 = centers[segIdx + 1];
+      const w0 = Math.min(widths[segIdx] || 56, 76);
+      const w1 = Math.min(widths[segIdx + 1] || 56, 76);
+
+      const baseW = w0 + (w1 - w0) * smoothT;
+      const travelStretch = Math.sin(localT * Math.PI) * 14;
+      const currentW = Math.max(36, baseW + travelStretch);
+      const currentCenter = c0 + (c1 - c0) * smoothT;
+      const currentX = currentCenter - currentW / 2;
+
+      underlineRef.current.style.transform = `translate3d(${currentX.toFixed(1)}px, 0, 0)`;
+      underlineRef.current.style.width = `${currentW.toFixed(1)}px`;
+    }
   }, []);
 
   // Responsive tick loop synchronized with Lenis
@@ -530,7 +573,7 @@ export function ApplicationStack() {
         }
       }
 
-      updateHikerAndTrail(targetDist, anim);
+      updateHikerAndTrail(targetDist, anim, trailRatio);
 
       // Determine active stage based on progress with hysteresis to prevent flickering
       let stageIdx = activeIndexRef.current;
@@ -574,6 +617,23 @@ export function ApplicationStack() {
     anim.rafId = requestAnimationFrame(tick);
   }, [updateHikerAndTrail]);
 
+  // Schmitt trigger hysteresis deadband check for platform architectural benefits
+  const checkBenefitsPosition = useCallback(() => {
+    if (!benefitRef.current) return;
+    const rect = benefitRef.current.getBoundingClientRect();
+    const vh = window.innerHeight;
+
+    // Forward activation at 82% vh, reverse reset at 96% vh
+    // 14% deadband prevents repeated triggering on boundary micro-scrolls
+    if (!benefitsTriggeredRef.current && rect.top <= vh * 0.82 && rect.bottom >= 0) {
+      benefitsTriggeredRef.current = true;
+      setBenefitsInView(true);
+    } else if (benefitsTriggeredRef.current && rect.top > vh * 0.96) {
+      benefitsTriggeredRef.current = false;
+      setBenefitsInView(false);
+    }
+  }, []);
+
   // Compute scroll progress from sticky section position
   const computeScrollProgress = useCallback(() => {
     if (!sectionRef.current) return;
@@ -594,7 +654,7 @@ export function ApplicationStack() {
     if (isReducedMotion) {
       animRef.current.currentProgress = clampedProgress;
       const trailRatio = progressToTrailRatio(clampedProgress);
-      updateHikerAndTrail(trailRatio * pathLengthRef.current, animRef.current);
+      updateHikerAndTrail(trailRatio * pathLengthRef.current, animRef.current, trailRatio);
       let stageIdx = activeIndexRef.current;
       if (clampedProgress < 0.20) {
         stageIdx = 0;
@@ -622,6 +682,7 @@ export function ApplicationStack() {
   // Lenis scroll listener
   useLenis(() => {
     computeScrollProgress();
+    checkBenefitsPosition();
   });
 
   // Setup resize and native scroll observers
@@ -631,16 +692,23 @@ export function ApplicationStack() {
     const onResize = () => {
       measureTabCenters();
       computeScrollProgress();
+      checkBenefitsPosition();
+    };
+
+    const onScroll = () => {
+      computeScrollProgress();
+      checkBenefitsPosition();
     };
 
     window.addEventListener("resize", onResize, { passive: true });
-    window.addEventListener("scroll", computeScrollProgress, { passive: true });
+    window.addEventListener("scroll", onScroll, { passive: true });
 
     let ro: ResizeObserver | null = null;
     if (typeof ResizeObserver !== "undefined" && sectionRef.current) {
       ro = new ResizeObserver(() => {
         measureTabCenters();
         computeScrollProgress();
+        checkBenefitsPosition();
       });
       ro.observe(sectionRef.current);
     }
@@ -649,19 +717,20 @@ export function ApplicationStack() {
     const timer = setTimeout(() => {
       measureTabCenters();
       computeScrollProgress();
+      checkBenefitsPosition();
     }, 60);
 
     const anim = animRef.current;
     return () => {
       clearTimeout(timer);
       window.removeEventListener("resize", onResize);
-      window.removeEventListener("scroll", computeScrollProgress);
+      window.removeEventListener("scroll", onScroll);
       if (ro) ro.disconnect();
       if (anim.rafId !== null) {
         cancelAnimationFrame(anim.rafId);
       }
     };
-  }, [measureTabCenters, computeScrollProgress]);
+  }, [measureTabCenters, computeScrollProgress, checkBenefitsPosition]);
 
   // Handle stage tab click: smoothly scrolls the page and animates the hiker
   const handleStageClick = (idx: number) => {
@@ -695,7 +764,7 @@ export function ApplicationStack() {
     if (isReducedMotion) {
       animRef.current.currentProgress = targetP;
       const trailRatio = progressToTrailRatio(targetP);
-      updateHikerAndTrail(trailRatio * pathLengthRef.current, animRef.current);
+      updateHikerAndTrail(trailRatio * pathLengthRef.current, animRef.current, trailRatio);
     } else {
       startTick();
     }
@@ -721,25 +790,6 @@ export function ApplicationStack() {
     observer.observe(previewContainerRef.current);
     return () => observer.disconnect();
   }, [selectedId]);
-
-  // Observe entrance of architectural benefit pillars below the pinned stack
-  useEffect(() => {
-    if (!benefitRef.current) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setBenefitsInView(true);
-          }
-        });
-      },
-      { threshold: 0.15 }
-    );
-
-    observer.observe(benefitRef.current);
-    return () => observer.disconnect();
-  }, []);
 
   return (
     <>
@@ -841,6 +891,23 @@ export function ApplicationStack() {
                   </button>
                 );
               })}
+            </div>
+
+            {/* Continuous Travelling Trail Underline */}
+            <div className="w-full relative h-[2px] mt-1 mb-1 overflow-hidden pointer-events-none" aria-hidden="true">
+              {/* Hairline rail */}
+              <div className="absolute inset-x-0 top-0 h-[1px] bg-[#262422]/70" />
+              {/* Travelling orange indicator */}
+              <div
+                ref={underlineRef}
+                className="absolute top-0 left-0 h-[2px] rounded-full bg-accent-orange shadow-[0_0_8px_rgba(216,135,98,0.7)] will-change-transform"
+                style={{
+                  width: tabWidths[0] ? `${Math.min(tabWidths[0], 76)}px` : "56px",
+                  transform: tabCenters[0]
+                    ? `translate3d(${(tabCenters[0] - (tabWidths[0] ? Math.min(tabWidths[0], 76) / 2 : 28)).toFixed(1)}px, 0, 0)`
+                    : "none",
+                }}
+              />
             </div>
 
             {/* Continuous Mountain Trail with Top-Down Hiker */}
@@ -1266,7 +1333,7 @@ export function ApplicationStack() {
       {/* =================================================================
           NATURAL FLOW EXIT: THREE BENEFIT PILLARS
           Revealed as normal scrolling seamlessly resumes after Stage 4.
-          Features a smooth line-by-line staggered entrance animation.
+          Features a sequential signal conduit pulse and masked typographic reveals.
           ================================================================= */}
       <section
         ref={benefitRef}
@@ -1274,126 +1341,188 @@ export function ApplicationStack() {
         className="relative z-10 w-full bg-transparent pt-16 pb-24 sm:pt-20 sm:pb-32"
         aria-label="Platform Architecture Benefits"
       >
-        <div className="layout-container w-full">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-12 w-full max-w-6xl">
-            {/* Column 01 */}
-            <div className="space-y-2">
-              <div
-                className={`font-mono text-[11px] text-accent-orange font-medium tracking-wider transition-all duration-700 ease-out ${
-                  benefitsInView || isReducedMotion
-                    ? "opacity-100 translate-y-0"
-                    : "opacity-0 translate-y-4"
-                }`}
-                style={{
-                  transitionDelay: benefitsInView && !isReducedMotion ? "100ms" : "0ms",
-                }}
-              >
-                01
+        <div className="layout-container w-full max-w-6xl">
+          {/* =============================================================
+              HAIRLINE SIGNAL CONDUIT (Phase A)
+              Conducts a burnt-orange signal pulse from the mountain trail
+              across the top of the columns to trigger sequential reveals.
+              ============================================================= */}
+          <div className="relative w-full h-[2px] mb-8 sm:mb-10 overflow-hidden" aria-hidden="true">
+            {/* Base conduit track */}
+            <div className="absolute inset-x-0 top-0 h-[1px] bg-[#262422]" />
+
+            {/* Burnt-Orange Signal Pulse */}
+            <div
+              className={`absolute top-0 left-0 h-[1.5px] bg-gradient-to-r from-transparent via-[#D88762] to-[#FFA67E] transition-all ease-out ${
+                benefitsInView || isReducedMotion
+                  ? "w-full opacity-100 duration-1000"
+                  : "w-0 opacity-0 duration-250"
+              }`}
+              style={{
+                boxShadow: benefitsInView ? "0 0 10px rgba(216, 135, 98, 0.6)" : "none",
+              }}
+            />
+
+            {/* Signal Origin Node */}
+            <div
+              className={`absolute top-[-2px] left-0 w-1.5 h-1.5 rounded-full bg-accent-orange transition-opacity duration-300 ${
+                benefitsInView ? "opacity-90" : "opacity-0"
+              }`}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-12 w-full">
+            {/* Column 01: Connected services */}
+            <div className="space-y-2.5">
+              {/* Masked 01 Number */}
+              <div className="overflow-hidden">
+                <div
+                  className={`font-mono text-[11px] text-accent-orange font-medium tracking-wider transition-all ease-out ${
+                    benefitsInView || isReducedMotion
+                      ? "opacity-100 translate-y-0 duration-400"
+                      : "opacity-0 translate-y-2 duration-250"
+                  }`}
+                  style={{
+                    transitionDelay: benefitsInView && !isReducedMotion ? "80ms" : "0ms",
+                  }}
+                >
+                  01
+                </div>
               </div>
-              <h3
-                className={`font-sans text-[16px] sm:text-[17px] font-medium text-[#F1F0EC] tracking-[-0.015em] transition-all duration-700 ease-out ${
-                  benefitsInView || isReducedMotion
-                    ? "opacity-100 translate-y-0"
-                    : "opacity-0 translate-y-4"
-                }`}
-                style={{
-                  transitionDelay: benefitsInView && !isReducedMotion ? "220ms" : "0ms",
-                }}
-              >
-                Connected services
-              </h3>
-              <p
-                className={`font-sans text-[13.5px] text-text-secondary leading-[1.6] transition-all duration-700 ease-out ${
-                  benefitsInView || isReducedMotion
-                    ? "opacity-100 translate-y-0"
-                    : "opacity-0 translate-y-4"
-                }`}
-                style={{
-                  transitionDelay: benefitsInView && !isReducedMotion ? "340ms" : "0ms",
-                }}
-              >
-                Keep the relationships between application components understandable through a shared internal network.
-              </p>
+
+              {/* Masked Heading */}
+              <div className="overflow-hidden">
+                <h3
+                  className={`font-sans text-[16px] sm:text-[17px] font-medium text-[#F1F0EC] tracking-[-0.015em] transition-all ease-out ${
+                    benefitsInView || isReducedMotion
+                      ? "opacity-100 translate-y-0 duration-450"
+                      : "opacity-0 translate-y-2.5 duration-250"
+                  }`}
+                  style={{
+                    transitionDelay: benefitsInView && !isReducedMotion ? "160ms" : "0ms",
+                  }}
+                >
+                  Connected services
+                </h3>
+              </div>
+
+              {/* Masked Supporting Text */}
+              <div className="overflow-hidden">
+                <p
+                  className={`font-sans text-[13.5px] text-text-secondary leading-[1.6] transition-all ease-out ${
+                    benefitsInView || isReducedMotion
+                      ? "opacity-100 translate-y-0 duration-500"
+                      : "opacity-0 translate-y-3 duration-250"
+                  }`}
+                  style={{
+                    transitionDelay: benefitsInView && !isReducedMotion ? "240ms" : "0ms",
+                  }}
+                >
+                  Keep the relationships between application components understandable through a shared internal network.
+                </p>
+              </div>
             </div>
 
-            {/* Column 02 */}
-            <div className="space-y-2">
-              <div
-                className={`font-mono text-[11px] text-accent-orange font-medium tracking-wider transition-all duration-700 ease-out ${
-                  benefitsInView || isReducedMotion
-                    ? "opacity-100 translate-y-0"
-                    : "opacity-0 translate-y-4"
-                }`}
-                style={{
-                  transitionDelay: benefitsInView && !isReducedMotion ? "240ms" : "0ms",
-                }}
-              >
-                02
+            {/* Column 02: One developer workflow */}
+            <div className="space-y-2.5">
+              {/* Masked 02 Number */}
+              <div className="overflow-hidden">
+                <div
+                  className={`font-mono text-[11px] text-accent-orange font-medium tracking-wider transition-all ease-out ${
+                    benefitsInView || isReducedMotion
+                      ? "opacity-100 translate-y-0 duration-400"
+                      : "opacity-0 translate-y-2 duration-250"
+                  }`}
+                  style={{
+                    transitionDelay: benefitsInView && !isReducedMotion ? "340ms" : "0ms",
+                  }}
+                >
+                  02
+                </div>
               </div>
-              <h3
-                className={`font-sans text-[16px] sm:text-[17px] font-medium text-[#F1F0EC] tracking-[-0.015em] transition-all duration-700 ease-out ${
-                  benefitsInView || isReducedMotion
-                    ? "opacity-100 translate-y-0"
-                    : "opacity-0 translate-y-4"
-                }`}
-                style={{
-                  transitionDelay: benefitsInView && !isReducedMotion ? "360ms" : "0ms",
-                }}
-              >
-                One developer workflow
-              </h3>
-              <p
-                className={`font-sans text-[13.5px] text-text-secondary leading-[1.6] transition-all duration-700 ease-out ${
-                  benefitsInView || isReducedMotion
-                    ? "opacity-100 translate-y-0"
-                    : "opacity-0 translate-y-4"
-                }`}
-                style={{
-                  transitionDelay: benefitsInView && !isReducedMotion ? "480ms" : "0ms",
-                }}
-              >
-                Reduce the need to think about every component as an entirely separate project. Manage routing, environment, and code from one place.
-              </p>
+
+              {/* Masked Heading */}
+              <div className="overflow-hidden">
+                <h3
+                  className={`font-sans text-[16px] sm:text-[17px] font-medium text-[#F1F0EC] tracking-[-0.015em] transition-all ease-out ${
+                    benefitsInView || isReducedMotion
+                      ? "opacity-100 translate-y-0 duration-450"
+                      : "opacity-0 translate-y-2.5 duration-250"
+                  }`}
+                  style={{
+                    transitionDelay: benefitsInView && !isReducedMotion ? "420ms" : "0ms",
+                  }}
+                >
+                  One developer workflow
+                </h3>
+              </div>
+
+              {/* Masked Supporting Text */}
+              <div className="overflow-hidden">
+                <p
+                  className={`font-sans text-[13.5px] text-text-secondary leading-[1.6] transition-all ease-out ${
+                    benefitsInView || isReducedMotion
+                      ? "opacity-100 translate-y-0 duration-500"
+                      : "opacity-0 translate-y-3 duration-250"
+                  }`}
+                  style={{
+                    transitionDelay: benefitsInView && !isReducedMotion ? "500ms" : "0ms",
+                  }}
+                >
+                  Reduce the need to think about every component as an entirely separate project. Manage routing, environment, and code from one place.
+                </p>
+              </div>
             </div>
 
-            {/* Column 03 */}
-            <div className="space-y-2">
-              <div
-                className={`font-mono text-[11px] text-accent-orange font-medium tracking-wider transition-all duration-700 ease-out ${
-                  benefitsInView || isReducedMotion
-                    ? "opacity-100 translate-y-0"
-                    : "opacity-0 translate-y-4"
-                }`}
-                style={{
-                  transitionDelay: benefitsInView && !isReducedMotion ? "380ms" : "0ms",
-                }}
-              >
-                03
+            {/* Column 03: Room to grow */}
+            <div className="space-y-2.5">
+              {/* Masked 03 Number */}
+              <div className="overflow-hidden">
+                <div
+                  className={`font-mono text-[11px] text-accent-orange font-medium tracking-wider transition-all ease-out ${
+                    benefitsInView || isReducedMotion
+                      ? "opacity-100 translate-y-0 duration-400"
+                      : "opacity-0 translate-y-2 duration-250"
+                  }`}
+                  style={{
+                    transitionDelay: benefitsInView && !isReducedMotion ? "600ms" : "0ms",
+                  }}
+                >
+                  03
+                </div>
               </div>
-              <h3
-                className={`font-sans text-[16px] sm:text-[17px] font-medium text-[#F1F0EC] tracking-[-0.015em] transition-all duration-700 ease-out ${
-                  benefitsInView || isReducedMotion
-                    ? "opacity-100 translate-y-0"
-                    : "opacity-0 translate-y-4"
-                }`}
-                style={{
-                  transitionDelay: benefitsInView && !isReducedMotion ? "500ms" : "0ms",
-                }}
-              >
-                Room to grow
-              </h3>
-              <p
-                className={`font-sans text-[13.5px] text-text-secondary leading-[1.6] transition-all duration-700 ease-out ${
-                  benefitsInView || isReducedMotion
-                    ? "opacity-100 translate-y-0"
-                    : "opacity-0 translate-y-4"
-                }`}
-                style={{
-                  transitionDelay: benefitsInView && !isReducedMotion ? "620ms" : "0ms",
-                }}
-              >
-                Start with a single frontend service, then attach background workers, queues, and databases as your application evolves.
-              </p>
+
+              {/* Masked Heading */}
+              <div className="overflow-hidden">
+                <h3
+                  className={`font-sans text-[16px] sm:text-[17px] font-medium text-[#F1F0EC] tracking-[-0.015em] transition-all ease-out ${
+                    benefitsInView || isReducedMotion
+                      ? "opacity-100 translate-y-0 duration-450"
+                      : "opacity-0 translate-y-2.5 duration-250"
+                  }`}
+                  style={{
+                    transitionDelay: benefitsInView && !isReducedMotion ? "680ms" : "0ms",
+                  }}
+                >
+                  Room to grow
+                </h3>
+              </div>
+
+              {/* Masked Supporting Text */}
+              <div className="overflow-hidden">
+                <p
+                  className={`font-sans text-[13.5px] text-text-secondary leading-[1.6] transition-all ease-out ${
+                    benefitsInView || isReducedMotion
+                      ? "opacity-100 translate-y-0 duration-500"
+                      : "opacity-0 translate-y-3 duration-250"
+                  }`}
+                  style={{
+                    transitionDelay: benefitsInView && !isReducedMotion ? "760ms" : "0ms",
+                  }}
+                >
+                  Start with a single frontend service, then attach background workers, queues, and databases as your application evolves.
+                </p>
+              </div>
             </div>
           </div>
         </div>

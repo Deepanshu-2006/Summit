@@ -258,10 +258,15 @@ export function MountainTrail() {
   const traveledGlowRef = useRef<SVGLineElement>(null);
   const traveledCoreRef = useRef<SVGLineElement>(null);
   const traveledHighlightRef = useRef<SVGLineElement>(null);
+  const traveledGlowLowerRef = useRef<SVGLineElement>(null);
+  const traveledCoreLowerRef = useRef<SVGLineElement>(null);
+  const traveledHighlightLowerRef = useRef<SVGLineElement>(null);
 
   const [lineCoords, setLineCoords] = useState<{
     x: number;
     startY: number;
+    cp3Y: number;
+    resumeY: number;
     endY: number;
     totalHeight: number;
     width: number;
@@ -269,11 +274,18 @@ export function MountainTrail() {
   }>({
     x: 120,
     startY: 900,
+    cp3Y: 2100,
+    resumeY: 3500,
     endY: 4200,
     totalHeight: 6000,
     width: 1440,
     isDesktopGutter: true,
   });
+
+  const lineCoordsRef = useRef(lineCoords);
+  useEffect(() => {
+    lineCoordsRef.current = lineCoords;
+  }, [lineCoords]);
 
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const [isHikerVisible, setIsHikerVisible] = useState<boolean>(false);
@@ -325,6 +337,7 @@ export function MountainTrail() {
       const deployEl = document.getElementById("deployment-experience");
       const productEl = document.getElementById("product-experience");
       const stackEl = document.getElementById("platform-stack");
+      const benefitsEl = document.getElementById("platform-benefits");
       const devexEl = document.getElementById("developer-experience");
 
       const isMobile = mainWidth < 768;
@@ -350,7 +363,13 @@ export function MountainTrail() {
       const cp1Y = deployEl ? deployEl.offsetTop + 140 : startY + 140;
       const cp2Y = productEl ? productEl.offsetTop + 140 : startY + 1100;
       const cp3Y = stackEl ? stackEl.offsetTop + 140 : startY + 2100;
-      const cp4Y = devexEl ? devexEl.offsetTop + 140 : startY + 3100;
+      // Section 4 exit / lower trail start coordinate: at the top of platform-benefits conduit
+      const resumeY = benefitsEl
+        ? benefitsEl.offsetTop + 70
+        : stackEl
+        ? stackEl.offsetTop + stackEl.offsetHeight
+        : cp3Y + 1400;
+      const cp4Y = devexEl ? devexEl.offsetTop + 140 : resumeY + 900;
 
       // End: In Section 5 Developer Experience, right below Checkpoint 4
       const endY = devexEl
@@ -359,13 +378,29 @@ export function MountainTrail() {
 
       const isDesktopGutter = gutterLeft >= 80;
 
-      setLineCoords({
-        x: lineX,
-        startY,
-        endY,
-        totalHeight: mainHeight,
-        width: mainWidth,
-        isDesktopGutter,
+      setLineCoords((prev) => {
+        if (
+          prev.x === lineX &&
+          prev.startY === startY &&
+          prev.cp3Y === cp3Y &&
+          prev.resumeY === resumeY &&
+          prev.endY === endY &&
+          prev.totalHeight === mainHeight &&
+          prev.width === mainWidth &&
+          prev.isDesktopGutter === isDesktopGutter
+        ) {
+          return prev;
+        }
+        return {
+          x: lineX,
+          startY,
+          cp3Y,
+          resumeY,
+          endY,
+          totalHeight: mainHeight,
+          width: mainWidth,
+          isDesktopGutter,
+        };
       });
 
       // Website Checkpoints:
@@ -408,10 +443,21 @@ export function MountainTrail() {
         },
       ];
 
-      setCheckpoints(cps);
-      targetYRef.current = startY;
-      currentYRef.current = startY;
-      lastYRef.current = startY;
+      setCheckpoints((prev) => {
+        if (
+          prev.length === cps.length &&
+          prev.every((p, i) => p.y === cps[i].y && p.title === cps[i].title)
+        ) {
+          return prev;
+        }
+        return cps;
+      });
+
+      if (currentYRef.current === 900) {
+        targetYRef.current = startY;
+        currentYRef.current = startY;
+        lastYRef.current = startY;
+      }
     }
 
     computeGeometry();
@@ -446,26 +492,45 @@ export function MountainTrail() {
     const isInsideStack = stackEl
       ? scrollY >= stackTop - 40 && scrollY <= stackTop + stackHeight - vh - 20
       : false;
+    const isPastStack = stackEl ? scrollY > stackTop + stackHeight - vh - 20 : false;
 
-    // Hiker only becomes visible once the user scrolls to the end of Hero / start of trail
+    // Hiker only becomes visible once the user scrolls past Hero.
+    // While inside Section 4, the vertical hiker is hidden and converts to the horizontal hiker.
     const hasReachedTrail = scrollY + vh * 0.35 >= lineCoords.startY;
-    setIsHikerVisible(hasReachedTrail);
+    setIsHikerVisible(hasReachedTrail && !isInsideStack);
 
-    // During Section 4 pinned exploration, hold vertical trail target at Station 03
     let effectiveTargetY = viewportGuideY;
-    if (stackEl && isInsideStack) {
-      effectiveTargetY = stackEl.offsetTop + 140;
-    } else if (stackEl && scrollY > stackTop + stackHeight - vh - 20) {
-      effectiveTargetY = viewportGuideY;
+    if (isInsideStack) {
+      // Hold at Checkpoint 03 while inside Section 4
+      effectiveTargetY = lineCoords.cp3Y;
+    } else if (isPastStack) {
+      // Past Section 4: vertical trail resumes from resumeY down to endY
+      effectiveTargetY = Math.max(
+        lineCoords.resumeY,
+        Math.min(lineCoords.endY, viewportGuideY)
+      );
+
+      // If transition was just crossed moving downward, pick up seamlessly at resumeY
+      if (currentYRef.current < lineCoords.resumeY) {
+        currentYRef.current = lineCoords.resumeY;
+        lastYRef.current = lineCoords.resumeY;
+      }
+    } else {
+      // Above Section 4: hiker moves down the upper trail, clamped at Checkpoint 03
+      effectiveTargetY = Math.max(
+        lineCoords.startY,
+        Math.min(lineCoords.cp3Y, viewportGuideY)
+      );
+
+      // If transition was just crossed moving upward, clamp at cp3Y
+      if (currentYRef.current > lineCoords.cp3Y) {
+        currentYRef.current = lineCoords.cp3Y;
+        lastYRef.current = lineCoords.cp3Y;
+      }
     }
 
-    const clampedY = Math.max(
-      lineCoords.startY,
-      Math.min(lineCoords.endY, effectiveTargetY)
-    );
-
-    targetYRef.current = clampedY;
-  }, [lineCoords.startY, lineCoords.endY]);
+    targetYRef.current = effectiveTargetY;
+  }, [lineCoords.startY, lineCoords.cp3Y, lineCoords.resumeY, lineCoords.endY]);
 
   // Lenis 1:1 synchronization
   useLenis(() => {
@@ -492,45 +557,42 @@ export function MountainTrail() {
       const isInsideStack = stackEl
         ? scrollY >= stackTop - 40 && scrollY <= stackTop + stackHeight - vh - 20
         : false;
+      const isPastStack = stackEl ? scrollY > stackTop + stackHeight - vh - 20 : false;
 
-      let effectiveTargetY = scrollY + vh * 0.45;
-      if (stackEl && isInsideStack) {
-        effectiveTargetY = stackEl.offsetTop + 140;
-      }
-
-      const targetY = Math.max(
-        lineCoords.startY,
-        Math.min(lineCoords.endY, effectiveTargetY)
-      );
+      const targetY = isInsideStack
+        ? lineCoords.cp3Y
+        : isPastStack
+        ? Math.max(lineCoords.resumeY, Math.min(lineCoords.endY, scrollY + vh * 0.45))
+        : Math.max(lineCoords.startY, Math.min(lineCoords.cp3Y, scrollY + vh * 0.45));
 
       const hasReachedTrail = scrollY + vh * 0.35 >= lineCoords.startY;
-      setIsHikerVisible(hasReachedTrail);
+      setIsHikerVisible(hasReachedTrail && !isInsideStack);
 
       setHikerPos({
         x: lineCoords.x,
         y: targetY,
-        angle: isInsideStack ? 90 : 180,
+        angle: 180,
         stride: 0,
         armStride: 0,
         sway: 0,
         isWalking: false,
       });
 
-      if (traveledGlowRef.current) {
-        traveledGlowRef.current.setAttribute("y2", targetY.toFixed(1));
-      }
-      if (traveledCoreRef.current) {
-        traveledCoreRef.current.setAttribute("y2", targetY.toFixed(1));
-      }
-      if (traveledHighlightRef.current) {
-        traveledHighlightRef.current.setAttribute("y2", targetY.toFixed(1));
-      }
+      const upperY2 = Math.min(targetY, lineCoords.cp3Y);
+      traveledGlowRef.current?.setAttribute("y2", upperY2.toFixed(1));
+      traveledCoreRef.current?.setAttribute("y2", upperY2.toFixed(1));
+      traveledHighlightRef.current?.setAttribute("y2", upperY2.toFixed(1));
+
+      const lowerY2 = isPastStack ? Math.max(lineCoords.resumeY, targetY) : lineCoords.resumeY;
+      traveledGlowLowerRef.current?.setAttribute("y2", lowerY2.toFixed(1));
+      traveledCoreLowerRef.current?.setAttribute("y2", lowerY2.toFixed(1));
+      traveledHighlightLowerRef.current?.setAttribute("y2", lowerY2.toFixed(1));
     };
 
     onScrollStatic();
     window.addEventListener("scroll", onScrollStatic, { passive: true });
     return () => window.removeEventListener("scroll", onScrollStatic);
-  }, [isReducedMotion, lineCoords]);
+  }, [isReducedMotion, lineCoords.startY, lineCoords.cp3Y, lineCoords.resumeY, lineCoords.endY, lineCoords.x]);
 
   // Fluid 60fps Animation Loop: Straight Motion, Done Trail & Gait Physics
   useEffect(() => {
@@ -575,20 +637,34 @@ export function MountainTrail() {
       const swayVal = Math.sin(walkPhase) * 2.2 * idleFactor;
 
       // Natural facing: 180° when moving down, smoothly flips to 0° if scrolling up.
-      // During Section 4 pinned exploration, gracefully faces 90° towards the platform switcher.
+      // When approaching Checkpoint 03, gracefully turns 90° (East) toward the Application Stack
       let targetAngle = dy < -0.3 ? 0 : 180;
       const stackEl = document.getElementById("platform-stack");
-      if (stackEl && Math.abs(newY - (stackEl.offsetTop + 140)) < 45) {
+      if (
+        stackEl &&
+        newY >= lineCoordsRef.current.cp3Y - 60 &&
+        newY <= lineCoordsRef.current.cp3Y + 30
+      ) {
         targetAngle = 90;
       }
 
       setHikerPos((prev) => {
         let diff = ((targetAngle - prev.angle + 180) % 360) - 180;
         if (diff < -180) diff += 360;
-        const nextAngle = prev.angle + diff * 0.20;
+        const nextAngle = Math.abs(diff) > 0.1 ? prev.angle + diff * 0.20 : targetAngle;
+
+        // Skip state update if values are virtually unchanged (idle resting state)
+        if (
+          Math.abs(prev.y - newY) < 0.05 &&
+          Math.abs(prev.angle - nextAngle) < 0.1 &&
+          Math.abs(prev.stride - strideVal) < 0.005 &&
+          prev.isWalking === isWalking
+        ) {
+          return prev;
+        }
 
         return {
-          x: lineCoords.x,
+          x: lineCoordsRef.current.x,
           y: newY,
           angle: nextAngle,
           stride: strideVal,
@@ -598,24 +674,51 @@ export function MountainTrail() {
         };
       });
 
-      // Update traveled straight line end coordinates
+      // Update upper trail traveled line (startY to cp3Y)
+      const upperY2 = Math.min(newY, lineCoordsRef.current.cp3Y);
       if (traveledGlowRef.current) {
-        traveledGlowRef.current.setAttribute("y2", newY.toFixed(1));
+        traveledGlowRef.current.setAttribute("y2", upperY2.toFixed(1));
       }
       if (traveledCoreRef.current) {
-        traveledCoreRef.current.setAttribute("y2", newY.toFixed(1));
+        traveledCoreRef.current.setAttribute("y2", upperY2.toFixed(1));
       }
       if (traveledHighlightRef.current) {
-        traveledHighlightRef.current.setAttribute("y2", newY.toFixed(1));
+        traveledHighlightRef.current.setAttribute("y2", upperY2.toFixed(1));
       }
 
-      // Update checkpoint passed / verified status
-      setCheckpoints((prev) =>
-        prev.map((cp) => {
+      // Update lower trail traveled line (resumeY to endY)
+      const isPast = newY >= lineCoordsRef.current.resumeY - 2;
+      const lowerY2 = isPast ? Math.max(lineCoordsRef.current.resumeY, newY) : lineCoordsRef.current.resumeY;
+      if (traveledGlowLowerRef.current) {
+        traveledGlowLowerRef.current.setAttribute("y2", lowerY2.toFixed(1));
+        traveledGlowLowerRef.current.style.opacity = isPast ? "0.45" : "0";
+      }
+      if (traveledCoreLowerRef.current) {
+        traveledCoreLowerRef.current.setAttribute("y2", lowerY2.toFixed(1));
+        traveledCoreLowerRef.current.style.opacity = isPast ? "1.0" : "0";
+      }
+      if (traveledHighlightLowerRef.current) {
+        traveledHighlightLowerRef.current.setAttribute("y2", lowerY2.toFixed(1));
+        traveledHighlightLowerRef.current.style.opacity = isPast ? "0.9" : "0";
+      }
+
+      // Update checkpoint passed / verified status only when a checkpoint actually transitions
+      setCheckpoints((prev) => {
+        let changed = false;
+        for (const cp of prev) {
+          const isPassed = newY >= cp.y - 10;
+          if (cp.passed !== isPassed) {
+            changed = true;
+            break;
+          }
+        }
+        if (!changed) return prev;
+
+        return prev.map((cp) => {
           const isPassed = newY >= cp.y - 10;
           return cp.passed !== isPassed ? { ...cp, passed: isPassed } : cp;
-        })
-      );
+        });
+      });
 
       rafIdRef.current = requestAnimationFrame(loop);
     };
@@ -628,7 +731,7 @@ export function MountainTrail() {
         cancelAnimationFrame(rafIdRef.current);
       }
     };
-  }, [isReducedMotion, lineCoords]);
+  }, [isReducedMotion]);
 
   return (
     <div
@@ -661,13 +764,39 @@ export function MountainTrail() {
         </defs>
 
         {/* =================================================================
-            1. UNTRAVELED ROUTE (Muted Dashed Cartographic Line)
-            Spans from end of Hero to Section 5
+            1. UNTRAVELED ROUTES (Muted Dashed Cartographic Line)
+            Upper: Start of trail (Deployment) to Checkpoint 03 (Application Stack)
+            Lower: Resumes below Section 4 to Section 5
+            (Vertical trail removed through Section 4 while horizontal trail is active)
             ================================================================= */}
-        {/* Dark casing */}
+        {/* Upper Segment: Dark casing */}
         <line
           x1={lineCoords.x}
           y1={lineCoords.startY}
+          x2={lineCoords.x}
+          y2={lineCoords.cp3Y}
+          stroke="#181715"
+          strokeWidth="3.5"
+          strokeLinecap="round"
+          opacity="0.6"
+        />
+        {/* Upper Segment: Muted untraveled dashed line */}
+        <line
+          x1={lineCoords.x}
+          y1={lineCoords.startY}
+          x2={lineCoords.x}
+          y2={lineCoords.cp3Y}
+          stroke="#32302D"
+          strokeWidth="1.5"
+          strokeDasharray="4 4"
+          strokeLinecap="round"
+          opacity="0.75"
+        />
+
+        {/* Lower Segment: Dark casing (Resumes below Section 4) */}
+        <line
+          x1={lineCoords.x}
+          y1={lineCoords.resumeY}
           x2={lineCoords.x}
           y2={lineCoords.endY}
           stroke="#181715"
@@ -675,11 +804,10 @@ export function MountainTrail() {
           strokeLinecap="round"
           opacity="0.6"
         />
-
-        {/* Muted untraveled dashed line */}
+        {/* Lower Segment: Muted untraveled dashed line */}
         <line
           x1={lineCoords.x}
-          y1={lineCoords.startY}
+          y1={lineCoords.resumeY}
           x2={lineCoords.x}
           y2={lineCoords.endY}
           stroke="#32302D"
@@ -690,47 +818,82 @@ export function MountainTrail() {
         />
 
         {/* =================================================================
-            2. TRAVELED "DONE" TRAIL (Summit Theme Orange #D88762)
-            Illuminates behind the hiker in bold, solid, luminous theme orange
+            2. TRAVELED "DONE" TRAILS (Summit Theme Orange #D88762)
             ================================================================= */}
-        {/* Layer A: Ambient theme-orange glow aura */}
+        {/* UPPER SEGMENT: Ambient theme-orange glow aura */}
         <line
           ref={traveledGlowRef}
           x1={lineCoords.x}
           y1={lineCoords.startY}
           x2={lineCoords.x}
-          y2={hikerPos.y}
+          y2={Math.min(hikerPos.y, lineCoords.cp3Y)}
           stroke="#D88762"
           strokeWidth="7"
           strokeLinecap="round"
           opacity="0.45"
           filter="url(#doneTrailGlow)"
         />
-
-        {/* Layer B: Solid, bold theme-orange core line */}
+        {/* UPPER SEGMENT: Solid, bold theme-orange core line */}
         <line
           ref={traveledCoreRef}
           x1={lineCoords.x}
           y1={lineCoords.startY}
           x2={lineCoords.x}
-          y2={hikerPos.y}
+          y2={Math.min(hikerPos.y, lineCoords.cp3Y)}
           stroke="#D88762"
           strokeWidth="2.5"
           strokeLinecap="round"
           opacity="1.0"
         />
-
-        {/* Layer C: Luminous light filament highlight */}
+        {/* UPPER SEGMENT: Luminous light filament highlight */}
         <line
           ref={traveledHighlightRef}
           x1={lineCoords.x}
           y1={lineCoords.startY}
           x2={lineCoords.x}
-          y2={hikerPos.y}
+          y2={Math.min(hikerPos.y, lineCoords.cp3Y)}
           stroke="#FFA67E"
           strokeWidth="1.2"
           strokeLinecap="round"
           opacity="0.9"
+        />
+
+        {/* LOWER SEGMENT: Ambient theme-orange glow aura */}
+        <line
+          ref={traveledGlowLowerRef}
+          x1={lineCoords.x}
+          y1={lineCoords.resumeY}
+          x2={lineCoords.x}
+          y2={lineCoords.resumeY}
+          stroke="#D88762"
+          strokeWidth="7"
+          strokeLinecap="round"
+          opacity="0"
+          filter="url(#doneTrailGlow)"
+        />
+        {/* LOWER SEGMENT: Solid, bold theme-orange core line */}
+        <line
+          ref={traveledCoreLowerRef}
+          x1={lineCoords.x}
+          y1={lineCoords.resumeY}
+          x2={lineCoords.x}
+          y2={lineCoords.resumeY}
+          stroke="#D88762"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          opacity="0"
+        />
+        {/* LOWER SEGMENT: Luminous light filament highlight */}
+        <line
+          ref={traveledHighlightLowerRef}
+          x1={lineCoords.x}
+          y1={lineCoords.resumeY}
+          x2={lineCoords.x}
+          y2={lineCoords.resumeY}
+          stroke="#FFA67E"
+          strokeWidth="1.2"
+          strokeLinecap="round"
+          opacity="0"
         />
 
         {/* =================================================================
@@ -852,8 +1015,62 @@ export function MountainTrail() {
                   {cp.passed ? "[ VERIFIED ]" : "[ QUEUED ]"}
                 </text>
               </g>
+
+              {/* If Checkpoint 03 (Application Stack), Eastward spur turning toward the stack */}
+              {cp.id === "cp-stack" && (
+                <g>
+                  <path
+                    d="M 0 0 L 26 0"
+                    fill="none"
+                    stroke={cp.passed ? "#D88762" : "#383531"}
+                    strokeWidth={cp.passed ? "2" : "1.2"}
+                    strokeDasharray={cp.passed ? "none" : "3 2"}
+                    strokeLinecap="round"
+                    className="transition-all duration-300"
+                  />
+                  <circle
+                    cx="26"
+                    cy="0"
+                    r={cp.passed ? "2.5" : "1.8"}
+                    fill={cp.passed ? "#FFA67E" : "#383531"}
+                    className="transition-all duration-300"
+                  />
+                </g>
+              )}
             </g>
           ))}
+        </g>
+
+        {/* =================================================================
+            5. LOWER TRAIL RESUME WAYPOINT (Below Section 4)
+            "then start trail from here"
+            ================================================================= */}
+        <g transform={`translate(${lineCoords.x}, ${lineCoords.resumeY})`}>
+          <circle
+            cx="0"
+            cy="0"
+            r={hikerPos.y >= lineCoords.resumeY ? "5" : "3.5"}
+            fill={hikerPos.y >= lineCoords.resumeY ? "#1E1A17" : "#141312"}
+            stroke={hikerPos.y >= lineCoords.resumeY ? "#D88762" : "#383531"}
+            strokeWidth={hikerPos.y >= lineCoords.resumeY ? "1.5" : "1"}
+            className="transition-all duration-300"
+          />
+          <circle
+            cx="0"
+            cy="0"
+            r="1.5"
+            fill={hikerPos.y >= lineCoords.resumeY ? "#FAF8F5" : "#4A4742"}
+            className="transition-all duration-300"
+          />
+          {/* Spur connecting from the benefits signal conduit into the vertical trail */}
+          <path
+            d="M 26 0 L 0 0"
+            fill="none"
+            stroke={hikerPos.y >= lineCoords.resumeY ? "#D88762" : "#383531"}
+            strokeWidth="1.2"
+            strokeDasharray={hikerPos.y >= lineCoords.resumeY ? "none" : "3 2"}
+            className="transition-all duration-300"
+          />
         </g>
 
         {/* =================================================================
