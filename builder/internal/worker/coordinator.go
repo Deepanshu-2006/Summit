@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -219,6 +220,10 @@ func (c *Coordinator) Run(ctx context.Context, spec *protocol.BuildExecutionSpec
 		dfPath = *spec.BuildConfig.DockerfilePath
 	}
 
+	insecure := strings.HasPrefix(spec.Output.Registry, "localhost:") ||
+		strings.HasPrefix(spec.Output.Registry, "127.0.0.1:") ||
+		os.Getenv("SUMMIT_INSECURE_REGISTRY") == "true"
+
 	_, err = c.buildkit.Build(ctx, buildkit.BuildKitBuildSpec{
 		AppDir:         checkoutRes.AppDir,
 		PlanPath:       planPath,
@@ -227,6 +232,7 @@ func (c *Coordinator) Run(ctx context.Context, spec *protocol.BuildExecutionSpec
 		Platforms:      spec.Output.Platforms,
 		EnvVars:        spec.BuildConfig.EnvVars,
 		PushToRegistry: true,
+		Insecure:       insecure,
 	}, streamLog)
 	if err != nil {
 		return failResult(protocol.ErrCodeBuildFailed, protocol.StageImageBuild, "BuildKit compilation or push failed", err.Error())

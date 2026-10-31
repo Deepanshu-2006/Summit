@@ -91,6 +91,12 @@ func (m *Manager) SocketPath() string {
 
 // Start launches the rootless buildkitd daemon in the background.
 func (m *Manager) Start(ctx context.Context) error {
+	// If daemon is already running and reachable on socket, reuse existing daemon
+	if conn, err := net.Dial("unix", m.socketPath); err == nil {
+		_ = conn.Close()
+		return nil
+	}
+
 	// Ensure socket directory exists
 	if err := os.MkdirAll(filepath.Dir(m.socketPath), 0700); err != nil {
 		return fmt.Errorf("creating buildkit socket dir: %w", err)
@@ -193,9 +199,10 @@ func (m *Manager) Build(ctx context.Context, spec BuildKitBuildSpec, callback pr
 
 // Stop terminates the buildkitd daemon and cleans up the socket.
 func (m *Manager) Stop(ctx context.Context) error {
-	if m.daemonCancel != nil {
-		m.daemonCancel()
+	if m.daemonCancel == nil {
+		return nil
 	}
+	m.daemonCancel()
 
 	if m.daemonStopped != nil {
 		select {
