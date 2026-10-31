@@ -397,6 +397,13 @@ The state machine governs the entire lifecycle of a release from initial creatio
 Building untrusted code submitted by arbitrary tenants represents the highest-risk attack vector in the cluster. Containment and implementation ownership are divided cleanly across the team.
 
 ### 9.1 Build Sandbox Architecture & Ownership Split
+> [!IMPORTANT]
+> **Authoritative Builder Specification for Rudra**: The Standalone Builder Execution System, its versioned JSON contracts, exact volume mount topology, gVisor directfs settings, and reference Kubernetes Job manifest are documented in:
+> - **[`builder/docs/kubernetes-job-spec.md`](../builder/docs/kubernetes-job-spec.md)**
+> - **[`builder/deployments/examples/kubernetes-job.yaml`](../builder/deployments/examples/kubernetes-job.yaml)**
+> - **[`builder/deployments/examples/gvisor-runtimeclass.yaml`](../builder/deployments/examples/gvisor-runtimeclass.yaml)**
+> - **[`builder/contracts/`](../builder/contracts/)** (`build-execution-spec`, `build-execution-result`, `build-status-update`, `build-log-event`)
+
 - **Entire Isolated Builder Subsystem (Priyanshu):** Priyanshu owns the ENTIRE isolated builder, including gVisor itself:
   - Installing and configuring gVisor (`runsc`) on the Kubernetes host nodes.
   - Setting up and maintaining the Kubernetes `RuntimeClass` (`runtimeClassName: gvisor`).

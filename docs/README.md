@@ -100,7 +100,9 @@ Summit Monorepo (Turborepo 2.11+)
 | **Webhooks** | Ingestion & Queue | **Complete** (Raw HMAC, deduplication, `SKIP LOCKED` worker) | Priyanshu | [`internal/githubworker`](../apps/backend/internal/githubworker) |
 | **Security** | Secrets Management | **Complete** (OpenBao AppRole, dev fallback controls) | Priyanshu / Arpit | [`internal/secrets`](../apps/backend/internal/secrets) |
 | **Database** | Migrations & Pool | **Complete** (`0001` & `0002` applied, pgxpool, advisory locks) | Arpit | [`internal/db`](../apps/backend/internal/db) |
+| **Builder Worker** | Standalone Execution System | **Complete** (Rootless BuildKit, Railpack, OCI digest verification, HTTP telemetry) | Priyanshu / Builder Eng | [`builder/README.md`](../builder/README.md) |
+| **Builder K8s Contract** | Job Spec & gVisor RuntimeClass | **Complete** (Manifests, volume topology, and control plane spec for Rudra) | Priyanshu / Rudra | [`builder/docs/kubernetes-job-spec.md`](../builder/docs/kubernetes-job-spec.md) |
 | **Orchestrator** | Worker Broker | **Complete** (Job-scoped JWT authentication on broker endpoint) | Priyanshu / Rudra | [`internal/githubworker`](../apps/backend/internal/githubworker) |
 | **Orchestrator** | Outbox Reconciler | **Ready to Implement** (Reads `outbox_events` table) | Rudra | [`docs/implementation_rudra.md`](./implementation_rudra.md) |
-| **Orchestrator** | gVisor Sandbox Pool | **Planned** (Rootless BuildKit + Railpack in `summit-builds`) | Rudra | [`docs/implementation_rudra.md`](./implementation_rudra.md) |
+| **Orchestrator** | Build Pod Launcher | **Ready to Implement** (Schedules builder Job targeting `kubernetes-job.yaml` & gVisor) | Rudra | [`builder/docs/kubernetes-job-spec.md`](../builder/docs/kubernetes-job-spec.md) |
 | **Frontend** | Console Dashboard | **Prototype / In-Memory Mock** | UI Developer | [`apps/web`](../apps/web) |
