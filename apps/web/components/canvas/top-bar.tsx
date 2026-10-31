@@ -2,21 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import {
-  Rocket,
-  ChevronDown,
-  Check,
-  Download,
-  Upload,
-  RotateCcw,
-  Trash2,
-  Edit2,
-  ExternalLink,
-  Layers,
-  Sparkles,
-  Shield,
-  Loader2,
-} from "lucide-react";
+import { ChevronDown, Check, Plus } from "lucide-react";
 import { SummitLogo } from "@/components/layout/navbar";
 import type { Environment } from "@/lib/canvas/types";
 
@@ -25,13 +11,9 @@ interface CanvasTopBarProps {
   onRenameProject: (newName: string) => void;
   environment: Environment;
   onChangeEnvironment: (env: Environment) => void;
-  isDeploying: boolean;
+  isSaving: boolean;
+  onOpenNodeSelector: () => void;
   onDeploy: () => void;
-  hasUnsavedChanges: boolean;
-  onResetGraph: () => void;
-  onClearGraph: () => void;
-  onExportGraph: () => void;
-  onImportGraph: () => void;
 }
 
 export function CanvasTopBar({
@@ -39,19 +21,15 @@ export function CanvasTopBar({
   onRenameProject,
   environment,
   onChangeEnvironment,
-  isDeploying,
+  isSaving,
+  onOpenNodeSelector,
   onDeploy,
-  hasUnsavedChanges,
-  onResetGraph,
-  onClearGraph,
-  onExportGraph,
-  onImportGraph,
 }: CanvasTopBarProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempName, setTempName] = useState(projectName);
   const [isEnvMenuOpen, setIsEnvMenuOpen] = useState(false);
-  const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const envDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setTempName(projectName);
@@ -64,6 +42,20 @@ export function CanvasTopBar({
     }
   }, [isEditingName]);
 
+  // Click outside listener for environment dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        envDropdownRef.current &&
+        !envDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsEnvMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const handleFinishRename = () => {
     setIsEditingName(false);
     if (tempName.trim()) {
@@ -73,26 +65,30 @@ export function CanvasTopBar({
     }
   };
 
+  const environments: { value: Environment; label: string }[] = [
+    { value: "production", label: "Production" },
+    { value: "staging", label: "Staging" },
+    { value: "preview", label: "Preview" },
+  ];
+
   return (
-    <header className="h-[54px] w-full bg-[#111111]/95 border-b border-[#242422] flex items-center justify-between px-4 z-30 select-none backdrop-blur-md shrink-0">
-      {/* ================= Left Region: Brand & Project Name ================= */}
+    <header className="h-[56px] w-full bg-[#0E0E0D] border-b border-[#222220] flex items-center justify-between px-4 z-30 select-none shrink-0">
+      {/* Left: Brand & Editable Project Name */}
       <div className="flex items-center gap-3">
         {/* Summit Logo Backlink */}
         <Link
           href="/"
-          className="flex items-center gap-2 group hover:opacity-90 transition-opacity pr-2 border-r border-[#242422]"
-          title="Return to Summit Homepage"
+          className="flex items-center gap-2 group hover:opacity-90 transition-opacity pr-3 border-r border-[#222220]"
+          title="Summit Homepage"
         >
           <SummitLogo className="w-4 h-4 shrink-0 transition-transform group-hover:scale-105" />
-          <span className="font-sans text-[15px] font-semibold tracking-[-0.025em] text-[#F5F5F3]">
+          <span className="font-sans text-[14px] font-semibold tracking-[-0.02em] text-[#FAF8F5]">
             Summit
           </span>
         </Link>
 
-        {/* Project Breadcrumb & Inline Rename */}
-        <div className="flex items-center gap-1.5 font-mono text-[12px]">
-          <span className="text-[#666662] hidden sm:inline">acme-corp /</span>
-
+        {/* Project Name */}
+        <div className="flex items-center">
           {isEditingName ? (
             <input
               ref={nameInputRef}
@@ -107,182 +103,92 @@ export function CanvasTopBar({
                   setIsEditingName(false);
                 }
               }}
-              className="px-1.5 py-0.5 rounded-[4px] bg-[#1A1A18] border border-accent-orange text-[#FAF8F5] outline-none text-[12px] font-mono min-w-[140px]"
+              className="bg-[#1A1A18] border border-accent-orange text-[#FAF8F5] px-2 py-1 rounded text-[13px] font-mono outline-none max-w-[200px]"
             />
           ) : (
             <button
               type="button"
               onClick={() => setIsEditingName(true)}
-              className="flex items-center gap-1.5 px-1.5 py-0.5 rounded-[4px] hover:bg-[#1C1C1A] text-[#FAF8F5] font-medium transition-colors cursor-pointer group"
+              className="text-[13px] font-mono text-[#FAF8F5] hover:text-accent-orange transition-colors truncate max-w-[220px] px-1.5 py-0.5 rounded hover:bg-[#1A1A18]"
               title="Click to rename project"
             >
-              <span>{projectName}</span>
-              <Edit2 className="w-3 h-3 text-[#555550] group-hover:text-accent-orange transition-colors" />
+              {projectName}
             </button>
           )}
         </div>
+      </div>
 
-        {/* Environment Switcher */}
-        <div className="relative">
+      {/* Right: Actions, Environment, Save Status, Deploy */}
+      <div className="flex items-center gap-3">
+        {/* Add Node Action Button */}
+        <button
+          type="button"
+          onClick={onOpenNodeSelector}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[6px] bg-[#181817] hover:bg-[#20201E] border border-[#2A2A28] text-[12px] font-sans text-[#FAF8F5] transition-colors"
+          title="Add resource node (Press A)"
+        >
+          <Plus className="w-3.5 h-3.5 text-accent-orange" />
+          <span>Add node</span>
+        </button>
+
+        {/* Environment Selector Dropdown */}
+        <div className="relative" ref={envDropdownRef}>
           <button
             type="button"
             onClick={() => setIsEnvMenuOpen(!isEnvMenuOpen)}
-            className="flex items-center gap-1.5 px-2 py-1 rounded-[5px] bg-[#181816] hover:bg-[#20201D] border border-[#2B2B28] font-mono text-[11px] text-[#A0A09C] hover:text-[#FAF8F5] transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[6px] bg-[#141413] hover:bg-[#1C1C1A] border border-[#262624] text-[12px] font-mono text-[#D1CFCA] transition-colors"
           >
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                environment === "production"
-                  ? "bg-semantic-success"
-                  : environment === "staging"
-                  ? "bg-[#D6AD72]"
-                  : "bg-[#9AC5EC]"
-              }`}
-            />
-            <span className="capitalize">{environment}</span>
-            <ChevronDown className="w-3 h-3 text-[#666662]" />
+            <span>{environments.find((e) => e.value === environment)?.label}</span>
+            <ChevronDown className="w-3 h-3 text-[#8E8C86]" />
           </button>
 
           {isEnvMenuOpen && (
-            <div
-              className="absolute left-0 top-full mt-1.5 w-[160px] bg-[#161614] border border-[#2B2B28] rounded-[8px] shadow-2xl p-1 z-50 font-mono text-[11px]"
-              onMouseLeave={() => setIsEnvMenuOpen(false)}
-            >
-              {(["production", "staging", "preview"] as const).map((env) => (
+            <div className="absolute right-0 mt-1.5 w-32 bg-[#141413] border border-[#282826] rounded-[6px] shadow-xl py-1 z-50 animate-in fade-in duration-100">
+              {environments.map((env) => (
                 <button
-                  key={env}
+                  key={env.value}
                   type="button"
                   onClick={() => {
-                    onChangeEnvironment(env);
+                    onChangeEnvironment(env.value);
                     setIsEnvMenuOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-[5px] transition-colors cursor-pointer ${
-                    environment === env
-                      ? "bg-accent-orange/15 text-accent-orange font-medium"
-                      : "text-[#A0A09C] hover:text-[#FAF8F5] hover:bg-[#1F1F1C]"
+                  className={`w-full flex items-center justify-between px-3 py-1.5 text-left text-[12px] font-mono transition-colors ${
+                    environment === env.value
+                      ? "text-accent-orange bg-[#1C1C1A]"
+                      : "text-[#B5B3AF] hover:text-[#FAF8F5] hover:bg-[#1A1A18]"
                   }`}
                 >
-                  <span className="capitalize">{env}</span>
-                  {environment === env && <Check className="w-3 h-3 text-accent-orange" />}
+                  <span>{env.label}</span>
+                  {environment === env.value && <Check className="w-3 h-3" />}
                 </button>
               ))}
             </div>
           )}
         </div>
-      </div>
 
-      {/* ================= Center Region: Status Pill ================= */}
-      <div className="hidden md:flex items-center gap-2 font-mono text-[11px]">
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#181816] border border-[#292926] text-[#80807C]">
-          <span className="w-1.5 h-1.5 rounded-full bg-semantic-success" />
-          <span className="text-[#FAF8F5] font-medium">Orchestrator Online</span>
-          <span className="text-[#555552]">// cdg-1 (Paris)</span>
+        {/* Real Save Status Indicator */}
+        <div className="flex items-center gap-1.5 px-2 text-[11px] font-mono select-none">
+          <span
+            className={`w-1.5 h-1.5 rounded-full ${
+              isSaving
+                ? "bg-[#D6AD72] animate-pulse"
+                : "bg-[#83B69A]"
+            }`}
+          />
+          <span className="text-[#8E8C86]">
+            {isSaving ? "Saving..." : "Saved"}
+          </span>
         </div>
 
-        {hasUnsavedChanges ? (
-          <span className="text-accent-orange/90 text-[10.5px]">● Unsaved changes</span>
-        ) : (
-          <span className="text-[#555552] text-[10.5px]">Synced to local storage</span>
-        )}
-      </div>
-
-      {/* ================= Right Region: Actions & Controls ================= */}
-      <div className="flex items-center gap-2.5">
-        {/* Project Options Menu */}
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setIsProjectMenuOpen(!isProjectMenuOpen)}
-            className="flex items-center gap-1 h-8 px-2.5 rounded-[6px] bg-[#181816] hover:bg-[#20201D] border border-[#2E2E2A] text-[#A0A09C] hover:text-[#FAF8F5] text-[11.5px] font-mono transition-colors cursor-pointer"
-            title="Project Actions & Presets"
-          >
-            <span>Project</span>
-            <ChevronDown className="w-3 h-3 text-[#666662]" />
-          </button>
-
-          {isProjectMenuOpen && (
-            <div
-              className="absolute right-0 top-full mt-1.5 w-[200px] bg-[#161614] border border-[#2B2B28] rounded-[8px] shadow-2xl p-1 z-50 font-mono text-[11.5px]"
-              onMouseLeave={() => setIsProjectMenuOpen(false)}
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  onExportGraph();
-                  setIsProjectMenuOpen(false);
-                }}
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-[5px] text-[#A0A09C] hover:text-[#FAF8F5] hover:bg-[#1F1F1C] transition-colors cursor-pointer text-left"
-              >
-                <Download className="w-3.5 h-3.5 text-accent-orange" />
-                <span>Export Graph (JSON)</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  onImportGraph();
-                  setIsProjectMenuOpen(false);
-                }}
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-[5px] text-[#A0A09C] hover:text-[#FAF8F5] hover:bg-[#1F1F1C] transition-colors cursor-pointer text-left"
-              >
-                <Upload className="w-3.5 h-3.5 text-[#9AC5EC]" />
-                <span>Import Graph (JSON)</span>
-              </button>
-
-              <div className="h-[1px] bg-[#242422] my-1" />
-
-              <button
-                type="button"
-                onClick={() => {
-                  onResetGraph();
-                  setIsProjectMenuOpen(false);
-                }}
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-[5px] text-[#A0A09C] hover:text-[#FAF8F5] hover:bg-[#1F1F1C] transition-colors cursor-pointer text-left"
-              >
-                <RotateCcw className="w-3.5 h-3.5 text-[#D6AD72]" />
-                <span>Reset to Meridian Preset</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  onClearGraph();
-                  setIsProjectMenuOpen(false);
-                }}
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-[5px] text-[#D77D7D] hover:bg-[#2B1B1B] transition-colors cursor-pointer text-left"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Clear Canvas</span>
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Primary Deploy Button */}
+        {/* Prominent Deploy Button */}
         <button
           type="button"
           onClick={onDeploy}
-          disabled={isDeploying}
-          className={`flex items-center gap-2 h-8 px-4 rounded-[6px] font-sans text-[12.5px] font-semibold transition-all cursor-pointer shadow-sm ${
-            isDeploying
-              ? "bg-[#2A231E] text-accent-orange border border-accent-orange/40 cursor-not-allowed"
-              : "bg-accent-orange hover:bg-accent-orange-hover text-[#111111] hover:shadow-[0_0_16px_rgba(216,135,98,0.3)] active:scale-[0.98]"
-          }`}
-          title="Deploy all services (⌘D)"
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-[6px] bg-accent-orange hover:bg-accent-orange-hover active:translate-y-px text-[#121110] text-[13px] font-medium tracking-[-0.01em] transition-all shadow-sm shadow-accent-orange/15"
         >
-          {isDeploying ? (
-            <>
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              <span>Deploying...</span>
-            </>
-          ) : (
-            <>
-              <Rocket className="w-3.5 h-3.5" />
-              <span>Deploy</span>
-            </>
-          )}
+          <span>Deploy</span>
         </button>
       </div>
     </header>
   );
 }
-

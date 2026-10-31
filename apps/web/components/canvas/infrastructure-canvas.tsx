@@ -4,8 +4,6 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
 import {
   ReactFlow,
   Background,
-  Controls,
-  MiniMap,
   useNodesState,
   useEdgesState,
   addEdge,
@@ -17,28 +15,30 @@ import {
   BackgroundVariant,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import {
+  Plus,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+} from "lucide-react";
 
 import { SummitNodeComponent } from "./nodes/summit-node";
 import { SummitEdgeComponent } from "./edges/summit-edge";
 import { CanvasTopBar } from "./top-bar";
-import { CanvasToolbar } from "./toolbar";
-import { ConfigPanel } from "./config-panel";
-import { DeploymentModal } from "./deployment-modal";
+import { NodeSelectorDialog } from "./node-selector-dialog";
+import { ConfigInspector } from "./config-inspector";
+import { DeploymentDialog } from "./deployment-dialog";
 import {
   loadProjectArchitecture,
   saveProjectArchitecture,
   createNodeFromTemplate,
-  exportProjectAsJson,
-  importProjectFromJson,
-  INITIAL_NODES,
-  INITIAL_EDGES,
-  type NodeTemplate,
 } from "@/lib/canvas/initial-graph";
 import type {
   SummitNode,
   SummitNodeData,
   Environment,
   ProjectArchitecture,
+  ResourceTemplate,
 } from "@/lib/canvas/types";
 
 // Registered custom node & edge definitions
@@ -50,23 +50,24 @@ const edgeTypes = {
   default: SummitEdgeComponent,
 };
 
-function CanvasContent() {
+function CanvasContent({ projectId: initialProjectId = "default" }: { projectId?: string }) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition, fitView, zoomIn, zoomOut } = useReactFlow();
 
-  const [projectId, setProjectId] = useState<string>("default");
-  const [projectName, setProjectName] = useState<string>("Meridian Studio");
+  const [projectId] = useState<string>(initialProjectId);
+  const [projectName, setProjectName] = useState<string>("Untitled Architecture");
   const [environment, setEnvironment] = useState<Environment>("production");
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Core ReactFlow State
+  // Core Graph State (starts empty by default!)
   const [nodes, setNodes, onNodesChange] = useNodesState<SummitNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
-  // Deployment Modal State
+  // Modals & Panels
+  const [isNodeSelectorOpen, setIsNodeSelectorOpen] = useState(false);
   const [isDeployModalOpen, setIsDeployModalOpen] = useState(false);
-  const [isDeploying, setIsDeploying] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<string>("");
 
   // Initial load from LocalStorage
   useEffect(() => {
@@ -75,86 +76,85 @@ function CanvasContent() {
     setEnvironment(arch.environment);
     setNodes(arch.nodes);
     setEdges(arch.edges);
+  }, [projectId, setNodes, setEdges]);
 
-    // Initial smooth fit to viewport
-    setTimeout(() => {
-      fitView({ padding: 0.2, duration: 600 });
-    }, 150);
-  }, [projectId, setNodes, setEdges, fitView]);
-
-  // Autosave on modifications
+  // Debounced autosave
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isInitialMount = useRef(true);
+
   useEffect(() => {
-    if (nodes.length === 0) return;
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
 
-    setHasUnsavedChanges(true);
-
+    setIsSaving(true);
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
 
     saveTimeoutRef.current = setTimeout(() => {
+      const nowStr = new Date().toISOString();
       const arch: ProjectArchitecture = {
         id: projectId,
         name: projectName,
         environment,
         nodes,
         edges,
-        updatedAt: new Date().toISOString(),
+        updatedAt: nowStr,
       };
       saveProjectArchitecture(arch);
-      setHasUnsavedChanges(false);
-    }, 1200);
+      setLastSavedAt(nowStr);
+      setIsSaving(false);
+    }, 800);
 
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
-  }, [nodes, edges, projectName, environment, projectId]);
+  }, [projectId, projectName, environment, nodes, edges]);
 
-  // Edge deletion custom event listener
+  // Handle Edge connection from source to target handle
+  const onConnect: OnConnect = useCallback(
+    (params: Connection) => {
+      // Disallow self-connections
+      if (params.source === params.target) return;
+
+      // Disallow duplicate connections
+      const exists = edges.some(
+        (e) => e.source === params.source && e.target === params.target
+      );
+      if (exists) return;
+
+      const newEdge: Edge = {
+        id: `e_${params.source}_${params.target}_${Date.now()}`,
+        source: params.source,
+        target: params.target,
+        sourceHandle: params.sourceHandle,
+        targetHandle: params.targetHandle,
+        type: "default",
+      };
+
+      setEdges((eds) => addEdge(newEdge, eds));
+    },
+    [edges, setEdges]
+  );
+
+  // Handle Edge deletion custom event from edge component
   useEffect(() => {
-    const handleDeleteEdge = (e: Event) => {
+    const handleEdgeDelete = (e: Event) => {
       const customEvent = e as CustomEvent<{ id: string }>;
-      if (customEvent.detail?.id) {
-        setEdges((eds) => eds.filter((edge) => edge.id !== customEvent.detail.id));
+      const edgeId = customEvent.detail?.id;
+      if (edgeId) {
+        setEdges((eds) => eds.filter((edge) => edge.id !== edgeId));
       }
     };
-
-    window.addEventListener("summit:delete-edge", handleDeleteEdge);
-    return () => window.removeEventListener("summit:delete-edge", handleDeleteEdge);
+    window.addEventListener("summit:delete-edge", handleEdgeDelete);
+    return () =>
+      window.removeEventListener("summit:delete-edge", handleEdgeDelete);
   }, [setEdges]);
 
-  // Connection validation: prevent self-connections and duplicate edges
-  const isValidConnection = useCallback(
-    (connection: Connection | Edge) => {
-      if (connection.source === connection.target) return false;
-      const exists = edges.some(
-        (e) => e.source === connection.source && e.target === connection.target
-      );
-      return !exists;
-    },
-    [edges]
-  );
-
-  // Connect handles
-  const onConnect: OnConnect = useCallback(
-    (params) => {
-      setEdges((eds) =>
-        addEdge(
-          {
-            ...params,
-            animated: true,
-            style: { stroke: "#D88762", strokeWidth: 1.8 },
-          },
-          eds
-        )
-      );
-    },
-    [setEdges]
-  );
-
   // Node selection handler
-  const onNodeClick = useCallback((_event: React.MouseEvent, node: SummitNode) => {
+  const onNodeClick = useCallback((_: React.MouseEvent, node: SummitNode) => {
     setSelectedNodeId(node.id);
   }, []);
 
@@ -162,331 +162,253 @@ function CanvasContent() {
     setSelectedNodeId(null);
   }, []);
 
-  // Adding a node from template (via toolbar click or drag-and-drop)
-  const handleAddNode = useCallback(
-    (template: NodeTemplate, dropPosition?: { x: number; y: number }) => {
-      let position = dropPosition;
-
-      if (!position) {
-        // Place near the center of the canvas
-        const offsetX = 320 + Math.random() * 80;
-        const offsetY = 200 + Math.random() * 80;
-        position = { x: offsetX, y: offsetY };
-      }
-
-      const newNode = createNodeFromTemplate(template, position);
-      setNodes((nds) => [...nds, newNode]);
-      setSelectedNodeId(newNode.id);
-    },
-    [setNodes]
-  );
-
-  // Drag and drop support from toolbar onto canvas
-  const onDragOver = useCallback((event: React.DragEvent) => {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
-  }, []);
-
-  const onDrop = useCallback(
-    (event: React.DragEvent) => {
-      event.preventDefault();
-
-      const rawTemplate = event.dataTransfer.getData("application/summit-template");
-      if (!rawTemplate) return;
-
-      try {
-        const template = JSON.parse(rawTemplate) as NodeTemplate;
-        const position = screenToFlowPosition({
-          x: event.clientX,
-          y: event.clientY,
-        });
-
-        handleAddNode(template, position);
-      } catch (err) {
-        console.error("Failed to parse dropped template:", err);
-      }
-    },
-    [screenToFlowPosition, handleAddNode]
-  );
-
-  // Node modifications
-  const handleUpdateNodeData = useCallback(
-    (nodeId: string, updatedData: Partial<SummitNodeData>) => {
+  // Update node data from Inspector
+  const handleUpdateNode = useCallback(
+    (nodeId: string, updatedFields: Partial<SummitNodeData>) => {
       setNodes((nds) =>
-        nds.map((node) => {
-          if (node.id === nodeId) {
+        nds.map((n) => {
+          if (n.id === nodeId) {
             return {
-              ...node,
+              ...n,
               data: {
-                ...node.data,
-                ...updatedData,
+                ...n.data,
+                ...updatedFields,
                 updatedAt: new Date().toISOString(),
               },
             };
           }
-          return node;
+          return n;
         })
       );
     },
     [setNodes]
   );
 
+  // Delete node and its attached edges
   const handleDeleteNode = useCallback(
     (nodeId: string) => {
       setNodes((nds) => nds.filter((n) => n.id !== nodeId));
-      setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
-      if (selectedNodeId === nodeId) {
-        setSelectedNodeId(null);
+      setEdges((eds) =>
+        eds.filter((e) => e.source !== nodeId && e.target !== nodeId)
+      );
+      setSelectedNodeId((current) => (current === nodeId ? null : current));
+    },
+    [setNodes, setEdges]
+  );
+
+  // Add node from Node Selector (placed cleanly in center of viewport)
+  const handleAddNodeFromTemplate = useCallback(
+    (template: ResourceTemplate) => {
+      let position = { x: 300, y: 200 };
+
+      if (reactFlowWrapper.current) {
+        const rect = reactFlowWrapper.current.getBoundingClientRect();
+        // Screen center converted to flow coordinates
+        const center = screenToFlowPosition({
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2,
+        });
+
+        // Smart stagger if a node is already at this exact position
+        const collision = nodes.some(
+          (n) => Math.hypot(n.position.x - center.x, n.position.y - center.y) < 60
+        );
+
+        position = collision
+          ? { x: center.x + (nodes.length % 5) * 35, y: center.y + (nodes.length % 5) * 35 }
+          : { x: center.x - 100, y: center.y - 30 };
       }
+
+      const newNode = createNodeFromTemplate(template, position);
+      setNodes((nds) => [...nds, newNode]);
+      setIsNodeSelectorOpen(false);
+      setSelectedNodeId(newNode.id);
     },
-    [setNodes, setEdges, selectedNodeId]
+    [nodes, screenToFlowPosition, setNodes]
   );
 
-  const handleDuplicateNode = useCallback(
-    (sourceNode: SummitNode) => {
-      const randomSuffix = Math.random().toString(36).slice(2, 6);
-      const newId = `node_${sourceNode.data.serviceType}_${randomSuffix}`;
-      const duplicatedNode: SummitNode = {
-        ...sourceNode,
-        id: newId,
-        position: {
-          x: sourceNode.position.x + 40,
-          y: sourceNode.position.y + 40,
-        },
-        data: {
-          ...sourceNode.data,
-          label: `${sourceNode.data.label}-copy`,
-          updatedAt: new Date().toISOString(),
-        },
-      };
-
-      setNodes((nds) => [...nds, duplicatedNode]);
-      setSelectedNodeId(newId);
-    },
-    [setNodes]
-  );
-
-  // Deployment action
-  const handleDeploy = useCallback(() => {
-    setIsDeployModalOpen(true);
-    setIsDeploying(true);
-
-    // Set nodes to building state during deploy
-    setNodes((nds) =>
-      nds.map((n) => ({
-        ...n,
-        data: {
-          ...n.data,
-          status: n.data.serviceType === "repository" ? "live" : "building",
-        },
-      }))
-    );
-  }, [setNodes]);
-
-  const handleCompleteDeployment = useCallback(() => {
-    setIsDeploying(false);
-    // Transition nodes to live
-    setNodes((nds) =>
-      nds.map((n) => ({
-        ...n,
-        data: {
-          ...n.data,
-          status: "live",
-          metrics: {
-            ...n.data.metrics,
-            cpuPct: Math.floor(8 + Math.random() * 15),
-            memoryMb: Math.floor(64 + Math.random() * 200),
-            requestsPerSec: Math.floor(120 + Math.random() * 400),
-          },
-        },
-      }))
-    );
-  }, [setNodes]);
-
-  // Project Actions (Reset, Clear, Export, Import)
-  const handleResetGraph = useCallback(() => {
-    if (confirm("Reset canvas to the Meridian Platform starter architecture?")) {
-      setNodes(INITIAL_NODES);
-      setEdges(INITIAL_EDGES);
-      setSelectedNodeId(null);
-      setTimeout(() => fitView({ padding: 0.2, duration: 400 }), 100);
-    }
-  }, [setNodes, setEdges, fitView]);
-
-  const handleClearGraph = useCallback(() => {
-    if (confirm("Clear all nodes and connections from the canvas?")) {
-      setNodes([]);
-      setEdges([]);
-      setSelectedNodeId(null);
-    }
-  }, [setNodes, setEdges]);
-
-  const handleExportGraph = useCallback(() => {
-    const arch: ProjectArchitecture = {
-      id: projectId,
-      name: projectName,
-      environment,
-      nodes,
-      edges,
-      updatedAt: new Date().toISOString(),
-    };
-    const jsonStr = exportProjectAsJson(arch);
-    const blob = new Blob([jsonStr], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${projectName.toLowerCase().replace(/[^a-z0-9]/g, "-")}-architecture.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [projectId, projectName, environment, nodes, edges]);
-
-  const handleImportGraph = useCallback(() => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "application/json";
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (re) => {
-        const content = re.target?.result as string;
-        const imported = importProjectFromJson(content);
-        if (imported) {
-          setProjectName(imported.name);
-          setEnvironment(imported.environment);
-          setNodes(imported.nodes);
-          setEdges(imported.edges);
-          setTimeout(() => fitView({ padding: 0.2, duration: 400 }), 150);
-        } else {
-          alert("Invalid architecture JSON format.");
-        }
-      };
-      reader.readAsText(file);
-    };
-    input.click();
-  }, [setNodes, setEdges, fitView]);
-
-  // Keyboard Shortcuts (⌘D to Deploy, Delete to remove selected node)
+  // Global Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "d") {
-        e.preventDefault();
-        handleDeploy();
+      // Don't intercept if user is typing in an input or textarea
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        return;
       }
+
+      // 'A' or '+' opens Node Selector
+      if (e.key === "a" || e.key === "A" || e.key === "+") {
+        e.preventDefault();
+        setIsNodeSelectorOpen(true);
+      }
+
+      // Escape deselects and closes panels
       if (e.key === "Escape") {
         setSelectedNodeId(null);
+        setIsNodeSelectorOpen(false);
+        setIsDeployModalOpen(false);
+      }
+
+      // Delete or Backspace deletes selected node or edge
+      if (e.key === "Backspace" || e.key === "Delete") {
+        if (selectedNodeId) {
+          e.preventDefault();
+          handleDeleteNode(selectedNodeId);
+        }
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleDeploy]);
+  }, [selectedNodeId, handleDeleteNode]);
 
-  const selectedNode = nodes.find((n) => n.id === selectedNodeId) || null;
+  const selectedNode =
+    nodes.find((n) => n.id === selectedNodeId) || null;
 
   return (
     <div
+      ref={reactFlowWrapper}
       data-lenis-prevent
-      className="w-screen h-screen flex flex-col bg-[#111111] text-[#F5F5F3] overflow-hidden select-none"
+      className="relative w-full h-screen bg-[#0C0B0A] text-[#FAF8F5] flex flex-col overflow-hidden font-sans select-none"
     >
-      {/* ---------------- Top Bar ---------------- */}
+      {/* Slim Top Bar */}
       <CanvasTopBar
         projectName={projectName}
         onRenameProject={setProjectName}
         environment={environment}
         onChangeEnvironment={setEnvironment}
-        isDeploying={isDeploying}
-        onDeploy={handleDeploy}
-        hasUnsavedChanges={hasUnsavedChanges}
-        onResetGraph={handleResetGraph}
-        onClearGraph={handleClearGraph}
-        onExportGraph={handleExportGraph}
-        onImportGraph={handleImportGraph}
+        isSaving={isSaving}
+        onOpenNodeSelector={() => setIsNodeSelectorOpen(true)}
+        onDeploy={() => setIsDeployModalOpen(true)}
       />
 
-      {/* ---------------- Main Canvas Workspace ---------------- */}
-      <div ref={reactFlowWrapper} className="flex-1 w-full h-full relative">
-        {/* Left Resource Toolbar */}
-        <CanvasToolbar onAddNode={handleAddNode} />
-
-        {/* Right Node Configuration Panel */}
-        <ConfigPanel
-          selectedNode={selectedNode}
-          onUpdateNodeData={handleUpdateNodeData}
-          onDeleteNode={handleDeleteNode}
-          onDuplicateNode={handleDuplicateNode}
-          onClose={() => setSelectedNodeId(null)}
-          allNodes={nodes}
-        />
-
-        {/* ReactFlow Interactive Graph */}
+      {/* Main Canvas Viewport */}
+      <div className="relative flex-1 w-full h-full">
         <ReactFlow<SummitNode, Edge>
           nodes={nodes}
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
-          isValidConnection={isValidConnection}
           onNodeClick={onNodeClick}
           onPaneClick={onPaneClick}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
-          onDragOver={onDragOver}
-          onDrop={onDrop}
-          minZoom={0.25}
-          maxZoom={2.0}
-          defaultViewport={{ x: 40, y: 40, zoom: 0.95 }}
+          minZoom={0.2}
+          maxZoom={2.2}
           deleteKeyCode={["Backspace", "Delete"]}
-          multiSelectionKeyCode={["Meta", "Ctrl"]}
           proOptions={{ hideAttribution: true }}
-          className="bg-[#0E0E0D]"
+          className="bg-[#0C0B0A]"
         >
-          {/* Subtle Dotted Alpine Grid */}
+          {/* Subtle Dotted Grid */}
           <Background
             variant={BackgroundVariant.Dots}
             gap={24}
             size={1.2}
-            color="#222220"
-          />
-
-          {/* Floating Canvas Controls */}
-          <Controls
-            showInteractive={false}
-            className="!left-4 !bottom-4 !bg-[#161614] !border !border-[#2B2B28] !rounded-[8px] !shadow-2xl !p-1 [&>button]:!bg-transparent [&>button]:!border-none [&>button]:!text-[#A0A09C] [&>button:hover]:!text-[#FAF8F5] [&>button:hover]:!bg-[#22221F] [&>button]:!rounded-[4px] [&>button]:!transition-colors"
-          />
-
-          {/* Compact Dark MiniMap */}
-          <MiniMap
-            zoomable
-            pannable
-            nodeColor={(n) => {
-              const node = n as unknown as SummitNode;
-              if (node.data?.serviceType === "database") return "#83B69A";
-              if (node.data?.serviceType === "repository") return "#D88762";
-              return "#3A3A36";
-            }}
-            maskColor="rgba(14, 14, 13, 0.85)"
-            className="!right-4 !bottom-4 !bg-[#141413] !border !border-[#262624] !rounded-[8px] !shadow-xl !overflow-hidden hidden sm:block"
-            style={{ width: 140, height: 95 }}
+            color="#20201E"
           />
         </ReactFlow>
+
+        {/* Empty Canvas State: "Start with a node" */}
+        {nodes.length === 0 && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none z-10 animate-in fade-in duration-200">
+            <p className="text-[14px] font-sans text-[#70706C] tracking-[-0.01em]">
+              Start with a node
+            </p>
+            <button
+              type="button"
+              onClick={() => setIsNodeSelectorOpen(true)}
+              className="mt-3.5 pointer-events-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] bg-[#161615] hover:bg-[#1E1E1C] border border-[#282826] hover:border-[#3E3E3B] text-[12.5px] font-sans text-[#FAF8F5] transition-all shadow-lg group cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5 text-accent-orange group-hover:scale-110 transition-transform" />
+              <span>+ Add node</span>
+            </button>
+          </div>
+        )}
+
+        {/* Floating Minimal Controls (Bottom-Left) */}
+        <div className="absolute bottom-5 left-5 z-20 flex items-center gap-1 bg-[#121211]/90 backdrop-blur-sm border border-[#242422] rounded-[8px] p-1 shadow-xl">
+          <button
+            type="button"
+            onClick={() => setIsNodeSelectorOpen(true)}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-[5px] text-[12px] font-sans text-[#D1CFCA] hover:text-[#FAF8F5] hover:bg-[#1E1E1C] transition-colors"
+            title="Add Node (A)"
+          >
+            <Plus className="w-3.5 h-3.5 text-accent-orange" />
+            <span className="hidden sm:inline">Add node</span>
+          </button>
+
+          <div className="w-px h-4 bg-[#262624] mx-0.5" />
+
+          <button
+            type="button"
+            onClick={() => zoomIn({ duration: 250 })}
+            className="w-7 h-7 flex items-center justify-center rounded-[5px] text-[#8E8C86] hover:text-[#FAF8F5] hover:bg-[#1E1E1C] transition-colors"
+            title="Zoom In"
+          >
+            <ZoomIn className="w-3.5 h-3.5" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => zoomOut({ duration: 250 })}
+            className="w-7 h-7 flex items-center justify-center rounded-[5px] text-[#8E8C86] hover:text-[#FAF8F5] hover:bg-[#1E1E1C] transition-colors"
+            title="Zoom Out"
+          >
+            <ZoomOut className="w-3.5 h-3.5" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => fitView({ padding: 0.25, duration: 400 })}
+            className="w-7 h-7 flex items-center justify-center rounded-[5px] text-[#8E8C86] hover:text-[#FAF8F5] hover:bg-[#1E1E1C] transition-colors"
+            title="Fit to View"
+          >
+            <Maximize2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Contextual Configuration Inspector */}
+        <ConfigInspector
+          node={selectedNode}
+          onClose={() => setSelectedNodeId(null)}
+          onUpdateNode={handleUpdateNode}
+          onDeleteNode={handleDeleteNode}
+        />
       </div>
 
-      {/* ---------------- Deployment Simulation Drawer / Modal ---------------- */}
-      <DeploymentModal
+      {/* Floating Node Selector Dialog */}
+      <NodeSelectorDialog
+        isOpen={isNodeSelectorOpen}
+        onClose={() => setIsNodeSelectorOpen(false)}
+        onSelect={handleAddNodeFromTemplate}
+      />
+
+      {/* Honest Deployment Dialog */}
+      <DeploymentDialog
         isOpen={isDeployModalOpen}
         onClose={() => setIsDeployModalOpen(false)}
-        nodes={nodes}
-        onCompleteDeployment={handleCompleteDeployment}
+        architecture={{
+          id: projectId,
+          name: projectName,
+          environment,
+          nodes,
+          edges,
+          updatedAt: lastSavedAt,
+        }}
       />
     </div>
   );
 }
 
-export function InfrastructureCanvas() {
+export function InfrastructureCanvas({ projectId = "default" }: { projectId?: string }) {
   return (
     <ReactFlowProvider>
-      <CanvasContent />
+      <CanvasContent projectId={projectId} />
     </ReactFlowProvider>
   );
 }

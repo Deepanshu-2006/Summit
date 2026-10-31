@@ -1,13 +1,12 @@
 import { Metadata } from "next";
-import { InfrastructureCanvas } from "@/components/canvas/infrastructure-canvas";
+import { NewProjectScreen } from "@/components/project-new/new-project-screen";
 
 export const metadata: Metadata = {
-  title: "Summit Infrastructure Canvas — New Project Architecture",
+  title: "New Project — Summit",
   description:
-    "Interactive node-based infrastructure canvas for building, configuring, and orchestrating cloud services on Summit.",
+    "Choose how to start your project: GitHub Repository, Database, Docker Image, or Empty Project on Summit.",
 };
 
-export default function NewProjectCanvasPage() {
-  return <InfrastructureCanvas />;
+export default function NewProjectPage() {
+  return <NewProjectScreen />;
 }
-

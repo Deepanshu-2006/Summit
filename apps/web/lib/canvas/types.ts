@@ -1,6 +1,6 @@
 /**
  * SUMMIT Infrastructure Canvas — Type System & Data Architecture
- * Models Railway-grade project graphs, service nodes, connections, and metadata.
+ * Minimal, premium architectural graph model for visual node-based infrastructure editing.
  */
 
 import type { Node, Edge } from "@xyflow/react";
@@ -10,16 +10,7 @@ export type NodeType =
   | "application"
   | "database"
   | "cache"
-  | "worker"
-  | "storage";
-
-export type NodeStatus =
-  | "idle"
-  | "building"
-  | "deploying"
-  | "live"
-  | "stopped"
-  | "failed";
+  | "worker";
 
 export type Environment = "production" | "staging" | "preview";
 
@@ -27,60 +18,31 @@ export interface EnvironmentVariable {
   id: string;
   key: string;
   value: string;
-  isSecret: boolean;
-  isReference?: boolean;
-  referenceSource?: string;
-}
-
-export interface ServiceMetrics {
-  cpuPct: number;
-  memoryMb: number;
-  memoryLimitMb: number;
-  latencyMs: number;
-  requestsPerSec: number;
-}
-
-export interface DeploymentLogEntry {
-  id: string;
-  timestamp: string;
-  level: "info" | "warn" | "error" | "success";
-  message: string;
 }
 
 export interface SummitNodeData extends Record<string, unknown> {
   label: string;
   serviceType: NodeType;
-  status: NodeStatus;
-  subType?: string; // e.g. "Next.js", "Go API", "PostgreSQL 16", "Redis 7.2"
-  region: string; // e.g. "cdg-1 (Paris)", "iad-1 (US East)"
-  port?: number;
-  
-  // Repository-specific fields
+  subType: string; // e.g. "Web Application", "API Service", "PostgreSQL", "Redis", "GitHub Repository"
+
+  // Source / Repository fields
   repoUrl?: string;
   branch?: string;
-  autoDeploy?: boolean;
-  commitSha?: string;
 
-  // Application/Worker-specific fields
-  framework?: string;
+  // Application / Worker fields
   buildCommand?: string;
   startCommand?: string;
   rootDir?: string;
-  replicas?: number;
-  liveUrl?: string;
 
-  // Database/Cache/Storage-specific fields
-  databaseEngine?: "postgresql" | "mysql" | "redis" | "mongodb";
-  databaseVersion?: string;
-  storageSizeGb?: number;
+  // Database / Cache fields
+  databaseEngine?: "postgresql" | "mysql" | "redis";
+  databaseName?: string;
+  port?: number;
   connectionString?: string;
-  sslRequired?: boolean;
 
-  // Common configuration
-  envVars: EnvironmentVariable[];
-  metrics: ServiceMetrics;
-  logs: DeploymentLogEntry[];
-  updatedAt: string;
+  // Environment variables
+  envVars?: EnvironmentVariable[];
+  updatedAt?: string;
 }
 
 export type SummitNode = Node<SummitNodeData, "summitNode">;
@@ -93,4 +55,14 @@ export interface ProjectArchitecture {
   edges: Edge[];
   viewport?: { x: number; y: number; zoom: number };
   updatedAt: string;
+}
+
+export interface ResourceTemplate {
+  category: "Compute" | "Data" | "Source";
+  type: NodeType;
+  subType: string;
+  defaultLabel: string;
+  description: string;
+  icon: "layout" | "server" | "cpu" | "database" | "layers" | "git-branch";
+  defaultConfig?: Partial<SummitNodeData>;
 }
