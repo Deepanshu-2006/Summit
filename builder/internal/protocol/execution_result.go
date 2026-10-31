@@ -25,21 +25,21 @@ func (s ResultStatus) IsValid() bool {
 
 // Standard machine-readable error codes.
 const (
-	ErrCodeSpecInvalid          = "SPEC_INVALID"
-	ErrCodeWorkspaceInitFailed  = "WORKSPACE_INIT_FAILED"
-	ErrCodeSourceAuthFailed     = "SOURCE_AUTH_FAILED"
-	ErrCodeSourceCloneFailed    = "SOURCE_CLONE_FAILED"
-	ErrCodeCommitMismatch       = "COMMIT_MISMATCH"
-	ErrCodeDetectionFailed      = "APPLICATION_DETECTION_FAILED"
-	ErrCodeBuildPlanFailed      = "BUILD_PLAN_GENERATION_FAILED"
-	ErrCodeDependencyInstall    = "DEPENDENCY_INSTALLATION_FAILED"
-	ErrCodeBuildFailed          = "IMAGE_BUILD_FAILED"
-	ErrCodeRegistryAuthFailed   = "REGISTRY_AUTH_FAILED"
-	ErrCodePushFailed           = "IMAGE_PUSH_FAILED"
-	ErrCodeDigestVerifyFailed   = "DIGEST_VERIFICATION_FAILED"
-	ErrCodeTimeout              = "TIMEOUT"
-	ErrCodeCancelled            = "CANCELLED"
-	ErrCodeInternal             = "INTERNAL_ERROR"
+	ErrCodeSpecInvalid         = "SPEC_INVALID"
+	ErrCodeWorkspaceInitFailed = "WORKSPACE_INIT_FAILED"
+	ErrCodeSourceAuthFailed    = "SOURCE_AUTH_FAILED"
+	ErrCodeSourceCloneFailed   = "SOURCE_CLONE_FAILED"
+	ErrCodeCommitMismatch      = "COMMIT_MISMATCH"
+	ErrCodeDetectionFailed     = "APPLICATION_DETECTION_FAILED"
+	ErrCodeBuildPlanFailed     = "BUILD_PLAN_GENERATION_FAILED"
+	ErrCodeDependencyInstall   = "DEPENDENCY_INSTALLATION_FAILED"
+	ErrCodeBuildFailed         = "IMAGE_BUILD_FAILED"
+	ErrCodeRegistryAuthFailed  = "REGISTRY_AUTH_FAILED"
+	ErrCodePushFailed          = "IMAGE_PUSH_FAILED"
+	ErrCodeDigestVerifyFailed  = "DIGEST_VERIFICATION_FAILED"
+	ErrCodeTimeout             = "TIMEOUT"
+	ErrCodeCancelled           = "CANCELLED"
+	ErrCodeInternal            = "INTERNAL_ERROR"
 )
 
 // BuildExecutionResult is the final output document reported upon completion.
