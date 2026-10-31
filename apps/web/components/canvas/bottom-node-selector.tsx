@@ -1,18 +1,12 @@
 "use client";
 
 import React from "react";
-import {
-  Layout,
-  Database,
-  Box,
-  Cpu,
-  Layers,
-  GitBranch,
-} from "lucide-react";
+import { Layout, Database, Plus } from "lucide-react";
 import type { ResourceTemplate } from "@/lib/canvas/types";
 
-interface BottomNodeSelectorProps {
+export interface BottomNodeSelectorProps {
   onSelectOption: (optionId: string) => void;
+  onOpenDeployPalette: () => void;
 }
 
 export interface BottomBarOption {
@@ -24,7 +18,7 @@ export interface BottomBarOption {
   defaultLabel: string;
 }
 
-// GitHub brand SVG icon
+// Authentic GitHub Brand Icon
 function GitHubIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -37,7 +31,7 @@ function GitHubIcon({ className }: { className?: string }) {
   );
 }
 
-// Docker container SVG icon
+// Authentic Docker Container Whale Icon
 function DockerIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -79,56 +73,52 @@ export const BOTTOM_BAR_OPTIONS: BottomBarOption[] = [
     subType: "Docker Image",
     defaultLabel: "docker-service",
   },
-  {
-    id: "worker",
-    label: "Worker",
-    icon: Cpu,
-    type: "worker",
-    subType: "Worker",
-    defaultLabel: "queue-worker",
-  },
-  {
-    id: "cache",
-    label: "Cache",
-    icon: Layers,
-    type: "cache",
-    subType: "Cache",
-    defaultLabel: "redis-cache",
-  },
 ];
 
-export function BottomNodeSelector({ onSelectOption }: BottomNodeSelectorProps) {
+export function BottomNodeSelector({
+  onSelectOption,
+  onOpenDeployPalette,
+}: BottomNodeSelectorProps) {
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 select-none max-w-[calc(100vw-32px)]">
       <nav
         aria-label="Node selector bar"
-        className="flex items-center gap-1 bg-[#121211]/95 backdrop-blur-md border border-[#242422] rounded-[10px] p-1.5 shadow-[0_12px_36px_rgba(0,0,0,0.85)] overflow-x-auto no-scrollbar"
+        className="flex items-center gap-1.5 bg-[#121113]/95 backdrop-blur-md border border-[#26242B] rounded-[12px] p-1.5 shadow-[0_16px_40px_rgba(0,0,0,0.85)] overflow-x-auto no-scrollbar"
       >
-        {BOTTOM_BAR_OPTIONS.map((opt, index) => {
+        {/* Railway Signature '+ Deploy' Button (Opens Deploy Palette) */}
+        <button
+          type="button"
+          onClick={onOpenDeployPalette}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-[8px] bg-[#1E1925] border border-[#3A2D4A] hover:bg-[#271F32] hover:border-[#4B3B60] text-accent-orange transition-all duration-150 text-[12.5px] font-sans font-semibold tracking-[-0.01em] shrink-0 cursor-pointer shadow-[0_0_16px_rgba(216,135,98,0.12)]"
+          title="Open Deploy Palette (⌘K)"
+        >
+          <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+          <span>Deploy</span>
+        </button>
+
+        <div className="w-px h-4 bg-[#232128] shrink-0 mx-0.5" />
+
+        {/* Resource Buttons */}
+        {BOTTOM_BAR_OPTIONS.map((opt) => {
           const Icon = opt.icon;
           return (
-            <React.Fragment key={opt.id}>
-              {index > 0 && (
-                <div className="w-px h-3.5 bg-[#20201E] shrink-0 mx-0.5" />
-              )}
-              <button
-                type="button"
-                onClick={() => onSelectOption(opt.id)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-[6px] hover:bg-[#1C1C1A] active:bg-[#222220] transition-colors text-[12px] font-sans text-[#FAF8F5] whitespace-nowrap group shrink-0 cursor-pointer"
-                title={`Add ${opt.label} node to canvas`}
-              >
-                <div className="w-4 h-4 flex items-center justify-center text-[#9E9C97] group-hover:text-accent-orange transition-colors">
-                  <Icon className="w-3.5 h-3.5" />
-                </div>
-                <span className="font-medium tracking-[-0.01em]">
-                  {opt.label}
-                </span>
-              </button>
-            </React.Fragment>
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => onSelectOption(opt.id)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[7px] hover:bg-[#1C1A20] active:bg-[#222026] text-[#A1A09A] hover:text-[#FAF8F5] transition-colors text-[12px] font-sans shrink-0 cursor-pointer"
+              title={`Choose ${opt.label}`}
+            >
+              <div className="w-4 h-4 flex items-center justify-center text-[#7A7873] group-hover:text-[#FAF8F5] transition-colors">
+                <Icon className="w-3.5 h-3.5" />
+              </div>
+              <span className="font-medium tracking-[-0.01em]">
+                {opt.label}
+              </span>
+            </button>
           );
         })}
       </nav>
     </div>
   );
 }
-
