@@ -24,8 +24,12 @@ import {
 import {
   saveProjectArchitecture,
   getEmptyArchitecture,
+  createNodeByOptionId,
 } from "@/lib/canvas/initial-graph";
 import type { SummitNode } from "@/lib/canvas/types";
+import { NodeChooserDialogs } from "@/components/canvas/node-chooser-dialogs";
+import { getStoredProjects, saveStoredProjects } from "@/lib/dashboard/mock-data";
+import type { DashboardProject } from "@/lib/dashboard/types";
 
 // Clean inline SVGs for GitHub and Docker brand icons
 function GitHubIcon({ className }: { className?: string }) {
@@ -69,18 +73,9 @@ export function NewProjectScreen() {
 
   // Prompt / Repo Input State
   const [inputValue, setInputValue] = useState("");
-  const [activeModal, setActiveModal] = useState<
-    "none" | "github" | "database" | "docker"
+  const [activeChooser, setActiveChooser] = useState<
+    "none" | "github" | "application" | "database" | "docker"
   >("none");
-
-  // GitHub Modal State
-  const [githubRepoUrl, setGithubRepoUrl] = useState("");
-  const [githubBranch, setGithubBranch] = useState("main");
-
-  // Docker Modal State
-  const [dockerImage, setDockerImage] = useState("");
-  const [dockerPort, setDockerPort] = useState("80");
-  const [dockerError, setDockerError] = useState("");
 
   // Helper to generate a unique project ID
   const generateProjectId = () => {
@@ -93,6 +88,32 @@ export function NewProjectScreen() {
     const emptyArch = getEmptyArchitecture(projectId);
     emptyArch.name = "Empty Architecture";
     saveProjectArchitecture(emptyArch);
+
+    const newProject: DashboardProject = {
+      id: projectId,
+      name: "untitled-project",
+      description: "Visual cloud infrastructure canvas architecture",
+      environment: "production",
+      status: "ready",
+      type: "Clean Canvas",
+      icon: "layout",
+      servicesCount: 1,
+      owner: "summit-platform/untitled-project",
+      branch: "main",
+      commitMessage: "Initial canvas architecture",
+      commitHash: "initial",
+      commitPath: "apps/web",
+      formattedDate: "Just now",
+      region: "us-east-1",
+      updatedAt: "just now",
+      createdAt: new Date().toISOString(),
+      template: "empty",
+    };
+    try {
+      const stored = getStoredProjects();
+      saveStoredProjects([newProject, ...stored]);
+    } catch {}
+
     router.push(`/dashboard/project/${projectId}`);
   };
 
@@ -101,117 +122,84 @@ export function NewProjectScreen() {
     e.preventDefault();
     const trimmed = inputValue.trim();
     if (!trimmed) return;
-
-    if (trimmed.includes("github.com") || trimmed.startsWith("git@")) {
-      setGithubRepoUrl(trimmed);
-      setActiveModal("github");
-    } else {
-      // Natural language input placeholder: route to GitHub or Empty Project
-      setActiveModal("github");
-    }
+    setActiveChooser("github");
   };
 
-  // 3. Confirm GitHub Repository
-  const handleConfirmGitHub = () => {
+  // 3. Handle Confirm from Node Chooser Dialogs
+  const handleConfirmChooser = (
+    optionId: string,
+    customData?: Record<string, unknown>
+  ) => {
     const projectId = generateProjectId();
-    const repoName =
-      githubRepoUrl.split("/").filter(Boolean).pop()?.replace(".git", "") ||
-      "web-repo";
+    const initialNode = createNodeByOptionId(
+      optionId,
+      { x: 300, y: 200 },
+      customData
+    );
 
-    const initialNode: SummitNode = {
-      id: "node_repo_init",
-      type: "summitNode",
-      position: { x: 300, y: 200 },
-      data: {
-        label: repoName,
-        serviceType: "repository",
-        subType: "GitHub Repository",
-        repoUrl: githubRepoUrl || "https://github.com/summit-platform/example",
-        branch: githubBranch || "main",
-        updatedAt: new Date().toISOString(),
-      },
-    };
+    const projectName =
+      (customData?.label as string) ||
+      (customData?.name as string) ||
+      (optionId === "github" ? "web-repo" : `${optionId}-service`);
 
     const arch = getEmptyArchitecture(projectId);
-    arch.name = repoName;
+    arch.name = projectName;
     arch.nodes = [initialNode];
     saveProjectArchitecture(arch);
-    router.push(`/dashboard/project/${projectId}`);
-  };
 
-  // 4. Confirm Database Engine
-  const handleSelectDatabase = (engine: "postgresql" | "mysql" | "redis") => {
-    const projectId = generateProjectId();
-    const configMap = {
-      postgresql: {
-        label: "postgres-db",
-        subType: "PostgreSQL",
-        port: 5432,
-      },
-      mysql: {
-        label: "mysql-db",
-        subType: "MySQL",
-        port: 3306,
-      },
-      redis: {
-        label: "redis-cache",
-        subType: "Redis",
-        port: 6379,
-      },
+    const newProject: DashboardProject = {
+      id: projectId,
+      name: projectName,
+      description:
+        (customData?.description as string) ||
+        (optionId === "github"
+          ? `Production web service connected to ${customData?.branch || "main"}`
+          : optionId === "database"
+          ? `High-availability managed ${customData?.subType || "database"}`
+          : `Containerized deployment`),
+      environment: "production",
+      status: "ready",
+      type:
+        (customData?.subType as string) ||
+        (optionId === "github"
+          ? "GitHub Repository"
+          : optionId === "database"
+          ? "Database"
+          : "Docker Image"),
+      icon:
+        optionId === "github"
+          ? "github"
+          : optionId === "database"
+          ? "database"
+          : optionId === "docker"
+          ? "docker"
+          : "layout",
+      servicesCount: 1,
+      owner: `summit-platform/${projectName}`,
+      branch: (customData?.branch as string) || "main",
+      commitMessage: `feat(init): connect ${projectName}`,
+      commitHash: "0a1b2c3",
+      commitPath: "apps/web",
+      formattedDate: "Just now",
+      region: (customData?.region as string) || "us-east-1",
+      updatedAt: "just now",
+      createdAt: new Date().toISOString(),
+      template:
+        optionId === "github"
+          ? "github"
+          : optionId === "database"
+          ? "database"
+          : optionId === "docker"
+          ? "docker"
+          : "empty",
     };
 
-    const cfg = configMap[engine];
-    const initialNode: SummitNode = {
-      id: `node_db_${engine}`,
-      type: "summitNode",
-      position: { x: 320, y: 200 },
-      data: {
-        label: cfg.label,
-        serviceType: engine === "redis" ? "cache" : "database",
-        subType: cfg.subType,
-        databaseEngine: engine,
-        port: cfg.port,
-        updatedAt: new Date().toISOString(),
-      },
-    };
+    try {
+      const stored = getStoredProjects();
+      saveStoredProjects([newProject, ...stored]);
+    } catch {}
 
-    const arch = getEmptyArchitecture(projectId);
-    arch.name = `${cfg.subType} Project`;
-    arch.nodes = [initialNode];
-    saveProjectArchitecture(arch);
-    router.push(`/dashboard/project/${projectId}`);
-  };
-
-  // 5. Confirm Docker Image
-  const handleConfirmDocker = () => {
-    const trimmed = dockerImage.trim();
-    if (!trimmed) {
-      setDockerError("Please enter a valid Docker image reference");
-      return;
-    }
-
-    const projectId = generateProjectId();
-    const containerName =
-      trimmed.split("/").pop()?.split(":")[0] || "docker-service";
-
-    const initialNode: SummitNode = {
-      id: "node_docker_init",
-      type: "summitNode",
-      position: { x: 300, y: 200 },
-      data: {
-        label: containerName,
-        serviceType: "application",
-        subType: "Docker Container",
-        port: parseInt(dockerPort, 10) || 80,
-        startCommand: `docker run -p ${dockerPort}:${dockerPort} ${trimmed}`,
-        updatedAt: new Date().toISOString(),
-      },
-    };
-
-    const arch = getEmptyArchitecture(projectId);
-    arch.name = `${containerName} Service`;
-    arch.nodes = [initialNode];
-    saveProjectArchitecture(arch);
+    setActiveChooser("none");
     router.push(`/dashboard/project/${projectId}`);
   };
 
@@ -363,12 +351,7 @@ export function NewProjectScreen() {
             {/* 1. GitHub Repository */}
             <button
               type="button"
-              onClick={() => {
-                if (inputValue.includes("github.com")) {
-                  setGithubRepoUrl(inputValue.trim());
-                }
-                setActiveModal("github");
-              }}
+              onClick={() => setActiveChooser("github")}
               className="w-full flex items-center justify-between px-3 py-2.5 rounded-[7px] text-left transition-colors hover:bg-[#1E1E1C] active:bg-[#232320] group cursor-pointer"
             >
               <div className="flex items-center gap-3">
@@ -385,7 +368,7 @@ export function NewProjectScreen() {
             {/* 2. Database */}
             <button
               type="button"
-              onClick={() => setActiveModal("database")}
+              onClick={() => setActiveChooser("database")}
               className="w-full flex items-center justify-between px-3 py-2.5 rounded-[7px] text-left transition-colors hover:bg-[#1E1E1C] active:bg-[#232320] group cursor-pointer"
             >
               <div className="flex items-center gap-3">
@@ -402,7 +385,7 @@ export function NewProjectScreen() {
             {/* 3. Docker Image */}
             <button
               type="button"
-              onClick={() => setActiveModal("docker")}
+              onClick={() => setActiveChooser("docker")}
               className="w-full flex items-center justify-between px-3 py-2.5 rounded-[7px] text-left transition-colors hover:bg-[#1E1E1C] active:bg-[#232320] group cursor-pointer"
             >
               <div className="flex items-center gap-3">
@@ -436,259 +419,12 @@ export function NewProjectScreen() {
         </div>
       </main>
 
-      {/* ---------------- Modals for Option Next Steps ---------------- */}
-
-      {/* GitHub Repository Modal */}
-      {activeModal === "github" && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-[2px] animate-in fade-in duration-100"
-          onClick={() => setActiveModal("none")}
-        >
-          <div
-            className="w-full max-w-[420px] bg-[#141413] border border-[#282826] rounded-[10px] shadow-2xl p-5 select-none"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between pb-3 border-b border-[#222220]">
-              <div className="flex items-center gap-2.5">
-                <GitHubIcon className="w-4 h-4 text-[#FAF8F5]" />
-                <h3 className="font-sans text-[14px] font-semibold text-[#FAF8F5]">
-                  Import GitHub Repository
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActiveModal("none")}
-                className="text-[#8E8C86] hover:text-[#FAF8F5] p-1"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="mt-4 space-y-3.5">
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-mono text-[#8E8C86]">
-                  Repository URL
-                </label>
-                <div className="relative group bg-[#181817] rounded-[6px] border border-[#2B2B28] overflow-hidden transition-colors">
-                  <input
-                    type="text"
-                    value={githubRepoUrl}
-                    onChange={(e) => setGithubRepoUrl(e.target.value)}
-                    placeholder="https://github.com/organization/repository"
-                    className="w-full h-9 px-3 bg-transparent text-[12px] font-mono text-[#FAF8F5] placeholder-[#555] outline-none border-none focus:outline-none focus:ring-0 focus-visible:outline-none"
-                    style={{ outline: "none", boxShadow: "none", border: "none" }}
-                  />
-                  <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent-orange scale-x-0 group-focus-within:scale-x-100 transition-transform duration-200 ease-out origin-left pointer-events-none" />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-mono text-[#8E8C86]">
-                  Default Branch
-                </label>
-                <div className="relative group bg-[#181817] rounded-[6px] border border-[#2B2B28] overflow-hidden transition-colors">
-                  <input
-                    type="text"
-                    value={githubBranch}
-                    onChange={(e) => setGithubBranch(e.target.value)}
-                    placeholder="main"
-                    className="w-full h-9 px-3 bg-transparent text-[12px] font-mono text-[#FAF8F5] outline-none border-none focus:outline-none focus:ring-0 focus-visible:outline-none"
-                    style={{ outline: "none", boxShadow: "none", border: "none" }}
-                  />
-                  <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent-orange scale-x-0 group-focus-within:scale-x-100 transition-transform duration-200 ease-out origin-left pointer-events-none" />
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-5 flex items-center justify-end gap-2.5 pt-3 border-t border-[#222220]">
-              <button
-                type="button"
-                onClick={() => setActiveModal("none")}
-                className="px-3.5 py-1.5 rounded-[6px] text-[#8E8C86] hover:text-[#FAF8F5] text-[12px] font-sans transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmGitHub}
-                className="px-4 py-1.5 rounded-[6px] bg-accent-orange hover:bg-accent-orange-hover text-[#121110] text-[12.5px] font-medium transition-colors"
-              >
-                Open Canvas
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Database Engine Modal */}
-      {activeModal === "database" && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-[2px] animate-in fade-in duration-100"
-          onClick={() => setActiveModal("none")}
-        >
-          <div
-            className="w-full max-w-[420px] bg-[#141413] border border-[#282826] rounded-[10px] shadow-2xl p-5 select-none"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between pb-3 border-b border-[#222220]">
-              <div className="flex items-center gap-2.5">
-                <Database className="w-4 h-4 text-accent-orange" />
-                <h3 className="font-sans text-[14px] font-semibold text-[#FAF8F5]">
-                  Select Database Engine
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActiveModal("none")}
-                className="text-[#8E8C86] hover:text-[#FAF8F5] p-1"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="mt-4 space-y-2">
-              <button
-                type="button"
-                onClick={() => handleSelectDatabase("postgresql")}
-                className="w-full flex items-center justify-between p-3 rounded-[8px] bg-[#181817] hover:bg-[#1E1E1C] border border-[#262624] hover:border-accent-orange/60 text-left transition-colors group cursor-pointer"
-              >
-                <div>
-                  <h4 className="font-sans text-[13px] font-medium text-[#FAF8F5]">
-                    PostgreSQL
-                  </h4>
-                  <p className="font-mono text-[10.5px] text-[#8E8C86] mt-0.5">
-                    Version 16 · Standard port 5432
-                  </p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-[#60605C] group-hover:text-accent-orange transition-colors" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleSelectDatabase("mysql")}
-                className="w-full flex items-center justify-between p-3 rounded-[8px] bg-[#181817] hover:bg-[#1E1E1C] border border-[#262624] hover:border-accent-orange/60 text-left transition-colors group cursor-pointer"
-              >
-                <div>
-                  <h4 className="font-sans text-[13px] font-medium text-[#FAF8F5]">
-                    MySQL
-                  </h4>
-                  <p className="font-mono text-[10.5px] text-[#8E8C86] mt-0.5">
-                    Version 8.4 · Standard port 3306
-                  </p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-[#60605C] group-hover:text-accent-orange transition-colors" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleSelectDatabase("redis")}
-                className="w-full flex items-center justify-between p-3 rounded-[8px] bg-[#181817] hover:bg-[#1E1E1C] border border-[#262624] hover:border-accent-orange/60 text-left transition-colors group cursor-pointer"
-              >
-                <div>
-                  <h4 className="font-sans text-[13px] font-medium text-[#FAF8F5]">
-                    Redis
-                  </h4>
-                  <p className="font-mono text-[10.5px] text-[#8E8C86] mt-0.5">
-                    Version 7.2 · In-memory cache & store
-                  </p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-[#60605C] group-hover:text-accent-orange transition-colors" />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Docker Image Modal */}
-      {activeModal === "docker" && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-[2px] animate-in fade-in duration-100"
-          onClick={() => setActiveModal("none")}
-        >
-          <div
-            className="w-full max-w-[420px] bg-[#141413] border border-[#282826] rounded-[10px] shadow-2xl p-5 select-none"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between pb-3 border-b border-[#222220]">
-              <div className="flex items-center gap-2.5">
-                <DockerIcon className="w-4 h-4 text-accent-orange" />
-                <h3 className="font-sans text-[14px] font-semibold text-[#FAF8F5]">
-                  Deploy Docker Image
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActiveModal("none")}
-                className="text-[#8E8C86] hover:text-[#FAF8F5] p-1"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="mt-4 space-y-3.5">
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-mono text-[#8E8C86]">
-                  Image Reference
-                </label>
-                <div className="relative group bg-[#181817] rounded-[6px] border border-[#2B2B28] overflow-hidden transition-colors">
-                  <input
-                    type="text"
-                    value={dockerImage}
-                    onChange={(e) => {
-                      setDockerImage(e.target.value);
-                      setDockerError("");
-                    }}
-                    placeholder="docker.io/library/nginx:alpine"
-                    className="w-full h-9 px-3 bg-transparent text-[12px] font-mono text-[#FAF8F5] outline-none border-none focus:outline-none focus:ring-0 focus-visible:outline-none"
-                    style={{ outline: "none", boxShadow: "none", border: "none" }}
-                  />
-                  <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent-orange scale-x-0 group-focus-within:scale-x-100 transition-transform duration-200 ease-out origin-left pointer-events-none" />
-                </div>
-                {dockerError && (
-                  <p className="text-[11px] font-sans text-[#D77D7D] flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3" />
-                    <span>{dockerError}</span>
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-mono text-[#8E8C86]">
-                  Exposed Port
-                </label>
-                <div className="relative group bg-[#181817] rounded-[6px] border border-[#2B2B28] overflow-hidden transition-colors">
-                  <input
-                    type="number"
-                    value={dockerPort}
-                    onChange={(e) => setDockerPort(e.target.value)}
-                    placeholder="80"
-                    className="w-full h-9 px-3 bg-transparent text-[12px] font-mono text-[#FAF8F5] outline-none border-none focus:outline-none focus:ring-0 focus-visible:outline-none"
-                    style={{ outline: "none", boxShadow: "none", border: "none" }}
-                  />
-                  <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent-orange scale-x-0 group-focus-within:scale-x-100 transition-transform duration-200 ease-out origin-left pointer-events-none" />
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-5 flex items-center justify-end gap-2.5 pt-3 border-t border-[#222220]">
-              <button
-                type="button"
-                onClick={() => setActiveModal("none")}
-                className="px-3.5 py-1.5 rounded-[6px] text-[#8E8C86] hover:text-[#FAF8F5] text-[12px] font-sans transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmDocker}
-                className="px-4 py-1.5 rounded-[6px] bg-accent-orange hover:bg-accent-orange-hover text-[#121110] text-[12.5px] font-medium transition-colors"
-              >
-                Open Canvas
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ---------------- Exact Same Dialogs As Canvas Dock ---------------- */}
+      <NodeChooserDialogs
+        activeChooser={activeChooser}
+        onClose={() => setActiveChooser("none")}
+        onConfirm={handleConfirmChooser}
+      />
     </div>
   );
 }

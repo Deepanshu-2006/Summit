@@ -16,7 +16,7 @@ export interface DashboardProject {
   environment: ProjectEnvironment;
   status: ProjectStatus;
   type: string; // e.g. "Next.js Application", "Go API Service", "Web Application"
-  icon: "layout" | "server" | "database" | "cpu" | "git-branch" | "github";
+  icon: "layout" | "server" | "database" | "cpu" | "git-branch" | "github" | "docker";
   servicesCount: number;
   owner: string; // e.g. "summit-platform/summit-web"
   branch: string;
@@ -27,7 +27,7 @@ export interface DashboardProject {
   region: string;
   updatedAt: string;
   createdAt: string;
-  template?: "fullstack" | "api" | "empty";
+  template?: "fullstack" | "api" | "empty" | "github" | "database" | "docker";
 }
 
 export interface WorkspaceItem {
