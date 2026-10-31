@@ -1,6 +1,6 @@
 # Orchestrator Implementation Plan — Summit PaaS Control Plane
 
-- **Document Path:** `docs/orchestrator_implementation_plan.md`
+- **Document Path:** `docs/implementation_rudra.md`
 - **Owner:** Rudra (Orchestrator, Cluster Controller, & Sandboxed Execution Engine)
 - **Backend Team:**
   - Priyanshu (Go API & Control Plane Ingress)
@@ -9,6 +9,7 @@
 - **Frontend Partner:** UI Developer (Design System, Console Dashboard, Real-time Stream Viewer)
 - **Target Go Module:** `apps/backend` (Single Go 1.23 Module Monolith)
 - **Target Test Environment:** 1–2 SSH-accessible Linux machines configured as **TEST ONLY** Kubernetes hosts
+- **Status:** ACTIVE / BASELINE OUTBOX & WORKER BROKER READY (PR #3 MERGED)
 
 ---
 
@@ -80,12 +81,15 @@ This document serves as the standalone, ticket-ready technical implementation pl
 
 ## 2. Ground Truth & Architectural Baseline
 
-### 2.1 Monorepo Reality Check (Verified on Disk)
+### 2.1 Monorepo Reality Check (Verified on Disk - Post-PR #3)
 1. **Frontend (`apps/web`):** Next.js 16 workspace package. Contains prototype mock handlers and an in-memory Meridian store. These are temporary mocks and do not reflect platform persistence.
-2. **Backend (`apps/backend`):** Go 1.23 module (`github.com/summit/backend`). Contains only a standard-library `net/http` router with structured logging (`log/slog`), configuration loading (`internal/config`), and a health check handler (`GET /api/v1/health` and `/health`).
-   - *Current Implementation Gap:* Zero database integration, zero Kubernetes clients (`client-go` / `controller-runtime`), zero job consumer loops, and zero container runtime hooks currently exist in code.
-3. **API Contract (`packages/api_spec/openapi.yaml`):** OpenAPI 3.1 specification declaring target schemas for `/projects`, `/resources`, `/releases`, `/observability/metrics`, and `/observability/logs`.
-   - *Critical Gaps in Spec:* Does **NOT** declare endpoints for user authentication, tenant membership, project provisioning (`POST /api/v1/projects`), explicit deployment/job triggering, or GitHub webhook ingestion. These endpoints must be specified collaboratively before implementation.
+2. **Backend (`apps/backend`):** Go 1.23 module (`github.com/summit/backend`) managed via Turborepo 2.11+. The foundational platform infrastructure has landed:
+   - **Database & Outbox Engine:** Migrations `0001_baseline.up.sql` and `0002_github_integration.up.sql` are active via `pgxpool`. The `outbox_events` table is implemented and receives asynchronous dispatch jobs (`deployment.build.requested`).
+   - **Build Worker Credential Broker:** `POST /internal/v1/build-requests/{build_request_id}/source-token` is implemented in `apps/backend/internal/githubworker/broker_handler.go`. The orchestrator's ephemeral build pods authenticate using job-scoped JWTs (`WORKER_JWT_SECRET`) to receive repository clone credentials.
+   - *Current Implementation Gap:* Kubernetes reconcilers (`client-go` / `controller-runtime`), outbox consumer loop for cluster scheduling, and gVisor container runtime hooks are the immediate targets of this plan.
+3. **API Contract (`packages/api_spec/openapi.yaml` & `docs/integrations/github/`):**
+   - OpenAPI 3.1 specification declaring target schemas for `/projects`, `/resources`, `/releases`, `/observability/metrics`, and `/observability/logs`.
+   - Comprehensive GitHub integration contracts established in [`docs/integrations/github/GITHUB_INTEGRATION_BACKEND_SPEC.md`](./integrations/github/GITHUB_INTEGRATION_BACKEND_SPEC.md) and [`FRONTEND_INTEGRATION.md`](./integrations/github/FRONTEND_INTEGRATION.md).
 4. **Architecture Blueprint (`docs/system_architechture.png`):** Establishes the authoritative target infrastructure:
    - Supabase Postgres as the centralized platform database + job queue.
    - Go Orchestrator functioning as an operator reconciling database outbox jobs into Kubernetes CRDs and native primitives via the K8s API server / etcd.

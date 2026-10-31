@@ -1,22 +1,22 @@
 # Platform Database Implementation Plan: Supabase Postgres & Control Plane State
 
-- **Document Path:** `docs/database_implementation_plan.md`
+- **Document Path:** `docs/implementation_arpit.md`
 - **Owner:** Arpit (Platform Database Engineer)
 - **Collaborators:** Priyanshu (API Platform Engineer), Rudra (Orchestrator & K8s Operator Engineer), Frontend Developer (UI / Next.js)
-- **Target Subsystem:** Control Plane Platform Persistence Layer (`apps/backend/internal/platformdb`)
+- **Target Subsystem:** Control Plane Platform Persistence Layer (`apps/backend/internal/platformdb` and `apps/backend/internal/db`)
 - **System Architecture Context:** Architecture reference [`docs/system_architechture.png`](../docs/system_architechture.png)
-- **Status:** Actionable Technical Implementation Plan & Architectural RFC (No code implemented yet)
+- **Status:** ACTIVE / CORE MIGRATIONS & SCHEMA IMPLEMENTED (PR #3 MERGED)
 
 ---
 
 ## 1. Executive Summary & Scope
 
-This document proposes an implementation plan for the Summit Jetway developer platform. The architecture diagram identifies Supabase Postgres as the platform metadata database; availability and recovery capabilities must be confirmed against the selected service plan. The database is intended to hold platform metadata, tenancy, deployment lifecycle state, resource topology, and durable metering records.
+This document defines the database architecture and persistence implementation plan for the Summit Jetway developer platform. The architecture identifies Supabase Postgres as the platform metadata database. The database stores platform metadata, tenancy, deployment lifecycle state, resource topology, and durable metering records.
 
 ### 1.1 In-Scope (Arpit Ownership)
 - **Control Plane State Architecture:** Logical schema design, multi-tenant relational modeling, index optimization, and relational constraints for organizations, projects, environments, services, deployments, releases, domains, and audit trails.
 - **Transactional Outbox Engine:** A durable PostgreSQL-backed outbox pattern supporting atomic HTTP request mutations and concurrent worker claims via `FOR UPDATE SKIP LOCKED`.
-- **Database Access Layer (`apps/backend/internal/platformdb`):** Safe, idiomatic Go repository interfaces, connection pooling via `pgx/v5`, transaction lifecycle management, and typed query abstractions consumed by Priyanshu (API) and Rudra (Orchestrator).
+- **Database Access Layer (`apps/backend/internal/db`):** Safe, idiomatic Go repository interfaces, connection pooling via `pgx/v5` (`pgxpool`), transaction lifecycle management, and typed query abstractions consumed by Priyanshu (API) and Rudra (Orchestrator).
 - **Migration & Evolution Framework:** Zero-downtime, expand/contract migration tooling decision workflow, automated local/CI testing via ephemeral containers, and rollback verification.
 - **Durability & Disaster Recovery:** WAL-G / pgBackRest S3-compatible continuous archiving, nightly snapshots, and automated point-in-time restore (PITR) verification.
 - **Durable Metering Ledger:** Append-only, idempotent usage event storage distinct from ephemeral operational metric scrapers.
@@ -25,17 +25,20 @@ This document proposes an implementation plan for the Summit Jetway developer pl
 - **Tenant Application Databases:** Per-tenant databases (e.g., PostgreSQL, MySQL, Redis instances provisioned via Kubernetes PVCs in tenant namespaces `tenant-<slug>`) are isolated application workloads managed by Rudra's Kubernetes Operator. They are **never** hosted in or conflated with the platform metadata database.
 - **Secret Value Storage:** The platform database **never stores secret values, API keys, private certificates, or database credentials** in plaintext or ciphertext. It stores exclusively immutable secret pointers and reference metadata (OpenBao paths, AWS Secrets Manager ARNs, Kubernetes Secret names). Values are resolved dynamically at runtime by External Secrets Operator (ESO) and injected directly into tenant namespaces.
 - **High-Frequency Observability Metrics & Raw Logs:** Real-time container CPU/memory telemetry and application container logs belong in Prometheus and Fluent Bit / Loki. The platform database stores only durable, reconciled billing events and immutable audit logs.
-- **Ad-Hoc Operator DB Access:** The Kubernetes Operator must never run arbitrary unindexed SQL or schema alterations. All persistence access occurs via typed Go contracts in `apps/backend/internal/platformdb` or secure, audited internal control plane APIs.
+- **Ad-Hoc Operator DB Access:** The Kubernetes Operator must never run arbitrary unindexed SQL or schema alterations. All persistence access occurs via typed Go contracts in `apps/backend/internal/db` or secure, audited internal control plane APIs.
 
 ---
 
 ## 2. Current Baseline & Architecture Alignment
 
 ### 2.1 Monorepo Reality Check
-An inspection of the workspace confirms the starting baseline:
-- **`apps/backend`:** A minimal Go 1.23 standard-library HTTP service listening on port 4000 ([`main.go`](../apps/backend/cmd/api/main.go), [`server.go`](../apps/backend/internal/server/server.go)). The only implemented endpoint is `GET /api/v1/health` in [`handler.go`](../apps/backend/internal/health/handler.go). There are **no database drivers, no migration scripts, no ORM, and no persistence packages** present.
-- **`packages/api_spec/openapi.yaml`:** OpenAPI 3.1 contract containing read-oriented endpoints (`/api/v1/projects`, `/api/v1/resources`, `/api/v1/releases`, `/api/v1/observability/metrics`, `/api/v1/observability/logs`). It currently lacks authentication schemas, tenant/membership models, project creation mutations, deployment pipeline state machines, and webhook contracts.
-- **`apps/web`:** Next.js 16 frontend containing a temporary client-side demo store. Frontend mutation flows must be wired to the real Go API once persistence is established.
+An inspection of the workspace confirms the current baseline:
+- **`apps/backend`:** Fully integrated with `jackc/pgx/v5/pgxpool` in `internal/db/pool.go`. Schema migrations are governed by the advisory-locked migration engine in `internal/db/migrate.go` and CLI `cmd/migrate/main.go`. Two production migrations are committed and active:
+  - `0001_baseline.up.sql`: Core tenancy (`organizations`, `users`, `organization_memberships`), `projects`, `environments`, `services`, `service_resources`, `secret_references`, `deployments`, `build_jobs`, `releases`, `outbox_events`, `custom_domains`, `metering_ledger`, and `audit_logs`.
+  - `0002_github_integration.up.sql`: `github_installations`, `github_installation_states`, `github_repositories`, `github_webhook_events`, and `service_sources`, with `deployments.git_commit_sha` widened to `VARCHAR(64)` for full Git SHA-256 support.
+- **Test Harness:** Dedicated schema-isolated PostgreSQL test runner in `internal/testutil/db.go` verifies migrations and query execution against local `postgres:16-alpine` containers.
+- **`packages/api_spec/openapi.yaml`:** OpenAPI 3.1 contract containing endpoints for projects, resources, releases, and observability.
+- **`apps/web`:** Next.js 16 frontend containing a temporary client-side demo store. Frontend mutation flows will wire to the real Go API once public project creation endpoints land.
 - **`docs/system_architechture.png`:** The reference topology specifies:
   - Supabase Postgres for platform metadata.
   - An asynchronous Job Queue connecting the API to the Go Operator and Custom Resource Definitions (CRDs).
@@ -735,25 +738,27 @@ PHASE 5: End-to-End Acceptance & DR Drill (Week 10)
 
 This checklist defines the exact scope of Arpit's initial pull request:
 
-- [ ] **Repository Structure:**
-  - Create directory `apps/backend/internal/platformdb`.
-  - Create directory `apps/backend/migrations`.
-- [ ] **Dependency Evaluation & Installation:**
-  - Introduce `github.com/jackc/pgx/v5` and `github.com/google/uuid` to `apps/backend/go.mod`.
-  - Add Goose migration runner setup (embed migrations in Go binary).
-- [ ] **Initial Migration (`00001_initial_schema.sql`):**
-  - Implement `organizations`, `users`, and `organization_memberships`.
-  - Implement `projects` and `environments`.
-  - Define composite unique indexes and foreign key delete rules.
-- [ ] **Connection Engine (`apps/backend/internal/platformdb/config.go`):**
-  - Implement `NewPool(ctx context.Context, config Config) (*pgxpool.Pool, error)`.
-  - Support connection string parsing, TLS configuration, and pool tuning parameters.
-- [ ] **Health Check Integration:**
-  - Wire database pool ping into the existing `GET /api/v1/health` endpoint in [`server.go`](../apps/backend/internal/server/server.go) and [`handler.go`](../apps/backend/internal/health/handler.go) to report database reachability.
-- [ ] **Automated Tests:**
-  - Add test harness using `testcontainers-go` validating migration execution and connection establishment.
-- [ ] **Documentation & Make Targets:**
-  - Add `Makefile` targets: `make db-up`, `make db-migrate`, `make db-test`.
+- [x] **Repository Structure:**
+  - Database package established in `apps/backend/internal/db`.
+  - Migrations established in `apps/backend/internal/db/migrations`.
+- [x] **Dependency Evaluation & Installation:**
+  - Introduced `github.com/jackc/pgx/v5` and `github.com/google/uuid` to `apps/backend/go.mod`.
+  - Built programmatic PostgreSQL advisory-locked migration runner (`internal/db/migrate.go`) and CLI (`cmd/migrate/main.go`).
+- [x] **Initial Migration (`0001_baseline.up.sql` & `0002_github_integration.up.sql`):**
+  - Implemented `organizations`, `users`, and `organization_memberships`.
+  - Implemented `projects` and `environments`.
+  - Implemented `services`, `service_resources`, `secret_references`, `deployments`, `build_jobs`, `releases`, `outbox_events`, `custom_domains`, `metering_ledger`, `audit_logs`.
+  - Implemented GitHub integration tables: `github_installations`, `github_installation_states`, `github_repositories`, `github_webhook_events`, `service_sources`.
+  - Widened `deployments.git_commit_sha` to `VARCHAR(64)` for Git SHA-256 support.
+- [x] **Connection Engine (`apps/backend/internal/db/pool.go`):**
+  - Implemented `NewPool(ctx context.Context, config Config) (*pgxpool.Pool, error)`.
+  - Configured connection limits, max conn idle time, and health pings.
+- [x] **Automated Tests & Harness:**
+  - Implemented schema-isolated PostgreSQL test runner in `apps/backend/internal/testutil/db.go`.
+- [ ] **Next Milestone (Arpit Action Plan):**
+  - Implement typed query repository interfaces consumed by API handlers (`internal/platformdb`).
+  - Wire database pool ping into `GET /api/v1/health` deep readiness check.
+  - Set up WAL-G / pgBackRest S3-compatible automated backup script.
 
 ---
 
