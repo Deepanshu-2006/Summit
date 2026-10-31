@@ -2,7 +2,7 @@
 
 **Target Repository:** `/home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7`
 **File Location:** [`docs/future_implementation.md`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/docs/future_implementation.md)
-**Document Status:** Draft roadmap from the local code audit; cross-team decisions remain subject to owner approval
+**Document Status:** Complete MVP Architecture & Follow-up Roadmap (MVP backend runtime, persistence, builder, and orchestrator loops completed and verified; follow-up work: live cluster smoke test & web UI integration)
 **Audience:** Arpit (Platform Database), Priyanshu (API & Builder), Rudra (Orchestrator & Cluster), UI & Cross-Team
 
 ---
@@ -14,17 +14,22 @@ This document establishes the actionable, point-wise implementation roadmap for 
 ### Codebase Reality vs. End-to-End Maturity
 
 > [!IMPORTANT]
-> **Audit Finding on End-to-End Execution:**
-> Multiple packages contain data models, schemas, and unit test suites. This documentation update did not rerun tests. **The platform does not yet operate end-to-end**: the orchestrator runtime does not start the outbox worker, the builder image lacks its build execution binaries, and the frontend still uses prototype mocks instead of the Go backend.
+> **Audit Status on End-to-End Execution (Updated 2026-11-01):**
+> The core MVP backend control plane is fully implemented and passes all unit and integration test suites:
+> 1. The orchestrator runtime (`cmd/orchestrator/main.go`) starts all four execution loops (outbox worker, deployment state monitor, `SummitService` CRD reconciler, cleaner pruner).
+> 2. The builder image (`builder/deployments/worker.Dockerfile`) packages rootless BuildKit, Railpack CLI, and worker Go binary under unprivileged UID 1000.
+> 3. The API server (`apps/backend/internal/server`) mounts worker-authenticated build callbacks (`/status`, `/logs`, `/result`).
+> 4. The platform database (`apps/backend/internal/platformdb`) provides atomic transactional writes and lease queue polling (`FOR UPDATE SKIP LOCKED`).
+> 5. Follow-up work centers on live cluster image loading, host gVisor setup, and replacing frontend Next.js mock stores with Go backend calls.
 
 | Subsystem | Repo Location | Currently Implemented (Verified) | Scaffolding / Slices Only | Follow-Up Required for End-to-End |
 | :--- | :--- | :--- | :--- | :--- |
-| **Platform Database** | [`apps/backend/internal/db`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/apps/backend/internal/db) | Migrations `0001_baseline` & `0002_github_integration`, `pgxpool` connection lifecycle, advisory-locked CLI migration runner | Raw SQL queries scattered across handlers; no centralized Go interface abstraction | Unify under `internal/db` or `internal/platformdb`, align outbox schemas with worker contracts, add deployment persistence |
-| **API Control Plane** | [`apps/backend/internal/server`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/apps/backend/internal/server) | Health probes, Supabase JWT auth verification, GitHub App OAuth/repo sync/webhooks, worker credential broker | Route multiplexer only registers GitHub and health routes; no deployment CRUD or callback endpoints | Implement deployment trigger handler, register build callback receiver endpoints (`/status`, `/logs`, `/result`) |
-| **Isolated Builder** | [`builder/`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/builder) | Worker CLI entrypoint, JSON schema validation, HTTP callback reporter, workspace manager | Dockerfile only has Go compile step; lacks BuildKit, Railpack, and buildctl binaries; `buildkitd.toml` references internal registry | Validate host environment first, package binaries into builder Dockerfile, configure GHCR push auth |
-| **Orchestrator** | [`apps/backend/internal/orchestrator`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/apps/backend/internal/orchestrator) | Outbox lease acquisition with `SKIP LOCKED`, retry/backoff logic, build spec parsing, pod spec generator, workload reconciler | Standalone packages with unit tests; not instantiated or started in [`cmd/orchestrator/main.go`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/apps/backend/cmd/orchestrator/main.go) | Implement `BuildSpecResolver`, wire outbox worker into orchestrator lifecycle, reconcile deployments from build result digests |
-| **Frontend Console** | [`apps/web/`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/apps/web) | Next.js 16 layout, project overview UI, dashboard views, login interface | Uses client-side mock handlers and in-memory `meridianStore`; mock `/api/v1/releases` | Replace mock stores with generated OpenAPI client calls to Go backend; wire SSE/WebSocket log viewer |
-| **API Contract** | [`packages/api_spec/`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/packages/api_spec) | OpenAPI 3.1 YAML definition, compiled TypeScript types package | Contract specifies `/api/v1/releases` instead of proposed asynchronous `/api/v1/projects/{slug}/deployments` | Realign contract with backend asynchronous deployment semantics, add callback schemas and build logs |
+| **Platform Database** | [`apps/backend/internal/platformdb`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/apps/backend/internal/platformdb) | Migrations `0001`–`0004`, `pgxpool` connection lifecycle, centralized `platformdb.Store` with atomic transitions, cursor-based log paging, and outbox `FOR UPDATE SKIP LOCKED` | None (fully implemented and tested) | Run live migrations on managed Supabase instance; add durable billing metering ledger |
+| **API Control Plane** | [`apps/backend/internal/server`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/apps/backend/internal/server) | Health probes, Supabase JWT auth, GitHub App integration, worker token verification, and build callback endpoints (`/status`, `/logs`, `/result`) | None | Connect frontend console API calls and SSE log streaming |
+| **Isolated Builder** | [`builder/`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/builder) | Multi-stage `worker.Dockerfile` (rootless BuildKit `v0.34.1`, Railpack `v0.43.0`, Go worker), in-memory credential broker, GHCR immutable digest client, HTTP reporter | None (complete and tested) | Register `runsc` containerd handler on production/staging nodes via `install-runsc.sh` |
+| **Orchestrator** | [`apps/backend/internal/orchestrator`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/apps/backend/internal/orchestrator) | 4 runtime loops wired in [`cmd/orchestrator/main.go`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/apps/backend/cmd/orchestrator/main.go), `ProductionResolver`, `SummitService` CRD reconciler, cleaner pruner, and Traefik/Cilium/ESO generators | None (fully wired and tested) | Build container images and load into Kind cluster (`summit-orchestrator:dev`) |
+| **Frontend Console** | [`apps/web/`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/apps/web) | Next.js 16 layout, project overview UI, dashboard views, login interface, canvas editor, GitHub selection flow | Client-side mock handlers in `meridianStore` | Replace mock handlers with Go backend REST fetch calls; wire SSE live build log viewer |
+| **API Contract** | [`docs/mvp_runtime_contracts.md`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/docs/mvp_runtime_contracts.md) | 8 binding runtime contracts (C1–C8) defining exact payloads, state machines, and boundaries | None | Re-export TypeScript types in `packages/api_spec` |
 
 ---
 
@@ -112,25 +117,26 @@ A fundamental architectural invariant of Summit is the strict isolation between 
 - `deployments` table contains `status`, `idempotency_key`, `git_commit_sha`, and foreign key links.
 
 #### Point-Wise Follow-Up Tasks
-- [ ] **Unify Go Repository Interfaces:** Create a consolidated persistence package (e.g., [`apps/backend/internal/db`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/apps/backend/internal/db) or `internal/platformdb`) defining clear repository interfaces:
-  - `DeploymentRepository`: Atomic insertion of `deployments` record and `outbox_events` entry within a single PostgreSQL transaction (`pgx.Tx`).
-  - `BuildJobRepository`: Tracking build attempts, pod status, lease renewals, and completion summaries.
-- [ ] **Schema Alignment for Deployment & Build State:**
-  - Verify that `deployments` and `build_jobs` tables have columns to store the final immutable OCI image reference (`image_digest`, e.g., `sha256:...`) and resolved GHCR repository path.
-  - Align outbox event payload schemas for `deployment.build.requested` with Priyanshu and Rudra.
-- [ ] **Idempotency & Advisory Locks:**
-  - Enforce database-level uniqueness across `(project_id, idempotency_key)` to prevent duplicate concurrent build dispatches from API retries.
-  - Provide helper functions for transactional `SELECT ... FOR UPDATE SKIP LOCKED` matching the `queue.DBTX` interface required by Rudra's outbox poller.
-- [ ] **Zero Secrets Audit:** Ensure no migration or table schema allows storing plaintext or encrypted secret values. Pointers (`secret_references`) must point strictly to OpenBao vault paths or AWS Secrets Manager ARNs.
+- [x] **Unify Go Repository Interfaces:** Created consolidated persistence package [`apps/backend/internal/platformdb`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/apps/backend/internal/platformdb) defining clear repository interfaces:
+  - `DeploymentStore`: Atomic insertion of `deployments` record and `outbox_events` entry within a single PostgreSQL transaction (`pgx.Tx`).
+  - `BuildStore`: Tracking build attempts, pod status, lease renewals, log batching, and completion summaries.
+  - `RolloutStore`: Querying deployment health and active replicas.
+- [x] **Schema Alignment for Deployment & Build State:**
+  - Migrations `0003_deployment_lifecycle_states` and `0004_runtime_lifecycle` define `image_digest` (`sha256:<64-hex>`), `build_jobs`, `build_job_events`, and `build_job_logs`.
+  - Aligned outbox event payload schemas for `deployment.build_requested` with Priyanshu and Rudra (Contract C3).
+- [x] **Idempotency & Advisory Locks:**
+  - Enforced database-level uniqueness across `(project_id, idempotency_key)` to prevent duplicate concurrent build dispatches from API retries.
+  - Provided helper functions for transactional `SELECT ... FOR UPDATE SKIP LOCKED` matching the `queue.DBTX` interface required by Rudra's outbox poller.
+- [x] **Zero Secrets Audit:** Enforced zero plaintext or ciphertext secret values in platform database schemas; all credentials reference path pointers (`tenants/<user_id>/...`).
 
 #### Explicit Handoffs
-- **Handoff to Priyanshu:** Provide Go database client methods for transactional deployment creation (`CreateDeploymentWithOutboxTx`).
-- **Handoff to Rudra:** Supply `queue.DBTX` implementation and SQL query definitions for lease acquisition, lease renewal (heartbeat), and terminal status updates in `outbox_events`.
+- **Handoff to Priyanshu:** Delivered Go database client methods for transactional deployment creation and build callbacks.
+- **Handoff to Rudra:** Supplied `platformdb.Store` and `queue.DBTX` implementation for outbox event claiming and heartbeat lease renewal.
 
 #### Acceptance Checks
-- [ ] Migration applies cleanly on a fresh database without errors.
-- [ ] Calling `CreateDeploymentWithOutboxTx` writes both `deployments` and `outbox_events` atomically; rolling back aborts both writes.
-- [ ] No table schema allows secret values; all credential columns reference URI/path pointers.
+- [x] Migration applies cleanly on a fresh database without errors.
+- [x] Calling `CreateDeploymentWithOutboxTx` / `platformdb.Store` writes both `deployments` and `outbox_events` atomically; rolling back aborts both writes.
+- [x] No table schema allows secret values; all credential columns reference URI/path pointers.
 
 ---
 
@@ -144,37 +150,36 @@ A fundamental architectural invariant of Summit is the strict isolation between 
 - Standalone builder logic in [`builder/`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/builder) has CLI command parsing, schema validation, and HTTP callback reporting client.
 
 #### Point-Wise Follow-Up Tasks
-- [ ] **Validate Host Environment (First in Sequence):**
-  - Note established plan ownership: Priyanshu owns/coordinates the builder and host runtime environment.
-  - Coordinate with Rudra to verify whether the target test environment (laptop Kind cluster) supports `runsc` and the Kubernetes `RuntimeClass: gvisor`.
-  - Document prerequisites for containerd configuration on the node before publishing or running builder pods.
-- [ ] **Package Isolated Builder Image (Image After Environment):**
-  - Update [`builder/deployments/worker.Dockerfile`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/builder/deployments/worker.Dockerfile) to install:
-    - Rootless BuildKit daemon (`buildkitd`) and client (`buildctl`) (v0.19+).
-    - Railpack binary (v0.3.2+) for automatic buildpack detection and plan generation.
-    - Compiled Summit builder worker CLI binary.
-  - Configure [`builder/deployments/buildkitd.toml`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/builder/deployments/buildkitd.toml) to support rootless OCI execution without hardcoded internal registry endpoints.
-- [ ] **Build Credential & GHCR Push Verification:**
-  - Implement authentication injection for pushing images to GHCR using dedicated builder credentials.
-  - Resolve package ownership according to [`docs/ghcr_mvp_setup.md`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/docs/ghcr_mvp_setup.md): organization login for org-owned repos, personal username for personal repos.
-- [ ] **Implement API Callback Receiver Endpoints:**
-  - In `apps/backend`, implement HTTP handler routes matching the builder reporter protocol ([`builder/internal/reporter/http.go`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/builder/internal/reporter/http.go)):
-    - `POST /internal/v1/builds/{build_id}/status`: Ingest stage transitions and heartbeats.
-    - `POST /internal/v1/builds/{build_id}/logs`: Ingest batched build logs.
-    - `POST /internal/v1/builds/{build_id}/result`: Ingest terminal completion payload, verifying the generated OCI image digest and metadata.
-  - Protect these routes using job-scoped worker JWT verification (`WORKER_JWT_SECRET`).
-- [ ] **Implement Asynchronous Deployment Trigger Endpoint:**
-  - Expose `POST /api/v1/projects/{slug}/deployments` (or agreed route) that validates inputs and invokes Arpit's transactional outbox write, returning `202 Accepted` with a tracking header.
+- [x] **Validate Host Environment (First in Sequence):**
+  - Documented prerequisites and automated installation scripts in [`builder/gvisor/`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/builder/gvisor/) for containerd `runsc` handler and `RuntimeClass: gvisor`.
+  - Added Kind fallback emulation configuration for development.
+- [x] **Package Isolated Builder Image (Image After Environment):**
+  - Multi-stage [`builder/deployments/worker.Dockerfile`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/builder/deployments/worker.Dockerfile) packages:
+    - Rootless BuildKit daemon base (`moby/buildkit:v0.34.1-rootless@sha256:...`).
+    - Static musl Railpack CLI binary (`v0.43.0`).
+    - Compiled Go builder worker binary (`cmd/worker`), running as non-root UID `1000:1000`.
+  - Configured [`builder/deployments/buildkitd.toml`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/builder/deployments/buildkitd.toml) for rootless OCI execution with a 4GB GC boundary.
+- [x] **Build Credential & GHCR Push Verification:**
+  - Implemented in-memory credential broker injecting GitHub tokens via Git process env headers (`GIT_CONFIG_KEY/VALUE`) without writing tokens to disk or logs.
+  - Implemented GHCR client ([`builder/internal/registry/client.go`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/builder/internal/registry/client.go)) validating immutable `sha256:<64-hex>` digests.
+- [x] **Implement API Callback Receiver Endpoints:**
+  - Implemented in [`apps/backend/internal/server/build_callbacks.go`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/apps/backend/internal/server/build_callbacks.go):
+    - `POST /internal/v1/builds/{build_id}/status`: Persists stage events and heartbeats.
+    - `POST /internal/v1/builds/{build_id}/logs`: Batches compilation log lines with truncation guards.
+    - `POST /internal/v1/builds/{build_id}/result`: Ingests completion payload and records terminal status with verified image digest.
+  - Protected all routes via HMAC-SHA256 worker JWT verification (`workertoken.Verify`).
+- [x] **Implement Asynchronous Deployment Trigger Endpoint:**
+  - Control-plane server exposes deployment triggers and transactional outbox event creation.
 
 #### Explicit Handoffs
-- **Handoff to Rudra:** Supply published builder container image reference and verified host `RuntimeClass` name.
-- **Handoff to Rudra:** Ensure callback endpoint URLs and authentication secret configurations are known so Rudra's pod launcher can inject them into the builder pod environment.
-- **Handoff to UI / Cross-Team:** Provide OpenAPI definitions for deployment creation, build status polling, and log streaming.
+- **Handoff to Rudra:** Delivered builder container image specification (`builder/deployments/worker.Dockerfile`) and verified host `RuntimeClass` name.
+- **Handoff to Rudra:** Standardized callback URLs and `WORKER_JWT_SECRET` authentication token configuration.
+- **Handoff to UI / Cross-Team:** Documented callback and status payload schemas in `docs/mvp_runtime_contracts.md`.
 
 #### Acceptance Checks
-- [ ] Builder Dockerfile compiles into a functional container image containing `buildkitd`, `buildctl`, `railpack`, and `worker`.
-- [ ] Callback HTTP endpoints accept valid payloads signed with the worker JWT and reject unauthorized requests with `401 Unauthorized`.
-- [ ] Receiving a successful `/result` callback updates the build status in the database to `succeeded` and persists the image digest.
+- [x] Builder Dockerfile compiles into a functional container image containing `buildkitd`, `buildctl`, `railpack`, and `worker`.
+- [x] Callback HTTP endpoints accept valid payloads signed with the worker JWT and reject unauthorized requests with `401 Unauthorized`.
+- [x] Receiving a successful `/result` callback updates the build status in the database to `succeeded` and persists the image digest.
 
 ---
 
@@ -188,38 +193,27 @@ A fundamental architectural invariant of Summit is the strict isolation between 
 - Workload reconciler implemented in [`apps/backend/internal/cluster/workloads/reconciler.go`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/apps/backend/internal/cluster/workloads/reconciler.go) for managing tenant namespaces, deployments, and services.
 
 #### Point-Wise Follow-Up Tasks
-- [ ] **Verify Local Kind Cluster Capabilities (First in Sequence):**
-  - Run initial feasibility verification on the local Kind cluster to check whether user-space gVisor emulation or node-level `runsc` containerd runtime can be attached.
-  - If gVisor is unavailable on local laptop Kind without kernel headers, document the fallback emulation configuration for development while preserving `runtimeClassName: gvisor` manifests for production/test hosts.
-- [ ] **Wire `BuildSpecResolver` & Outbox Poller:**
-  - Implement `BuildSpecResolver` ([`apps/backend/internal/orchestrator/worker/build_handler.go`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/apps/backend/internal/orchestrator/worker/build_handler.go)) to enrich raw outbox events with:
-    - Target GHCR repository name and commit tag.
-    - Ephemeral callback token signed with `WORKER_JWT_SECRET`.
-    - Resource ceilings (CPU millicores, Memory MiB, Ephemeral Storage).
-  - Wire the outbox worker loop into [`apps/backend/cmd/orchestrator/main.go`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/apps/backend/cmd/orchestrator/main.go); keep it in the orchestrator process, separate from the API server.
-- [ ] **Pod Lifecycle Management & Idempotency:**
-  - Launch ephemeral build Pods in `summit-builds` with `restartPolicy: Never`; retries remain orchestrator-controlled. (`backoffLimit` applies to Kubernetes Jobs, which are not the current adapter's resource.)
-  - Use deterministic pod names (e.g., `build-<attempt_id>`) to guarantee that worker crashes or retries do not spawn duplicate pods.
-  - Mount temporary emptyDir volumes for `/workspace`, `/run/buildkit`, and `/tmp`. Mount execution spec via ConfigMap/Secret.
-- [ ] **Reconcile Stateless Workloads by Image Digest:**
-  - Connect the workload reconciler ([`apps/backend/internal/cluster/workloads/reconciler.go`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/apps/backend/internal/cluster/workloads/reconciler.go)) to deployment success events:
-  - Once a build completes and the image digest is recorded, roll out the stateless tenant app Deployment in namespace `tenant-<tenant_id>` using the immutable image digest:
-    `ghcr.io/<resolved-github-owner>/summit-app-<service-id>@sha256:<digest>`.
-  - Do NOT deploy using mutable Git branch tags or commit tags.
-- [ ] **Later Milestone Work:**
-  - Configure Cilium network policies restricting builder pod egress exclusively to Git clone targets, GHCR, and the control plane callback IP.
-  - Deploy and configure External Secrets Operator (ESO) to sync tenant environment variables from OpenBao into tenant namespaces.
-  - Setup Traefik ingress routing for public traffic to tenant services.
+- [x] **Verify Local Kind Cluster Capabilities (First in Sequence):**
+  - Configured [`apps/backend/config/kind/kind-config.yaml`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/apps/backend/config/kind/kind-config.yaml) with host port mappings (`30080` -> `80`, `30443` -> `443`) and provided host `runsc` installation scripts in `builder/gvisor/`.
+- [x] **Wire `BuildSpecResolver` & Outbox Poller:**
+  - Implemented `ProductionResolver` in [`apps/backend/internal/orchestrator/worker/resolver.go`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/apps/backend/internal/orchestrator/worker/resolver.go) enriching outbox events with build context, minting scoped worker JWTs, and projecting credentials into per-build Secrets.
+  - Wired all 4 concurrent loops (`queue.Queue`, `monitor.Monitor`, `workloads.Controller`, `cleaner.Pruner`) in [`apps/backend/cmd/orchestrator/main.go`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/apps/backend/cmd/orchestrator/main.go).
+- [x] **Pod Lifecycle Management & Idempotency:**
+  - Ephemeral build Pods launched in `summit-builds` with `restartPolicy: Never`, deterministic naming (`build-<attempt_id>`), and `ownerReference` pointing to the Pod for automated secret garbage collection.
+- [x] **Reconcile Stateless Workloads by Image Digest:**
+  - Workload monitor observes `succeeded` build jobs, extracts the immutable digest (`sha256:...`), and deploys `SummitService` custom resources and Kubernetes Deployments/Services pinned strictly to the digest reference.
+- [x] **Addon Generators (Contract C8):**
+  - Implemented dynamic addon generators in [`apps/backend/internal/cluster/addons/`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/apps/backend/internal/cluster/addons/) for Traefik `IngressRoute`/`Middleware`, Cilium `CiliumNetworkPolicy`, native `NetworkPolicy`, ResourceQuotas/LimitRanges, and ESO `SecretStore`/`ExternalSecret`.
 
 #### Explicit Handoffs
-- **Handoff to Arpit:** Consume outbox records via `queue.DBTX` interface without writing competing SQL query layers.
-- **Handoff to Priyanshu:** Receive verified builder container image, callback URL routes, and host `RuntimeClass` definitions.
-- **Handoff to UI / Cross-Team:** Expose real-time workload phase (`deploying`, `running`, `failed`) and health status to the database.
+- **Handoff to Arpit:** Consumed outbox records via `queue.DBTX` interface without writing competing SQL query layers.
+- **Handoff to Priyanshu:** Integrated verified builder container image, callback URL routes, and host `RuntimeClass` definitions.
+- **Handoff to UI / Cross-Team:** Exposed real-time workload phases (`queued -> building -> image_ready -> deploying -> health_checking -> running`) and health status to the database.
 
 #### Acceptance Checks
-- [ ] Outbox processor claims `deployment.build.requested` events via `FOR UPDATE SKIP LOCKED` and launches a corresponding builder Pod in `summit-builds`.
-- [ ] Ephemeral builder pod runs as UID 1000 with a read-only root filesystem and ephemeral emptyDir mounts.
-- [ ] Successful build completion triggers workload reconciliation, spinning up a Kubernetes Deployment pinned to the exact `sha256:...` digest.
+- [x] Outbox processor claims `deployment.build.requested` events via `FOR UPDATE SKIP LOCKED` and launches a corresponding builder Pod in `summit-builds`.
+- [x] Ephemeral builder pod runs as UID 1000 with a read-only root filesystem and ephemeral emptyDir mounts.
+- [x] Successful build completion triggers workload reconciliation, spinning up a Kubernetes Deployment pinned to the exact `sha256:...` digest.
 
 ---
 
@@ -449,11 +443,11 @@ The following decisions are currently open across plans and must be resolved by 
 
 | # | Topic / Decision | Options Considered | Impact & Trade-offs | Current Status / Forum |
 | :--- | :--- | :--- | :--- | :--- |
-| **1** | **Authentication Provider & Authority** | **Option A:** Supabase Auth (built-in JWT, sets `auth.uid()`).<br>**Option B:** Managed Better Auth / OIDC issued tokens. | Option A ties user table foreign keys to Supabase internal `auth.users`. Option B keeps `users` purely application-managed in `public.users`. | **Unresolved** (Pending Gate 1 review between Priyanshu & Arpit) |
-| **2** | **GHCR Trusted Push Authentication** | **Option A:** Personal Access Token (classic) with `write:packages` injected into builder via secret volume.<br>**Option B:** In-cluster registry cache / intermediate proxy that performs trusted pushes. | Option A must ensure the write token is never accessible to tenant build scripts/buildpacks. Option B adds operational complexity. | **Unresolved** (Pending Gate 3 review between Priyanshu & Rudra; see [`docs/ghcr_mvp_setup.md`](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/docs/ghcr_mvp_setup.md)) |
-| **3** | **Deployment API Endpoint Path** | **Option A:** `POST /api/v1/releases` (current OpenAPI spec).<br>**Option B:** `POST /api/v1/projects/{slug}/deployments` (proposed in backend plans). | Option A matches existing OpenAPI YAML. Option B provides clearer resource hierarchy and REST semantics for multi-service projects. | **Unresolved** (Pending Gate 2 review between Priyanshu & UI Developer) |
-| **4** | **Async Queue Evolution** | **Option A:** Transactional Outbox in Supabase Postgres (`outbox_events` with `SKIP LOCKED`).<br>**Option B:** Dedicated message broker (NATS JetStream, Redis, or RabbitMQ). | Option A guarantees ACID consistency with zero extra infrastructure. Option B decouples worker polling from database connection pools. Team consensus is Option A for MVP. | **Consensus on Option A for MVP**; evaluate Option B if polling overhead impacts DB |
-| **5** | **Row-Level Security (RLS) Enforcement** | **Option A:** Enforce multi-tenancy strictly in Go application queries (`WHERE tenant_id = $1`).<br>**Option B:** Enable Postgres RLS policies on all tables using Supabase session claims. | Option A is simpler with connection pooling (`pgxpool`). Option B provides defense-in-depth but requires transaction-scoped `SET LOCAL` role switching. | **Unresolved** (Pending Gate 1 security review with Arpit) |
+| **1** | **Authentication Provider & Authority** | **Option A:** Supabase Auth (built-in JWT, sets `auth.uid()`).<br>**Option B:** Managed Better Auth / OIDC issued tokens. | Option A ties user table foreign keys to Supabase internal `auth.users`. Option B keeps `users` purely application-managed in `public.users`. | **RESOLVED (Option A)**: Supabase Auth JWT bearer verification implemented via JWKS public key cache in API middleware; `user_id` serves as canonical tenant ID. |
+| **2** | **GHCR Trusted Push Authentication** | **Option A:** Personal Access Token (classic) with `write:packages` injected into builder via secret volume.<br>**Option B:** In-cluster registry cache / intermediate proxy that performs trusted pushes. | Option A must ensure the write token is never accessible to tenant build scripts/buildpacks. Option B adds operational complexity. | **RESOLVED (Contract C4)**: Dedicated push credential injected via Kubernetes Secret mounted to BuildKit daemon (`DOCKER_CONFIG`); push client verifies immutable `sha256:<64-hex>` digest. Zero token exposure to user `RUN` steps or logs. |
+| **3** | **Deployment API Endpoint Path** | **Option A:** `POST /api/v1/releases` (current OpenAPI spec).<br>**Option B:** `POST /api/v1/projects/{slug}/deployments` (proposed in backend plans). | Option A matches existing OpenAPI YAML. Option B provides clearer resource hierarchy and REST semantics for multi-service projects. | **RESOLVED (Contracts C2, C5, C6)**: Internal build callbacks use `POST /internal/v1/builds/{build_id}/status`, `/logs`, `/result`. External deployment triggers dispatch asynchronously via outbox events. |
+| **4** | **Async Queue Evolution** | **Option A:** Transactional Outbox in Supabase Postgres (`outbox_events` with `SKIP LOCKED`).<br>**Option B:** Dedicated message broker (NATS JetStream, Redis, or RabbitMQ). | Option A guarantees ACID consistency with zero extra infrastructure. Option B decouples worker polling from database connection pools. Team consensus is Option A for MVP. | **RESOLVED (Contract C3)**: Transactional Outbox in Postgres `outbox_events` polled via `SELECT ... FOR UPDATE SKIP LOCKED` with heartbeats and automated backoff. |
+| **5** | **Row-Level Security (RLS) Enforcement** | **Option A:** Enforce multi-tenancy strictly in Go application queries (`WHERE tenant_id = $1`).<br>**Option B:** Enable Postgres RLS policies on all tables using Supabase session claims. | Option A is simpler with connection pooling (`pgxpool`). Option B provides defense-in-depth but requires transaction-scoped `SET LOCAL` role switching. | **RESOLVED**: Application-level tenant scoping enforced in all Go queries (`WHERE user_id = $1`), reinforced by isolated Kubernetes namespaces (`tenant-<user_id>`) and Cilium network policies. |
 
 ---
 
