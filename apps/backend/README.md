@@ -6,6 +6,8 @@ Go backend service scaffold for the Summit / Jetway PaaS Control Plane.
 
 The service provides a minimal, idiomatic Go HTTP foundation aligned with the monorepo's canonical OpenAPI 3.1 contract (`packages/api_spec/openapi.yaml`). It uses the Go standard library for routing, structured logging (`log/slog`), and graceful shutdown, with no third-party dependencies.
 
+The service is also the `@summit/backend` pnpm workspace package. Its `package.json` exposes `dev`, `build`, `lint`, and `test` scripts to Turborepo; the Go module remains the only Go dependency definition.
+
 ## Directory Layout
 
 ```text
@@ -20,7 +22,9 @@ apps/backend/
 │   │   └── handler.go        # OpenAPI-compliant health endpoint handler
 │   └── server/
 │       └── server.go         # HTTP server, routing, CORS, and graceful shutdown
+├── bin/                      # Local build output (gitignored)
 ├── go.mod                    # Go module definition
+├── package.json              # Turborepo task adapter
 └── README.md                 # Service documentation
 ```
 
@@ -43,31 +47,44 @@ Runtime behavior is configured via environment variables with safe defaults:
 Run the service locally:
 
 ```bash
-# From workspace root:
+# From workspace root, through Turborepo:
 pnpm dev:backend
+
+# From workspace root, scoped directly to the package:
+pnpm --filter @summit/backend dev
 
 # Or directly from apps/backend:
 go run ./cmd/api
 ```
 
-Build the service binary:
+Build the service binary to `apps/backend/bin/api`:
 
 ```bash
-# From workspace root:
+# From workspace root, through Turborepo:
 pnpm build:backend
 
 # Or from apps/backend:
-go build ./...
+go build -o bin/api ./cmd/api
 ```
 
 Run static analysis:
 
 ```bash
-# From workspace root:
+# From workspace root, through Turborepo:
 pnpm lint:backend
 
 # Or from apps/backend:
 go vet ./...
+```
+
+Run tests:
+
+```bash
+# From workspace root, through Turborepo:
+pnpm test:backend
+
+# Or from apps/backend:
+go test ./...
 ```
 
 ## Endpoints

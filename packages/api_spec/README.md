@@ -79,6 +79,9 @@ pnpm --filter @summit/api-spec build
 
 # Typecheck the package
 pnpm --filter @summit/api-spec typecheck
+
+# Typecheck only the contract package through Turborepo
+pnpm typecheck:api
 ```
 
 Or from `packages/api_spec`:
@@ -86,3 +89,5 @@ Or from `packages/api_spec`:
 pnpm build
 pnpm typecheck
 ```
+
+Turborepo runs this package's `build` task before `apps/web` builds or type-checks, because `apps/web` depends on `@summit/api-spec`. A clean checkout therefore does not need a manual build step before `pnpm dev` or `pnpm typecheck`.

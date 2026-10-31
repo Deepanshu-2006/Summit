@@ -1,0 +1,11 @@
+{
+  "name": "@summit/backend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "go run ./cmd/api",
+    "build": "go build -o bin/api ./cmd/api",
+    "lint": "go vet ./...",
+    "test": "go test ./..."
+  }
+}
