@@ -15,6 +15,8 @@ apps/backend/
 ├── cmd/
 │   ├── api/
 │   │   └── main.go           # Application entrypoint & worker lifecycle spawner
+│   ├── orchestrator/
+│   │   └── main.go           # Orchestrator entrypoint & read-only cluster probe
 │   └── migrate/
 │       └── main.go           # Standalone advisory-locked database migration CLI
 ├── internal/
@@ -22,6 +24,8 @@ apps/backend/
 │   ├── auth/                 # Supabase JWT verifier (JWKS / HS256) & user synchronizer
 │   ├── authz/                # Multi-tenant RBAC permission matrix & middleware
 │   ├── config/               # Environment configuration with production safety checks
+│   ├── cluster/              # Kubernetes connection and read-only discovery probe
+│   │   └── workloads/         # SummitService CRD reconciler and polling controller
 │   ├── db/                   # pgxpool connection manager & advisory-locked migration runner
 │   │   └── migrations/       # SQL migrations (0001_baseline, 0002_github_integration)
 │   ├── githubapi/            # REST API handlers for installations, repositories & sources
@@ -31,12 +35,16 @@ apps/backend/
 │   ├── health/               # Health telemetry & liveness probe handlers
 │   ├── httpx/                # RFC 7807 standard JSON error envelopes & response helpers
 │   ├── installstate/         # Single-use CSRF installation state generator & SHA-256 verifier
+│   ├── orchestrator/         # Outbox queue, build Pod adapter, and build request handoff
+│   │   ├── build/            # Builder Pod/ConfigMap lifecycle adapter (consumes Priyanshu's image)
+│   │   ├── queue/            # PostgreSQL outbox claim, lease, retry, and completion adapter
+│   │   └── worker/           # Validates event-to-build-spec handoff and dispatches a Pod
 │   ├── secrets/              # OpenBao AppRole client & multi-tier secrets router
 │   ├── server/               # HTTP router multiplexer, CORS, & graceful shutdown
 │   ├── sourcepath/           # Lexical path traversal sanitizer & branch/SHA validator
 │   └── testutil/             # Schema-isolated PostgreSQL test database runner
 ├── bin/                      # Local build output (gitignored)
-├── go.mod                    # Go 1.23 module definition
+├── go.mod                    # Go 1.26 module definition
 ├── go.sum                    # Checksums for Go dependencies
 ├── package.json              # Turborepo task adapter
 └── README.md                 # Service documentation
@@ -77,6 +85,26 @@ pnpm dev:backend
 # Or directly from apps/backend:
 go run ./cmd/api
 ```
+
+Run the orchestrator foundations against the current kubeconfig (defaults to `~/.kube/config`):
+
+```bash
+cd apps/backend
+go run ./cmd/orchestrator
+```
+
+The `cmd/orchestrator` entrypoint currently only checks Kubernetes API reachability through the read-only discovery endpoint, logs the server version, and waits for shutdown. The queue, build dispatch, and workload controller are implemented as independently testable packages but are not started by this command yet. The build-spec resolver and callback/status integration depend on the teammate-owned API/database handoff. Set `ORCHESTRATOR_CLUSTER_TARGET=in-cluster` when running inside Kubernetes, or `ORCHESTRATOR_CLUSTER_TARGET=kubeconfig` to explicitly select kubeconfig mode. `ORCHESTRATOR_KUBE_CONTEXT` can select a context.
+
+The current Rudra-owned component slices are:
+
+- `internal/orchestrator/queue`: claims existing `outbox_events` with `FOR UPDATE SKIP LOCKED`, renews leases, retries failures, and transitions terminal build/deployment rows using the existing schema.
+- `internal/orchestrator/worker`: validates the existing build event against an injected version 1 spec resolver, schedules the idempotent builder Pod, and records dispatch. No enrichment values or credentials are invented here.
+- `internal/orchestrator/build`: creates, observes, and cleans up isolated builder Pods in `summit-builds`, referencing the configured `gvisor` RuntimeClass and builder image.
+- `internal/cluster/workloads`: polls namespaced `SummitService` resources and reconciles a backend Deployment and internal ClusterIP Service; it persists CRD status through the status subresource.
+
+The MVP dispatcher uses `build_jobs.id` as `BuildExecutionSpec.build.id` and uses the same UUID as `attempt_id` (attempt number `1`). This gives an outbox replay a stable Pod identity without adding an attempt-history table. Build credential Secret references resolve to read-only projected files: source and reporting secrets need a `token` key, while the GHCR push secret needs a `.dockerconfigjson` key projected as `config.json`. Files are mounted read-only with mode `0440` and pod `fsGroup: 1000` so the non-root builder can read them. Priyanshu's builder image must consume the matching file-path environment variables.
+
+The builder image, host gVisor setup, API callbacks, and enriched build-spec data remain integration dependencies owned by Priyanshu and Arpit. PostgreSQL/Redis workloads are deferred.
 
 Run database migrations:
 

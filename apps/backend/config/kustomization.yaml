@@ -1,0 +1,16 @@
+# Apply with:  kubectl apply -k apps/backend/config
+# Excludes on purpose:
+#   - the gVisor RuntimeClass (owned by builder/gvisor/)
+#   - builds/cilium-network-policy.yaml (needs the Cilium CRDs; apply by hand)
+#   - kind/kind-config.yaml (cluster creation input, not a cluster object)
+# Secrets are never stored in git; see README.md.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespaces.yaml
+  - crd/summit.dev_summitservices.yaml
+  - rbac/orchestrator.yaml
+  - builds/serviceaccount.yaml
+  - builds/network-policy.yaml
+  - api/deployment.yaml
+  - orchestrator/deployment.yaml

@@ -1,128 +1,110 @@
-apiVersion: batch/v1
-kind: Job
+# Reference build Pod for the Summit builder. This mirrors what the orchestrator creates
+# (apps/backend/internal/orchestrator/build/pod.go); the orchestrator is the source of truth.
+# One Pod = one build attempt, restartPolicy Never, no in-place retries. (The file keeps its
+# historical name; it is a bare Pod, not a batch/v1 Job.)
+#
+# NOTE for the orchestrator (apps/backend/internal/orchestrator/build/pod.go): it currently sets
+# allowPrivilegeEscalation=false and drops ALL capabilities, which the rootless BuildKit in this
+# image cannot run under (see the container securityContext below). Build pods need
+# allowPrivilegeEscalation=true plus capabilities add [SETUID, SETGID], and on runc (non-gVisor)
+# nodes a seccomp/AppArmor profile that permits user namespaces (RuntimeDefault may block it).
+#
+# Secrets (all in the `summit-builds` namespace):
+#   summit-build-<build_id>  key `token`: per-build worker JWT, created by the orchestrator and
+#                            owned by the Pod (garbage-collected with it)
+#   ghcr-push                kubernetes.io/dockerconfigjson, created OUT-OF-BAND by an operator:
+#                              kubectl -n summit-builds create secret docker-registry ghcr-push \
+#                                --docker-server=ghcr.io --docker-username=<user> \
+#                                --docker-password=<PAT with write:packages>
+#   ghcr-pull (optional)     read-only pull secret for the private builder image
+apiVersion: v1
+kind: Pod
 metadata:
-  name: summit-build-a5d09f7b-attempt-1
-  namespace: summit-builders
+  name: summit-build-a5d09f7b-6c41-477e-8c31-1e967a5b3a4f
+  namespace: summit-builds
   labels:
-    app.kubernetes.io/name: summit-builder
-    app.kubernetes.io/component: worker
-    summit.io/build-id: "a5d09f7b-6c41-477e-8c31-1e967a5b3a4f"
-    summit.io/attempt-id: "f8c3e210-9b44-42f1-8f52-47d3412019aa"
-    summit.io/tenant-id: "tenant-acme"
+    summit.dev/build-id: "a5d09f7b-6c41-477e-8c31-1e967a5b3a4f"
+    summit.dev/attempt-id: "a5d09f7b-6c41-477e-8c31-1e967a5b3a4f"
+    summit.dev/component: builder
 spec:
-  # Do not allow Kubernetes in-place restarts on failure.
-  # Retries are handled cleanly by Rudra Control Plane with a new attempt ID.
-  backoffLimit: 0
-
-  # Watchdog deadline: timeout_seconds (1200) + 60s grace buffer
-  activeDeadlineSeconds: 1260
-
-  # Automatic resource cleanup after completion or failure
-  ttlSecondsAfterFinished: 600
-
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: summit-builder
-        app.kubernetes.io/component: worker
-        summit.io/build-id: "a5d09f7b-6c41-477e-8c31-1e967a5b3a4f"
-        summit.io/attempt-id: "f8c3e210-9b44-42f1-8f52-47d3412019aa"
-        summit.io/tenant-id: "tenant-acme"
-    spec:
-      runtimeClassName: gvisor
-      restartPolicy: Never
-
-      # Hardened pod-level security context
+  runtimeClassName: gvisor          # RuntimeClass from builder/gvisor/runtimeclass.yaml
+  restartPolicy: Never
+  activeDeadlineSeconds: 1200       # = spec.timeout_seconds
+  automountServiceAccountToken: false   # build steps must not see Kubernetes API credentials
+  imagePullSecrets:
+    - name: ghcr-pull
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000                 # `user` in the moby/buildkit rootless base image
+    runAsGroup: 1000
+    fsGroup: 1000                   # lets UID 1000 read the 0440 secret files
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: builder
+      # Deploy by digest once published by .github/workflows/builder-image.yml
+      image: ghcr.io/summit-org/summit-builder@sha256:0000000000000000000000000000000000000000000000000000000000000000
+      imagePullPolicy: IfNotPresent
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
         runAsGroup: 1000
-        fsGroup: 1000
-        seccompProfile:
-          type: RuntimeDefault
-
-      containers:
-        - name: worker
-          image: ghcr.io/summit/builder-worker:v1.0.0
-          imagePullPolicy: IfNotPresent
-
-          # Hardened container-level security context
-          securityContext:
-            readOnlyRootFilesystem: true
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
-
-          # Resource boundaries matching execution spec limits
-          resources:
-            requests:
-              cpu: "1000m"
-              memory: "2048Mi"
-              ephemeral-storage: "4096Mi"
-            limits:
-              cpu: "2000m"
-              memory: "4096Mi"
-              ephemeral-storage: "8192Mi"
-
-          # Runtime configuration and downward API bindings
-          env:
-            - name: SUMMIT_EXECUTION_SPEC
-              value: "/run/summit/execution.json"
-            - name: SUMMIT_WORKSPACE_BASE_DIR
-              value: "/workspace"
-            - name: SUMMIT_LOG_LEVEL
-              value: "info"
-            - name: SUMMIT_DEFAULT_TIMEOUT_SECONDS
-              value: "1200"
-            - name: BUILDKIT_ROOTLESS
-              value: "true"
-            - name: SUMMIT_WORKER_ID
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-
-          # Mount writable ephemeral workspaces and projected configuration
-          volumeMounts:
-            - name: workspace-volume
-              mountPath: /workspace
-              readOnly: false
-            - name: buildkit-run
-              mountPath: /run/buildkit
-              readOnly: false
-            - name: tmp-volume
-              mountPath: /tmp
-              readOnly: false
-            - name: execution-spec
-              mountPath: /run/summit
-              readOnly: true
-            - name: secret-tokens
-              mountPath: /run/secrets
-              readOnly: true
-
-      volumes:
-        - name: workspace-volume
-          emptyDir:
-            sizeLimit: 10Gi
-        - name: buildkit-run
-          emptyDir:
-            medium: "Memory"
-            sizeLimit: 2Gi
-        - name: tmp-volume
-          emptyDir:
-            sizeLimit: 5Gi
-        - name: execution-spec
-          configMap:
-            name: summit-spec-f8c3e210
-            items:
-              - key: execution.json
-                path: execution.json
-        - name: secret-tokens
-          secret:
-            secretName: summit-creds-f8c3e210
-            defaultMode: 0400
-            items:
-              - key: source-token
-                path: source-credentials/token
-              - key: registry-auth
-                path: registry-credentials/auth
+        # Rootless BuildKit maps a full subuid range through the image's newuidmap/newgidmap,
+        # which rely on file capabilities. Verified with plain Docker: `drop ALL` +
+        # `allowPrivilegeEscalation: false` makes rootlesskit fail ("newuidmap ... operation not
+        # permitted"), and a single-UID mapping cannot unpack images that contain files owned by
+        # other UIDs ("failed to Lchown ... /etc/shadow"). So this container needs:
+        allowPrivilegeEscalation: true
+        capabilities:
+          drop: ["ALL"]
+          add: ["SETUID", "SETGID"]     # the only capabilities added back
+        readOnlyRootFilesystem: false   # rootless BuildKit writes under $HOME and $XDG_RUNTIME_DIR
+      resources:
+        requests: { cpu: "1000m", memory: "2048Mi", ephemeral-storage: "4096Mi" }
+        limits: { cpu: "2000m", memory: "4096Mi", ephemeral-storage: "8192Mi" }
+      env:
+        - name: SUMMIT_EXECUTION_SPEC
+          value: /run/summit/execution.json
+        - name: SUMMIT_SOURCE_CREDENTIAL_FILE      # worker JWT, exchanged at the broker
+          value: /var/run/secrets/summit/source/token
+        - name: SUMMIT_SOURCE_BROKER_URL
+          value: http://summit-api.summit-system.svc.cluster.local:8080/internal/v1/build-requests
+        - name: SUMMIT_REGISTRY_CREDENTIAL_FILE    # docker config.json; exported as DOCKER_CONFIG to buildctl only
+          value: /var/run/secrets/summit/registry/config.json
+        - name: SUMMIT_REPORTING_TOKEN_FILE        # worker JWT, bearer for /internal/v1/builds callbacks
+          value: /var/run/secrets/summit/reporting/token
+        - name: BUILDKIT_ROOTLESS
+          value: "true"
+        # Only if the sandbox cannot give build steps their own PID namespace (see builder/gvisor/README.md):
+        # - name: BUILDKITD_FLAGS
+        #   value: --oci-worker-no-process-sandbox
+      volumeMounts:
+        - { name: execution-spec, mountPath: /run/summit, readOnly: true }
+        - { name: source-creds, mountPath: /var/run/secrets/summit/source, readOnly: true }
+        - { name: registry-creds, mountPath: /var/run/secrets/summit/registry, readOnly: true }
+        - { name: reporting-creds, mountPath: /var/run/secrets/summit/reporting, readOnly: true }
+        - { name: build-cache, mountPath: /home/user/.local/share/buildkit }
+  volumes:
+    - name: execution-spec
+      configMap:
+        name: summit-build-spec-a5d09f7b-6c41-477e-8c31-1e967a5b3a4f
+        defaultMode: 0440
+        items: [{ key: execution.json, path: execution.json }]
+    - name: source-creds
+      secret:
+        secretName: summit-build-a5d09f7b-6c41-477e-8c31-1e967a5b3a4f
+        defaultMode: 0440
+        items: [{ key: token, path: token }]
+    - name: registry-creds
+      secret:
+        secretName: ghcr-push
+        defaultMode: 0440
+        items: [{ key: .dockerconfigjson, path: config.json }]
+    - name: reporting-creds
+      secret:
+        secretName: summit-build-a5d09f7b-6c41-477e-8c31-1e967a5b3a4f
+        defaultMode: 0440
+        items: [{ key: token, path: token }]
+    - name: build-cache
+      emptyDir:
+        sizeLimit: 10Gi

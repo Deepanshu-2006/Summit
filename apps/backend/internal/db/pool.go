@@ -44,3 +44,24 @@ func Open(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
 
 	return pool, nil
 }
+
+// DefaultPingTimeout is used by Ping when the caller passes a non-positive timeout.
+const DefaultPingTimeout = 2 * time.Second
+
+// Ping verifies the pool can reach the database within timeout. It is intended
+// for readiness probes (e.g. GET /api/v1/health deep checks). A non-positive
+// timeout falls back to DefaultPingTimeout.
+func Ping(ctx context.Context, pool *pgxpool.Pool, timeout time.Duration) error {
+	if pool == nil {
+		return fmt.Errorf("database pool is nil")
+	}
+	if timeout <= 0 {
+		timeout = DefaultPingTimeout
+	}
+	pingCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	if err := pool.Ping(pingCtx); err != nil {
+		return fmt.Errorf("pinging database: %w", err)
+	}
+	return nil
+}

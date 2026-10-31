@@ -483,7 +483,7 @@ func TestWorkerIntegration_FailureFlow(t *testing.T) {
 			RegistryCredentialRef: "token:mock",
 		},
 		Output: protocol.OutputSpec{
-			Registry:   "registry.example.internal",
+			Registry:   "ghcr.io",
 			Repository: "tenant/app",
 			Tag:        "v1",
 			Platforms:  []string{"linux/amd64"},
@@ -561,7 +561,10 @@ func TestWorkerBinary_SubprocessExecution(t *testing.T) {
 	defer os.RemoveAll(binDir)
 
 	// Create mock socket listener for buildkitd
-	socketDir, err := os.MkdirTemp("", "summit-bk-sock-*")
+	socketDir, err := os.MkdirTemp("/tmp", "bk-*")
+	if err != nil {
+		socketDir, err = os.MkdirTemp("", "bk-*")
+	}
 	if err != nil {
 		t.Fatalf("creating socket dir: %v", err)
 	}

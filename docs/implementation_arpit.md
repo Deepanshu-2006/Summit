@@ -154,6 +154,7 @@ The following four cross-cutting gates require explicit, synchronous sign-off fr
 - **Objective:** Unify naming, resource limits, and secret referencing across test Kubernetes hosts.
 - **Priyanshu (API & Builder):** Exposes resource quotas and environment variable CRUD (pointers only); packages rootless BuildKit + Railpack builder image and installs/configures gVisor (`runsc`) and `runtimeClass` across Kubernetes hosts.
 - **Rudra (Orchestrator):** Implements CRDs for `TenantApp`, deploys Traefik IngressRoutes, configures ESO sync to OpenBao, and handles Kubernetes scheduling/launching/monitoring/cleanup of pods using Priyanshu's configured builder (does NOT install or configure gVisor).
+- **MVP OCI Registry Direction:** Use GHCR (`ghcr.io`) as the external image registry rather than deploying a registry service in the test cluster. Rudra owns cluster pull configuration, Priyanshu owns builder image publishing integration, and Arpit persists image references/digests only (never credentials). See [`ghcr_mvp_setup.md`](./ghcr_mvp_setup.md); the publish credential boundary still needs agreement.
 - **Arpit (Database):** Provides metadata schema for provisioned resources, custom domains, and secret reference mappings (zero secret values) — DB/persistence/schema/interfaces only.
 - **UI Coordination:** Displays build logs, custom domain verification DNS records, and environment variable keys (with masked values).
 
@@ -620,7 +621,7 @@ Operational metrics collected by Prometheus and Loki are ephemeral and subject t
 3. **Migration Regression Tests:** CI pipeline executes `goose up` followed immediately by `goose down` and `goose up` to verify bidirectional migration safety.
 
 ### 13.2 Acceptance Criteria
-- [ ] Database package builds cleanly with Go 1.23 standard library and `pgx/v5`.
+- [ ] Database package builds cleanly with the shared Go 1.26 toolchain and `pgx/v5`.
 - [ ] Schema applies successfully from scratch with zero errors or unindexed foreign keys.
 - [ ] Outbox table successfully handles 50 concurrent worker claims without lock deadlocks or duplicate event processing.
 - [ ] Unit and integration test suite achieves $>85\%$ code coverage across `platformdb`.
@@ -713,3 +714,50 @@ This checklist defines the exact scope of Arpit's initial pull request:
 ---
 
 *End of Implementation Plan — Awaiting Shared Gate 1 Sign-Off.*
+
+
+---
+
+## Appendix A: Audit-Confirmed Arpit-Owned Future Work (2026-11-01)
+
+> **Cross-Reference:** Comprehensive cross-agent future implementation tracking is maintained in [`docs/future_implementation.md`](./future_implementation.md).
+>
+> **Status:** PENDING / FUTURE WORK (Design & Audit Baseline). The items below record confirmed future tasks and architectural alignment notes; none of these pending enhancements are claimed as implemented in the current baseline.
+>
+> **Scope Invariant:** Arpit exclusively owns platform database persistence, schema definitions, migrations, and database access interfaces (`apps/backend/internal/platformdb` and `apps/backend/internal/db`). Rudra retains exclusive ownership of Kubernetes orchestrator runtime wiring, CRDs, and pod lifecycle/monitoring. Priyanshu retains exclusive ownership of the isolated builder subsystem (gVisor `runsc`, `runtimeClass`, rootless BuildKit + Railpack) and HTTP API routing/handlers. Custom backup and recovery automation remains settled and deferred for MVP (as documented in [Section 11: Durability & Recovery Policy (MVP Scope)](#11-durability--recovery-policy-mvp-scope)).
+
+### A.1 Planned Shared DB Persistence & Repository Interfaces (`platformdb`)
+- **Target Location:** `apps/backend/internal/platformdb` (domain-level repository contracts wrapping `internal/db/pool.go`).
+- **Interface Scope:**
+  - `ProjectRepository`: Project and environment CRUD, soft-deletion filtering, and slug lookups.
+  - `DeploymentRepository`: Atomic deployment creation, status transitions, and release promotions.
+  - `OutboxRepository`: Atomic event publishing, concurrent worker event claiming via `FOR UPDATE SKIP LOCKED`, lease renewal, and acknowledgments (`AckEvent`, `NackEvent`).
+  - `SecretReferenceRepository`: CRUD operations restricted to external vault pointers (zero plaintext values).
+  - `UnitOfWork` / `DBClient`: Transactional boundaries ensuring multi-entity mutations (e.g. deployment creation + outbox event emission) execute within a single ACID transaction.
+- **Consumer Boundaries:**
+  - **Priyanshu (API Platform):** Consumes `platformdb` repository interfaces within HTTP handlers (e.g. creating deployments, recording audit logs, querying project state). Priyanshu retains ownership of request parsing, validation, JWT authentication, and HTTP response formatting.
+  - **Rudra (Orchestrator):** Consumes `OutboxRepository` for worker pool event claiming (`ClaimPendingEvents`), execution lease renewals, and updating deployment/build statuses (`UpdateStatus`). Rudra retains ownership of the background runner loops, worker concurrency models, and Kubernetes scheduling/reconciliation.
+  - **Arpit (Platform DB):** Supplies typed Go interfaces, database query implementations, transaction helpers, and generated mocks (`platformdb/mocks`) for API and Orchestrator unit tests.
+
+### A.2 Audit & Resolution Plan for Schema Consistency Risks
+An audit of the committed migrations (`0001_baseline.up.sql` and `0002_github_integration.up.sql`) against this plan identified three consistency risks to be addressed in future migrations:
+
+1. **Outbox Column Naming (`retry_count` vs. `attempts`):**
+   - *Audit Finding:* Section 5.5 and Section 8.2 of this document specify `outbox_events.retry_count`, but migration `0001_baseline.up.sql` implemented the column as `attempts INT NOT NULL DEFAULT 0` (alongside `max_retries INT NOT NULL DEFAULT 5`).
+   - *Future Action:* Update upcoming `platformdb.OutboxRepository` implementations and SQL queries to bind to the actual schema column `attempts`. In a subsequent expand/contract migration, evaluate renaming `attempts` to `retry_count` (or adding an alias) only if agreed across backend contracts.
+2. **Deployments Service & Environment Integrity:**
+   - *Audit Finding:* `deployments` defines `environment_id UUID NOT NULL` and `service_id UUID REFERENCES services(id)`, with a foreign key constraint `fk_deployment_environment_project FOREIGN KEY (environment_id, project_id) REFERENCES environments(id, project_id)`. However, there is no composite constraint ensuring that the referenced `service_id` actually belongs to the specified `environment_id`.
+   - *Future Action:* Plan a migration adding a composite unique constraint on `services(id, environment_id)` and an enforcing composite foreign key `CONSTRAINT fk_deployment_service_environment FOREIGN KEY (service_id, environment_id) REFERENCES services(id, environment_id) ON DELETE RESTRICT` to guarantee cross-environment service isolation.
+3. **Foreign Key Integrity & Deletion Cascades vs. Restrictions:**
+   - *Audit Finding:* `projects -> environments -> services` use `ON DELETE CASCADE`, whereas `deployments.project_id` and `deployments.environment_id` enforce `ON DELETE RESTRICT`. Furthermore, `deployments.service_id` defaults to `NO ACTION` / `RESTRICT`. Deleting an environment or service with associated historical deployments will be rejected by Postgres constraints unless soft-deleted.
+   - *Future Action:* Audit application lifecycle requirements for historical deployments and audit trails. Reaffirm soft-delete discipline (`deleted_at` timestamps on `projects`, `environments`, and `services`) across all repository queries, ensuring parent-child deletion constraints correctly preserve auditability while preventing orphan records.
+
+### A.3 Down Migrations Decision / Check (Label as Decision/Check)
+- **Current Baseline:** The migration runner (`apps/backend/internal/db/migrate.go`) and CLI tool (`cmd/migrate/main.go`) only scan for and apply `*.up.sql` files via `migrate up`.
+- **Decision / Check:** The backend team follows an expand/contract schema evolution discipline for production, which minimizes reliance on destructive down migrations. Introducing `.down.sql` files and rollback commands (`migrate down`) into the migration engine is pending explicit team decision. If bidirectional migration verification in CI is required by team consensus, Arpit will implement reversible migration support in `migrate.go` and add paired down migrations.
+
+### A.4 DB Integration Seed Fixtures & Readiness Hook
+- **Current Baseline:** `apps/backend/internal/testutil/db.go` provides isolated schema creation and basic fixtures (`SeedUser`, `SeedProject`, `SeedEnvironment`, `SeedService`).
+- **Future Action (Agreed Scope):**
+  - Extend `testutil/db.go` with complete test fixtures for `deployments`, `build_jobs`, `releases`, `secret_references`, and `outbox_events` to support integration tests across API and Orchestrator domains.
+  - Implement a dedicated database pool health ping / readiness probe helper in `apps/backend/internal/db/pool.go` (e.g. `Ping(ctx context.Context) error` with ping timeout configuration) to be hooked into `GET /api/v1/health` deep readiness checks by Priyanshu.

@@ -5,7 +5,7 @@ BINARY_NAME := worker
 WORKER_BIN := $(BINARY_DIR)/$(BINARY_NAME)
 CMD_PKG := ./cmd/worker
 
-.PHONY: all build test test-race vet fmt clean
+.PHONY: all build test test-race vet fmt clean image
 
 all: build
 
@@ -27,3 +27,6 @@ fmt:
 
 clean:
 	rm -rf $(BINARY_DIR)
+
+image:
+	docker build -f deployments/worker.Dockerfile . -t summit-builder:dev

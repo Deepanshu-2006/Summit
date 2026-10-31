@@ -1,0 +1,18 @@
+# RuntimeClass for gVisor. The handler name must match the containerd runtime registered by
+# builder/gvisor/install-runsc.sh ([...containerd.runtimes.runsc]).
+#
+# The orchestrator creates build Pods with runtimeClassName "gvisor"
+# (apps/backend/internal/orchestrator/build Config.RuntimeClassName).
+#
+# Deliberately no scheduling/overhead stanza so it works on a single-node Kind cluster. For a
+# dedicated sandbox node pool add, as in builder/deployments/examples/gvisor-runtimeclass.yaml:
+#   overhead:   { podFixed: { cpu: 250m, memory: 256Mi } }
+#   scheduling: { nodeSelector: { ... }, tolerations: [ ... ] }
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: gvisor
+  labels:
+    app.kubernetes.io/name: summit-runtime
+    app.kubernetes.io/component: sandbox
+handler: runsc

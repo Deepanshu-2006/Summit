@@ -1,0 +1,169 @@
+# Orchestrator identity and least-privilege RBAC (plan section 11).
+#
+# Differences from the section 11.1 sketch, tightened to what the code uses:
+# - No "*" verbs, no delete on tenant objects, no nodes, no statefulsets/jobs/PVCs
+#   (tenant databases are out of MVP scope).
+# - Secrets/ConfigMaps/Pods(+logs) are NOT cluster-wide: they are granted by a Role
+#   in summit-builds only (per-build Secret, spec ConfigMap, builder Pod, pruner).
+#   The orchestrator can therefore not read tenant Secrets.
+# - Leases are granted by a Role in summit-system only.
+# - No escalate, bind, impersonate, or RBAC write permissions anywhere.
+# - Kubernetes RBAC cannot restrict by namespace in a ClusterRole; kube-system,
+#   cilium and traefik namespaces are protected by never targeting them in code.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: summit-orchestrator
+  namespace: summit-system
+  labels:
+    app.kubernetes.io/name: summit-orchestrator
+    app.kubernetes.io/part-of: summit
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: summit-orchestrator
+  labels:
+    app.kubernetes.io/name: summit-orchestrator
+    app.kubernetes.io/part-of: summit
+rules:
+  # Tenant namespace lifecycle (reconciler Get/Create; addons server-side apply).
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch", "create", "patch"]
+  # Tenant guard rails applied by addons.TenantProvisioner (server-side apply = create + patch).
+  - apiGroups: [""]
+    resources: ["resourcequotas", "limitranges", "serviceaccounts"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  # Workload primitives produced by the SummitService reconciler.
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  # Read-only workload observation for health checking.
+  - apiGroups: [""]
+    resources: ["pods", "endpoints", "events"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["events.k8s.io"]
+    resources: ["events"]
+    verbs: ["get", "list", "watch"]
+  # SummitService custom resource and status subresource.
+  - apiGroups: ["summit.dev"]
+    resources: ["summitservices"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["summit.dev"]
+    resources: ["summitservices/status"]
+    verbs: ["get", "update", "patch"]
+  # Optional add-ons (C8). Rules for absent CRDs are harmless.
+  - apiGroups: ["traefik.io"]
+    resources: ["ingressroutes", "middlewares"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: ["cilium.io"]
+    resources: ["ciliumnetworkpolicies"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: ["external-secrets.io"]
+    resources: ["secretstores", "externalsecrets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  # Discovery used by the add-on applier's RESTMapper is covered by the default
+  # system:discovery ClusterRole bound to all authenticated users.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: summit-orchestrator
+  labels:
+    app.kubernetes.io/name: summit-orchestrator
+    app.kubernetes.io/part-of: summit
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: summit-orchestrator
+subjects:
+  - kind: ServiceAccount
+    name: summit-orchestrator
+    namespace: summit-system
+---
+# Build namespace: builder Pods, per-build Secret (token), spec ConfigMap, pruner.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: summit-orchestrator-builds
+  namespace: summit-builds
+  labels:
+    app.kubernetes.io/name: summit-orchestrator
+    app.kubernetes.io/part-of: summit
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+  # Required to set a blockOwnerDeletion ownerReference (Secret -> Pod) when the
+  # OwnerReferencesPermissionEnforcement admission plugin is enabled.
+  - apiGroups: [""]
+    resources: ["pods/finalizers"]
+    verbs: ["update"]
+  - apiGroups: [""]
+    resources: ["secrets", "configmaps"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # Builder network lockdown applied by addons.EnsureBuildNetworkPolicy.
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: ["cilium.io"]
+    resources: ["ciliumnetworkpolicies"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: summit-orchestrator-builds
+  namespace: summit-builds
+  labels:
+    app.kubernetes.io/name: summit-orchestrator
+    app.kubernetes.io/part-of: summit
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: summit-orchestrator-builds
+subjects:
+  - kind: ServiceAccount
+    name: summit-orchestrator
+    namespace: summit-system
+---
+# Leader election leases (future multi-replica pruner / controller).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: summit-orchestrator-leases
+  namespace: summit-system
+  labels:
+    app.kubernetes.io/name: summit-orchestrator
+    app.kubernetes.io/part-of: summit
+rules:
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: summit-orchestrator-leases
+  namespace: summit-system
+  labels:
+    app.kubernetes.io/name: summit-orchestrator
+    app.kubernetes.io/part-of: summit
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: summit-orchestrator-leases
+subjects:
+  - kind: ServiceAccount
+    name: summit-orchestrator
+    namespace: summit-system

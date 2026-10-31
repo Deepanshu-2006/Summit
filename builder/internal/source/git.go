@@ -22,17 +22,34 @@ func NewGitClient(supervisor *process.Supervisor) *GitClient {
 	return &GitClient{supervisor: supervisor}
 }
 
-func gitEnv() []string {
-	return append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
+// gitEnv builds the environment for one git invocation. authEnv (see GitAuthEnv) is
+// appended last so it overrides any inherited GIT_CONFIG_* settings; the token therefore
+// lives only in the environment of that single git process.
+func gitEnv(authEnv []string) []string {
+	base := os.Environ()
+	env := make([]string, 0, len(base)+len(authEnv)+1)
+	for _, kv := range base {
+		if strings.HasPrefix(kv, "GIT_CONFIG_COUNT=") ||
+			strings.HasPrefix(kv, "GIT_CONFIG_KEY_") ||
+			strings.HasPrefix(kv, "GIT_CONFIG_VALUE_") {
+			continue
+		}
+		env = append(env, kv)
+	}
+	env = append(env, "GIT_TERMINAL_PROMPT=0")
+	return append(env, authEnv...)
 }
 
 // Clone initializes and clones a git repository into targetDir.
 // It uses shallow depth 1 if full history is not required, but fetches the exact commit.
-func (g *GitClient) Clone(ctx context.Context, cloneURL, targetDir string) error {
+//
+// token (optional) is sent as an HTTP Authorization header for this process only; it is
+// never embedded in the remote URL, so it is not persisted in targetDir/.git/config.
+func (g *GitClient) Clone(ctx context.Context, cloneURL, targetDir, token string) error {
 	spec := process.CommandSpec{
 		Command: "git",
 		Args:    []string{"clone", "--no-checkout", cloneURL, targetDir},
-		Env:     gitEnv(),
+		Env:     gitEnv(GitAuthEnv(cloneURL, token)),
 	}
 
 	res, err := g.supervisor.Execute(ctx, spec, nil)
@@ -47,12 +64,13 @@ func (g *GitClient) Clone(ctx context.Context, cloneURL, targetDir string) error
 }
 
 // FetchCommit fetches a specific commit SHA into targetDir.
-func (g *GitClient) FetchCommit(ctx context.Context, targetDir, commitSHA string) error {
+// cloneURL and token are used only to scope the transient auth header (see Clone).
+func (g *GitClient) FetchCommit(ctx context.Context, cloneURL, targetDir, commitSHA, token string) error {
 	spec := process.CommandSpec{
 		Command: "git",
 		Args:    []string{"fetch", "--depth=1", "origin", commitSHA},
 		Cwd:     targetDir,
-		Env:     gitEnv(),
+		Env:     gitEnv(GitAuthEnv(cloneURL, token)),
 	}
 
 	res, err := g.supervisor.Execute(ctx, spec, nil)
@@ -72,7 +90,7 @@ func (g *GitClient) CheckoutDetached(ctx context.Context, targetDir, commitSHA s
 		Command: "git",
 		Args:    []string{"checkout", "--detach", commitSHA},
 		Cwd:     targetDir,
-		Env:     gitEnv(),
+		Env:     gitEnv(nil),
 	}
 
 	res, err := g.supervisor.Execute(ctx, spec, nil)
@@ -92,7 +110,7 @@ func (g *GitClient) RevParseHEAD(ctx context.Context, targetDir string) (string,
 		Command: "git",
 		Args:    []string{"rev-parse", "HEAD"},
 		Cwd:     targetDir,
-		Env:     gitEnv(),
+		Env:     gitEnv(nil),
 	}
 
 	res, err := g.supervisor.Execute(ctx, spec, nil)

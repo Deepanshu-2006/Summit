@@ -60,14 +60,46 @@ func main() {
 	val := validation.NewValidator()
 	wsMgr := workspace.NewManager(cfg.WorkspaceBaseDir)
 	gitClient := source.NewGitClient(sup)
-	resolver := source.NewStaticCredentialResolver(nil)
+
+	// Source credentials: the mounted worker JWT is exchanged at the broker for a
+	// short-lived installation token (contract C5). Without a credential file the static
+	// resolver only supports explicit test references.
+	var resolver source.CredentialResolver = source.NewStaticCredentialResolver(nil)
+	if cfg.SourceCredentialFile != "" {
+		resolver = source.NewBrokerResolver(cfg.SourceBrokerURL, cfg.SourceCredentialFile)
+	} else {
+		logger.Warn("no source credential file configured", "env", config.EnvSourceCredentialFile)
+	}
 	sourceMgr := source.NewManager(resolver, gitClient)
+
 	rpAdapter := railpack.NewCLIAdapter(sup, "")
 	bkMgr := buildkit.NewManager(sup, "", "", "")
-	regClient := registry.NewClient(nil)
-	httpReporter := reporter.NewHTTPReporter(spec.Reporting.Endpoint, spec.Reporting.TokenRef, nil)
 
-	coord := worker.NewCoordinator(val, wsMgr, sourceMgr, rpAdapter, bkMgr, regClient, httpReporter, sup)
+	// Registry client: GHCR token auth uses the same docker config buildctl pushes with.
+	regOpts := []registry.Option{registry.WithInsecureRegistries(cfg.InsecureRegistries...)}
+	if cfg.RegistryCredentialFile != "" {
+		dockerCfg, err := registry.LoadDockerConfig(cfg.RegistryCredentialFile)
+		if err != nil {
+			logger.Error("failed to load registry credentials", "error", err)
+			os.Exit(1)
+		}
+		regOpts = append(regOpts, registry.WithDockerConfig(dockerCfg))
+	} else {
+		logger.Warn("no registry credential file configured; image push and digest verification will be anonymous",
+			"env", config.EnvRegistryCredentialFile)
+	}
+	regClient := registry.NewClient(nil, regOpts...)
+
+	// Reporter bearer token = trimmed contents of the mounted token file (NOT spec token_ref,
+	// which is only a reference).
+	rep, err := reporter.New(spec.Reporting.Endpoint, cfg.ReportingTokenFile, nil, logger)
+	if err != nil {
+		logger.Error("failed to initialise build reporter", "error", err)
+		os.Exit(1)
+	}
+
+	coord := worker.NewCoordinator(val, wsMgr, sourceMgr, rpAdapter, bkMgr, regClient, rep, sup)
+	coord.SetRegistryDockerConfigDir(cfg.RegistryDockerConfigDir())
 
 	result, err := coord.Run(ctx, &spec)
 	if err != nil {

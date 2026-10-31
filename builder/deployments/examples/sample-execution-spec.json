@@ -2,7 +2,7 @@
   "schema_version": 1,
   "build": {
     "id": "a5d09f7b-6c41-477e-8c31-1e967a5b3a4f",
-    "attempt_id": "f8c3e210-9b44-42f1-8f52-47d3412019aa",
+    "attempt_id": "a5d09f7b-6c41-477e-8c31-1e967a5b3a4f",
     "attempt_number": 1,
     "correlation_id": "corr-build-a5d09f7b-trace-01"
   },
@@ -11,7 +11,7 @@
     "repository": "summit-org/sample-service",
     "clone_url": "https://github.com/summit-org/sample-service.git",
     "branch": "main",
-    "commit_sha": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "commit_sha": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4",
     "root_directory": "/"
   },
   "build_config": {
@@ -26,13 +26,13 @@
     }
   },
   "credentials": {
-    "source_credential_ref": "source-token-github",
-    "registry_credential_ref": "registry-token-internal"
+    "source_credential_ref": "secret:summit-build-a5d09f7b-6c41-477e-8c31-1e967a5b3a4f",
+    "registry_credential_ref": "secret:ghcr-push"
   },
   "output": {
-    "registry": "registry.jetway.internal:5000",
-    "repository": "apps/sample-service",
-    "tag": "v1.0.0",
+    "registry": "ghcr.io",
+    "repository": "summit-org/summit-app-3f1c2a9e-7b0d-4e55-9a1c-0d2f6b8e4c11",
+    "tag": "sha-e3b0c44298fc1c149afbf4c8996fb92427ae41e4",
     "platforms": [
       "linux/amd64"
     ]
@@ -44,7 +44,7 @@
   },
   "timeout_seconds": 1200,
   "reporting": {
-    "endpoint": "http://rudra.summit.svc.cluster.local:8080/api/v1/builds",
-    "token_ref": "reporting-bearer-token-1234"
+    "endpoint": "http://summit-api.summit-system.svc.cluster.local:8080/internal/v1/builds",
+    "token_ref": "secret:summit-build-a5d09f7b-6c41-477e-8c31-1e967a5b3a4f"
   }
 }

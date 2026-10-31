@@ -75,6 +75,8 @@ func New(deps Dependencies) *Server {
 			GHClient: deps.GHClient,
 			Logger:   deps.Logger,
 		})
+
+		RegisterBuildCallbackRoutes(mux, deps)
 	}
 
 	handler := withCORS(withLogging(mux, deps.Logger))
