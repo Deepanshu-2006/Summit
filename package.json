@@ -4,15 +4,20 @@
   "private": true,
   "packageManager": "pnpm@12.15.0",
   "scripts": {
-    "dev": "pnpm dev:web",
-    "dev:web": "pnpm --filter @summit/web dev",
-    "dev:backend": "go -C apps/backend run ./cmd/api",
-    "build": "pnpm -r --if-present run build && pnpm build:backend",
-    "build:backend": "go -C apps/backend build ./...",
-    "lint": "pnpm -r --if-present run lint && pnpm lint:backend",
-    "lint:backend": "go -C apps/backend vet ./...",
-    "typecheck": "pnpm -r --if-present run typecheck",
-    "typecheck:web": "pnpm --filter @summit/web typecheck",
-    "typecheck:api": "pnpm --filter @summit/api-spec typecheck"
+    "dev": "turbo run dev",
+    "dev:web": "turbo run dev --filter=@summit/web",
+    "dev:backend": "turbo run dev --filter=@summit/backend",
+    "build": "turbo run build",
+    "build:backend": "turbo run build --filter=@summit/backend",
+    "lint": "turbo run lint",
+    "lint:backend": "turbo run lint --filter=@summit/backend",
+    "typecheck": "turbo run typecheck",
+    "typecheck:web": "turbo run typecheck --filter=@summit/web",
+    "typecheck:api": "turbo run typecheck --filter=@summit/api-spec",
+    "test": "turbo run test",
+    "test:backend": "turbo run test --filter=@summit/backend"
+  },
+  "devDependencies": {
+    "turbo": "^2.11.10"
   }
 }
