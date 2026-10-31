@@ -154,6 +154,7 @@ The following four cross-cutting gates require explicit, synchronous sign-off fr
 - **Objective:** Unify naming, resource limits, and secret referencing across test Kubernetes hosts.
 - **Priyanshu (API & Builder):** Exposes resource quotas and environment variable CRUD (pointers only); packages rootless BuildKit + Railpack builder image and installs/configures gVisor (`runsc`) and `runtimeClass` across Kubernetes hosts.
 - **Rudra (Orchestrator):** Implements CRDs for `TenantApp`, deploys Traefik IngressRoutes, configures ESO sync to OpenBao, and handles Kubernetes scheduling/launching/monitoring/cleanup of pods using Priyanshu's configured builder (does NOT install or configure gVisor).
+- **MVP OCI Registry Direction:** Use GHCR (`ghcr.io`) as the external image registry rather than deploying a registry service in the test cluster. Rudra owns cluster pull configuration, Priyanshu owns builder image publishing integration, and Arpit persists image references/digests only (never credentials). See [`ghcr_mvp_setup.md`](./ghcr_mvp_setup.md); the publish credential boundary still needs agreement.
 - **Arpit (Database):** Provides metadata schema for provisioned resources, custom domains, and secret reference mappings (zero secret values) — DB/persistence/schema/interfaces only.
 - **UI Coordination:** Displays build logs, custom domain verification DNS records, and environment variable keys (with masked values).
 
@@ -620,7 +621,7 @@ Operational metrics collected by Prometheus and Loki are ephemeral and subject t
 3. **Migration Regression Tests:** CI pipeline executes `goose up` followed immediately by `goose down` and `goose up` to verify bidirectional migration safety.
 
 ### 13.2 Acceptance Criteria
-- [ ] Database package builds cleanly with Go 1.23 standard library and `pgx/v5`.
+- [ ] Database package builds cleanly with the shared Go 1.26 toolchain and `pgx/v5`.
 - [ ] Schema applies successfully from scratch with zero errors or unindexed foreign keys.
 - [ ] Outbox table successfully handles 50 concurrent worker claims without lock deadlocks or duplicate event processing.
 - [ ] Unit and integration test suite achieves $>85\%$ code coverage across `platformdb`.

@@ -13,7 +13,8 @@ Summit bridges developer Git workflows with Kubernetes execution across isolated
 ### Key Architectural Tenets
 - **Decoupled Identity & Tenancy:** Supabase Auth issues JWT tokens; GitHub App integration is decoupled from platform login. Multi-tenancy is enforced strictly at the database query and namespace levels.
 - **Transactional Outbox Dispatch:** Asynchronous build, deploy, and infrastructure provisioning operations are committed transactionally to `outbox_events` and consumed via PostgreSQL row-locking (`FOR UPDATE SKIP LOCKED`).
-- **Untrusted Code Containment:** All customer code compilation runs exclusively inside ephemeral **gVisor (`runsc`)** sandbox pods using **rootless BuildKit** and **Railpack**; images are pushed to an in-cluster OCI registry.
+- **Untrusted Code Containment:** All customer code compilation runs exclusively inside ephemeral **gVisor (`runsc`)** sandbox pods using **rootless BuildKit** and **Railpack**. Priyanshu owns the builder and host gVisor setup; Rudra owns pod scheduling and lifecycle.
+- **MVP OCI Registry:** GHCR (`ghcr.io`) is the proposed external registry, avoiding an in-cluster registry service on the test hosts. Application image ownership follows the source repository: organization login for organization-owned projects, GitHub username for personal projects. See [`ghcr_mvp_setup.md`](./ghcr_mvp_setup.md); visibility and push authentication still need confirmation.
 - **Zero Secrets in Platform DB:** Secret values are never stored in plaintext or ciphertext in the platform database; External Secrets Operator (ESO) and OpenBao synchronize credentials directly into Kubernetes tenant namespaces.
 
 ---
@@ -24,9 +25,9 @@ The control plane is divided into three primary engineering domains with explici
 
 | Engineer / Role | Subsystem & Scope | Target Implementation Doc | Current Status |
 |---|---|---|---|
-| **Priyanshu**<br>*(API Platform Engineer)* | Go HTTP control plane, REST endpoints, middleware (auth/RBAC/logging), GitHub webhook intake, worker credential broker, and telemetry read APIs | [`docs/implementation_priyanshu.md`](./implementation_priyanshu.md) | **ACTIVE**<br>Core foundation, auth, database, and GitHub integration merged (`main`) |
+| **Priyanshu**<br>*(API & Builder Engineer)* | Go HTTP control plane, REST endpoints, middleware, GitHub integration, and the complete isolated builder (host gVisor setup, rootless BuildKit, Railpack, and builder image) | [`docs/implementation_priyanshu.md`](./implementation_priyanshu.md) | **ACTIVE**<br>API foundation and GitHub integration merged; builder remains |
 | **Arpit**<br>*(Platform Database Engineer)* | Supabase Postgres platform persistence, relational schemas, migrations, advisory locks, connection pooling (`pgxpool`), and transactional outbox | [`docs/implementation_arpit.md`](./implementation_arpit.md) | **ACTIVE**<br>Migrations 0001 & 0002 implemented with advisory locks and CI harness |
-| **Rudra**<br>*(Orchestrator & Cluster Controller)* | Outbox worker engine, gVisor build sandbox pool, rootless BuildKit/Railpack, K8s controllers/CRDs, Cilium network policies, Traefik ingress, and ESO | [`docs/implementation_rudra.md`](./implementation_rudra.md) | **ACTIVE**<br>Ready for outbox reconciler loop and build pod coordinator |
+| **Rudra**<br>*(Orchestrator & Cluster Controller)* | Outbox reconciler, Kubernetes scheduling and build pod lifecycle, CRDs, Cilium network policies, Traefik ingress, and ESO; uses Priyanshu's configured builder/runtime | [`docs/implementation_rudra.md`](./implementation_rudra.md) | **ACTIVE**<br>Ready for outbox reconciler loop and build pod coordinator |
 
 ---
 
@@ -45,14 +46,18 @@ The complete backend specification, frontend integration contracts, and verifica
 - **`packages/api_spec/openapi.yaml`:** Authoritative OpenAPI 3.1 specification for the platform REST API.
 - **`packages/api_spec/`:** TypeScript types compiled from the specification for consume by `apps/web`.
 
+## 5. MVP OCI Registry
+
+- [`ghcr_mvp_setup.md`](./ghcr_mvp_setup.md): GHCR application image naming, owner resolution, pull authentication, cluster setup, and the open trusted-push credential decision.
+
 ---
 
-## 5. Repository Subsystem & Package Map
+## 6. Repository Subsystem & Package Map
 
 ```text
 Summit Monorepo (Turborepo 2.11+)
 ├── apps/
-│   ├── backend/                              # Go 1.23 API Control Plane & Worker Engine
+│   ├── backend/                              # Go 1.26 API Control Plane, Orchestrator & Worker Engine
 │   │   ├── cmd/
 │   │   │   ├── api/                          # Server executable & background worker spawner
 │   │   │   └── migrate/                      # Advisory-locked database migration CLI
@@ -80,6 +85,7 @@ Summit Monorepo (Turborepo 2.11+)
 │   ├── implementation_arpit.md               # Arpit: Database & Outbox Plan
 │   ├── implementation_priyanshu.md           # Priyanshu: Go API Control Plane Plan
 │   ├── implementation_rudra.md               # Rudra: Orchestrator & Kubernetes Engine Plan
+│   ├── ghcr_mvp_setup.md                     # Proposed external OCI registry setup for MVP
 │   └── system_architechture.png              # System Architecture Diagram
 ├── packages/
 │   └── api_spec/                             # OpenAPI 3.1 Contract & Generated TypeScript types
@@ -89,7 +95,7 @@ Summit Monorepo (Turborepo 2.11+)
 
 ---
 
-## 6. Current Implementation Status Matrix
+## 7. Current Implementation Status Matrix
 
 | Subsystem | Area | Current State | Target Owner | References |
 |---|---|---|---|---|
@@ -102,5 +108,6 @@ Summit Monorepo (Turborepo 2.11+)
 | **Database** | Migrations & Pool | **Complete** (`0001` & `0002` applied, pgxpool, advisory locks) | Arpit | [`internal/db`](../apps/backend/internal/db) |
 | **Orchestrator** | Worker Broker | **Complete** (Job-scoped JWT authentication on broker endpoint) | Priyanshu / Rudra | [`internal/githubworker`](../apps/backend/internal/githubworker) |
 | **Orchestrator** | Outbox Reconciler | **Ready to Implement** (Reads `outbox_events` table) | Rudra | [`docs/implementation_rudra.md`](./implementation_rudra.md) |
-| **Orchestrator** | gVisor Sandbox Pool | **Planned** (Rootless BuildKit + Railpack in `summit-builds`) | Rudra | [`docs/implementation_rudra.md`](./implementation_rudra.md) |
+| **Builder / Orchestrator** | gVisor Builder & Pod Lifecycle | **Planned** (Priyanshu owns gVisor + builder; Rudra owns pod scheduling and lifecycle) | Priyanshu / Rudra | [`docs/implementation_priyanshu.md`](./implementation_priyanshu.md), [`docs/implementation_rudra.md`](./implementation_rudra.md) |
+| **Registry** | OCI image storage | **Proposed MVP direction: GHCR** (source-repository owner resolution decided; visibility and push-auth contract pending) | Rudra / Priyanshu | [`ghcr_mvp_setup.md`](./ghcr_mvp_setup.md) |
 | **Frontend** | Console Dashboard | **Prototype / In-Memory Mock** | UI Developer | [`apps/web`](../apps/web) |
