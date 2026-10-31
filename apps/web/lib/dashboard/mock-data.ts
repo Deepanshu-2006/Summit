@@ -13,9 +13,9 @@ export const DASHBOARD_VIEW_MODE_KEY = "summit:dashboard:view_mode";
 export const DEMO_WORKSPACES: WorkspaceItem[] = [
   {
     id: "ws_personal",
-    name: "Personal",
-    slug: "personal",
-    plan: "Free",
+    name: "All Projects",
+    slug: "all-projects",
+    plan: "Personal",
     isCurrent: true,
   },
   {
@@ -40,14 +40,19 @@ export const INITIAL_DEMO_PROJECTS: DashboardProject[] = [
     name: "summit-web",
     description: "Production frontend and high-altitude edge deployment for the Summit cloud platform.",
     environment: "production",
-    status: "active",
+    status: "ready",
     type: "Next.js Application",
-    icon: "layout",
+    icon: "github",
     servicesCount: 3,
+    owner: "summit-platform/summit-web",
     branch: "main",
+    commitMessage: "feat(canvas): redesign topbar layout and add underline input highlights",
+    commitHash: "854cbec",
+    commitPath: "apps/web/canvas · /docs",
+    formattedDate: "Oct 31, 2026",
     region: "us-east-1",
     updatedAt: "12m ago",
-    createdAt: "2026-10-14T10:00:00Z",
+    createdAt: "2026-10-31T18:00:00Z",
     template: "fullstack",
   },
   {
@@ -55,14 +60,19 @@ export const INITIAL_DEMO_PROJECTS: DashboardProject[] = [
     name: "api-gateway",
     description: "High-throughput HTTP/gRPC ingress gateway with distributed rate limiting and token verification.",
     environment: "development",
-    status: "active",
+    status: "ready",
     type: "Go API Service",
-    icon: "server",
+    icon: "github",
     servicesCount: 2,
-    branch: "dev",
+    owner: "summit-platform/api-gateway",
+    branch: "main",
+    commitMessage: "feat(builder): implement standalone builder execution system",
+    commitHash: "8cc1077",
+    commitPath: "internal/buildkit · /pkg/proxy",
+    formattedDate: "Oct 28, 2026",
     region: "us-east-1",
     updatedAt: "2h ago",
-    createdAt: "2026-10-18T14:30:00Z",
+    createdAt: "2026-10-28T14:30:00Z",
     template: "api",
   },
   {
@@ -70,14 +80,19 @@ export const INITIAL_DEMO_PROJECTS: DashboardProject[] = [
     name: "graphmind",
     description: "Vector-assisted knowledge graph processor and semantic reasoning pipeline.",
     environment: "production",
-    status: "draft",
+    status: "building",
     type: "Web Application",
-    icon: "database",
+    icon: "github",
     servicesCount: 4,
+    owner: "summit-platform/graphmind-core",
     branch: "feat/rag-pipeline",
+    commitMessage: "feat(vectors): add pgvector indexing and cosine similarity router",
+    commitHash: "4cfe356",
+    commitPath: "api/embeddings · /rag",
+    formattedDate: "Oct 25, 2026",
     region: "us-west-2",
     updatedAt: "1d ago",
-    createdAt: "2026-10-22T08:15:00Z",
+    createdAt: "2026-10-25T08:15:00Z",
     template: "fullstack",
   },
   {
@@ -85,14 +100,19 @@ export const INITIAL_DEMO_PROJECTS: DashboardProject[] = [
     name: "telemetry-service",
     description: "Real-time infrastructure telemetry daemon aggregating metrics and distributed audit logs.",
     environment: "staging",
-    status: "active",
+    status: "ready",
     type: "Background Worker",
-    icon: "cpu",
+    icon: "github",
     servicesCount: 2,
+    owner: "summit-platform/telemetry",
     branch: "staging",
+    commitMessage: "fix(metrics): optimize Prometheus exporter scrape latency",
+    commitHash: "feabad6",
+    commitPath: "internal/metrics · /exporter",
+    formattedDate: "Oct 22, 2026",
     region: "eu-central-1",
     updatedAt: "3d ago",
-    createdAt: "2026-10-25T16:45:00Z",
+    createdAt: "2026-10-22T16:45:00Z",
     template: "api",
   },
 ];
@@ -109,18 +129,24 @@ export function getStoredProjects(): DashboardProject[] {
   try {
     const raw = localStorage.getItem(DASHBOARD_PROJECTS_STORAGE_KEY);
     if (!raw) {
-      // First time initialization
       localStorage.setItem(
         DASHBOARD_PROJECTS_STORAGE_KEY,
         JSON.stringify(INITIAL_DEMO_PROJECTS)
       );
-      // Seed architectures for the demo projects
       INITIAL_DEMO_PROJECTS.forEach(seedProjectCanvasArchitecture);
       return INITIAL_DEMO_PROJECTS;
     }
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      return parsed;
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      // Ensure all items have the new schema fields
+      return parsed.map((p) => ({
+        ...p,
+        owner: p.owner || `summit-platform/${p.name}`,
+        commitMessage: p.commitMessage || p.description || "Initial deployment",
+        commitHash: p.commitHash || "initial",
+        commitPath: p.commitPath || "docs: /docs",
+        formattedDate: p.formattedDate || "Oct 31, 2026",
+      }));
     }
     return INITIAL_DEMO_PROJECTS;
   } catch (err) {
@@ -323,4 +349,3 @@ export function seedProjectCanvasArchitecture(project: DashboardProject): void {
     console.error("Failed to seed canvas architecture:", e);
   }
 }
-
