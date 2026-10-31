@@ -7,35 +7,74 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/summit/backend/internal/auth"
 	"github.com/summit/backend/internal/config"
+	"github.com/summit/backend/internal/githubapi"
+	"github.com/summit/backend/internal/githubworker"
 	"github.com/summit/backend/internal/health"
+	"github.com/summit/backend/internal/secrets"
 )
 
-// Server wraps the HTTP server and dependencies.
+// Dependencies holds the shared runtime dependencies injected into the Server.
+type Dependencies struct {
+	Config   *config.Config
+	Logger   *slog.Logger
+	Pool     *pgxpool.Pool
+	Verifier auth.Verifier
+	Secrets  secrets.Provider
+	GHClient githubapi.GitHubClient
+}
+
+// Server wraps the HTTP server and its runtime dependencies.
 type Server struct {
-	cfg        *config.Config
+	deps       Dependencies
 	httpServer *http.Server
-	logger     *slog.Logger
 	startTime  time.Time
 }
 
-// New initializes the HTTP server with standard middleware and routes.
-func New(cfg *config.Config, logger *slog.Logger) *Server {
+// New initializes the HTTP server with route registration performed prior to Start.
+func New(deps Dependencies) *Server {
 	startTime := time.Now()
+	if deps.Logger == nil {
+		deps.Logger = slog.Default()
+	}
+	if deps.Config == nil {
+		deps.Config = config.Load()
+	}
+
 	mux := http.NewServeMux()
 
-	healthHandler := health.NewHandler(cfg, startTime)
-
 	// Register canonical OpenAPI health endpoint and standard liveness route
+	healthHandler := health.NewHandler(deps.Config, startTime)
 	mux.Handle("GET /api/v1/health", healthHandler)
 	mux.Handle("HEAD /api/v1/health", healthHandler)
 	mux.Handle("GET /health", healthHandler)
 	mux.Handle("HEAD /health", healthHandler)
 
-	handler := withCORS(withLogging(mux, logger))
+	if deps.Pool != nil {
+		ghSvc := githubapi.NewService(githubapi.Config{
+			Pool:     deps.Pool,
+			GHClient: deps.GHClient,
+			AppCfg:   deps.Config,
+			Logger:   deps.Logger,
+		})
+		ghHandler := githubapi.NewHandler(ghSvc, deps.Verifier, deps.Pool)
+		ghHandler.RegisterRoutes(mux)
+
+		githubworker.RegisterRoutes(mux, githubworker.Dependencies{
+			Config:   deps.Config,
+			Pool:     deps.Pool,
+			Secrets:  deps.Secrets,
+			GHClient: deps.GHClient,
+			Logger:   deps.Logger,
+		})
+	}
+
+	handler := withCORS(withLogging(mux, deps.Logger))
 
 	httpSrv := &http.Server{
-		Addr:              cfg.Address(),
+		Addr:              deps.Config.Address(),
 		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
@@ -44,20 +83,19 @@ func New(cfg *config.Config, logger *slog.Logger) *Server {
 	}
 
 	return &Server{
-		cfg:        cfg,
+		deps:       deps,
 		httpServer: httpSrv,
-		logger:     logger,
 		startTime:  startTime,
 	}
 }
 
 // Start begins listening and serving HTTP traffic.
 func (s *Server) Start() error {
-	s.logger.Info("starting backend service",
-		"address", s.cfg.Address(),
-		"environment", s.cfg.Environment,
-		"service", s.cfg.ServiceName,
-		"version", s.cfg.ServiceVersion,
+	s.deps.Logger.Info("starting backend service",
+		"address", s.deps.Config.Address(),
+		"environment", s.deps.Config.Environment,
+		"service", s.deps.Config.ServiceName,
+		"version", s.deps.Config.ServiceVersion,
 	)
 
 	if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -68,7 +106,7 @@ func (s *Server) Start() error {
 
 // Shutdown gracefully terminates the HTTP server.
 func (s *Server) Shutdown(ctx context.Context) error {
-	s.logger.Info("shutting down backend service")
+	s.deps.Logger.Info("shutting down backend service")
 	return s.httpServer.Shutdown(ctx)
 }
 
