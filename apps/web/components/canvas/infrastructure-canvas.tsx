@@ -21,6 +21,8 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize2,
+  Check,
+  X,
 } from "lucide-react";
 
 import { SummitNodeComponent } from "./nodes/summit-node";
@@ -172,6 +174,33 @@ function CanvasContent({
     "none" | "github" | "application" | "database" | "docker"
   >("none");
   const [lastSavedAt, setLastSavedAt] = useState<string>("");
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const showToast = useCallback((message: string) => {
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
+    setToastMessage(message);
+    toastTimeoutRef.current = setTimeout(() => {
+      setToastMessage(null);
+    }, 2500);
+  }, []);
+
+  // Subtle Toast Notification listener
+  useEffect(() => {
+    const handleToast = (e: Event) => {
+      const detail = (e as CustomEvent<{ message: string }>).detail;
+      if (detail?.message) {
+        showToast(detail.message);
+      }
+    };
+    window.addEventListener("summit:toast", handleToast);
+    return () => {
+      window.removeEventListener("summit:toast", handleToast);
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    };
+  }, [showToast]);
 
   // Initial load from LocalStorage with sensible initial framing
   useEffect(() => {
@@ -631,6 +660,22 @@ function CanvasContent({
         />
       </div>
 
+      {/* Refined Top-Center Toast Pill (Auto-Dismissing) */}
+      {toastMessage && (
+        <div className="fixed top-14 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#141414]/90 border border-[#2A2A2A] shadow-[0_8px_24px_rgba(0,0,0,0.6)] text-[12px] font-sans text-[#F2F0EC] backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-150 select-none">
+          <Check className="w-3 h-3 text-[#72B69A] shrink-0" />
+          <span className="font-medium tracking-[-0.01em]">{toastMessage}</span>
+          <button
+            type="button"
+            onClick={() => setToastMessage(null)}
+            className="text-[#77746F] hover:text-[#F2F0EC] ml-0.5 p-0.5 rounded cursor-pointer transition-colors"
+            title="Dismiss"
+          >
+            <X className="w-2.5 h-2.5" />
+          </button>
+        </div>
+      )}
+
       {/* Node Choosing Modals matching the First Screen */}
       <NodeChooserDialogs
         activeChooser={activeChooser}
@@ -638,6 +683,7 @@ function CanvasContent({
         onConfirm={(optionId, customData) => {
           handleSelectBottomOption(optionId, customData);
         }}
+        onShowToast={showToast}
       />
 
       {/* Railway-style Deploy Palette Modal */}

@@ -11,19 +11,7 @@ import {
   Check,
   AlertCircle,
 } from "lucide-react";
-
-// Authentic GitHub Brand Icon
-function GitHubIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
-      />
-    </svg>
-  );
-}
+import { GitHubImportDialog } from "./github-import-dialog";
 
 // Authentic Docker Container Whale Icon
 function DockerIcon({ className }: { className?: string }) {
@@ -43,42 +31,28 @@ function PostgresIcon({ className }: { className?: string }) {
   );
 }
 
-// Popular sample repositories
-const QUICK_REPOS = [
-  { name: "summit / backend", branch: "main", desc: "Go 1.23 REST Engine & WebSocket Server" },
-  { name: "summit / web", branch: "main", desc: "Next.js 16 App Router & Interactive Canvas" },
-  { name: "summit / api-gateway", branch: "main", desc: "Reverse Proxy & Edge Rate Limiting" },
-];
-
 export interface NodeChooserDialogsProps {
   activeChooser: "none" | "github" | "application" | "database" | "docker";
   onClose: () => void;
   onConfirm: (optionId: string, customData?: Record<string, unknown>) => void;
+  onShowToast?: (message: string) => void;
 }
 
 export function NodeChooserDialogs({
   activeChooser,
   onClose,
   onConfirm,
+  onShowToast,
 }: NodeChooserDialogsProps) {
-  // GitHub state
-  const [githubUrl, setGithubUrl] = useState("");
-  const [githubBranch, setGithubBranch] = useState("main");
-
   // Docker state
   const [dockerImage, setDockerImage] = useState("");
   const [dockerPort, setDockerPort] = useState("80");
   const [dockerError, setDockerError] = useState("");
 
-  const urlInputRef = useRef<HTMLInputElement>(null);
   const dockerInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (activeChooser === "github") {
-      setGithubUrl("");
-      setGithubBranch("main");
-      setTimeout(() => urlInputRef.current?.focus(), 50);
-    } else if (activeChooser === "docker") {
+    if (activeChooser === "docker") {
       setDockerImage("");
       setDockerPort("80");
       setDockerError("");
@@ -99,156 +73,22 @@ export function NodeChooserDialogs({
 
   if (activeChooser === "none") return null;
 
+  if (activeChooser === "github") {
+    return (
+      <GitHubImportDialog
+        isOpen={true}
+        onClose={onClose}
+        onConfirm={onConfirm}
+        onShowToast={onShowToast}
+      />
+    );
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-[3px] animate-in fade-in duration-150 select-none"
       onClick={onClose}
     >
-      {/* ---------------- 1. GitHub Repository Chooser ---------------- */}
-      {activeChooser === "github" && (
-        <div
-          className="w-full max-w-[460px] bg-[#141414] border border-[#2A2A2A] rounded-[14px] shadow-[0_24px_64px_rgba(0,0,0,0.85)] p-5 select-none animate-in zoom-in-95 duration-150"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex items-center justify-between pb-3 border-b border-[#242424]">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-[7px] bg-[#191919] border border-[#2A2A2A] flex items-center justify-center text-[#F2F0EC]">
-                <GitHubIcon className="w-4 h-4" />
-              </div>
-              <div>
-                <h3 className="font-sans text-[14.5px] font-semibold text-[#F2F0EC]">
-                  Import GitHub Repository
-                </h3>
-                <p className="font-sans text-[11px] text-[#A09D98]">
-                  Select from your repos or enter a custom repository link
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="text-[#A09D98] hover:text-[#F2F0EC] p-1 rounded hover:bg-[#202020] transition-colors cursor-pointer"
-              title="Close (Esc)"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Quick-Pick Popular / Active Repositories */}
-          <div className="mt-3.5 space-y-1.5">
-            <span className="text-[10.5px] font-mono uppercase tracking-wider text-[#77746F]">
-              Quick Select Repository
-            </span>
-            <div className="space-y-1 max-h-[140px] overflow-y-auto no-scrollbar">
-              {QUICK_REPOS.map((repo) => (
-                <div
-                  key={repo.name}
-                  onClick={() => {
-                    const label = repo.name.split("/").pop()?.trim() || "repo";
-                    onConfirm("github", {
-                      label,
-                      repoUrl: `https://github.com/${repo.name.replace(/\s+/g, "")}`,
-                      branch: repo.branch,
-                    });
-                    onClose();
-                  }}
-                  className="w-full flex items-center justify-between p-2 rounded-[8px] bg-[#191919] hover:bg-[#202020] border border-[#242424] hover:border-[#E79570] transition-colors cursor-pointer group"
-                >
-                  <div className="min-w-0 text-left">
-                    <span className="font-mono text-[12.5px] font-medium text-[#F2F0EC] group-hover:text-[#E79570] transition-colors truncate block">
-                      {repo.name}
-                    </span>
-                    <span className="font-sans text-[11px] text-[#A09D98] truncate block">
-                      {repo.desc}
-                    </span>
-                  </div>
-                  <span className="text-[10px] font-mono text-[#A09D98] bg-[#141414] border border-[#242424] px-1.5 py-0.5 rounded shrink-0 ml-2">
-                    {repo.branch}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="my-3 flex items-center gap-2">
-            <div className="h-px flex-1 bg-[#242424]" />
-            <span className="text-[10.5px] font-mono text-[#77746F] uppercase">or custom url</span>
-            <div className="h-px flex-1 bg-[#242424]" />
-          </div>
-
-          {/* Custom Repository Form Inputs */}
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <label className="text-[11px] font-mono text-[#A09D98]">
-                Repository URL
-              </label>
-              <input
-                ref={urlInputRef}
-                type="text"
-                value={githubUrl}
-                onChange={(e) => setGithubUrl(e.target.value)}
-                placeholder="https://github.com/organization/repository"
-                className="w-full bg-[#191919] border border-[#2A2A2A] focus:border-[#E79570] rounded-[7px] px-3 py-2 text-[12px] font-mono text-[#F2F0EC] placeholder:text-[#77746F] outline-none transition-colors"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && githubUrl.trim()) {
-                    const label =
-                      githubUrl.split("/").filter(Boolean).pop()?.replace(".git", "") ||
-                      "web-repo";
-                    onConfirm("github", {
-                      label,
-                      repoUrl: githubUrl.trim(),
-                      branch: githubBranch.trim() || "main",
-                    });
-                    onClose();
-                  }
-                }}
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-[11px] font-mono text-[#A09D98]">
-                Default Branch
-              </label>
-              <input
-                type="text"
-                value={githubBranch}
-                onChange={(e) => setGithubBranch(e.target.value)}
-                placeholder="main"
-                className="w-full bg-[#191919] border border-[#2A2A2A] focus:border-[#E79570] rounded-[7px] px-3 py-2 text-[12px] font-mono text-[#F2F0EC] outline-none transition-colors"
-              />
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="mt-4 flex items-center justify-end gap-2 pt-3 border-t border-[#242424]">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-3 py-1.5 rounded-[6px] text-[#A09D98] hover:text-[#F2F0EC] text-[12px] font-sans hover:bg-[#202020] transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                const label =
-                  githubUrl.trim().split("/").filter(Boolean).pop()?.replace(".git", "") ||
-                  "web-repo";
-                onConfirm("github", {
-                  label,
-                  repoUrl: githubUrl.trim() || "https://github.com/summit/service",
-                  branch: githubBranch.trim() || "main",
-                });
-                onClose();
-              }}
-              className="px-4 py-1.5 rounded-[7px] bg-[#E79570] hover:bg-[#F0A17B] text-[#0D0D0D] text-[12.5px] font-medium transition-colors cursor-pointer"
-            >
-              Deploy to Canvas
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* ---------------- 2. Database Engine Chooser ---------------- */}
       {activeChooser === "database" && (
         <div
