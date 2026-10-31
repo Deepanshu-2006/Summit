@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "PATH=\"/opt/homebrew/bin:/usr/local/go/bin:$PATH\" go run ./cmd/api",
+    "dev": "go run ./cmd/api",
     "build": "PATH=\"/opt/homebrew/bin:/usr/local/go/bin:$PATH\" go build -o bin/api ./cmd/api",
     "lint": "PATH=\"/opt/homebrew/bin:/usr/local/go/bin:$PATH\" go vet ./...",
     "test": "PATH=\"/opt/homebrew/bin:/usr/local/go/bin:$PATH\" go test ./..."

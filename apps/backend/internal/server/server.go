@@ -51,6 +51,9 @@ func New(deps Dependencies) *Server {
 	mux.Handle("HEAD /api/v1/health", healthHandler)
 	mux.Handle("GET /health", healthHandler)
 	mux.Handle("HEAD /health", healthHandler)
+	// Keep the endpoint registered even when the database is unavailable so the
+	// profile-sync client receives a clear 503 instead of a misleading 404.
+	mux.Handle("POST /v1/auth/profile", auth.ProfileSyncHandler(deps.Verifier, deps.Pool))
 
 	if deps.Pool != nil {
 		ghSvc := githubapi.NewService(githubapi.Config{

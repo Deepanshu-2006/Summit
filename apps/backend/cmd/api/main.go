@@ -26,6 +26,8 @@ func main() {
 		Level: slog.LevelInfo,
 	}))
 
+	config.LoadDevelopmentEnv(logger)
+
 	cfg := config.Load()
 	if err := cfg.Validate(); err != nil {
 		if !cfg.IsDevelopment() {

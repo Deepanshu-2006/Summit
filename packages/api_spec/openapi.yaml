@@ -19,6 +19,8 @@ servers:
 tags:
   - name: System
     description: System heartbeat, cluster health, and routing telemetry
+  - name: Authentication
+    description: Authenticated user profile synchronization
   - name: Projects
     description: Project topology, environments, and services
   - name: Resources
@@ -29,6 +31,25 @@ tags:
     description: Real-time Prometheus metrics and structured log streams
 
 paths:
+  /v1/auth/profile:
+    post:
+      tags:
+        - Authentication
+      summary: Sync authenticated user profile
+      description: Validates a Supabase access token and upserts the matching public.users profile.
+      operationId: syncAuthenticatedUserProfile
+      security:
+        - SupabaseBearerAuth: []
+      responses:
+        "204":
+          description: The authenticated user's profile was created or updated.
+        "401":
+          description: The access token is missing or invalid.
+        "500":
+          description: The profile could not be persisted.
+        "503":
+          description: Authentication or profile storage is unavailable.
+
   /api/v1/health:
     get:
       tags:
@@ -333,6 +354,11 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
 
 components:
+  securitySchemes:
+    SupabaseBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   schemas:
     HealthResponse:
       type: object
