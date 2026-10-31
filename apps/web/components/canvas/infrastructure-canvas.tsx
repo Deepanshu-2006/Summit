@@ -145,19 +145,8 @@ function CanvasContent({
   const [environment, setEnvironment] = useState<Environment>("production");
   const [isSaving, setIsSaving] = useState(false);
 
-  // Authentication check
+  // Authentication context
   const { user, isLoading: isAuthLoading, openAuthModal } = useAuth();
-  const hasPromptedAuth = useRef(false);
-
-  useEffect(() => {
-    if (!isAuthLoading && !user && !hasPromptedAuth.current) {
-      hasPromptedAuth.current = true;
-      openAuthModal({
-        mode: "signin",
-        redirectTo: typeof window !== "undefined" ? window.location.pathname : "/dashboard/project/new",
-      });
-    }
-  }, [user, isAuthLoading, openAuthModal]);
 
   // Core Graph State (starts empty by default!)
   const [nodes, setNodes, onNodesChange] = useNodesState<SummitNode>([]);

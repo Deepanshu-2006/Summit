@@ -222,14 +222,24 @@ export function NewProjectScreen() {
         {/* Left: Brand & New Project Indicator */}
         <div className="flex items-center gap-2.5">
           <Link
-            href="/"
+            href="/dashboard"
             className="flex items-center gap-2 group hover:opacity-90 transition-opacity"
-            title="Summit Homepage"
+            title="Summit Dashboard"
           >
             <SummitLogo className="w-4 h-4 shrink-0 transition-transform group-hover:scale-105" />
             <span className="font-sans text-[13.5px] font-semibold tracking-[-0.02em] text-[#F1F0ED]">
               Summit
             </span>
+          </Link>
+
+          <span className="text-[#3E3D39] text-[13px] font-mono select-none">/</span>
+
+          <Link
+            href="/dashboard"
+            className="text-[#8E8C86] hover:text-[#FAF8F5] transition-colors text-[13px] font-sans"
+            title="Back to Projects"
+          >
+            Projects
           </Link>
 
           <span className="text-[#3E3D39] text-[13px] font-mono select-none">/</span>
