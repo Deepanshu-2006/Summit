@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"regexp"
 	"strings"
 )
 
@@ -63,4 +64,14 @@ func RedactGitURL(rawURL string) string {
 		parsed.User = url.User("redacted")
 	}
 	return parsed.String()
+}
+
+var gitCredentialsRegex = regexp.MustCompile(`(https?://)[^:@\s]+(?::[^@\s]+)?@`)
+
+// SanitizeGitOutput scrubs embedded URL user credentials and tokens from command outputs/error messages.
+func SanitizeGitOutput(output string) string {
+	if output == "" {
+		return ""
+	}
+	return gitCredentialsRegex.ReplaceAllString(output, "${1}redacted@")
 }

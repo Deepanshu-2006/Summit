@@ -14,13 +14,14 @@ import (
 
 // BuildKitBuildSpec specifies parameters for building an image using buildctl.
 type BuildKitBuildSpec struct {
-	AppDir        string
-	PlanPath      string
-	Tag           string
-	Platforms     []string
-	EnvVars       map[string]string
+	AppDir         string
+	PlanPath       string
+	DockerfilePath string
+	Tag            string
+	Platforms      []string
+	EnvVars        map[string]string
 	PushToRegistry bool
-	Insecure      bool
+	Insecure       bool
 }
 
 // BuildKitResult holds build execution metrics and output.
@@ -55,13 +56,25 @@ func NewManager(supervisor *process.Supervisor, socketPath, daemonBin, clientBin
 		supervisor = process.NewSupervisor(0, 0)
 	}
 	if socketPath == "" {
-		socketPath = "/run/buildkit/buildkitd.sock"
+		if envSocket := os.Getenv("SUMMIT_BUILDKIT_SOCKET"); envSocket != "" {
+			socketPath = envSocket
+		} else {
+			socketPath = "/run/buildkit/buildkitd.sock"
+		}
 	}
 	if daemonBin == "" {
-		daemonBin = "buildkitd"
+		if envDaemon := os.Getenv("SUMMIT_BUILDKITD_BIN"); envDaemon != "" {
+			daemonBin = envDaemon
+		} else {
+			daemonBin = "buildkitd"
+		}
 	}
 	if clientBin == "" {
-		clientBin = "buildctl"
+		if envClient := os.Getenv("SUMMIT_BUILDCTL_BIN"); envClient != "" {
+			clientBin = envClient
+		} else {
+			clientBin = "buildctl"
+		}
 	}
 	return &Manager{
 		supervisor: supervisor,
@@ -124,16 +137,29 @@ func (m *Manager) WaitReady(ctx context.Context) error {
 
 // Build runs buildctl against the running daemon using the Railpack frontend or Dockerfile.
 func (m *Manager) Build(ctx context.Context, spec BuildKitBuildSpec, callback process.StreamCallback) (*BuildKitResult, error) {
-	args := []string{
-		fmt.Sprintf("--addr=unix://%s", m.socketPath),
-		"build",
-		"--frontend=gateway.v0",
-		"--opt", "source=ghcr.io/railwayapp/railpack-frontend:v0.3.2",
-		"--local", fmt.Sprintf("context=%s", spec.AppDir),
-	}
-
+	var args []string
 	if spec.PlanPath != "" {
-		args = append(args, "--local", fmt.Sprintf("railpack=%s", filepath.Dir(spec.PlanPath)))
+		args = []string{
+			fmt.Sprintf("--addr=unix://%s", m.socketPath),
+			"build",
+			"--frontend=gateway.v0",
+			"--opt", "source=ghcr.io/railwayapp/railpack-frontend:v0.3.2",
+			"--local", fmt.Sprintf("context=%s", spec.AppDir),
+			"--local", fmt.Sprintf("railpack=%s", filepath.Dir(spec.PlanPath)),
+		}
+	} else {
+		dfName := "Dockerfile"
+		if spec.DockerfilePath != "" {
+			dfName = spec.DockerfilePath
+		}
+		args = []string{
+			fmt.Sprintf("--addr=unix://%s", m.socketPath),
+			"build",
+			"--frontend=dockerfile.v0",
+			"--local", fmt.Sprintf("context=%s", spec.AppDir),
+			"--local", fmt.Sprintf("dockerfile=%s", spec.AppDir),
+			"--opt", fmt.Sprintf("filename=%s", dfName),
+		}
 	}
 
 	// Output exporter config

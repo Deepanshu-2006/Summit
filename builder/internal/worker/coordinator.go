@@ -21,15 +21,15 @@ import (
 
 // Coordinator orchestrates the complete execution stages of a single build attempt.
 type Coordinator struct {
-	validator   *validation.Validator
-	wsManager   *workspace.Manager
-	sourceMgr   *source.Manager
-	railpack    railpack.RailpackAdapter
-	buildkit    buildkit.BuildKitManager
-	registry    *registry.Client
-	reporter    reporter.Reporter
-	supervisor  *process.Supervisor
-	seqCounter  atomic.Int64
+	validator  *validation.Validator
+	wsManager  *workspace.Manager
+	sourceMgr  *source.Manager
+	railpack   railpack.RailpackAdapter
+	buildkit   buildkit.BuildKitManager
+	registry   *registry.Client
+	reporter   reporter.Reporter
+	supervisor *process.Supervisor
+	seqCounter atomic.Int64
 }
 
 // NewCoordinator constructs a new execution Coordinator.
@@ -179,17 +179,28 @@ func (c *Coordinator) Run(ctx context.Context, spec *protocol.BuildExecutionSpec
 	report(protocol.StageSourceValidation, protocol.StageStatusSucceeded, fmt.Sprintf("Verified pinned commit %s", checkoutRes.CommitSHA))
 
 	// 4. Application Detection & Build Plan Generation
-	report(protocol.StageApplicationDetection, protocol.StageStatusRunning, "Detecting application runtime via Railpack")
-	planPath := paths.RailpackPlanFilePath()
-	prepareRes, err := c.railpack.Prepare(ctx, railpack.PrepareInput{
-		AppDir:      checkoutRes.AppDir,
-		PlanPath:    planPath,
-		BuildConfig: spec.BuildConfig,
-	})
-	if err != nil {
-		return failResult(protocol.ErrCodeBuildPlanFailed, protocol.StageBuildPlanGeneration, "Railpack build plan generation failed", err.Error())
+	var detectedRuntime string
+	var planPath string
+
+	if spec.BuildConfig.Builder == "dockerfile" {
+		report(protocol.StageApplicationDetection, protocol.StageStatusSucceeded, "Using Dockerfile builder strategy (bypassing Railpack)")
+		report(protocol.StageBuildPlanGeneration, protocol.StageStatusSucceeded, "Using direct Dockerfile")
+		detectedRuntime = "dockerfile"
+	} else {
+		report(protocol.StageApplicationDetection, protocol.StageStatusRunning, "Detecting application runtime via Railpack")
+		planPath = paths.RailpackPlanFilePath()
+		prepareRes, err := c.railpack.Prepare(ctx, railpack.PrepareInput{
+			AppDir:      checkoutRes.AppDir,
+			PlanPath:    planPath,
+			BuildConfig: spec.BuildConfig,
+		})
+		if err != nil {
+			return failResult(protocol.ErrCodeBuildPlanFailed, protocol.StageBuildPlanGeneration, "Railpack build plan generation failed", err.Error())
+		}
+		detectedRuntime = prepareRes.DetectedRuntime
+		planPath = prepareRes.PlanPath
+		report(protocol.StageBuildPlanGeneration, protocol.StageStatusSucceeded, fmt.Sprintf("Generated build plan for runtime %s", detectedRuntime))
 	}
-	report(protocol.StageBuildPlanGeneration, protocol.StageStatusSucceeded, fmt.Sprintf("Generated build plan for runtime %s", prepareRes.DetectedRuntime))
 
 	// 5. Image Build (BuildKit)
 	report(protocol.StageImageBuild, protocol.StageStatusRunning, "Building OCI container image")
@@ -203,9 +214,15 @@ func (c *Coordinator) Run(ctx context.Context, spec *protocol.BuildExecutionSpec
 	}
 
 	targetRef := spec.Output.FullTargetRef()
+	dfPath := ""
+	if spec.BuildConfig.DockerfilePath != nil {
+		dfPath = *spec.BuildConfig.DockerfilePath
+	}
+
 	_, err = c.buildkit.Build(ctx, buildkit.BuildKitBuildSpec{
 		AppDir:         checkoutRes.AppDir,
-		PlanPath:       prepareRes.PlanPath,
+		PlanPath:       planPath,
+		DockerfilePath: dfPath,
 		Tag:            targetRef,
 		Platforms:      spec.Output.Platforms,
 		EnvVars:        spec.BuildConfig.EnvVars,
@@ -245,7 +262,7 @@ func (c *Coordinator) Run(ctx context.Context, spec *protocol.BuildExecutionSpec
 			RailpackVersion: "v0.3.2",
 			BuildkitVersion: "v0.19.0",
 			CommitSHA:       checkoutRes.CommitSHA,
-			DetectedRuntime: prepareRes.DetectedRuntime,
+			DetectedRuntime: detectedRuntime,
 		},
 		Timestamps: protocol.ResultTimestamps{
 			StartedAt:   startedAt,

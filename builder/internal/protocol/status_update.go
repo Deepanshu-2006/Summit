@@ -19,6 +19,7 @@ const (
 	StageImageVerification      Stage = "image_verification"
 	StageFinalizing             Stage = "finalizing"
 	StageResultSubmission       Stage = "result_submission"
+	StageHeartbeat              Stage = "heartbeat"
 )
 
 // AllStages returns all defined lifecycle stages in order of execution.
@@ -55,7 +56,8 @@ func (s Stage) IsValid() bool {
 		StageImagePush,
 		StageImageVerification,
 		StageFinalizing,
-		StageResultSubmission:
+		StageResultSubmission,
+		StageHeartbeat:
 		return true
 	default:
 		return false

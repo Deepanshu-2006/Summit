@@ -9,9 +9,9 @@ import (
 
 // MemoryReporter records all reported events in memory for testing and standalone runs.
 type MemoryReporter struct {
-	mu         sync.Mutex
-	Statuses   []protocol.StatusUpdate
-	Logs       []protocol.LogEvent
+	mu          sync.Mutex
+	Statuses    []protocol.StatusUpdate
+	Logs        []protocol.LogEvent
 	FinalResult *protocol.BuildExecutionResult
 }
 

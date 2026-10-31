@@ -8,7 +8,7 @@
 FROM golang:1.23-bookworm AS builder
 
 WORKDIR /build
-COPY go.mod go.sum ./
+COPY go.mod go.sum* ./
 COPY internal/ ./internal/
 COPY cmd/ ./cmd/
 

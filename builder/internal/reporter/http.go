@@ -28,10 +28,10 @@ type HTTPReporter struct {
 	token      string
 	httpClient *http.Client
 
-	logMu       sync.Mutex
-	flushMu     sync.Mutex
-	logBuffer   []protocol.LogEvent
-	maxBatch    int
+	logMu     sync.Mutex
+	flushMu   sync.Mutex
+	logBuffer []protocol.LogEvent
+	maxBatch  int
 }
 
 // NewHTTPReporter constructs a new HTTPReporter.

@@ -39,7 +39,7 @@ func (g *GitClient) Clone(ctx context.Context, cloneURL, targetDir string) error
 	if err != nil {
 		stderr := ""
 		if res != nil {
-			stderr = strings.TrimSpace(res.Stderr)
+			stderr = SanitizeGitOutput(strings.TrimSpace(res.Stderr))
 		}
 		return fmt.Errorf("git clone failed (%s): %w: %s", RedactGitURL(cloneURL), err, stderr)
 	}
@@ -59,7 +59,7 @@ func (g *GitClient) FetchCommit(ctx context.Context, targetDir, commitSHA string
 	if err != nil {
 		stderr := ""
 		if res != nil {
-			stderr = strings.TrimSpace(res.Stderr)
+			stderr = SanitizeGitOutput(strings.TrimSpace(res.Stderr))
 		}
 		return fmt.Errorf("git fetch commit %s failed: %w: %s", commitSHA, err, stderr)
 	}
@@ -79,7 +79,7 @@ func (g *GitClient) CheckoutDetached(ctx context.Context, targetDir, commitSHA s
 	if err != nil {
 		stderr := ""
 		if res != nil {
-			stderr = strings.TrimSpace(res.Stderr)
+			stderr = SanitizeGitOutput(strings.TrimSpace(res.Stderr))
 		}
 		return fmt.Errorf("git checkout detached HEAD %s failed: %w: %s", commitSHA, err, stderr)
 	}
@@ -99,7 +99,7 @@ func (g *GitClient) RevParseHEAD(ctx context.Context, targetDir string) (string,
 	if err != nil {
 		stderr := ""
 		if res != nil {
-			stderr = strings.TrimSpace(res.Stderr)
+			stderr = SanitizeGitOutput(strings.TrimSpace(res.Stderr))
 		}
 		return "", fmt.Errorf("git rev-parse HEAD failed: %w: %s", err, stderr)
 	}

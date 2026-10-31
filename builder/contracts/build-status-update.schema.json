@@ -44,7 +44,8 @@
         "image_push",
         "image_verification",
         "finalizing",
-        "result_submission"
+        "result_submission",
+        "heartbeat"
       ],
       "description": "Current lifecycle execution stage"
     },

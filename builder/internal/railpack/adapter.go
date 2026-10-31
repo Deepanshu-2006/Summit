@@ -43,7 +43,11 @@ type CLIAdapter struct {
 // NewCLIAdapter constructs a new CLIAdapter.
 func NewCLIAdapter(supervisor *process.Supervisor, binary string) *CLIAdapter {
 	if binary == "" {
-		binary = "railpack"
+		if envBin := os.Getenv("SUMMIT_RAILPACK_BIN"); envBin != "" {
+			binary = envBin
+		} else {
+			binary = "railpack"
+		}
 	}
 	if supervisor == nil {
 		supervisor = process.NewSupervisor(0, 0)
