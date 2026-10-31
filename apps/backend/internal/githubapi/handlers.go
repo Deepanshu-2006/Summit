@@ -16,13 +16,13 @@ import (
 
 // ServiceAPI defines the business service operations consumed by Handler.
 type ServiceAPI interface {
-	StartInstallation(ctx context.Context, orgID, userID uuid.UUID, ip, userAgent, reqID string) (*StartInstallationResponse, error)
+	StartInstallation(ctx context.Context, userID uuid.UUID, ip, userAgent, reqID string) (*StartInstallationResponse, error)
 	HandleCallback(ctx context.Context, rawInstallationID, rawState, setupAction, ip, userAgent, reqID string) (string, error)
-	ListInstallations(ctx context.Context, orgID uuid.UUID) (*ListInstallationsResponse, error)
-	GetInstallation(ctx context.Context, orgID uuid.UUID, installationIDStr string) (*InstallationDetailResponse, error)
-	DisconnectInstallation(ctx context.Context, orgID uuid.UUID, installationIDStr string, actorUserID uuid.UUID, ip, userAgent, reqID string) (*DisconnectInstallationResponse, error)
-	ListRepositories(ctx context.Context, orgID uuid.UUID, installationIDStr, cursor string, limit int) (*ListRepositoriesResponse, error)
-	SyncInstallation(ctx context.Context, orgID uuid.UUID, installationIDStr string, actorUserID uuid.UUID, ip, userAgent, reqID string) (*SyncResponse, error)
+	ListInstallations(ctx context.Context, userID uuid.UUID) (*ListInstallationsResponse, error)
+	GetInstallation(ctx context.Context, userID uuid.UUID, installationIDStr string) (*InstallationDetailResponse, error)
+	DisconnectInstallation(ctx context.Context, userID uuid.UUID, installationIDStr string, ip, userAgent, reqID string) (*DisconnectInstallationResponse, error)
+	ListRepositories(ctx context.Context, userID uuid.UUID, installationIDStr, cursor string, limit int) (*ListRepositoriesResponse, error)
+	SyncInstallation(ctx context.Context, userID uuid.UUID, installationIDStr string, ip, userAgent, reqID string) (*SyncResponse, error)
 	PutServiceSource(ctx context.Context, serviceID, actorUserID uuid.UUID, req PutServiceSourceRequest, ip, userAgent, reqID string) (*ServiceSourceResponse, error)
 	GetServiceSource(ctx context.Context, serviceID uuid.UUID) (*ServiceSourceResponse, error)
 	PatchServiceSource(ctx context.Context, serviceID, actorUserID uuid.UUID, req PatchServiceSourceRequest, ip, userAgent, reqID string) (*ServiceSourceResponse, error)
@@ -61,31 +61,31 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 		return auth.RequireUser(h.verifier, dbExec)(next)
 	}
 
-	// 1. POST /v1/organizations/{organization_id}/github/installations
-	mux.Handle("POST /v1/organizations/{organization_id}/github/installations",
+	// 1. POST /v1/github/installations
+	mux.Handle("POST /v1/github/installations",
 		requireAuth(h.handleStartInstallation))
 
 	// 2. GET /v1/integrations/github/callback (Browser redirect, unauthenticated at HTTP bearer layer)
 	mux.HandleFunc("GET /v1/integrations/github/callback", h.handleCallback)
 
-	// 3. GET /v1/organizations/{organization_id}/github/installations
-	mux.Handle("GET /v1/organizations/{organization_id}/github/installations",
+	// 3. GET /v1/github/installations
+	mux.Handle("GET /v1/github/installations",
 		requireAuth(h.handleListInstallations))
 
-	// 4. GET /v1/organizations/{organization_id}/github/installations/{installation_id}
-	mux.Handle("GET /v1/organizations/{organization_id}/github/installations/{installation_id}",
+	// 4. GET /v1/github/installations/{installation_id}
+	mux.Handle("GET /v1/github/installations/{installation_id}",
 		requireAuth(h.handleGetInstallation))
 
-	// 5. DELETE /v1/organizations/{organization_id}/github/installations/{installation_id}
-	mux.Handle("DELETE /v1/organizations/{organization_id}/github/installations/{installation_id}",
+	// 5. DELETE /v1/github/installations/{installation_id}
+	mux.Handle("DELETE /v1/github/installations/{installation_id}",
 		requireAuth(h.handleDisconnectInstallation))
 
-	// 6. GET /v1/organizations/{organization_id}/github/installations/{installation_id}/repositories
-	mux.Handle("GET /v1/organizations/{organization_id}/github/installations/{installation_id}/repositories",
+	// 6. GET /v1/github/installations/{installation_id}/repositories
+	mux.Handle("GET /v1/github/installations/{installation_id}/repositories",
 		requireAuth(h.handleListRepositories))
 
-	// 7. POST /v1/organizations/{organization_id}/github/installations/{installation_id}/sync
-	mux.Handle("POST /v1/organizations/{organization_id}/github/installations/{installation_id}/sync",
+	// 7. POST /v1/github/installations/{installation_id}/sync
+	mux.Handle("POST /v1/github/installations/{installation_id}/sync",
 		requireAuth(h.handleSyncInstallation))
 
 	// 8. Service Source endpoints:
@@ -110,7 +110,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 		requireAuth(h.handleManualDeployment))
 }
 
-// 1. POST /v1/organizations/{organization_id}/github/installations
+// 1. POST /v1/github/installations
 func (h *Handler) handleStartInstallation(w http.ResponseWriter, r *http.Request) {
 	principal, ok := auth.GetPrincipal(r.Context())
 	if !ok {
@@ -118,19 +118,8 @@ func (h *Handler) handleStartInstallation(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	orgID, err := parseUUIDParam(r, "organization_id")
-	if err != nil {
-		httpx.WriteError(w, r, http.StatusBadRequest, httpx.CodeBadRequest, "invalid organization UUID")
-		return
-	}
-
-	if err := h.checkOrgPermission(r, orgID, principal.UserID, authz.PermInstallApp); err != nil {
-		handleAuthzError(w, r, err)
-		return
-	}
-
 	ip := extractClientIP(r.RemoteAddr)
-	res, err := h.svc.StartInstallation(r.Context(), orgID, principal.UserID, ip, r.UserAgent(), httpx.GetRequestID(r.Context()))
+	res, err := h.svc.StartInstallation(r.Context(), principal.UserID, ip, r.UserAgent(), httpx.GetRequestID(r.Context()))
 	if err != nil {
 		handleError(w, r, err)
 		return
@@ -155,7 +144,7 @@ func (h *Handler) handleCallback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
-// 3. GET /v1/organizations/{organization_id}/github/installations
+// 3. GET /v1/github/installations
 func (h *Handler) handleListInstallations(w http.ResponseWriter, r *http.Request) {
 	principal, ok := auth.GetPrincipal(r.Context())
 	if !ok {
@@ -163,18 +152,7 @@ func (h *Handler) handleListInstallations(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	orgID, err := parseUUIDParam(r, "organization_id")
-	if err != nil {
-		httpx.WriteError(w, r, http.StatusBadRequest, httpx.CodeBadRequest, "invalid organization UUID")
-		return
-	}
-
-	if err := h.checkOrgPermission(r, orgID, principal.UserID, authz.PermListRepos); err != nil {
-		handleAuthzError(w, r, err)
-		return
-	}
-
-	res, err := h.svc.ListInstallations(r.Context(), orgID)
+	res, err := h.svc.ListInstallations(r.Context(), principal.UserID)
 	if err != nil {
 		handleError(w, r, err)
 		return
@@ -183,7 +161,7 @@ func (h *Handler) handleListInstallations(w http.ResponseWriter, r *http.Request
 	httpx.WriteJSON(w, http.StatusOK, res)
 }
 
-// 4. GET /v1/organizations/{organization_id}/github/installations/{installation_id}
+// 4. GET /v1/github/installations/{installation_id}
 func (h *Handler) handleGetInstallation(w http.ResponseWriter, r *http.Request) {
 	principal, ok := auth.GetPrincipal(r.Context())
 	if !ok {
@@ -191,24 +169,13 @@ func (h *Handler) handleGetInstallation(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	orgID, err := parseUUIDParam(r, "organization_id")
-	if err != nil {
-		httpx.WriteError(w, r, http.StatusBadRequest, httpx.CodeBadRequest, "invalid organization UUID")
-		return
-	}
-
 	instIDStr := r.PathValue("installation_id")
 	if instIDStr == "" {
 		httpx.WriteError(w, r, http.StatusBadRequest, httpx.CodeBadRequest, "missing installation_id parameter")
 		return
 	}
 
-	if err := h.checkOrgPermission(r, orgID, principal.UserID, authz.PermListRepos); err != nil {
-		handleAuthzError(w, r, err)
-		return
-	}
-
-	res, err := h.svc.GetInstallation(r.Context(), orgID, instIDStr)
+	res, err := h.svc.GetInstallation(r.Context(), principal.UserID, instIDStr)
 	if err != nil {
 		handleError(w, r, err)
 		return
@@ -217,7 +184,7 @@ func (h *Handler) handleGetInstallation(w http.ResponseWriter, r *http.Request) 
 	httpx.WriteJSON(w, http.StatusOK, res)
 }
 
-// 5. DELETE /v1/organizations/{organization_id}/github/installations/{installation_id}
+// 5. DELETE /v1/github/installations/{installation_id}
 func (h *Handler) handleDisconnectInstallation(w http.ResponseWriter, r *http.Request) {
 	principal, ok := auth.GetPrincipal(r.Context())
 	if !ok {
@@ -225,26 +192,14 @@ func (h *Handler) handleDisconnectInstallation(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	orgID, err := parseUUIDParam(r, "organization_id")
-	if err != nil {
-		httpx.WriteError(w, r, http.StatusBadRequest, httpx.CodeBadRequest, "invalid organization UUID")
-		return
-	}
-
 	instIDStr := r.PathValue("installation_id")
 	if instIDStr == "" {
 		httpx.WriteError(w, r, http.StatusBadRequest, httpx.CodeBadRequest, "missing installation_id parameter")
 		return
 	}
 
-	// Disconnecting installation requires owner or admin (PermInstallApp)
-	if err := h.checkOrgPermission(r, orgID, principal.UserID, authz.PermInstallApp); err != nil {
-		handleAuthzError(w, r, err)
-		return
-	}
-
 	ip := extractClientIP(r.RemoteAddr)
-	res, err := h.svc.DisconnectInstallation(r.Context(), orgID, instIDStr, principal.UserID, ip, r.UserAgent(), httpx.GetRequestID(r.Context()))
+	res, err := h.svc.DisconnectInstallation(r.Context(), principal.UserID, instIDStr, ip, r.UserAgent(), httpx.GetRequestID(r.Context()))
 	if err != nil {
 		handleError(w, r, err)
 		return
@@ -253,7 +208,7 @@ func (h *Handler) handleDisconnectInstallation(w http.ResponseWriter, r *http.Re
 	httpx.WriteJSON(w, http.StatusOK, res)
 }
 
-// 6. GET /v1/organizations/{organization_id}/github/installations/{installation_id}/repositories
+// 6. GET /v1/github/installations/{installation_id}/repositories
 func (h *Handler) handleListRepositories(w http.ResponseWriter, r *http.Request) {
 	principal, ok := auth.GetPrincipal(r.Context())
 	if !ok {
@@ -261,20 +216,9 @@ func (h *Handler) handleListRepositories(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	orgID, err := parseUUIDParam(r, "organization_id")
-	if err != nil {
-		httpx.WriteError(w, r, http.StatusBadRequest, httpx.CodeBadRequest, "invalid organization UUID")
-		return
-	}
-
 	instIDStr := r.PathValue("installation_id")
 	if instIDStr == "" {
 		httpx.WriteError(w, r, http.StatusBadRequest, httpx.CodeBadRequest, "missing installation_id parameter")
-		return
-	}
-
-	if err := h.checkOrgPermission(r, orgID, principal.UserID, authz.PermListRepos); err != nil {
-		handleAuthzError(w, r, err)
 		return
 	}
 
@@ -287,7 +231,7 @@ func (h *Handler) handleListRepositories(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	res, err := h.svc.ListRepositories(r.Context(), orgID, instIDStr, cursor, limit)
+	res, err := h.svc.ListRepositories(r.Context(), principal.UserID, instIDStr, cursor, limit)
 	if err != nil {
 		handleError(w, r, err)
 		return
@@ -296,17 +240,11 @@ func (h *Handler) handleListRepositories(w http.ResponseWriter, r *http.Request)
 	httpx.WriteJSON(w, http.StatusOK, res)
 }
 
-// 7. POST /v1/organizations/{organization_id}/github/installations/{installation_id}/sync
+// 7. POST /v1/github/installations/{installation_id}/sync
 func (h *Handler) handleSyncInstallation(w http.ResponseWriter, r *http.Request) {
 	principal, ok := auth.GetPrincipal(r.Context())
 	if !ok {
 		httpx.WriteError(w, r, http.StatusUnauthorized, httpx.CodeUnauthorized, "unauthenticated")
-		return
-	}
-
-	orgID, err := parseUUIDParam(r, "organization_id")
-	if err != nil {
-		httpx.WriteError(w, r, http.StatusBadRequest, httpx.CodeBadRequest, "invalid organization UUID")
 		return
 	}
 
@@ -316,14 +254,8 @@ func (h *Handler) handleSyncInstallation(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Triggering sync requires org owner or admin (PermInstallApp)
-	if err := h.checkOrgPermission(r, orgID, principal.UserID, authz.PermInstallApp); err != nil {
-		handleAuthzError(w, r, err)
-		return
-	}
-
 	ip := extractClientIP(r.RemoteAddr)
-	res, err := h.svc.SyncInstallation(r.Context(), orgID, instIDStr, principal.UserID, ip, r.UserAgent(), httpx.GetRequestID(r.Context()))
+	res, err := h.svc.SyncInstallation(r.Context(), principal.UserID, instIDStr, ip, r.UserAgent(), httpx.GetRequestID(r.Context()))
 	if err != nil {
 		handleError(w, r, err)
 		return
@@ -346,7 +278,7 @@ func (h *Handler) handlePutServiceSource(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if err := h.checkServicePermission(r, serviceID, principal.UserID, authz.PermConnectSource); err != nil {
+	if err := h.checkServiceOwnership(r, serviceID, principal.UserID); err != nil {
 		handleAuthzError(w, r, err)
 		return
 	}
@@ -381,8 +313,8 @@ func (h *Handler) handleGetServiceSource(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Reading source configuration requires membership in service's org (PermListRepos is possessed by all roles)
-	if err := h.checkServicePermission(r, serviceID, principal.UserID, authz.PermListRepos); err != nil {
+	// Reading source configuration requires ownership of the service.
+	if err := h.checkServiceOwnership(r, serviceID, principal.UserID); err != nil {
 		handleAuthzError(w, r, err)
 		return
 	}
@@ -410,7 +342,7 @@ func (h *Handler) handlePatchServiceSource(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if err := h.checkServicePermission(r, serviceID, principal.UserID, authz.PermConnectSource); err != nil {
+	if err := h.checkServiceOwnership(r, serviceID, principal.UserID); err != nil {
 		handleAuthzError(w, r, err)
 		return
 	}
@@ -445,7 +377,7 @@ func (h *Handler) handleDisconnectServiceSource(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	if err := h.checkServicePermission(r, serviceID, principal.UserID, authz.PermDisconnectSource); err != nil {
+	if err := h.checkServiceOwnership(r, serviceID, principal.UserID); err != nil {
 		handleAuthzError(w, r, err)
 		return
 	}
@@ -474,7 +406,7 @@ func (h *Handler) handleManualDeployment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if err := h.checkServicePermission(r, serviceID, principal.UserID, authz.PermConnectSource); err != nil {
+	if err := h.checkServiceOwnership(r, serviceID, principal.UserID); err != nil {
 		handleAuthzError(w, r, err)
 		return
 	}
@@ -497,23 +429,15 @@ func (h *Handler) handleManualDeployment(w http.ResponseWriter, r *http.Request)
 	httpx.WriteJSON(w, http.StatusCreated, res)
 }
 
-func (h *Handler) checkOrgPermission(r *http.Request, orgID, userID uuid.UUID, perm authz.Permission) error {
-	membership, err := authz.MembershipFor(r.Context(), h.pool, orgID, userID)
+func (h *Handler) checkServiceOwnership(r *http.Request, serviceID, userID uuid.UUID) error {
+	ownerID, err := authz.ServiceUser(r.Context(), h.pool, serviceID)
 	if err != nil {
 		return err
 	}
-	if !membership.Role.HasPermission(perm) {
-		return fmt.Errorf("%w: role %q lacks permission %q", authz.ErrNotMember, membership.Role, perm)
+	if ownerID != userID {
+		return authz.ErrNotOwner
 	}
 	return nil
-}
-
-func (h *Handler) checkServicePermission(r *http.Request, serviceID, userID uuid.UUID, perm authz.Permission) error {
-	orgID, err := authz.ServiceOrganization(r.Context(), h.pool, serviceID)
-	if err != nil {
-		return err
-	}
-	return h.checkOrgPermission(r, orgID, userID, perm)
 }
 
 func parseUUIDParam(r *http.Request, param string) (uuid.UUID, error) {
@@ -535,15 +459,11 @@ func extractClientIP(remoteAddr string) string {
 }
 
 func handleAuthzError(w http.ResponseWriter, r *http.Request, err error) {
-	if errors.Is(err, authz.ErrNotMember) {
-		httpx.WriteError(w, r, http.StatusForbidden, httpx.CodeForbidden, "insufficient organization permissions")
+	if errors.Is(err, authz.ErrNotOwner) || errors.Is(err, authz.ErrServiceNotFound) {
+		httpx.WriteError(w, r, http.StatusNotFound, httpx.CodeNotFound, "resource not found")
 		return
 	}
-	if errors.Is(err, authz.ErrServiceNotFound) {
-		httpx.WriteError(w, r, http.StatusNotFound, httpx.CodeNotFound, "service not found")
-		return
-	}
-	httpx.WriteError(w, r, http.StatusInternalServerError, httpx.CodeInternalError, "failed to verify permissions: "+err.Error())
+	httpx.WriteError(w, r, http.StatusInternalServerError, httpx.CodeInternalError, "failed to verify resource ownership: "+err.Error())
 }
 
 func handleError(w http.ResponseWriter, r *http.Request, err error) {

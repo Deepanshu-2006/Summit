@@ -19,10 +19,10 @@ func TestWorker_RunAndProcessAllRemaining(t *testing.T) {
 	auditWriter := &mockAuditWriter{}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-	org := testutil.SeedOrg(t, pool, "Worker Test Org", "")
-	instID := seedInstallation(t, pool, org.ID, 4001, "active")
+	owner := testutil.SeedUser(t, pool, "", "Worker Owner")
+	instID := seedInstallation(t, pool, owner.ID, 4001, "active")
 	repoID := seedRepository(t, pool, instID, 5001, "worker-app", "acme/worker-app")
-	proj := testutil.SeedProject(t, pool, org.ID, "Worker Proj", "")
+	proj := testutil.SeedProject(t, pool, owner.ID, "Worker Proj", "")
 	env := testutil.SeedEnvironment(t, pool, proj.ID, "prod", "production")
 	svc := testutil.SeedService(t, pool, env.ID, "worker-web", "web")
 	seedServiceSource(t, pool, svc.ID, repoID, "main", ".", true, "active")

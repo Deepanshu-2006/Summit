@@ -3,7 +3,7 @@
 **Document Version:** 1.0.0  
 **Target Platform:** Summit PaaS Control Plane (`apps/backend`)  
 **Specification:** [`GITHUB_INTEGRATION_BACKEND_SPEC.md`](./GITHUB_INTEGRATION_BACKEND_SPEC.md)  
-**Status:** Completed & Tested
+**Status:** Implementation report updated for personal-user ownership
 
 ---
 
@@ -21,14 +21,14 @@ This report documents the completed backend implementation for GitHub Integratio
 ## 2. Inventory of Files Created and Modified
 
 ### Database & Migrations
-- `apps/backend/internal/db/migrations/0001_baseline.up.sql`: Platform baseline tables (`users`, `organizations`, `projects`, `services`, `deployments`, `build_jobs`, `outbox_events`, `audit_logs`).
+- `apps/backend/internal/db/migrations/0001_baseline.up.sql`: Personal-user-owned platform tables (`users`, `projects`, `services`, `deployments`, `build_jobs`, `outbox_events`, `audit_logs`).
 - `apps/backend/internal/db/migrations/0002_github_integration.up.sql`: GitHub tables (`github_installations`, `github_installation_states`, `github_repositories`, `github_webhook_events`, `service_sources`, indexes, triggers).
 - `apps/backend/internal/db/migrate.go`: Advisory-locked schema migration engine.
 - `apps/backend/internal/db/pool.go`: PostgreSQL connection pool lifecycle manager.
 
 ### Core Domain Packages
 - `apps/backend/internal/auth/`: Supabase JWT verification (`verifier.go`), user synchronization (`user.go`), and HTTP middleware (`middleware.go`).
-- `apps/backend/internal/authz/`: Centralized RBAC permission matrix and organization check middleware (`authz.go`).
+- `apps/backend/internal/authz/`: Personal service ownership lookup (`authz.go`).
 - `apps/backend/internal/audit/`: Audit logging with automated credential/token redaction (`audit.go`).
 - `apps/backend/internal/secrets/`: OpenBao client (`openbao.go`) and multi-tier secret router (`router.go`) with dev env fallback.
 - `apps/backend/internal/installstate/`: Cryptographic state generator and SHA-256 state hashing (`installstate.go`).
@@ -56,8 +56,8 @@ This report documents the completed backend implementation for GitHub Integratio
 ### Migrations
 1. `0001_baseline.up.sql`: Sets up core tenancy, projects, services, deployments, build jobs, outbox, and audit logging.
 2. `0002_github_integration.up.sql`: Adds integration-specific tables:
-   - `github_installations`: `id`, `organization_id`, `github_installation_id` (UNIQUE), `account_id`, `account_login`, `account_type`, `status`, `repository_selection`, `permissions`, `installed_at`, `last_synced_at`.
-   - `github_installation_states`: `id`, `state_hash` (UNIQUE), `user_id`, `organization_id`, `expires_at`, `consumed_at`.
+   - `github_installations`: `id`, `user_id`, `github_installation_id` (UNIQUE), `account_id`, `account_login`, `account_type`, `status`, `repository_selection`, `permissions`, `installed_at`, `last_synced_at`.
+   - `github_installation_states`: `id`, `state_hash` (UNIQUE), `user_id`, `expires_at`, `consumed_at`.
    - `github_repositories`: `id`, `installation_id`, `github_repository_id` (UNIQUE), `owner_login`, `name`, `full_name`, `default_branch`, `private`, `archived`, `disabled`, `html_url`, `removed_at`.
    - `github_webhook_events`: `id`, `github_delivery_id` (UNIQUE), `event_type`, `action`, `payload`, `payload_sha256`, `processing_status`, `attempts`, `available_at`, `locked_until`, `locked_by`.
    - `service_sources`: `id`, `service_id` (UNIQUE), `repository_id`, `branch`, `root_directory`, `dockerfile_path`, `build_configuration`, `auto_deploy`, `source_status`, `disconnect_reason`, `last_seen_commit_sha`, `last_deployment_id`.
@@ -67,33 +67,33 @@ This report documents the completed backend implementation for GitHub Integratio
 ## 4. Implemented API Endpoints
 
 ### 4.1 GitHub App Installation & Synchronization
-- `POST /v1/organizations/{organization_id}/github/installations`:
-  - Auth: Supabase Bearer token (`owner` or `admin`).
+- `POST /v1/github/installations`:
+  - Auth: Supabase Bearer token; creates state owned by the authenticated user.
   - Response: `201 Created` with `installation_url` and `state_expires_at`.
 - `GET /v1/integrations/github/callback`:
   - Auth: Public browser redirect with query params (`installation_id`, `state`, `setup_action`).
   - Behavior: Validates state, consumes atomically, verifies GitHub installation, upserts installation & repos, audits, redirects browser to frontend return URL.
-- `GET /v1/organizations/{organization_id}/github/installations`:
-  - Auth: Supabase Bearer token (any org member).
+- `GET /v1/github/installations`:
+  - Auth: Supabase Bearer token; lists only the authenticated user's installations.
   - Response: `200 OK` list of installations (no secrets).
-- `GET /v1/organizations/{organization_id}/github/installations/{installation_id}`:
-  - Auth: Supabase Bearer token (any org member).
+- `GET /v1/github/installations/{installation_id}`:
+  - Auth: Supabase Bearer token; installation must belong to the authenticated user.
   - Response: `200 OK` installation detail.
-- `DELETE /v1/organizations/{organization_id}/github/installations/{installation_id}`:
-  - Auth: Supabase Bearer token (`owner` or `admin`).
+- `DELETE /v1/github/installations/{installation_id}`:
+  - Auth: Supabase Bearer token; installation must belong to the authenticated user.
   - Behavior: Marks installation disconnected, disconnects dependent service sources, writes audit record.
-- `GET /v1/organizations/{organization_id}/github/installations/{installation_id}/repositories`:
-  - Auth: Supabase Bearer token (any org member).
+- `GET /v1/github/installations/{installation_id}/repositories`:
+  - Auth: Supabase Bearer token; installation must belong to the authenticated user.
   - Response: `200 OK` paginated repositories list.
-- `POST /v1/organizations/{organization_id}/github/installations/{installation_id}/sync`:
-  - Auth: Supabase Bearer token (`owner` or `admin`).
+- `POST /v1/github/installations/{installation_id}/sync`:
+  - Auth: Supabase Bearer token; installation must belong to the authenticated user.
   - Behavior: Refreshes repositories from GitHub REST API, marks removed repos, disconnects orphaned sources.
 
 ### 4.2 Service Source & Deployments
 - `PUT /v1/services/{service_id}/source`:
   - Auth: Supabase Bearer token (`owner`, `admin`, or `member`).
   - Request: `{repository_id, branch, root_directory, dockerfile_path, auto_deploy}`.
-  - Validation: Verifies repository belongs to active installation linked to same organization; validates paths.
+  - Validation: Verifies repository belongs to an active installation owned by the service's user; validates paths.
   - Response: `200 OK` service source configuration.
 - `GET /v1/services/{service_id}/source`:
   - Auth: Supabase Bearer token.

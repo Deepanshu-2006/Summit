@@ -10,6 +10,14 @@ team\
 **Out of scope:** Next.js UI implementation, MCP server implementation,
 CLI implementation, browser components, design work
 
+> **Current implementation update (2026-10-31):** This document records the
+> original Summit-organization design. The current schema and Go API use
+> personal-user ownership: there are no Summit organization tables, IDs, or
+> membership roles. GitHub accounts can still have `account_type = 'Organization'`.
+> Current installation routes are `/v1/github/installations` and are scoped to
+> the authenticated user. This update supersedes the organization-ownership
+> sections below.
+
 ------------------------------------------------------------------------
 
 # 0. Instructions to the implementation agent

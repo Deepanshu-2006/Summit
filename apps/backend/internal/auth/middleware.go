@@ -34,10 +34,12 @@ func RequireUser(verifier Verifier, db DBExecutor) func(http.Handler) http.Handl
 
 			if db != nil {
 				if err := UpsertUser(r.Context(), db, principal); err != nil {
-					slog.WarnContext(r.Context(), "failed to upsert user profile from claims",
+					slog.ErrorContext(r.Context(), "failed to upsert user profile from claims",
 						"user_id", principal.UserID.String(),
 						"error", err,
 					)
+					httpx.WriteError(w, r, http.StatusInternalServerError, httpx.CodeInternalError, "failed to initialize authenticated user")
+					return
 				}
 			}
 

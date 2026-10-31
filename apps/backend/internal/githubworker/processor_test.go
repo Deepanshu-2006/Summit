@@ -86,15 +86,15 @@ func (m *mockAuditWriter) Events() []audit.Event {
 
 // Seed helpers for test database
 
-func seedInstallation(t *testing.T, pool *pgxpool.Pool, orgID uuid.UUID, githubInstID int64, status string) uuid.UUID {
+func seedInstallation(t *testing.T, pool *pgxpool.Pool, userID uuid.UUID, githubInstID int64, status string) uuid.UUID {
 	t.Helper()
 	var id uuid.UUID
 	err := pool.QueryRow(context.Background(), `
 		INSERT INTO github_installations (
-			organization_id, github_installation_id, account_id, account_login, account_type, status
+			user_id, github_installation_id, account_id, account_login, account_type, status
 		) VALUES ($1, $2, $3, $4, 'Organization', $5)
 		RETURNING id;
-	`, orgID, githubInstID, githubInstID+1000, fmt.Sprintf("acme-corp-%d", githubInstID), status).Scan(&id)
+	`, userID, githubInstID, githubInstID+1000, fmt.Sprintf("acme-corp-%d", githubInstID), status).Scan(&id)
 	if err != nil {
 		t.Fatalf("seeding installation: %v", err)
 	}
@@ -178,10 +178,10 @@ func TestProcessor_Push_IgnoredConditions(t *testing.T) {
 	ghClient := newMockGitHubClient()
 	auditWriter := &mockAuditWriter{}
 
-	org := testutil.SeedOrg(t, pool, "Test Org", "")
-	instID := seedInstallation(t, pool, org.ID, 1001, "active")
+	owner := testutil.SeedUser(t, pool, "", "Test User")
+	instID := seedInstallation(t, pool, owner.ID, 1001, "active")
 	repoID := seedRepository(t, pool, instID, 2001, "app", "acme/app")
-	proj := testutil.SeedProject(t, pool, org.ID, "Proj", "")
+	proj := testutil.SeedProject(t, pool, owner.ID, "Proj", "")
 	env := testutil.SeedEnvironment(t, pool, proj.ID, "prod", "production")
 	svc := testutil.SeedService(t, pool, env.ID, "web", "web")
 	seedServiceSource(t, pool, svc.ID, repoID, "main", ".", true, "active")
@@ -263,7 +263,7 @@ func TestProcessor_Push_IgnoredConditions(t *testing.T) {
 	})
 
 	t.Run("ignore push when installation is suspended", func(t *testing.T) {
-		suspInstID := seedInstallation(t, pool, org.ID, 1002, "suspended")
+		suspInstID := seedInstallation(t, pool, owner.ID, 1002, "suspended")
 		suspRepoID := seedRepository(t, pool, suspInstID, 2002, "susp-app", "acme/susp-app")
 		suspSvc := testutil.SeedService(t, pool, env.ID, "susp-web", "web")
 		seedServiceSource(t, pool, suspSvc.ID, suspRepoID, "main", ".", true, "active")
@@ -298,10 +298,10 @@ func TestProcessor_Push_CreatesDeploymentAndOutbox(t *testing.T) {
 	ghClient := newMockGitHubClient()
 	auditWriter := &mockAuditWriter{}
 
-	org := testutil.SeedOrg(t, pool, "Acme Corp", "")
-	instID := seedInstallation(t, pool, org.ID, 5001, "active")
+	owner := testutil.SeedUser(t, pool, "", "Acme Corp")
+	instID := seedInstallation(t, pool, owner.ID, 5001, "active")
 	repoID := seedRepository(t, pool, instID, 6001, "api-service", "acme/api-service")
-	proj := testutil.SeedProject(t, pool, org.ID, "Main Project", "")
+	proj := testutil.SeedProject(t, pool, owner.ID, "Main Project", "")
 	env := testutil.SeedEnvironment(t, pool, proj.ID, "production", "production")
 	svc := testutil.SeedService(t, pool, env.ID, "api", "web")
 	sourceID := seedServiceSource(t, pool, svc.ID, repoID, "main", "./backend", true, "active")
@@ -468,8 +468,8 @@ func TestProcessor_Push_CreatesDeploymentAndOutbox(t *testing.T) {
 	for _, a := range events {
 		if a.Action == audit.ActionDeploymentWebhookCreated && a.EntityID == depID {
 			foundAudit = true
-			if a.OrganizationID != org.ID {
-				t.Errorf("expected audit orgID=%s, got %s", org.ID, a.OrganizationID)
+			if a.UserID != owner.ID {
+				t.Errorf("expected audit userID=%s, got %s", owner.ID, a.UserID)
 			}
 			break
 		}
@@ -503,10 +503,10 @@ func TestProcessor_Push_MultipleServicesOnSameRepo(t *testing.T) {
 	ghClient := newMockGitHubClient()
 	auditWriter := &mockAuditWriter{}
 
-	org := testutil.SeedOrg(t, pool, "Mono Org", "")
-	instID := seedInstallation(t, pool, org.ID, 7001, "active")
+	owner := testutil.SeedUser(t, pool, "", "Mono User")
+	instID := seedInstallation(t, pool, owner.ID, 7001, "active")
 	repoID := seedRepository(t, pool, instID, 8001, "monorepo", "acme/monorepo")
-	proj := testutil.SeedProject(t, pool, org.ID, "Monorepo Project", "")
+	proj := testutil.SeedProject(t, pool, owner.ID, "Monorepo Project", "")
 	env := testutil.SeedEnvironment(t, pool, proj.ID, "staging", "staging")
 
 	svc1 := testutil.SeedService(t, pool, env.ID, "web", "web")
@@ -547,10 +547,10 @@ func TestProcessor_InstallationLifecycle(t *testing.T) {
 	ghClient := newMockGitHubClient()
 	auditWriter := &mockAuditWriter{}
 
-	org := testutil.SeedOrg(t, pool, "Inst Org", "")
-	instID := seedInstallation(t, pool, org.ID, 9001, "active")
+	owner := testutil.SeedUser(t, pool, "", "Install Owner")
+	instID := seedInstallation(t, pool, owner.ID, 9001, "active")
 	repoID := seedRepository(t, pool, instID, 9501, "service-app", "acme/service-app")
-	proj := testutil.SeedProject(t, pool, org.ID, "Inst Proj", "")
+	proj := testutil.SeedProject(t, pool, owner.ID, "Inst Proj", "")
 	env := testutil.SeedEnvironment(t, pool, proj.ID, "prod", "production")
 	svc := testutil.SeedService(t, pool, env.ID, "service-app", "web")
 	seedServiceSource(t, pool, svc.ID, repoID, "main", ".", true, "active")
@@ -641,8 +641,8 @@ func TestProcessor_InstallationRepositories(t *testing.T) {
 	ghClient := newMockGitHubClient()
 	auditWriter := &mockAuditWriter{}
 
-	org := testutil.SeedOrg(t, pool, "Repos Org", "")
-	instID := seedInstallation(t, pool, org.ID, 3333, "active")
+	owner := testutil.SeedUser(t, pool, "", "Repo Owner")
+	instID := seedInstallation(t, pool, owner.ID, 3333, "active")
 
 	t.Run("added repositories upserts records into github_repositories", func(t *testing.T) {
 		payload := map[string]any{
@@ -688,7 +688,7 @@ func TestProcessor_InstallationRepositories(t *testing.T) {
 		var repoUUID uuid.UUID
 		_ = pool.QueryRow(context.Background(), "SELECT id FROM github_repositories WHERE github_repository_id = 44441").Scan(&repoUUID)
 
-		proj := testutil.SeedProject(t, pool, org.ID, "Frontend Proj", "")
+		proj := testutil.SeedProject(t, pool, owner.ID, "Frontend Proj", "")
 		env := testutil.SeedEnvironment(t, pool, proj.ID, "prod", "production")
 		svc := testutil.SeedService(t, pool, env.ID, "frontend-svc", "web")
 		seedServiceSource(t, pool, svc.ID, repoUUID, "main", ".", true, "active")

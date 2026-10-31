@@ -203,12 +203,12 @@ func handlePush(ctx context.Context, pool *pgxpool.Pool, auditWriter audit.Write
 	}
 
 	var instUUID uuid.UUID
-	var instOrgID uuid.UUID
+	var instUserID uuid.UUID
 	var instStatus string
 	err := pool.QueryRow(ctx,
-		"SELECT id, organization_id, status FROM github_installations WHERE github_installation_id = $1",
+		"SELECT id, user_id, status FROM github_installations WHERE github_installation_id = $1",
 		instGitHubID,
-	).Scan(&instUUID, &instOrgID, &instStatus)
+	).Scan(&instUUID, &instUserID, &instStatus)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return markEventIgnored(ctx, pool, rec.ID, "installation_not_found")
 	} else if err != nil {
@@ -262,7 +262,7 @@ func handlePush(ctx context.Context, pool *pgxpool.Pool, auditWriter audit.Write
 			ss.build_configuration,
 			s.environment_id,
 			e.project_id,
-			p.organization_id
+			p.user_id
 		FROM service_sources ss
 		JOIN services s ON ss.service_id = s.id
 		JOIN environments e ON s.environment_id = e.id
@@ -288,7 +288,7 @@ func handlePush(ctx context.Context, pool *pgxpool.Pool, auditWriter audit.Write
 		BuildConfig    json.RawMessage
 		EnvID          uuid.UUID
 		ProjectID      uuid.UUID
-		OrgID          uuid.UUID
+		UserID         uuid.UUID
 	}
 
 	var matches []matchedSource
@@ -303,7 +303,7 @@ func handlePush(ctx context.Context, pool *pgxpool.Pool, auditWriter audit.Write
 			&m.BuildConfig,
 			&m.EnvID,
 			&m.ProjectID,
-			&m.OrgID,
+			&m.UserID,
 		); err != nil {
 			return fmt.Errorf("scanning matched source: %w", err)
 		}
@@ -319,12 +319,12 @@ func handlePush(ctx context.Context, pool *pgxpool.Pool, auditWriter audit.Write
 
 	// 7. For each matching service source, create deployment + build job + outbox event transactionally
 	for _, ss := range matches {
-		// Strict tenant isolation: verify project organization matches installation organization
-		if ss.OrgID != instOrgID {
-			slog.Warn("tenant isolation mismatch between service project and github installation; skipping service",
+		// Ensure the service project and GitHub installation have the same personal owner.
+		if ss.UserID != instUserID {
+			slog.Warn("personal ownership mismatch between service project and github installation; skipping service",
 				"service_id", ss.ServiceID,
-				"project_org_id", ss.OrgID,
-				"installation_org_id", instOrgID,
+				"project_user_id", ss.UserID,
+				"installation_user_id", instUserID,
 			)
 			continue
 		}
@@ -435,7 +435,7 @@ func handlePush(ctx context.Context, pool *pgxpool.Pool, auditWriter audit.Write
 			"build_run_id":      buildJobID.String(),
 			"service_id":        ss.ServiceID.String(),
 			"service_source_id": ss.ID.String(),
-			"organization_id":   ss.OrgID.String(),
+			"user_id":           ss.UserID.String(),
 			"project_id":        ss.ProjectID.String(),
 			"environment_id":    ss.EnvID.String(),
 			"repository": map[string]any{
@@ -504,11 +504,11 @@ func handlePush(ctx context.Context, pool *pgxpool.Pool, auditWriter audit.Write
 		// Write audit event if auditWriter is available
 		if auditWriter != nil {
 			_ = auditWriter.Write(ctx, audit.Event{
-				OrganizationID: ss.OrgID,
-				ActorUserID:    nil, // system webhook action
-				Action:         audit.ActionDeploymentWebhookCreated,
-				EntityType:     "deployment",
-				EntityID:       deploymentID,
+				UserID:      ss.UserID,
+				ActorUserID: nil, // system webhook action
+				Action:      audit.ActionDeploymentWebhookCreated,
+				EntityType:  "deployment",
+				EntityID:    deploymentID,
 				Metadata: map[string]any{
 					"service_id":  ss.ServiceID.String(),
 					"commit_sha":  afterSHA,
@@ -541,7 +541,7 @@ func handleInstallation(ctx context.Context, pool *pgxpool.Pool, ghClient GitHub
 	switch action {
 	case "created", "unsuspend":
 		var instUUID uuid.UUID
-		var orgID uuid.UUID
+		var userID uuid.UUID
 		err := pool.QueryRow(ctx, `
 			UPDATE github_installations
 			SET status = 'active',
@@ -549,8 +549,8 @@ func handleInstallation(ctx context.Context, pool *pgxpool.Pool, ghClient GitHub
 			    suspended_by_github = FALSE,
 			    updated_at = now()
 			WHERE github_installation_id = $1
-			RETURNING id, organization_id;
-		`, instGitHubID).Scan(&instUUID, &orgID)
+			RETURNING id, user_id;
+		`, instGitHubID).Scan(&instUUID, &userID)
 
 		if errors.Is(err, pgx.ErrNoRows) {
 			return markEventIgnored(ctx, pool, rec.ID, "installation_not_found")
@@ -568,11 +568,11 @@ func handleInstallation(ctx context.Context, pool *pgxpool.Pool, ghClient GitHub
 				auditAction = audit.ActionInstallationLinked
 			}
 			_ = auditWriter.Write(ctx, audit.Event{
-				OrganizationID: orgID,
-				ActorUserID:    nil,
-				Action:         auditAction,
-				EntityType:     "github_installation",
-				EntityID:       instUUID,
+				UserID:      userID,
+				ActorUserID: nil,
+				Action:      auditAction,
+				EntityType:  "github_installation",
+				EntityID:    instUUID,
 				Metadata: map[string]any{
 					"action":                 action,
 					"github_installation_id": instGitHubID,
@@ -582,14 +582,14 @@ func handleInstallation(ctx context.Context, pool *pgxpool.Pool, ghClient GitHub
 
 	case "deleted":
 		var instUUID uuid.UUID
-		var orgID uuid.UUID
+		var userID uuid.UUID
 		err := pool.QueryRow(ctx, `
 			UPDATE github_installations
 			SET status = 'revoked',
 			    updated_at = now()
 			WHERE github_installation_id = $1
-			RETURNING id, organization_id;
-		`, instGitHubID).Scan(&instUUID, &orgID)
+			RETURNING id, user_id;
+		`, instGitHubID).Scan(&instUUID, &userID)
 
 		if errors.Is(err, pgx.ErrNoRows) {
 			return markEventIgnored(ctx, pool, rec.ID, "installation_not_found")
@@ -619,11 +619,11 @@ func handleInstallation(ctx context.Context, pool *pgxpool.Pool, ghClient GitHub
 
 		if auditWriter != nil {
 			_ = auditWriter.Write(ctx, audit.Event{
-				OrganizationID: orgID,
-				ActorUserID:    nil,
-				Action:         audit.ActionInstallationRevoked,
-				EntityType:     "github_installation",
-				EntityID:       instUUID,
+				UserID:      userID,
+				ActorUserID: nil,
+				Action:      audit.ActionInstallationRevoked,
+				EntityType:  "github_installation",
+				EntityID:    instUUID,
 				Metadata: map[string]any{
 					"action":                 action,
 					"github_installation_id": instGitHubID,
@@ -633,7 +633,7 @@ func handleInstallation(ctx context.Context, pool *pgxpool.Pool, ghClient GitHub
 
 	case "suspend":
 		var instUUID uuid.UUID
-		var orgID uuid.UUID
+		var userID uuid.UUID
 		err := pool.QueryRow(ctx, `
 			UPDATE github_installations
 			SET status = 'suspended',
@@ -641,8 +641,8 @@ func handleInstallation(ctx context.Context, pool *pgxpool.Pool, ghClient GitHub
 			    suspended_by_github = TRUE,
 			    updated_at = now()
 			WHERE github_installation_id = $1
-			RETURNING id, organization_id;
-		`, instGitHubID).Scan(&instUUID, &orgID)
+			RETURNING id, user_id;
+		`, instGitHubID).Scan(&instUUID, &userID)
 
 		if errors.Is(err, pgx.ErrNoRows) {
 			return markEventIgnored(ctx, pool, rec.ID, "installation_not_found")
@@ -672,11 +672,11 @@ func handleInstallation(ctx context.Context, pool *pgxpool.Pool, ghClient GitHub
 
 		if auditWriter != nil {
 			_ = auditWriter.Write(ctx, audit.Event{
-				OrganizationID: orgID,
-				ActorUserID:    nil,
-				Action:         audit.ActionInstallationSuspended,
-				EntityType:     "github_installation",
-				EntityID:       instUUID,
+				UserID:      userID,
+				ActorUserID: nil,
+				Action:      audit.ActionInstallationSuspended,
+				EntityType:  "github_installation",
+				EntityID:    instUUID,
 				Metadata: map[string]any{
 					"action":                 action,
 					"github_installation_id": instGitHubID,
@@ -686,11 +686,11 @@ func handleInstallation(ctx context.Context, pool *pgxpool.Pool, ghClient GitHub
 
 	case "new_permissions_accepted":
 		var instUUID uuid.UUID
-		var orgID uuid.UUID
+		var userID uuid.UUID
 		err := pool.QueryRow(ctx, `
-			SELECT id, organization_id FROM github_installations
+			SELECT id, user_id FROM github_installations
 			WHERE github_installation_id = $1
-		`, instGitHubID).Scan(&instUUID, &orgID)
+		`, instGitHubID).Scan(&instUUID, &userID)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return markEventIgnored(ctx, pool, rec.ID, "installation_not_found")
 		} else if err != nil {
@@ -711,11 +711,11 @@ func handleInstallation(ctx context.Context, pool *pgxpool.Pool, ghClient GitHub
 
 		if auditWriter != nil {
 			_ = auditWriter.Write(ctx, audit.Event{
-				OrganizationID: orgID,
-				ActorUserID:    nil,
-				Action:         audit.ActionInstallationUpdated,
-				EntityType:     "github_installation",
-				EntityID:       instUUID,
+				UserID:      userID,
+				ActorUserID: nil,
+				Action:      audit.ActionInstallationUpdated,
+				EntityType:  "github_installation",
+				EntityID:    instUUID,
 				Metadata: map[string]any{
 					"action":                 action,
 					"github_installation_id": instGitHubID,
@@ -745,11 +745,11 @@ func handleInstallationRepositories(ctx context.Context, pool *pgxpool.Pool, aud
 	}
 
 	var instUUID uuid.UUID
-	var orgID uuid.UUID
+	var userID uuid.UUID
 	err := pool.QueryRow(ctx,
-		"SELECT id, organization_id FROM github_installations WHERE github_installation_id = $1",
+		"SELECT id, user_id FROM github_installations WHERE github_installation_id = $1",
 		instGitHubID,
-	).Scan(&instUUID, &orgID)
+	).Scan(&instUUID, &userID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return markEventIgnored(ctx, pool, rec.ID, "installation_not_found")
 	} else if err != nil {
@@ -810,11 +810,11 @@ func handleInstallationRepositories(ctx context.Context, pool *pgxpool.Pool, aud
 
 		if auditWriter != nil {
 			_ = auditWriter.Write(ctx, audit.Event{
-				OrganizationID: orgID,
-				ActorUserID:    nil,
-				Action:         audit.ActionRepositorySynced,
-				EntityType:     "github_repository",
-				EntityID:       repoUUID,
+				UserID:      userID,
+				ActorUserID: nil,
+				Action:      audit.ActionRepositorySynced,
+				EntityType:  "github_repository",
+				EntityID:    repoUUID,
 				Metadata: map[string]any{
 					"full_name":              repo.FullName,
 					"github_repository_id":   repo.ID,
@@ -857,11 +857,11 @@ func handleInstallationRepositories(ctx context.Context, pool *pgxpool.Pool, aud
 
 		if auditWriter != nil {
 			_ = auditWriter.Write(ctx, audit.Event{
-				OrganizationID: orgID,
-				ActorUserID:    nil,
-				Action:         audit.ActionRepositoryAccessRemoved,
-				EntityType:     "github_repository",
-				EntityID:       repoUUID,
+				UserID:      userID,
+				ActorUserID: nil,
+				Action:      audit.ActionRepositoryAccessRemoved,
+				EntityType:  "github_repository",
+				EntityID:    repoUUID,
 				Metadata: map[string]any{
 					"full_name":              repo.FullName,
 					"github_repository_id":   repo.ID,
