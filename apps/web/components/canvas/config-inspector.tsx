@@ -112,20 +112,20 @@ export function ConfigInspector({
 
   return (
     <aside
-      className="absolute right-0 top-0 bottom-0 w-[320px] bg-[#121211] border-l border-[#222220] z-20 flex flex-col select-none shadow-2xl animate-in slide-in-from-right duration-150"
+      className="absolute right-0 top-0 bottom-0 w-[320px] bg-[#141414] border-l border-[#242424] z-20 flex flex-col select-none shadow-2xl animate-in slide-in-from-right duration-150"
       onClick={(e) => e.stopPropagation()}
     >
       {/* Header */}
-      <div className="h-[52px] px-4 border-b border-[#222220] flex items-center justify-between shrink-0">
+      <div className="h-[52px] px-4 border-b border-[#242424] flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-6 h-6 rounded flex items-center justify-center shrink-0 bg-[#1C1C1A] border border-[#2A2A28] text-accent-orange">
+          <div className="w-6 h-6 rounded flex items-center justify-center shrink-0 bg-[#191919] border border-[#2A2A2A] text-[#E79570]">
             <Icon className="w-3.5 h-3.5" />
           </div>
           <div className="min-w-0">
-            <h3 className="font-sans text-[13px] font-medium text-[#FAF8F5] truncate">
+            <h3 className="font-sans text-[13px] font-medium text-[#F2F0EC] truncate">
               {data.subType || data.serviceType}
             </h3>
-            <p className="font-mono text-[10px] text-[#70706C] truncate">
+            <p className="font-mono text-[10px] text-[#77746F] truncate">
               ID: {node.id}
             </p>
           </div>
@@ -134,7 +134,7 @@ export function ConfigInspector({
         <button
           type="button"
           onClick={onClose}
-          className="w-6 h-6 rounded flex items-center justify-center text-[#8E8C86] hover:text-[#FAF8F5] hover:bg-[#1E1E1C] transition-colors"
+          className="w-6 h-6 rounded flex items-center justify-center text-[#A09D98] hover:text-[#F2F0EC] hover:bg-[#202020] transition-colors"
           title="Close inspector (Esc)"
         >
           <X className="w-3.5 h-3.5" />
@@ -145,7 +145,7 @@ export function ConfigInspector({
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {/* Resource Name */}
         <div className="space-y-1.5">
-          <label className="text-[11px] font-mono text-[#8E8C86]">
+          <label className="text-[11px] font-mono text-[#A09D98]">
             Resource Name
           </label>
           <input
@@ -156,7 +156,7 @@ export function ConfigInspector({
               handleUpdate({ label: e.target.value });
             }}
             placeholder="service-name"
-            className="w-full bg-[#181817] border border-[#2B2B28] focus:border-accent-orange rounded-[6px] px-2.5 py-1.5 text-[12.5px] font-mono text-[#FAF8F5] outline-none transition-colors"
+            className="w-full bg-[#191919] border border-[#2A2A2A] focus:border-[#E79570] rounded-[6px] px-2.5 py-1.5 text-[12.5px] font-mono text-[#F2F0EC] outline-none transition-colors"
           />
         </div>
 
@@ -164,7 +164,7 @@ export function ConfigInspector({
         {isRepo && (
           <>
             <div className="space-y-1.5">
-              <label className="text-[11px] font-mono text-[#8E8C86]">
+              <label className="text-[11px] font-mono text-[#A09D98]">
                 Repository URL
               </label>
               <input
@@ -175,11 +175,11 @@ export function ConfigInspector({
                   handleUpdate({ repoUrl: e.target.value });
                 }}
                 placeholder="https://github.com/org/repo"
-                className="w-full bg-[#181817] border border-[#2B2B28] focus:border-accent-orange rounded-[6px] px-2.5 py-1.5 text-[12px] font-mono text-[#FAF8F5] outline-none transition-colors"
+                className="w-full bg-[#191919] border border-[#2A2A2A] focus:border-[#E79570] rounded-[6px] px-2.5 py-1.5 text-[12px] font-mono text-[#F2F0EC] outline-none transition-colors"
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[11px] font-mono text-[#8E8C86]">
+              <label className="text-[11px] font-mono text-[#A09D98]">
                 Default Branch
               </label>
               <input
@@ -190,7 +190,7 @@ export function ConfigInspector({
                   handleUpdate({ branch: e.target.value });
                 }}
                 placeholder="main"
-                className="w-full bg-[#181817] border border-[#2B2B28] focus:border-accent-orange rounded-[6px] px-2.5 py-1.5 text-[12px] font-mono text-[#FAF8F5] outline-none transition-colors"
+                className="w-full bg-[#191919] border border-[#2A2A2A] focus:border-[#E79570] rounded-[6px] px-2.5 py-1.5 text-[12px] font-mono text-[#F2F0EC] outline-none transition-colors"
               />
             </div>
           </>
@@ -200,7 +200,7 @@ export function ConfigInspector({
         {isApp && (
           <>
             <div className="space-y-1.5">
-              <label className="text-[11px] font-mono text-[#8E8C86]">
+              <label className="text-[11px] font-mono text-[#A09D98]">
                 Root Directory
               </label>
               <input
@@ -211,12 +211,12 @@ export function ConfigInspector({
                   handleUpdate({ rootDir: e.target.value });
                 }}
                 placeholder="."
-                className="w-full bg-[#181817] border border-[#2B2B28] focus:border-accent-orange rounded-[6px] px-2.5 py-1.5 text-[12px] font-mono text-[#FAF8F5] outline-none transition-colors"
+                className="w-full bg-[#191919] border border-[#2A2A2A] focus:border-[#E79570] rounded-[6px] px-2.5 py-1.5 text-[12px] font-mono text-[#F2F0EC] outline-none transition-colors"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[11px] font-mono text-[#8E8C86]">
+              <label className="text-[11px] font-mono text-[#A09D98]">
                 Build Command
               </label>
               <input
@@ -227,12 +227,12 @@ export function ConfigInspector({
                   handleUpdate({ buildCommand: e.target.value });
                 }}
                 placeholder="pnpm build"
-                className="w-full bg-[#181817] border border-[#2B2B28] focus:border-accent-orange rounded-[6px] px-2.5 py-1.5 text-[12px] font-mono text-[#FAF8F5] outline-none transition-colors"
+                className="w-full bg-[#191919] border border-[#2A2A2A] focus:border-[#E79570] rounded-[6px] px-2.5 py-1.5 text-[12px] font-mono text-[#F2F0EC] outline-none transition-colors"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[11px] font-mono text-[#8E8C86]">
+              <label className="text-[11px] font-mono text-[#A09D98]">
                 Start Command
               </label>
               <input
@@ -243,20 +243,20 @@ export function ConfigInspector({
                   handleUpdate({ startCommand: e.target.value });
                 }}
                 placeholder="pnpm start"
-                className="w-full bg-[#181817] border border-[#2B2B28] focus:border-accent-orange rounded-[6px] px-2.5 py-1.5 text-[12px] font-mono text-[#FAF8F5] outline-none transition-colors"
+                className="w-full bg-[#191919] border border-[#2A2A2A] focus:border-[#E79570] rounded-[6px] px-2.5 py-1.5 text-[12px] font-mono text-[#F2F0EC] outline-none transition-colors"
               />
             </div>
 
             {/* Environment Variables */}
-            <div className="space-y-2 pt-2 border-t border-[#222220]">
+            <div className="space-y-2 pt-2 border-t border-[#242424]">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-mono text-[#8E8C86]">
+                <span className="text-[11px] font-mono text-[#A09D98]">
                   Environment Variables
                 </span>
                 <button
                   type="button"
                   onClick={handleAddEnvVar}
-                  className="inline-flex items-center gap-1 text-[11px] font-sans text-accent-orange hover:underline"
+                  className="inline-flex items-center gap-1 text-[11px] font-sans text-[#E79570] hover:text-[#F0A17B] hover:underline"
                 >
                   <Plus className="w-3 h-3" />
                   <span>Add</span>
@@ -264,7 +264,7 @@ export function ConfigInspector({
               </div>
 
               {envVars.length === 0 ? (
-                <p className="text-[11px] text-[#60605C] italic">
+                <p className="text-[11px] text-[#77746F] italic">
                   No environment variables defined.
                 </p>
               ) : (
@@ -278,7 +278,7 @@ export function ConfigInspector({
                           handleUpdateEnvVar(ev.id, e.target.value, ev.value)
                         }
                         placeholder="KEY"
-                        className="w-1/2 bg-[#181817] border border-[#2B2B28] rounded px-2 py-1 text-[11px] font-mono text-[#FAF8F5] outline-none focus:border-accent-orange"
+                        className="w-1/2 bg-[#191919] border border-[#2A2A2A] rounded px-2 py-1 text-[11px] font-mono text-[#F2F0EC] outline-none focus:border-[#E79570]"
                       />
                       <input
                         type="text"
@@ -287,12 +287,12 @@ export function ConfigInspector({
                           handleUpdateEnvVar(ev.id, ev.key, e.target.value)
                         }
                         placeholder="VALUE"
-                        className="w-1/2 bg-[#181817] border border-[#2B2B28] rounded px-2 py-1 text-[11px] font-mono text-[#FAF8F5] outline-none focus:border-accent-orange"
+                        className="w-1/2 bg-[#191919] border border-[#2A2A2A] rounded px-2 py-1 text-[11px] font-mono text-[#F2F0EC] outline-none focus:border-[#E79570]"
                       />
                       <button
                         type="button"
                         onClick={() => handleRemoveEnvVar(ev.id)}
-                        className="text-[#70706C] hover:text-[#D77D7D] p-1"
+                        className="text-[#77746F] hover:text-[#D77D7D] p-1"
                         title="Remove variable"
                       >
                         <X className="w-3 h-3" />
@@ -309,7 +309,7 @@ export function ConfigInspector({
         {isDb && (
           <>
             <div className="space-y-1.5">
-              <label className="text-[11px] font-mono text-[#8E8C86]">
+              <label className="text-[11px] font-mono text-[#A09D98]">
                 Database Name
               </label>
               <input
@@ -320,12 +320,12 @@ export function ConfigInspector({
                   handleUpdate({ databaseName: e.target.value });
                 }}
                 placeholder="app_db"
-                className="w-full bg-[#181817] border border-[#2B2B28] focus:border-accent-orange rounded-[6px] px-2.5 py-1.5 text-[12px] font-mono text-[#FAF8F5] outline-none transition-colors"
+                className="w-full bg-[#191919] border border-[#2A2A2A] focus:border-[#E79570] rounded-[6px] px-2.5 py-1.5 text-[12px] font-mono text-[#F2F0EC] outline-none transition-colors"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[11px] font-mono text-[#8E8C86]">
+              <label className="text-[11px] font-mono text-[#A09D98]">
                 Port
               </label>
               <input
@@ -337,16 +337,16 @@ export function ConfigInspector({
                   handleUpdate({ port: isNaN(val) ? undefined : val });
                 }}
                 placeholder="5432"
-                className="w-full bg-[#181817] border border-[#2B2B28] focus:border-accent-orange rounded-[6px] px-2.5 py-1.5 text-[12px] font-mono text-[#FAF8F5] outline-none transition-colors"
+                className="w-full bg-[#191919] border border-[#2A2A2A] focus:border-[#E79570] rounded-[6px] px-2.5 py-1.5 text-[12px] font-mono text-[#F2F0EC] outline-none transition-colors"
               />
             </div>
 
             {data.connectionString && (
               <div className="space-y-1.5">
-                <label className="text-[11px] font-mono text-[#8E8C86]">
+                <label className="text-[11px] font-mono text-[#A09D98]">
                   Internal Connection String
                 </label>
-                <div className="bg-[#181817] border border-[#2B2B28] rounded-[6px] px-2.5 py-1.5 text-[11px] font-mono text-[#A8A6A1] break-all select-all">
+                <div className="bg-[#191919] border border-[#2A2A2A] rounded-[6px] px-2.5 py-1.5 text-[11px] font-mono text-[#A09D98] break-all select-all">
                   {data.connectionString}
                 </div>
               </div>
@@ -356,11 +356,11 @@ export function ConfigInspector({
       </div>
 
       {/* Footer: Delete Action */}
-      <div className="p-3 border-t border-[#222220] bg-[#0F0F0E] shrink-0">
+      <div className="p-3 border-t border-[#242424] bg-[#141414] shrink-0">
         <button
           type="button"
           onClick={() => onDeleteNode(node.id)}
-          className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-[6px] border border-[#332222] bg-[#1E1414] hover:bg-[#2A1818] text-[#D77D7D] text-[12px] font-sans transition-colors"
+          className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-[6px] border border-[#3A2222] bg-[#1E1414] hover:bg-[#2A1818] text-[#D77D7D] text-[12px] font-sans transition-colors cursor-pointer"
         >
           <Trash2 className="w-3.5 h-3.5" />
           <span>Delete Node</span>

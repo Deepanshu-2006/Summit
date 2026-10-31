@@ -68,7 +68,7 @@ const DEPLOY_SERVICES: DeployItem[] = [
     title: "Deploy from GitHub Repo",
     description: "Connect GitHub repository or monorepo branch",
     icon: GitHubIcon,
-    iconColor: "text-[#FAF8F5]",
+    iconColor: "text-[#F2F0EC]",
     hasSubmenu: true,
   },
   {
@@ -98,6 +98,20 @@ const DEPLOY_SERVICES: DeployItem[] = [
     description: "Containerized image from Docker Hub or GHCR",
     icon: Box,
     iconColor: "text-[#60A5FA]",
+  },
+  {
+    id: "cache",
+    title: "Deploy Redis Cache",
+    description: "Redis 7.2 in-memory cache and key-value store",
+    icon: RedisIcon,
+    iconColor: "text-[#F87171]",
+  },
+  {
+    id: "worker",
+    title: "Deploy Background Worker",
+    description: "Asynchronous task, queue, or cron worker",
+    icon: Cpu,
+    iconColor: "text-[#CCA7E8]",
   },
 ];
 
@@ -214,29 +228,29 @@ export function DeployPaletteModal({
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-[490px] bg-[#121113] border border-[#26242A] rounded-[16px] shadow-[0_24px_64px_rgba(0,0,0,0.85)] p-6 overflow-hidden animate-in zoom-in-95 duration-150"
+        className="relative w-full max-w-[490px] bg-[#141414] border border-[#2A2A2A] rounded-[16px] shadow-[0_24px_64px_rgba(0,0,0,0.85)] p-6 overflow-hidden animate-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close Button */}
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-5 right-5 w-7 h-7 rounded-[7px] flex items-center justify-center text-[#8E8C86] hover:text-[#FAF8F5] hover:bg-[#1E1C21] transition-colors cursor-pointer"
+          className="absolute top-5 right-5 w-7 h-7 rounded-[7px] flex items-center justify-center text-[#A09D98] hover:text-[#F2F0EC] hover:bg-[#202020] transition-colors cursor-pointer"
           title="Close (Esc)"
         >
           <X className="w-4 h-4" />
         </button>
 
-        {/* Header Icon & Title (Exact Railway frame 34 / 05 layout) */}
+        {/* Header Icon & Title */}
         <div className="flex flex-col items-center text-center mt-1">
           {currentView === "menu" ? (
-            <div className="w-10 h-10 rounded-[10px] bg-[#1F1A28] border border-[#3A2D4A] flex items-center justify-center text-[#CCA7E8] mb-3 shadow-[0_0_20px_rgba(204,167,232,0.15)]">
+            <div className="w-10 h-10 rounded-[10px] bg-[#191919] border border-[#2A2A2A] flex items-center justify-center text-[#E79570] mb-3 shadow-md">
               {/* 4-squares Grid Icon */}
               <div className="grid grid-cols-2 gap-1 w-4 h-4">
-                <span className="w-1.5 h-1.5 rounded-sm bg-[#CCA7E8]" />
-                <span className="w-1.5 h-1.5 rounded-sm bg-[#CCA7E8]" />
-                <span className="w-1.5 h-1.5 rounded-sm bg-[#CCA7E8]" />
-                <span className="w-1.5 h-1.5 rounded-sm bg-accent-orange" />
+                <span className="w-1.5 h-1.5 rounded-sm bg-[#A09D98]" />
+                <span className="w-1.5 h-1.5 rounded-sm bg-[#A09D98]" />
+                <span className="w-1.5 h-1.5 rounded-sm bg-[#A09D98]" />
+                <span className="w-1.5 h-1.5 rounded-sm bg-[#E79570]" />
               </div>
             </div>
           ) : (
@@ -246,26 +260,26 @@ export function DeployPaletteModal({
                 setCurrentView("menu");
                 setSearchQuery("");
               }}
-              className="flex items-center gap-1.5 text-[12px] text-[#8E8C86] hover:text-[#FAF8F5] mb-2 self-start transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 text-[12px] text-[#A09D98] hover:text-[#F2F0EC] mb-2 self-start transition-colors cursor-pointer"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               Back to services
             </button>
           )}
 
-          <h2 className="font-sans text-[21px] font-semibold text-[#FAF8F5] tracking-[-0.025em]">
+          <h2 className="font-sans text-[21px] font-semibold text-[#F2F0EC] tracking-[-0.025em]">
             {currentView === "menu" ? "New Service" : "Deploy GitHub Repo"}
           </h2>
-          <p className="font-sans text-[13px] text-[#8E8C86] mt-1 tracking-normal">
+          <p className="font-sans text-[13px] text-[#A09D98] mt-1 tracking-normal">
             {currentView === "menu"
               ? "Deploy your app to production effortlessly"
               : "Select a repository to deploy"}
           </p>
         </div>
 
-        {/* Search Input: 'What are we going to deploy today?' */}
+        {/* Search Input */}
         <div className="relative mt-5">
-          <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#7A7873]">
+          <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#77746F]">
             <Search className="w-4 h-4" />
           </div>
           <input
@@ -277,7 +291,7 @@ export function DeployPaletteModal({
               setSelectedIndex(0);
             }}
             placeholder="What are we going to deploy today?"
-            className="w-full h-11 pl-10 pr-4 bg-[#18171B] border border-[#2B2930] focus:border-accent-orange rounded-[10px] text-[13.5px] text-[#FAF8F5] placeholder:text-[#6C6A66] outline-none transition-colors"
+            className="w-full h-11 pl-10 pr-4 bg-[#191919] border border-[#2A2A2A] focus:border-[#E79570] rounded-[10px] text-[13.5px] text-[#F2F0EC] placeholder:text-[#77746F] outline-none transition-colors"
           />
         </div>
 
@@ -311,27 +325,27 @@ export function DeployPaletteModal({
                   onMouseEnter={() => setSelectedIndex(index)}
                   className={`w-full flex items-center justify-between p-2.5 rounded-[9px] cursor-pointer transition-colors ${
                     isSelected
-                      ? "bg-[#201D26] border border-[#383345]"
-                      : "hover:bg-[#18161D] border border-transparent"
+                      ? "bg-[#202020] border border-[#2A2A2A]"
+                      : "hover:bg-[#191919] border border-transparent"
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-8 h-8 rounded-[7px] bg-[#18161D] border border-[#27252E] flex items-center justify-center shrink-0">
+                    <div className="w-8 h-8 rounded-[7px] bg-[#191919] border border-[#2A2A2A] flex items-center justify-center shrink-0">
                       <Icon className={`w-4 h-4 ${item.iconColor}`} />
                     </div>
                     <div className="min-w-0 text-left">
-                      <h4 className="font-sans text-[13.5px] font-medium text-[#FAF8F5] truncate leading-tight">
+                      <h4 className="font-sans text-[13.5px] font-medium text-[#F2F0EC] truncate leading-tight">
                         {item.title}
                       </h4>
-                      <p className="font-sans text-[11.5px] text-[#8E8C86] truncate mt-0.5">
+                      <p className="font-sans text-[11.5px] text-[#A09D98] truncate mt-0.5">
                         {item.description}
                       </p>
                     </div>
                   </div>
                   {item.hasSubmenu ? (
-                    <ChevronRight className="w-4 h-4 text-[#7A7873] shrink-0 ml-2" />
+                    <ChevronRight className="w-4 h-4 text-[#77746F] shrink-0 ml-2" />
                   ) : (
-                    <Plus className="w-4 h-4 text-[#7A7873] group-hover:text-accent-orange shrink-0 ml-2" />
+                    <Plus className="w-4 h-4 text-[#77746F] group-hover:text-[#E79570] shrink-0 ml-2" />
                   )}
                 </div>
               );
@@ -353,24 +367,24 @@ export function DeployPaletteModal({
                   onMouseEnter={() => setSelectedIndex(index)}
                   className={`w-full flex items-center justify-between p-2.5 rounded-[9px] cursor-pointer transition-colors ${
                     isSelected
-                      ? "bg-[#201D26] border border-[#383345]"
-                      : "hover:bg-[#18161D] border border-transparent"
+                      ? "bg-[#202020] border border-[#2A2A2A]"
+                      : "hover:bg-[#191919] border border-transparent"
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-8 h-8 rounded-[7px] bg-[#18161D] border border-[#27252E] flex items-center justify-center shrink-0">
-                      <GitHubIcon className="w-4 h-4 text-[#FAF8F5]" />
+                    <div className="w-8 h-8 rounded-[7px] bg-[#191919] border border-[#2A2A2A] flex items-center justify-center shrink-0">
+                      <GitHubIcon className="w-4 h-4 text-[#F2F0EC]" />
                     </div>
                     <div className="min-w-0 text-left">
-                      <h4 className="font-mono text-[13px] font-medium text-[#FAF8F5] truncate leading-tight">
+                      <h4 className="font-mono text-[13px] font-medium text-[#F2F0EC] truncate leading-tight">
                         {repo.name}
                       </h4>
-                      <p className="font-sans text-[11.5px] text-[#8E8C86] truncate mt-0.5">
+                      <p className="font-sans text-[11.5px] text-[#A09D98] truncate mt-0.5">
                         {repo.desc}
                       </p>
                     </div>
                   </div>
-                  <span className="text-[10.5px] font-mono text-[#8E8C86] bg-[#1A191E] border border-[#2A2832] px-2 py-0.5 rounded shrink-0 ml-2">
+                  <span className="text-[10.5px] font-mono text-[#A09D98] bg-[#191919] border border-[#242424] px-2 py-0.5 rounded shrink-0 ml-2">
                     {repo.branch}
                   </span>
                 </div>

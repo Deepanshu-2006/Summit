@@ -70,7 +70,7 @@ function getRailwayNodeDetails(data: SummitNode["data"]) {
     case "repository":
       return {
         Icon: GitHubOctocatIcon,
-        iconColor: "text-[#FAF8F5]",
+        iconColor: "text-[#F2F0EC]",
         statusText: "Just deployed via GitHub",
         volumeTag: `branch: ${data.branch || "main"}`,
         isDatabase: false,
@@ -119,7 +119,7 @@ function getRailwayNodeDetails(data: SummitNode["data"]) {
     default:
       return {
         Icon: Layout,
-        iconColor: "text-[#FAF8F5]",
+        iconColor: "text-[#F2F0EC]",
         statusText: "Just deployed",
         volumeTag: "main-volume",
         isDatabase: false,
@@ -170,76 +170,72 @@ export const SummitNodeComponent = memo(function SummitNodeComponent({
       data-selected={selected ? "true" : "false"}
       className="relative select-none group"
     >
-      {/* 3D Card Stack Depth (Railway Replicas Effect seen on backend in video frame 20/25) */}
-      <div className="absolute -bottom-1 left-2.5 right-2.5 h-2 rounded-[12px] bg-[#100F12] border border-[#1E1D22] -z-10" />
-      <div className="absolute -bottom-2 left-5 right-5 h-2 rounded-[10px] bg-[#0C0B0E] border border-[#18171B] -z-20" />
-
       {/* Main Node Card */}
       <div
-        className={`w-[270px] min-h-[106px] p-3.5 rounded-[14px] transition-all duration-200 cursor-grab active:cursor-grabbing ${
+        className={`relative w-[270px] min-h-[104px] p-3.5 rounded-[12px] transition-all duration-150 cursor-grab active:cursor-grabbing ${
           selected
-            ? "bg-[#161413] border border-accent-orange shadow-[0_0_0_1px_#D88762,0_8px_28px_rgba(216,135,98,0.14)]"
-            : isConnectionTarget
-            ? "bg-[#151417] border border-[#484460] shadow-[0_6px_22px_rgba(129,140,248,0.14)]"
-            : "bg-[#131215] border border-[#232226] hover:border-[#38373D] hover:bg-[#161519] shadow-[0_4px_20px_rgba(0,0,0,0.7)]"
+            ? "bg-[#191919] border border-[#E79570] shadow-[0_0_0_1px_#E79570,0_8px_24px_rgba(231,149,112,0.18)]"
+            : isConnectionTarget || isConnectionSource
+            ? "bg-[#191919] border border-[#E79570] shadow-[0_4px_18px_rgba(231,149,112,0.18)]"
+            : "bg-[#141414] border border-[#2A2A2A] hover:bg-[#191919] hover:border-[#383838] shadow-[0_4px_20px_rgba(0,0,0,0.6)]"
         }`}
       >
-        {/* Handles on 4 sides (supports Railway's vertical and horizontal connections) */}
-        {/* Left Handle (Target) */}
+        {/* Subtle Visual Connection Locators (Visible on hover, zero-gap border alignment) */}
+        <div className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-[#191919] border border-[#2A2A2A] group-hover:border-[#E79570] opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none z-20" />
+        <div className="absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-[#191919] border border-[#2A2A2A] group-hover:border-[#E79570] opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none z-20" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-[#191919] border border-[#2A2A2A] group-hover:border-[#E79570] opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none z-20" />
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-2 h-2 rounded-full bg-[#191919] border border-[#2A2A2A] group-hover:border-[#E79570] opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none z-20" />
+
+        {/* Exact Geometric Center Connection Anchors on 4 Edges — Zero Gaps, 0.0px Pixel Precision */}
+        {/* Left Edge Anchor */}
         <Handle
-          type="target"
+          type="source"
           position={Position.Left}
           id="target"
-          className="!w-[24px] !h-[24px] !-left-[12px] !top-1/2 !-translate-y-1/2 !bg-transparent !border-0 !p-0 !m-0 flex items-center justify-center cursor-crosshair z-30"
-        >
-          <span
-            className={`w-[9px] h-[9px] rounded-full border transition-all duration-150 pointer-events-none ${
-              selected
-                ? "border-accent-orange bg-accent-orange scale-100 opacity-100"
-                : isConnectionTarget
-                ? "border-[#818CF8] bg-[#232035] opacity-100 scale-110 shadow-[0_0_0_3px_rgba(129,140,248,0.25)]"
-                : "border-[#4A4944] bg-[#141413] opacity-0 group-hover:opacity-100 group-hover:border-[#7A7873]"
-            }`}
-          />
-        </Handle>
+          className="!absolute !w-0 !h-0 !p-0 !m-0 !border-0 !bg-transparent !outline-none !shadow-none !opacity-0 cursor-crosshair z-30 after:content-[''] after:absolute after:top-1/2 after:left-1/2 after:-translate-x-1/2 after:-translate-y-1/2 after:w-7 after:h-7 after:pointer-events-auto"
+          style={{ left: 0, top: "50%", transform: "translateY(-50%)" }}
+        />
+        <Handle
+          type="source"
+          position={Position.Left}
+          id="left"
+          className="!absolute !w-0 !h-0 !p-0 !m-0 !border-0 !bg-transparent !outline-none !shadow-none !opacity-0 cursor-crosshair z-30 after:content-[''] after:absolute after:top-1/2 after:left-1/2 after:-translate-x-1/2 after:-translate-y-1/2 after:w-7 after:h-7 after:pointer-events-auto"
+          style={{ left: 0, top: "50%", transform: "translateY(-50%)" }}
+        />
 
-        {/* Right Handle (Source) */}
+        {/* Right Edge Anchor */}
         <Handle
           type="source"
           position={Position.Right}
           id="source"
-          className="!w-[24px] !h-[24px] !-right-[12px] !top-1/2 !-translate-y-1/2 !bg-transparent !border-0 !p-0 !m-0 flex items-center justify-center cursor-crosshair z-30"
-        >
-          <span
-            className={`w-[9px] h-[9px] rounded-full border transition-all duration-150 pointer-events-none ${
-              selected
-                ? "border-accent-orange bg-accent-orange scale-100 opacity-100"
-                : isConnectionSource
-                ? "border-accent-orange bg-accent-orange opacity-100 scale-125 shadow-[0_0_0_4px_rgba(216,135,98,0.3)]"
-                : "border-[#4A4944] bg-[#141413] opacity-0 group-hover:opacity-100 group-hover:border-[#7A7873]"
-            }`}
-          />
-        </Handle>
-
-        {/* Top Handle */}
+          className="!absolute !w-0 !h-0 !p-0 !m-0 !border-0 !bg-transparent !outline-none !shadow-none !opacity-0 cursor-crosshair z-30 after:content-[''] after:absolute after:top-1/2 after:left-1/2 after:-translate-x-1/2 after:-translate-y-1/2 after:w-7 after:h-7 after:pointer-events-auto"
+          style={{ right: 0, top: "50%", transform: "translateY(-50%)" }}
+        />
         <Handle
-          type="target"
+          type="source"
+          position={Position.Right}
+          id="right"
+          className="!absolute !w-0 !h-0 !p-0 !m-0 !border-0 !bg-transparent !outline-none !shadow-none !opacity-0 cursor-crosshair z-30 after:content-[''] after:absolute after:top-1/2 after:left-1/2 after:-translate-x-1/2 after:-translate-y-1/2 after:w-7 after:h-7 after:pointer-events-auto"
+          style={{ right: 0, top: "50%", transform: "translateY(-50%)" }}
+        />
+
+        {/* Top Edge Anchor */}
+        <Handle
+          type="source"
           position={Position.Top}
           id="top"
-          className="!w-[24px] !h-[24px] !-top-[12px] !left-1/2 !-translate-x-1/2 !bg-transparent !border-0 !p-0 !m-0 flex items-center justify-center cursor-crosshair z-30"
-        >
-          <span className="w-[8px] h-[8px] rounded-full border border-[#4A4944] bg-[#141413] opacity-0 group-hover:opacity-100 transition-all duration-150 pointer-events-none" />
-        </Handle>
+          className="!absolute !w-0 !h-0 !p-0 !m-0 !border-0 !bg-transparent !outline-none !shadow-none !opacity-0 cursor-crosshair z-30 after:content-[''] after:absolute after:top-1/2 after:left-1/2 after:-translate-x-1/2 after:-translate-y-1/2 after:w-7 after:h-7 after:pointer-events-auto"
+          style={{ top: 0, left: "50%", transform: "translateX(-50%)" }}
+        />
 
-        {/* Bottom Handle */}
+        {/* Bottom Edge Anchor */}
         <Handle
           type="source"
           position={Position.Bottom}
           id="bottom"
-          className="!w-[24px] !h-[24px] !-bottom-[12px] !left-1/2 !-translate-x-1/2 !bg-transparent !border-0 !p-0 !m-0 flex items-center justify-center cursor-crosshair z-30"
-        >
-          <span className="w-[8px] h-[8px] rounded-full border border-[#4A4944] bg-[#141413] opacity-0 group-hover:opacity-100 transition-all duration-150 pointer-events-none" />
-        </Handle>
+          className="!absolute !w-0 !h-0 !p-0 !m-0 !border-0 !bg-transparent !outline-none !shadow-none !opacity-0 cursor-crosshair z-30 after:content-[''] after:absolute after:top-1/2 after:left-1/2 after:-translate-x-1/2 after:-translate-y-1/2 after:w-7 after:h-7 after:pointer-events-auto"
+          style={{ bottom: 0, left: "50%", transform: "translateX(-50%)" }}
+        />
 
         {/* Top Row: Brand Icon + Title + Status Badge */}
         <div className="flex items-center justify-between gap-2.5">
@@ -248,7 +244,7 @@ export const SummitNodeComponent = memo(function SummitNodeComponent({
               <Icon className={`w-5 h-5 ${iconColor}`} />
             </div>
             <h4
-              className="font-sans text-[14.5px] font-semibold text-[#FAF8F5] truncate tracking-[-0.015em] leading-snug"
+              className="font-sans text-[14.5px] font-semibold text-[#F2F0EC] truncate tracking-[-0.015em] leading-snug"
               title={data.label}
             >
               {data.label}
@@ -257,21 +253,21 @@ export const SummitNodeComponent = memo(function SummitNodeComponent({
 
           {/* Railway 'New' Status Pill Badge */}
           {isDatabase ? (
-            <span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full bg-[#132B1E] text-[#4ADE80] border border-[#214D35] shrink-0">
+            <span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full bg-[#17261F] text-[#72B69A] border border-[#264535] shrink-0">
               New
             </span>
           ) : (
             <span
-              className="w-1.5 h-1.5 rounded-full bg-[#83B69A] shrink-0 mr-1"
+              className="w-1.5 h-1.5 rounded-full bg-[#72B69A] shrink-0 mr-1"
               title="Configured"
             />
           )}
         </div>
 
         {/* Middle Row: Green Checkmark Circle + Deployment Status */}
-        <div className="flex items-center gap-1.5 mt-2.5 text-[12px] text-[#8E8C86] font-sans">
+        <div className="flex items-center gap-1.5 mt-2.5 text-[12px] text-[#8F8C86] font-sans">
           <svg
-            className="w-3.5 h-3.5 text-[#4ADE80] shrink-0"
+            className="w-3.5 h-3.5 text-[#72B69A] shrink-0"
             viewBox="0 0 16 16"
             fill="currentColor"
           >
@@ -284,8 +280,8 @@ export const SummitNodeComponent = memo(function SummitNodeComponent({
         </div>
 
         {/* Bottom Row: Volume / Storage / Branch compartment */}
-        <div className="mt-2.5 pt-2 border-t border-[#1F1E23] flex items-center gap-1.5 text-[11px] font-mono text-[#7A7873]">
-          <HardDrive className="w-3 h-3 text-[#6A6863] shrink-0" />
+        <div className="mt-2.5 pt-2 border-t border-[#242424] flex items-center gap-1.5 text-[11px] font-mono text-[#77746F]">
+          <HardDrive className="w-3 h-3 text-[#77746F] shrink-0" />
           <span className="truncate">{volumeTag}</span>
         </div>
       </div>

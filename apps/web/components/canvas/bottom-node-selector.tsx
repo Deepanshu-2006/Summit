@@ -1,24 +1,14 @@
 "use client";
 
 import React from "react";
-import { Layout, Database, Plus } from "lucide-react";
-import type { ResourceTemplate } from "@/lib/canvas/types";
+import { Plus, Layout, Database, Cpu, Layers } from "lucide-react";
 
 export interface BottomNodeSelectorProps {
   onSelectOption: (optionId: string) => void;
   onOpenDeployPalette: () => void;
 }
 
-export interface BottomBarOption {
-  id: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  type: ResourceTemplate["type"];
-  subType: string;
-  defaultLabel: string;
-}
-
-// Authentic GitHub Brand Icon
+// Authentic GitHub Brand Vector
 function GitHubIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -31,7 +21,7 @@ function GitHubIcon({ className }: { className?: string }) {
   );
 }
 
-// Authentic Docker Container Whale Icon
+// Authentic Docker Container Whale Vector
 function DockerIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -40,81 +30,99 @@ function DockerIcon({ className }: { className?: string }) {
   );
 }
 
-export const BOTTOM_BAR_OPTIONS: BottomBarOption[] = [
+const RESOURCE_ITEMS = [
   {
     id: "github",
     label: "GitHub Repository",
     icon: GitHubIcon,
-    type: "repository",
-    subType: "GitHub Repository",
-    defaultLabel: "github-repo",
+    iconColor: "text-[#F2F0EC]",
+    glowColor: "group-hover:text-[#F2F0EC]",
   },
   {
     id: "application",
     label: "Application",
     icon: Layout,
-    type: "application",
-    subType: "Application",
-    defaultLabel: "web-app",
+    iconColor: "text-[#72B69A]",
+    glowColor: "group-hover:text-[#72B69A]",
   },
   {
     id: "database",
     label: "Database",
     icon: Database,
-    type: "database",
-    subType: "Database",
-    defaultLabel: "postgres-db",
+    iconColor: "text-[#93C5FD]",
+    glowColor: "group-hover:text-[#93C5FD]",
   },
   {
     id: "docker",
     label: "Docker Image",
     icon: DockerIcon,
-    type: "application",
-    subType: "Docker Image",
-    defaultLabel: "docker-service",
+    iconColor: "text-[#60A5FA]",
+    glowColor: "group-hover:text-[#60A5FA]",
+  },
+  {
+    id: "worker",
+    label: "Worker",
+    icon: Cpu,
+    iconColor: "text-[#D1A5F5]",
+    glowColor: "group-hover:text-[#D1A5F5]",
+  },
+  {
+    id: "cache",
+    label: "Cache",
+    icon: Layers,
+    iconColor: "text-[#F0A17B]",
+    glowColor: "group-hover:text-[#F0A17B]",
   },
 ];
 
+/**
+ * Premium Cylindrical Floating Dock
+ * Styled to match Summit's neutral charcoal and burnt-orange design tokens.
+ * Features a fully rounded pill-shaped capsule, neutral charcoal surface,
+ * Summit's signature burnt-orange Deploy action, and restrained micro-interactions.
+ * Guarantees all items including 'Cache' have generous breathing room and visibility.
+ */
 export function BottomNodeSelector({
   onSelectOption,
   onOpenDeployPalette,
 }: BottomNodeSelectorProps) {
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 select-none max-w-[calc(100vw-32px)]">
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 select-none max-w-[calc(100vw-32px)]">
       <nav
-        aria-label="Node selector bar"
-        className="flex items-center gap-1.5 bg-[#121113]/95 backdrop-blur-md border border-[#26242B] rounded-[12px] p-1.5 shadow-[0_16px_40px_rgba(0,0,0,0.85)] overflow-x-auto no-scrollbar"
+        aria-label="Resource dock"
+        className="flex items-center gap-1 bg-[#141414]/95 backdrop-blur-md border border-[#2A2A2A] rounded-full py-1.5 pl-2 pr-4 shadow-[0_12px_36px_rgba(0,0,0,0.6)] overflow-x-auto no-scrollbar"
       >
-        {/* Railway Signature '+ Deploy' Button (Opens Deploy Palette) */}
+        {/* Summit Burnt-Orange Primary Action: Deploy */}
         <button
           type="button"
           onClick={onOpenDeployPalette}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-[8px] bg-[#1E1925] border border-[#3A2D4A] hover:bg-[#271F32] hover:border-[#4B3B60] text-accent-orange transition-all duration-150 text-[12.5px] font-sans font-semibold tracking-[-0.01em] shrink-0 cursor-pointer shadow-[0_0_16px_rgba(216,135,98,0.12)]"
+          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#E79570] hover:bg-[#F0A17B] text-[#0D0D0D] font-sans font-semibold text-[12.5px] tracking-[-0.01em] shadow-[0_2px_10px_rgba(231,149,112,0.25)] active:scale-[0.97] transition-all duration-150 cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E79570]/60"
           title="Open Deploy Palette (⌘K)"
         >
           <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
           <span>Deploy</span>
         </button>
 
-        <div className="w-px h-4 bg-[#232128] shrink-0 mx-0.5" />
+        {/* Subtle Vertical Divider */}
+        <div className="w-px h-4 bg-[#242424] shrink-0 mx-1.5" />
 
-        {/* Resource Buttons */}
-        {BOTTOM_BAR_OPTIONS.map((opt) => {
-          const Icon = opt.icon;
+        {/* Unified Capsule Resource Options */}
+        {RESOURCE_ITEMS.map((item) => {
+          const Icon = item.icon;
           return (
             <button
-              key={opt.id}
+              key={item.id}
               type="button"
-              onClick={() => onSelectOption(opt.id)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[7px] hover:bg-[#1C1A20] active:bg-[#222026] text-[#A1A09A] hover:text-[#FAF8F5] transition-colors text-[12px] font-sans shrink-0 cursor-pointer"
-              title={`Choose ${opt.label}`}
+              onClick={() => onSelectOption(item.id)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full text-[#A09D98] hover:text-[#F2F0EC] hover:bg-[#202020] active:scale-[0.96] transition-all duration-150 text-[12.5px] font-sans font-medium shrink-0 whitespace-nowrap cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#E79570]/60 group"
+              title={`Add ${item.label}`}
             >
-              <div className="w-4 h-4 flex items-center justify-center text-[#7A7873] group-hover:text-[#FAF8F5] transition-colors">
+              <div
+                className={`w-3.5 h-3.5 flex items-center justify-center ${item.iconColor} opacity-80 group-hover:opacity-100 transition-opacity shrink-0`}
+              >
                 <Icon className="w-3.5 h-3.5" />
               </div>
-              <span className="font-medium tracking-[-0.01em]">
-                {opt.label}
-              </span>
+              <span className="tracking-[-0.01em]">{item.label}</span>
             </button>
           );
         })}

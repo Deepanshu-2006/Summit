@@ -107,19 +107,19 @@ export function NodeChooserDialogs({
       {/* ---------------- 1. GitHub Repository Chooser ---------------- */}
       {activeChooser === "github" && (
         <div
-          className="w-full max-w-[460px] bg-[#141413] border border-[#282826] rounded-[14px] shadow-[0_24px_64px_rgba(0,0,0,0.85)] p-5 select-none animate-in zoom-in-95 duration-150"
+          className="w-full max-w-[460px] bg-[#141414] border border-[#2A2A2A] rounded-[14px] shadow-[0_24px_64px_rgba(0,0,0,0.85)] p-5 select-none animate-in zoom-in-95 duration-150"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex items-center justify-between pb-3 border-b border-[#222220]">
+          <div className="flex items-center justify-between pb-3 border-b border-[#242424]">
             <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-[7px] bg-[#1F1E24] border border-[#2B2934] flex items-center justify-center text-[#FAF8F5]">
+              <div className="w-7 h-7 rounded-[7px] bg-[#191919] border border-[#2A2A2A] flex items-center justify-center text-[#F2F0EC]">
                 <GitHubIcon className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="font-sans text-[14.5px] font-semibold text-[#FAF8F5]">
+                <h3 className="font-sans text-[14.5px] font-semibold text-[#F2F0EC]">
                   Import GitHub Repository
                 </h3>
-                <p className="font-sans text-[11px] text-[#8E8C86]">
+                <p className="font-sans text-[11px] text-[#A09D98]">
                   Select from your repos or enter a custom repository link
                 </p>
               </div>
@@ -127,7 +127,7 @@ export function NodeChooserDialogs({
             <button
               type="button"
               onClick={onClose}
-              className="text-[#8E8C86] hover:text-[#FAF8F5] p-1 rounded hover:bg-[#1E1E1C] transition-colors cursor-pointer"
+              className="text-[#A09D98] hover:text-[#F2F0EC] p-1 rounded hover:bg-[#202020] transition-colors cursor-pointer"
               title="Close (Esc)"
             >
               <X className="w-4 h-4" />
@@ -136,7 +136,7 @@ export function NodeChooserDialogs({
 
           {/* Quick-Pick Popular / Active Repositories */}
           <div className="mt-3.5 space-y-1.5">
-            <span className="text-[10.5px] font-mono uppercase tracking-wider text-[#7A7873]">
+            <span className="text-[10.5px] font-mono uppercase tracking-wider text-[#77746F]">
               Quick Select Repository
             </span>
             <div className="space-y-1 max-h-[140px] overflow-y-auto no-scrollbar">
@@ -152,17 +152,17 @@ export function NodeChooserDialogs({
                     });
                     onClose();
                   }}
-                  className="w-full flex items-center justify-between p-2 rounded-[8px] bg-[#181817] hover:bg-[#1F1E22] border border-[#242422] hover:border-accent-orange/50 transition-colors cursor-pointer group"
+                  className="w-full flex items-center justify-between p-2 rounded-[8px] bg-[#191919] hover:bg-[#202020] border border-[#242424] hover:border-[#E79570] transition-colors cursor-pointer group"
                 >
                   <div className="min-w-0 text-left">
-                    <span className="font-mono text-[12.5px] font-medium text-[#FAF8F5] group-hover:text-accent-orange transition-colors truncate block">
+                    <span className="font-mono text-[12.5px] font-medium text-[#F2F0EC] group-hover:text-[#E79570] transition-colors truncate block">
                       {repo.name}
                     </span>
-                    <span className="font-sans text-[11px] text-[#8E8C86] truncate block">
+                    <span className="font-sans text-[11px] text-[#A09D98] truncate block">
                       {repo.desc}
                     </span>
                   </div>
-                  <span className="text-[10px] font-mono text-[#8E8C86] bg-[#131215] border border-[#25242A] px-1.5 py-0.5 rounded shrink-0 ml-2">
+                  <span className="text-[10px] font-mono text-[#A09D98] bg-[#141414] border border-[#242424] px-1.5 py-0.5 rounded shrink-0 ml-2">
                     {repo.branch}
                   </span>
                 </div>
@@ -171,15 +171,15 @@ export function NodeChooserDialogs({
           </div>
 
           <div className="my-3 flex items-center gap-2">
-            <div className="h-px flex-1 bg-[#222220]" />
-            <span className="text-[10.5px] font-mono text-[#6A6864] uppercase">or custom url</span>
-            <div className="h-px flex-1 bg-[#222220]" />
+            <div className="h-px flex-1 bg-[#242424]" />
+            <span className="text-[10.5px] font-mono text-[#77746F] uppercase">or custom url</span>
+            <div className="h-px flex-1 bg-[#242424]" />
           </div>
 
           {/* Custom Repository Form Inputs */}
           <div className="space-y-3">
             <div className="space-y-1">
-              <label className="text-[11px] font-mono text-[#8E8C86]">
+              <label className="text-[11px] font-mono text-[#A09D98]">
                 Repository URL
               </label>
               <input
@@ -188,7 +188,7 @@ export function NodeChooserDialogs({
                 value={githubUrl}
                 onChange={(e) => setGithubUrl(e.target.value)}
                 placeholder="https://github.com/organization/repository"
-                className="w-full bg-[#181817] border border-[#282826] focus:border-accent-orange rounded-[7px] px-3 py-2 text-[12px] font-mono text-[#FAF8F5] placeholder:text-[#666460] outline-none transition-colors"
+                className="w-full bg-[#191919] border border-[#2A2A2A] focus:border-[#E79570] rounded-[7px] px-3 py-2 text-[12px] font-mono text-[#F2F0EC] placeholder:text-[#77746F] outline-none transition-colors"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && githubUrl.trim()) {
                     const label =
@@ -206,7 +206,7 @@ export function NodeChooserDialogs({
             </div>
 
             <div className="space-y-1">
-              <label className="text-[11px] font-mono text-[#8E8C86]">
+              <label className="text-[11px] font-mono text-[#A09D98]">
                 Default Branch
               </label>
               <input
@@ -214,17 +214,17 @@ export function NodeChooserDialogs({
                 value={githubBranch}
                 onChange={(e) => setGithubBranch(e.target.value)}
                 placeholder="main"
-                className="w-full bg-[#181817] border border-[#282826] focus:border-accent-orange rounded-[7px] px-3 py-2 text-[12px] font-mono text-[#FAF8F5] outline-none transition-colors"
+                className="w-full bg-[#191919] border border-[#2A2A2A] focus:border-[#E79570] rounded-[7px] px-3 py-2 text-[12px] font-mono text-[#F2F0EC] outline-none transition-colors"
               />
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="mt-4 flex items-center justify-end gap-2 pt-3 border-t border-[#222220]">
+          <div className="mt-4 flex items-center justify-end gap-2 pt-3 border-t border-[#242424]">
             <button
               type="button"
               onClick={onClose}
-              className="px-3 py-1.5 rounded-[6px] text-[#8E8C86] hover:text-[#FAF8F5] text-[12px] font-sans hover:bg-[#1E1E1C] transition-colors cursor-pointer"
+              className="px-3 py-1.5 rounded-[6px] text-[#A09D98] hover:text-[#F2F0EC] text-[12px] font-sans hover:bg-[#202020] transition-colors cursor-pointer"
             >
               Cancel
             </button>
@@ -241,7 +241,7 @@ export function NodeChooserDialogs({
                 });
                 onClose();
               }}
-              className="px-4 py-1.5 rounded-[7px] bg-accent-orange hover:bg-accent-orange-hover text-[#121110] text-[12.5px] font-medium transition-colors cursor-pointer"
+              className="px-4 py-1.5 rounded-[7px] bg-[#E79570] hover:bg-[#F0A17B] text-[#0D0D0D] text-[12.5px] font-medium transition-colors cursor-pointer"
             >
               Deploy to Canvas
             </button>
@@ -252,22 +252,22 @@ export function NodeChooserDialogs({
       {/* ---------------- 2. Database Engine Chooser ---------------- */}
       {activeChooser === "database" && (
         <div
-          className="w-full max-w-[420px] bg-[#141413] border border-[#282826] rounded-[14px] shadow-[0_24px_64px_rgba(0,0,0,0.85)] p-5 select-none animate-in zoom-in-95 duration-150"
+          className="w-full max-w-[420px] bg-[#141414] border border-[#2A2A2A] rounded-[14px] shadow-[0_24px_64px_rgba(0,0,0,0.85)] p-5 select-none animate-in zoom-in-95 duration-150"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex items-center justify-between pb-3 border-b border-[#222220]">
+          <div className="flex items-center justify-between pb-3 border-b border-[#242424]">
             <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-[7px] bg-[#1E1925] border border-[#3A2D4A] flex items-center justify-center text-accent-orange">
+              <div className="w-7 h-7 rounded-[7px] bg-[#191919] border border-[#2A2A2A] flex items-center justify-center text-[#E79570]">
                 <Database className="w-4 h-4" />
               </div>
-              <h3 className="font-sans text-[14.5px] font-semibold text-[#FAF8F5]">
+              <h3 className="font-sans text-[14.5px] font-semibold text-[#F2F0EC]">
                 Select Database Engine
               </h3>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="text-[#8E8C86] hover:text-[#FAF8F5] p-1 rounded hover:bg-[#1E1E1C] transition-colors cursor-pointer"
+              className="text-[#A09D98] hover:text-[#F2F0EC] p-1 rounded hover:bg-[#202020] transition-colors cursor-pointer"
               title="Close (Esc)"
             >
               <X className="w-4 h-4" />
@@ -288,22 +288,22 @@ export function NodeChooserDialogs({
                 });
                 onClose();
               }}
-              className="w-full flex items-center justify-between p-3.5 rounded-[9px] bg-[#181817] hover:bg-[#1E1C24] border border-[#262624] hover:border-accent-orange/60 text-left transition-all group cursor-pointer"
+              className="w-full flex items-center justify-between p-3.5 rounded-[9px] bg-[#191919] hover:bg-[#202020] border border-[#242424] hover:border-[#E79570] text-left transition-all group cursor-pointer"
             >
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-[7px] bg-[#141C24] border border-[#223545] flex items-center justify-center text-[#86CDDE] shrink-0">
+                <div className="w-8 h-8 rounded-[7px] bg-[#141414] border border-[#2A2A2A] flex items-center justify-center text-[#93C5FD] shrink-0">
                   <PostgresIcon className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="font-sans text-[13.5px] font-medium text-[#FAF8F5] group-hover:text-accent-orange transition-colors">
+                  <h4 className="font-sans text-[13.5px] font-medium text-[#F2F0EC] group-hover:text-[#E79570] transition-colors">
                     PostgreSQL
                   </h4>
-                  <p className="font-mono text-[11px] text-[#8E8C86] mt-0.5">
+                  <p className="font-mono text-[11px] text-[#A09D98] mt-0.5">
                     Version 16 · Standard port 5432
                   </p>
                 </div>
               </div>
-              <ChevronRight className="w-4 h-4 text-[#60605C] group-hover:text-accent-orange group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
+              <ChevronRight className="w-4 h-4 text-[#77746F] group-hover:text-[#E79570] group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
             </button>
 
             {/* MySQL Engine */}
@@ -319,22 +319,22 @@ export function NodeChooserDialogs({
                 });
                 onClose();
               }}
-              className="w-full flex items-center justify-between p-3.5 rounded-[9px] bg-[#181817] hover:bg-[#1E1C24] border border-[#262624] hover:border-accent-orange/60 text-left transition-all group cursor-pointer"
+              className="w-full flex items-center justify-between p-3.5 rounded-[9px] bg-[#191919] hover:bg-[#202020] border border-[#242424] hover:border-[#E79570] text-left transition-all group cursor-pointer"
             >
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-[7px] bg-[#221815] border border-[#442B22] flex items-center justify-center text-[#E08A58] shrink-0">
+                <div className="w-8 h-8 rounded-[7px] bg-[#141414] border border-[#2A2A2A] flex items-center justify-center text-[#E79570] shrink-0">
                   <Database className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="font-sans text-[13.5px] font-medium text-[#FAF8F5] group-hover:text-accent-orange transition-colors">
+                  <h4 className="font-sans text-[13.5px] font-medium text-[#F2F0EC] group-hover:text-[#E79570] transition-colors">
                     MySQL
                   </h4>
-                  <p className="font-mono text-[11px] text-[#8E8C86] mt-0.5">
+                  <p className="font-mono text-[11px] text-[#A09D98] mt-0.5">
                     Version 8.4 · Standard port 3306
                   </p>
                 </div>
               </div>
-              <ChevronRight className="w-4 h-4 text-[#60605C] group-hover:text-accent-orange group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
+              <ChevronRight className="w-4 h-4 text-[#77746F] group-hover:text-[#E79570] group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
             </button>
           </div>
         </div>
@@ -343,22 +343,22 @@ export function NodeChooserDialogs({
       {/* ---------------- 3. Application Template Chooser ---------------- */}
       {activeChooser === "application" && (
         <div
-          className="w-full max-w-[440px] bg-[#141413] border border-[#282826] rounded-[14px] shadow-[0_24px_64px_rgba(0,0,0,0.85)] p-5 select-none animate-in zoom-in-95 duration-150"
+          className="w-full max-w-[440px] bg-[#141414] border border-[#2A2A2A] rounded-[14px] shadow-[0_24px_64px_rgba(0,0,0,0.85)] p-5 select-none animate-in zoom-in-95 duration-150"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex items-center justify-between pb-3 border-b border-[#222220]">
+          <div className="flex items-center justify-between pb-3 border-b border-[#242424]">
             <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-[7px] bg-[#1A1F1B] border border-[#294231] flex items-center justify-center text-[#93DDA7]">
+              <div className="w-7 h-7 rounded-[7px] bg-[#191919] border border-[#2A2A2A] flex items-center justify-center text-[#72B69A]">
                 <Layout className="w-4 h-4" />
               </div>
-              <h3 className="font-sans text-[14.5px] font-semibold text-[#FAF8F5]">
+              <h3 className="font-sans text-[14.5px] font-semibold text-[#F2F0EC]">
                 Choose Application Template
               </h3>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="text-[#8E8C86] hover:text-[#FAF8F5] p-1 rounded hover:bg-[#1E1E1C] transition-colors cursor-pointer"
+              className="text-[#A09D98] hover:text-[#F2F0EC] p-1 rounded hover:bg-[#202020] transition-colors cursor-pointer"
               title="Close (Esc)"
             >
               <X className="w-4 h-4" />
@@ -379,17 +379,17 @@ export function NodeChooserDialogs({
                 });
                 onClose();
               }}
-              className="w-full flex items-center justify-between p-3.5 rounded-[9px] bg-[#181817] hover:bg-[#1C201E] border border-[#262624] hover:border-[#93DDA7]/50 text-left transition-all group cursor-pointer"
+              className="w-full flex items-center justify-between p-3.5 rounded-[9px] bg-[#191919] hover:bg-[#202020] border border-[#242424] hover:border-[#72B69A]/50 text-left transition-all group cursor-pointer"
             >
               <div>
-                <h4 className="font-sans text-[13.5px] font-medium text-[#FAF8F5] group-hover:text-[#93DDA7] transition-colors">
+                <h4 className="font-sans text-[13.5px] font-medium text-[#F2F0EC] group-hover:text-[#72B69A] transition-colors">
                   Next.js 16 SSR Frontend
                 </h4>
-                <p className="font-sans text-[11px] text-[#8E8C86] mt-0.5">
+                <p className="font-sans text-[11px] text-[#A09D98] mt-0.5">
                   App Router, server-side rendering, and React Server Components
                 </p>
               </div>
-              <ChevronRight className="w-4 h-4 text-[#60605C] group-hover:text-[#93DDA7] group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
+              <ChevronRight className="w-4 h-4 text-[#77746F] group-hover:text-[#72B69A] group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
             </button>
 
             {/* Go 1.23 REST Engine */}
@@ -405,17 +405,17 @@ export function NodeChooserDialogs({
                 });
                 onClose();
               }}
-              className="w-full flex items-center justify-between p-3.5 rounded-[9px] bg-[#181817] hover:bg-[#1C201E] border border-[#262624] hover:border-[#93DDA7]/50 text-left transition-all group cursor-pointer"
+              className="w-full flex items-center justify-between p-3.5 rounded-[9px] bg-[#191919] hover:bg-[#202020] border border-[#242424] hover:border-[#72B69A]/50 text-left transition-all group cursor-pointer"
             >
               <div>
-                <h4 className="font-sans text-[13.5px] font-medium text-[#FAF8F5] group-hover:text-[#93DDA7] transition-colors">
+                <h4 className="font-sans text-[13.5px] font-medium text-[#F2F0EC] group-hover:text-[#72B69A] transition-colors">
                   Go 1.23 REST API Engine
                 </h4>
-                <p className="font-sans text-[11px] text-[#8E8C86] mt-0.5">
+                <p className="font-sans text-[11px] text-[#A09D98] mt-0.5">
                   High-performance compiled backend service with sub-millisecond responses
                 </p>
               </div>
-              <ChevronRight className="w-4 h-4 text-[#60605C] group-hover:text-[#93DDA7] group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
+              <ChevronRight className="w-4 h-4 text-[#77746F] group-hover:text-[#72B69A] group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
             </button>
 
             {/* Node.js Service */}
@@ -431,17 +431,17 @@ export function NodeChooserDialogs({
                 });
                 onClose();
               }}
-              className="w-full flex items-center justify-between p-3.5 rounded-[9px] bg-[#181817] hover:bg-[#1C201E] border border-[#262624] hover:border-[#93DDA7]/50 text-left transition-all group cursor-pointer"
+              className="w-full flex items-center justify-between p-3.5 rounded-[9px] bg-[#191919] hover:bg-[#202020] border border-[#242424] hover:border-[#72B69A]/50 text-left transition-all group cursor-pointer"
             >
               <div>
-                <h4 className="font-sans text-[13.5px] font-medium text-[#FAF8F5] group-hover:text-[#93DDA7] transition-colors">
+                <h4 className="font-sans text-[13.5px] font-medium text-[#F2F0EC] group-hover:text-[#72B69A] transition-colors">
                   Node.js Web Service
                 </h4>
-                <p className="font-sans text-[11px] text-[#8E8C86] mt-0.5">
+                <p className="font-sans text-[11px] text-[#A09D98] mt-0.5">
                   Express or Fastify microservice API
                 </p>
               </div>
-              <ChevronRight className="w-4 h-4 text-[#60605C] group-hover:text-[#93DDA7] group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
+              <ChevronRight className="w-4 h-4 text-[#77746F] group-hover:text-[#72B69A] group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
             </button>
           </div>
         </div>
@@ -450,22 +450,22 @@ export function NodeChooserDialogs({
       {/* ---------------- 4. Docker Image Chooser ---------------- */}
       {activeChooser === "docker" && (
         <div
-          className="w-full max-w-[420px] bg-[#141413] border border-[#282826] rounded-[14px] shadow-[0_24px_64px_rgba(0,0,0,0.85)] p-5 select-none animate-in zoom-in-95 duration-150"
+          className="w-full max-w-[420px] bg-[#141414] border border-[#2A2A2A] rounded-[14px] shadow-[0_24px_64px_rgba(0,0,0,0.85)] p-5 select-none animate-in zoom-in-95 duration-150"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex items-center justify-between pb-3 border-b border-[#222220]">
+          <div className="flex items-center justify-between pb-3 border-b border-[#242424]">
             <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-[7px] bg-[#162130] border border-[#24354D] flex items-center justify-center text-[#60A5FA]">
+              <div className="w-7 h-7 rounded-[7px] bg-[#191919] border border-[#2A2A2A] flex items-center justify-center text-[#60A5FA]">
                 <DockerIcon className="w-4 h-4" />
               </div>
-              <h3 className="font-sans text-[14.5px] font-semibold text-[#FAF8F5]">
+              <h3 className="font-sans text-[14.5px] font-semibold text-[#F2F0EC]">
                 Deploy Docker Image
               </h3>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="text-[#8E8C86] hover:text-[#FAF8F5] p-1 rounded hover:bg-[#1E1E1C] transition-colors cursor-pointer"
+              className="text-[#A09D98] hover:text-[#F2F0EC] p-1 rounded hover:bg-[#202020] transition-colors cursor-pointer"
               title="Close (Esc)"
             >
               <X className="w-4 h-4" />
@@ -474,7 +474,7 @@ export function NodeChooserDialogs({
 
           <div className="mt-4 space-y-3.5">
             <div className="space-y-1.5">
-              <label className="text-[11px] font-mono text-[#8E8C86]">
+              <label className="text-[11px] font-mono text-[#A09D98]">
                 Image Reference
               </label>
               <input
@@ -486,7 +486,7 @@ export function NodeChooserDialogs({
                   setDockerError("");
                 }}
                 placeholder="docker.io/library/nginx:alpine"
-                className="w-full bg-[#181817] border border-[#2B2B28] focus:border-accent-orange rounded-[7px] px-3 py-2 text-[12px] font-mono text-[#FAF8F5] placeholder:text-[#666460] outline-none transition-colors"
+                className="w-full bg-[#191919] border border-[#2A2A2A] focus:border-[#E79570] rounded-[7px] px-3 py-2 text-[12px] font-mono text-[#F2F0EC] placeholder:text-[#77746F] outline-none transition-colors"
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     const trimmed = dockerImage.trim();
@@ -507,7 +507,7 @@ export function NodeChooserDialogs({
                 }}
               />
               {dockerError && (
-                <p className="text-[11px] font-sans text-[#E06C75] flex items-center gap-1">
+                <p className="text-[11px] font-sans text-[#D77D7D] flex items-center gap-1">
                   <AlertCircle className="w-3 h-3" />
                   <span>{dockerError}</span>
                 </p>
@@ -515,7 +515,7 @@ export function NodeChooserDialogs({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[11px] font-mono text-[#8E8C86]">
+              <label className="text-[11px] font-mono text-[#A09D98]">
                 Exposed Port
               </label>
               <input
@@ -523,16 +523,16 @@ export function NodeChooserDialogs({
                 value={dockerPort}
                 onChange={(e) => setDockerPort(e.target.value)}
                 placeholder="80"
-                className="w-full bg-[#181817] border border-[#2B2B28] focus:border-accent-orange rounded-[7px] px-3 py-2 text-[12px] font-mono text-[#FAF8F5] outline-none transition-colors"
+                className="w-full bg-[#191919] border border-[#2A2A2A] focus:border-[#E79570] rounded-[7px] px-3 py-2 text-[12px] font-mono text-[#F2F0EC] outline-none transition-colors"
               />
             </div>
           </div>
 
-          <div className="mt-5 flex items-center justify-end gap-2.5 pt-3 border-t border-[#222220]">
+          <div className="mt-5 flex items-center justify-end gap-2.5 pt-3 border-t border-[#242424]">
             <button
               type="button"
               onClick={onClose}
-              className="px-3.5 py-1.5 rounded-[6px] text-[#8E8C86] hover:text-[#FAF8F5] text-[12px] font-sans hover:bg-[#1E1E1C] transition-colors cursor-pointer"
+              className="px-3.5 py-1.5 rounded-[6px] text-[#A09D98] hover:text-[#F2F0EC] text-[12px] font-sans hover:bg-[#202020] transition-colors cursor-pointer"
             >
               Cancel
             </button>
@@ -550,7 +550,7 @@ export function NodeChooserDialogs({
                 });
                 onClose();
               }}
-              className="px-4 py-1.5 rounded-[7px] bg-accent-orange hover:bg-accent-orange-hover text-[#121110] text-[12.5px] font-medium transition-colors cursor-pointer"
+              className="px-4 py-1.5 rounded-[7px] bg-[#E79570] hover:bg-[#F0A17B] text-[#0D0D0D] text-[12.5px] font-medium transition-colors cursor-pointer"
             >
               Deploy to Canvas
             </button>

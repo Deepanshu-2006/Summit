@@ -14,6 +14,7 @@ import {
   type OnConnect,
   BackgroundVariant,
   ConnectionLineType,
+  ConnectionMode,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import {
@@ -96,337 +97,37 @@ function findNonOverlappingPosition(
 }
 
 /**
- * Intelligent automatic connection & positioning resolver
- * Implements deterministic infrastructure relationship rules:
- * - Application -> Database
- * - Application -> Cache
- * - Application -> Worker
- * - Worker -> Cache
- * - Repository -> Application
- * - Docker Image -> Application
+ * Calculates a clean, non-overlapping canvas position for a newly added node.
+ * Strictly avoids automatic connections — all connections are manually established by the user.
  */
-function resolveAutoConnectAndPlacement(
-  optionId: string,
+function calculateNewNodePosition(
   existingNodes: SummitNode[],
-  existingEdges: Edge[],
   selectedNodeId: string | null,
-  disconnectedPairs: Set<string>,
   canvasCenter: { x: number; y: number }
-): {
-  connection: {
-    sourceId: string;
-    targetId: string;
-    sourceHandle?: string;
-    targetHandle?: string;
-    isNewNodeSource: boolean;
-  } | null;
-  position: { x: number; y: number };
-} {
-  // If canvas is empty, place directly at center
+): { x: number; y: number } {
   if (existingNodes.length === 0) {
-    return {
-      connection: null,
-      position: { x: canvasCenter.x - 130, y: canvasCenter.y - 50 },
-    };
+    return { x: canvasCenter.x - 135, y: canvasCenter.y - 53 };
   }
 
   const selectedNode = selectedNodeId
-    ? existingNodes.find((n) => n.id === selectedNodeId) || null
+    ? existingNodes.find((n) => n.id === selectedNodeId)
     : null;
 
-  const getNodeType = (n: SummitNode): string => {
-    return n.data.serviceType || (n.data as unknown as { resourceType?: string }).resourceType || "";
-  };
-
-  const isDisconnected = (idA: string, idB: string) => {
-    return (
-      disconnectedPairs.has(`${idA}->${idB}`) ||
-      disconnectedPairs.has(`${idB}->${idA}`)
-    );
-  };
-
-  const findNearest = (
-    predicate: (n: SummitNode) => boolean,
-    originPos?: { x: number; y: number }
-  ): SummitNode | null => {
-    const candidates = existingNodes.filter(predicate);
-    if (candidates.length === 0) return null;
-    if (!originPos) return candidates[candidates.length - 1];
-
-    return candidates.reduce((best, curr) => {
-      const distCurr = Math.hypot(
-        curr.position.x - originPos.x,
-        curr.position.y - originPos.y
-      );
-      const distBest = Math.hypot(
-        best.position.x - originPos.x,
-        best.position.y - originPos.y
-      );
-      return distCurr < distBest ? curr : best;
-    }, candidates[0]);
-  };
-
-  let targetConnect: {
-    anchorNode: SummitNode;
-    isNewNodeSource: boolean;
-  } | null = null;
-
-  // RULE 1: Database (connects from Application, Worker, or Repository)
-  if (optionId === "database") {
-    if (
-      selectedNode &&
-      (getNodeType(selectedNode) === "application" ||
-        getNodeType(selectedNode) === "worker" ||
-        getNodeType(selectedNode) === "repository") &&
-      !isDisconnected(selectedNode.id, "NEW")
-    ) {
-      targetConnect = { anchorNode: selectedNode, isNewNodeSource: false };
-    } else {
-      const anchor =
-        findNearest(
-          (n) => getNodeType(n) === "application",
-          selectedNode?.position || canvasCenter
-        ) ||
-        findNearest(
-          (n) => getNodeType(n) === "worker",
-          selectedNode?.position || canvasCenter
-        ) ||
-        findNearest(
-          (n) => getNodeType(n) === "repository",
-          selectedNode?.position || canvasCenter
-        );
-      if (anchor && !isDisconnected(anchor.id, "NEW")) {
-        targetConnect = { anchorNode: anchor, isNewNodeSource: false };
-      }
-    }
+  let candidate: { x: number; y: number };
+  if (selectedNode) {
+    candidate = {
+      x: selectedNode.position.x,
+      y: selectedNode.position.y + 150,
+    };
+  } else {
+    const lastNode = existingNodes[existingNodes.length - 1];
+    candidate = {
+      x: lastNode.position.x + 320,
+      y: lastNode.position.y,
+    };
   }
 
-  // RULE 2: Cache (connects from Application, Worker, or Repository)
-  else if (optionId === "cache") {
-    if (
-      selectedNode &&
-      (getNodeType(selectedNode) === "application" ||
-        getNodeType(selectedNode) === "worker" ||
-        getNodeType(selectedNode) === "repository") &&
-      !isDisconnected(selectedNode.id, "NEW")
-    ) {
-      targetConnect = { anchorNode: selectedNode, isNewNodeSource: false };
-    } else {
-      const anchor =
-        findNearest(
-          (n) => getNodeType(n) === "application",
-          selectedNode?.position || canvasCenter
-        ) ||
-        findNearest(
-          (n) => getNodeType(n) === "worker",
-          selectedNode?.position || canvasCenter
-        ) ||
-        findNearest(
-          (n) => getNodeType(n) === "repository",
-          selectedNode?.position || canvasCenter
-        );
-      if (anchor && !isDisconnected(anchor.id, "NEW")) {
-        targetConnect = { anchorNode: anchor, isNewNodeSource: false };
-      }
-    }
-  }
-
-  // RULE 3: Worker (connects from Application, or feeds into Cache)
-  else if (optionId === "worker") {
-    if (
-      selectedNode &&
-      getNodeType(selectedNode) === "application" &&
-      !isDisconnected(selectedNode.id, "NEW")
-    ) {
-      targetConnect = { anchorNode: selectedNode, isNewNodeSource: false };
-    } else if (
-      selectedNode &&
-      (getNodeType(selectedNode) === "cache" ||
-        getNodeType(selectedNode) === "database") &&
-      !isDisconnected("NEW", selectedNode.id)
-    ) {
-      targetConnect = { anchorNode: selectedNode, isNewNodeSource: true };
-    } else {
-      const appAnchor = findNearest(
-        (n) => getNodeType(n) === "application",
-        canvasCenter
-      );
-      if (appAnchor && !isDisconnected(appAnchor.id, "NEW")) {
-        targetConnect = { anchorNode: appAnchor, isNewNodeSource: false };
-      } else {
-        const cacheAnchor = findNearest(
-          (n) => getNodeType(n) === "cache",
-          canvasCenter
-        );
-        if (cacheAnchor && !isDisconnected("NEW", cacheAnchor.id)) {
-          targetConnect = { anchorNode: cacheAnchor, isNewNodeSource: true };
-        }
-      }
-    }
-  }
-
-  // RULE 4: Application (connects from Repository, Docker Image, or API)
-  else if (optionId === "application") {
-    if (
-      selectedNode &&
-      (getNodeType(selectedNode) === "repository" ||
-        selectedNode.data.subType === "Docker Image") &&
-      !isDisconnected(selectedNode.id, "NEW")
-    ) {
-      targetConnect = { anchorNode: selectedNode, isNewNodeSource: false };
-    } else if (
-      selectedNode &&
-      getNodeType(selectedNode) === "application" &&
-      !isDisconnected(selectedNode.id, "NEW")
-    ) {
-      targetConnect = { anchorNode: selectedNode, isNewNodeSource: false };
-    } else {
-      // Find an existing repository without an attached application
-      const unattachedRepo = existingNodes.find(
-        (n) =>
-          getNodeType(n) === "repository" &&
-          !existingEdges.some(
-            (e) =>
-              e.source === n.id &&
-              getNodeType(existingNodes.find((t) => t.id === e.target)!) ===
-                "application"
-          ) &&
-          !isDisconnected(n.id, "NEW")
-      );
-
-      if (unattachedRepo) {
-        targetConnect = { anchorNode: unattachedRepo, isNewNodeSource: false };
-      } else {
-        const nearestRepo = findNearest(
-          (n) => getNodeType(n) === "repository",
-          canvasCenter
-        );
-        if (nearestRepo && !isDisconnected(nearestRepo.id, "NEW")) {
-          targetConnect = { anchorNode: nearestRepo, isNewNodeSource: false };
-        }
-      }
-    }
-  }
-
-  // RULE 5: GitHub Repository (connects to Application)
-  else if (optionId === "github") {
-    if (
-      selectedNode &&
-      getNodeType(selectedNode) === "application" &&
-      !isDisconnected("NEW", selectedNode.id)
-    ) {
-      targetConnect = { anchorNode: selectedNode, isNewNodeSource: true };
-    } else {
-      // Find an existing application without an incoming repository
-      const unattachedApp = existingNodes.find(
-        (n) =>
-          getNodeType(n) === "application" &&
-          !existingEdges.some(
-            (e) =>
-              e.target === n.id &&
-              getNodeType(existingNodes.find((s) => s.id === e.source)!) ===
-                "repository"
-          ) &&
-          !isDisconnected("NEW", n.id)
-      );
-
-      if (unattachedApp) {
-        targetConnect = { anchorNode: unattachedApp, isNewNodeSource: true };
-      }
-    }
-  }
-
-  // RULE 6: Docker Image (connects to Application)
-  else if (optionId === "docker") {
-    if (
-      selectedNode &&
-      getNodeType(selectedNode) === "application" &&
-      !isDisconnected("NEW", selectedNode.id)
-    ) {
-      targetConnect = { anchorNode: selectedNode, isNewNodeSource: true };
-    } else {
-      const app = findNearest(
-        (n) => getNodeType(n) === "application",
-        canvasCenter
-      );
-      if (app && !isDisconnected("NEW", app.id)) {
-        targetConnect = { anchorNode: app, isNewNodeSource: true };
-      }
-    }
-  }
-
-  // If a connection target was identified:
-  if (targetConnect) {
-    const { anchorNode, isNewNodeSource } = targetConnect;
-
-    if (!isNewNodeSource) {
-      // Anchor is source -> New Node is target (e.g. App -> Database or App -> Cache)
-      const isVertical = optionId === "database";
-      let candidateX: number;
-      let candidateY: number;
-
-      if (isVertical) {
-        // Place vertically underneath the anchor node (Railway signature vertical layout)
-        candidateX = anchorNode.position.x;
-        candidateY = anchorNode.position.y + 190;
-      } else {
-        const existingChildren = existingEdges.filter(
-          (e) => e.source === anchorNode.id
-        ).length;
-        candidateX = anchorNode.position.x + 360;
-        candidateY = anchorNode.position.y + existingChildren * 140;
-      }
-
-      const cleanPos = findNonOverlappingPosition(
-        { x: candidateX, y: candidateY },
-        existingNodes,
-        isVertical ? 170 : 140,
-        360
-      );
-
-      return {
-        connection: {
-          sourceId: anchorNode.id,
-          targetId: "PENDING_NEW_ID",
-          sourceHandle: isVertical ? "bottom" : "source",
-          targetHandle: isVertical ? "top" : "target",
-          isNewNodeSource: false,
-        },
-        position: cleanPos,
-      };
-    } else {
-      // New Node is source -> Anchor is target (e.g. New Repo -> App)
-      const candidateX = anchorNode.position.x - 360;
-      const candidateY = anchorNode.position.y;
-
-      const cleanPos = findNonOverlappingPosition(
-        { x: candidateX, y: candidateY },
-        existingNodes,
-        140,
-        360
-      );
-
-      return {
-        connection: {
-          sourceId: "PENDING_NEW_ID",
-          targetId: anchorNode.id,
-          sourceHandle: "source",
-          targetHandle: "target",
-          isNewNodeSource: true,
-        },
-        position: cleanPos,
-      };
-    }
-  }
-
-  // If NO meaningful connection exists, place safely without overlapping
-  const basePos = { x: canvasCenter.x - 130, y: canvasCenter.y - 50 };
-  const cleanPos = findNonOverlappingPosition(basePos, existingNodes);
-
-  return {
-    connection: null,
-    position: cleanPos,
-  };
+  return findNonOverlappingPosition(candidate, existingNodes);
 }
 
 function CanvasContent({
@@ -472,14 +173,22 @@ function CanvasContent({
   >("none");
   const [lastSavedAt, setLastSavedAt] = useState<string>("");
 
-  // Initial load from LocalStorage
+  // Initial load from LocalStorage with sensible initial framing
   useEffect(() => {
     const arch = loadProjectArchitecture(projectId);
     setProjectName(arch.name);
     setEnvironment(arch.environment);
     setNodes(arch.nodes);
     setEdges(arch.edges);
-  }, [projectId, setNodes, setEdges]);
+
+    // Initial framing only on first open when nodes exist outside standard view
+    if (arch.nodes && arch.nodes.length > 0) {
+      const timer = setTimeout(() => {
+        fitView({ padding: 0.25, maxZoom: 1 });
+      }, 80);
+      return () => clearTimeout(timer);
+    }
+  }, [projectId, setNodes, setEdges, fitView]);
 
   // Debounced autosave
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -516,18 +225,19 @@ function CanvasContent({
     };
   }, [projectId, projectName, environment, nodes, edges]);
 
-  // Validate connections: prevent self-connections & duplicates
+  // Validate connections: strictly enforce one single edge between any two nodes
   const isValidConnection = useCallback(
     (connection: Connection | Edge) => {
+      if (!connection.source || !connection.target) return false;
       if (connection.source === connection.target) return false;
-      const isDuplicate = edges.some(
+
+      // Never allow multiple connections between the same two nodes
+      const alreadyConnected = edges.some(
         (e) =>
-          e.source === connection.source &&
-          e.target === connection.target &&
-          e.sourceHandle === connection.sourceHandle &&
-          e.targetHandle === connection.targetHandle
+          (e.source === connection.source && e.target === connection.target) ||
+          (e.source === connection.target && e.target === connection.source)
       );
-      return !isDuplicate;
+      return !alreadyConnected;
     },
     [edges]
   );
@@ -537,12 +247,43 @@ function CanvasContent({
     (params: Connection) => {
       if (!isValidConnection(params)) return;
 
+      const sourceNode = nodes.find((n) => n.id === params.source);
+      const targetNode = nodes.find((n) => n.id === params.target);
+      // Prefer explicitly dragged handles; otherwise choose optimal center handles based on geometric angle
+      let sHandle = params.sourceHandle;
+      let tHandle = params.targetHandle;
+
+      if (!sHandle || !tHandle) {
+        if (sourceNode && targetNode) {
+          const dx = targetNode.position.x - sourceNode.position.x;
+          const dy = targetNode.position.y - sourceNode.position.y;
+
+          if (Math.abs(dy) > Math.abs(dx) * 0.75) {
+            if (dy > 0) {
+              sHandle = sHandle || "bottom";
+              tHandle = tHandle || "top";
+            } else {
+              sHandle = sHandle || "top";
+              tHandle = tHandle || "bottom";
+            }
+          } else {
+            if (dx > 0) {
+              sHandle = sHandle || "source";
+              tHandle = tHandle || "target";
+            } else {
+              sHandle = sHandle || "target";
+              tHandle = tHandle || "source";
+            }
+          }
+        }
+      }
+
       const newEdge: Edge = {
         id: `e_${params.source}_${params.target}_${Date.now()}`,
         source: params.source,
         target: params.target,
-        sourceHandle: params.sourceHandle,
-        targetHandle: params.targetHandle,
+        sourceHandle: sHandle,
+        targetHandle: tHandle,
         type: "default",
         data: {
           isNew: true,
@@ -560,7 +301,7 @@ function CanvasContent({
         );
       }
     },
-    [isValidConnection, setEdges]
+    [isValidConnection, nodes, setEdges]
   );
 
   // Handle Edge deletion custom event from edge component
@@ -644,7 +385,7 @@ function CanvasContent({
     [setNodes, setEdges]
   );
 
-  // Add node from Bottom Floating Selector with Automatic Connection & Smart Placement
+  // Add node from Bottom Floating Selector (Strictly Manual Connections)
   const handleSelectBottomOption = useCallback(
     (optionId: string, customData?: Record<string, unknown>) => {
       let canvasCenter = { x: 300, y: 200 };
@@ -657,50 +398,15 @@ function CanvasContent({
         });
       }
 
-      // Calculate smart position and potential auto-connection
-      const { connection, position } = resolveAutoConnectAndPlacement(
-        optionId,
-        nodes,
-        edges,
-        selectedNodeId,
-        disconnectedPairsRef.current,
-        canvasCenter
-      );
-
+      // Calculate clean non-overlapping position
+      const position = calculateNewNodePosition(nodes, selectedNodeId, canvasCenter);
       const newNode = createNodeByOptionId(optionId, position, customData);
+
+      // Add standalone node without any auto-connections — all connections are strictly manual
       setNodes((nds) => [...nds, newNode]);
-      // Do not auto-select to avoid unexpectedly sliding out the right inspector drawer
       setSelectedNodeId(null);
-
-      if (connection) {
-        const sourceId = connection.isNewNodeSource ? newNode.id : connection.sourceId;
-        const targetId = connection.isNewNodeSource ? connection.targetId : newNode.id;
-
-        const newEdge: Edge = {
-          id: `e_${sourceId}_${targetId}_${Date.now()}`,
-          source: sourceId,
-          target: targetId,
-          sourceHandle: connection.sourceHandle || (connection.isNewNodeSource ? "source" : "source"),
-          targetHandle: connection.targetHandle || (connection.isNewNodeSource ? "target" : "target"),
-          type: "default",
-          data: {
-            isNew: true,
-            createdAt: Date.now(),
-          },
-        };
-
-        setEdges((eds) => addEdge(newEdge, eds));
-
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(
-            new CustomEvent("summit:connection-pulse", {
-              detail: { sourceId, targetId },
-            })
-          );
-        }
-      }
     },
-    [nodes, edges, selectedNodeId, screenToFlowPosition, setNodes, setEdges]
+    [nodes, selectedNodeId, screenToFlowPosition, setNodes]
   );
 
   // Bottom selector item click: opens choosing dialogs matching the first screen
@@ -787,7 +493,7 @@ function CanvasContent({
     <div
       ref={reactFlowWrapper}
       data-lenis-prevent
-      className="relative w-full h-screen bg-[#0C0B0A] text-[#FAF8F5] flex flex-col overflow-hidden font-sans select-none"
+      className="relative w-full h-screen bg-[#0D0D0D] text-[#F2F0EC] flex flex-col overflow-hidden font-sans select-none"
     >
       {/* Slim Top Bar */}
       <CanvasTopBar
@@ -800,7 +506,7 @@ function CanvasContent({
       />
 
       {/* Main Canvas Viewport */}
-      <div className="relative flex-1 w-full h-full">
+      <div className="relative flex-1 w-full h-full overflow-hidden">
         <ReactFlow<SummitNode, Edge>
           nodes={nodes}
           edges={edges}
@@ -812,7 +518,8 @@ function CanvasContent({
           onPaneClick={onPaneClick}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
-          connectionRadius={32}
+          connectionMode={ConnectionMode.Loose}
+          connectionRadius={60}
           connectionLineType={ConnectionLineType.Bezier}
           connectionLineComponent={SummitConnectionLineComponent}
           isValidConnection={isValidConnection}
@@ -824,89 +531,92 @@ function CanvasContent({
           maxZoom={2.2}
           deleteKeyCode={["Backspace", "Delete"]}
           proOptions={{ hideAttribution: true }}
-          className="bg-[#0C0B0A]"
+          className="bg-[#0D0D0D]"
         >
-          {/* Subtle Dotted Grid */}
+          {/* Subtle Neutral Gray Dotted Blueprint Grid */}
           <Background
             variant={BackgroundVariant.Dots}
             gap={24}
-            size={1.2}
-            color="#20201E"
+            size={1.25}
+            color="#242424"
           />
         </ReactFlow>
 
         {/* Empty Canvas Railway Hero Prompt */}
         {nodes.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center z-10 p-4 pointer-events-none select-none animate-in fade-in duration-300">
-            <div className="w-full max-w-[420px] bg-[#121113]/90 backdrop-blur-md border border-[#232127] rounded-[16px] p-6 text-center pointer-events-auto shadow-[0_20px_50px_rgba(0,0,0,0.8)]">
-              <div className="w-11 h-11 rounded-[12px] bg-[#1E1925] border border-[#3A2D4A] flex items-center justify-center text-[#CCA7E8] mx-auto mb-3 shadow-[0_0_20px_rgba(204,167,232,0.15)]">
+            <div className="w-full max-w-[420px] bg-[#141414] border border-[#2A2A2A] rounded-[16px] p-6 text-center pointer-events-auto shadow-2xl">
+              <div className="w-11 h-11 rounded-[12px] bg-[#191919] border border-[#2A2A2A] flex items-center justify-center text-[#E79570] mx-auto mb-3 shadow-md">
                 <div className="grid grid-cols-2 gap-1 w-4 h-4">
-                  <span className="w-1.5 h-1.5 rounded-sm bg-[#CCA7E8]" />
-                  <span className="w-1.5 h-1.5 rounded-sm bg-[#CCA7E8]" />
-                  <span className="w-1.5 h-1.5 rounded-sm bg-[#CCA7E8]" />
-                  <span className="w-1.5 h-1.5 rounded-sm bg-accent-orange" />
+                  <span className="w-1.5 h-1.5 rounded-sm bg-[#A09D98]" />
+                  <span className="w-1.5 h-1.5 rounded-sm bg-[#A09D98]" />
+                  <span className="w-1.5 h-1.5 rounded-sm bg-[#A09D98]" />
+                  <span className="w-1.5 h-1.5 rounded-sm bg-[#E79570]" />
                 </div>
               </div>
-              <h3 className="font-sans text-[18px] font-semibold text-[#FAF8F5] tracking-[-0.02em]">
+              <h3 className="font-sans text-[18px] font-semibold text-[#F2F0EC] tracking-[-0.02em]">
                 New Service
               </h3>
-              <p className="font-sans text-[12.5px] text-[#8E8C86] mt-1 mb-4">
+              <p className="font-sans text-[12.5px] text-[#A09D98] mt-1 mb-4">
                 Deploy your application, database, or worker to production effortlessly
               </p>
 
               <button
                 type="button"
                 onClick={() => setIsDeployPaletteOpen(true)}
-                className="w-full h-10 px-3.5 bg-[#18161D] hover:bg-[#1E1C24] border border-[#2B2932] hover:border-[#4B3B60] rounded-[9px] flex items-center justify-between text-[#7A7873] hover:text-[#FAF8F5] transition-all cursor-pointer text-[13px] group"
+                className="w-full h-10 px-3.5 bg-[#191919] hover:bg-[#202020] border border-[#242424] hover:border-[#2A2A2A] rounded-[9px] flex items-center justify-between text-[#A09D98] hover:text-[#F2F0EC] transition-all cursor-pointer text-[13px] group"
               >
-                <span className="text-[#8E8C86] group-hover:text-[#FAF8F5] transition-colors">
+                <span className="text-[#A09D98] group-hover:text-[#F2F0EC] transition-colors">
                   What are we going to deploy today?
                 </span>
-                <kbd className="px-2 py-0.5 rounded bg-[#111014] border border-[#2A2832] text-[10.5px] font-mono text-[#8E8C86]">
+                <kbd className="px-2 py-0.5 rounded bg-[#141414] border border-[#242424] text-[10.5px] font-mono text-[#77746F]">
                   ⌘K
                 </kbd>
               </button>
 
-              <p className="font-mono text-[11px] text-[#5A5854] mt-3">
-                Press <span className="text-[#8E8C86]">C</span> or <span className="text-[#8E8C86]">⌘K</span>, or choose from the dock below
+              <p className="font-mono text-[11px] text-[#77746F] mt-3">
+                Press <span className="text-[#A09D98]">C</span> or <span className="text-[#A09D98]">⌘K</span>, or choose from the dock below
               </p>
             </div>
           </div>
         )}
 
-        {/* Primary Bottom Floating Node Selector */}
+        {/* Floating Node Selector */}
         <BottomNodeSelector
           onSelectOption={handleBottomBarClick}
           onOpenDeployPalette={() => setIsDeployPaletteOpen(true)}
         />
 
-        {/* Minimal Floating Zoom Controls (Bottom-Right) */}
-        <div className="absolute bottom-6 right-6 z-20 flex items-center gap-1 bg-[#121211]/90 backdrop-blur-sm border border-[#242422] rounded-[8px] p-1 shadow-xl">
+        {/* Minimal Floating Zoom Controls (Bottom-Right Pill Capsule) */}
+        <div className="absolute bottom-6 right-6 z-30 flex items-center gap-0.5 bg-[#141414]/95 backdrop-blur-md border border-[#2A2A2A] rounded-full p-1 shadow-lg">
           <button
             type="button"
-            onClick={() => zoomIn({ duration: 250 })}
-            className="w-7 h-7 flex items-center justify-center rounded-[5px] text-[#8E8C86] hover:text-[#FAF8F5] hover:bg-[#1E1E1C] transition-colors"
-            title="Zoom In"
+            onClick={() => zoomIn({ duration: 220 })}
+            className="w-7 h-7 flex items-center justify-center rounded-full text-[#A09D98] hover:text-[#F2F0EC] hover:bg-[#202020] active:scale-[0.95] transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#E79570]/60"
+            title="Zoom In (⌘+)"
+            aria-label="Zoom in"
           >
             <ZoomIn className="w-3.5 h-3.5" />
           </button>
 
           <button
             type="button"
-            onClick={() => zoomOut({ duration: 250 })}
-            className="w-7 h-7 flex items-center justify-center rounded-[5px] text-[#8E8C86] hover:text-[#FAF8F5] hover:bg-[#1E1E1C] transition-colors"
-            title="Zoom Out"
+            onClick={() => zoomOut({ duration: 220 })}
+            className="w-7 h-7 flex items-center justify-center rounded-full text-[#A09D98] hover:text-[#F2F0EC] hover:bg-[#202020] active:scale-[0.95] transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#E79570]/60"
+            title="Zoom Out (⌘-)"
+            aria-label="Zoom out"
           >
             <ZoomOut className="w-3.5 h-3.5" />
           </button>
 
-          <div className="w-px h-3.5 bg-[#262624] mx-0.5" />
+          <div className="w-px h-3.5 bg-[#242424] mx-0.5" />
 
           <button
             type="button"
-            onClick={() => fitView({ padding: 0.25, duration: 400 })}
-            className="w-7 h-7 flex items-center justify-center rounded-[5px] text-[#8E8C86] hover:text-[#FAF8F5] hover:bg-[#1E1E1C] transition-colors"
-            title="Fit View"
+            onClick={() => fitView({ padding: 0.25, duration: 350 })}
+            className="w-7 h-7 flex items-center justify-center rounded-full text-[#A09D98] hover:text-[#F2F0EC] hover:bg-[#202020] active:scale-[0.95] transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#E79570]/60"
+            title="Fit to View (⌘0)"
+            aria-label="Fit to view"
           >
             <Maximize2 className="w-3.5 h-3.5" />
           </button>
