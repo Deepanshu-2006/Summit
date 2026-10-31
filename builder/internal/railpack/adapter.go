@@ -85,12 +85,9 @@ func (c *CLIAdapter) Prepare(ctx context.Context, input PrepareInput) (*PrepareR
 		return nil, fmt.Errorf("creating directory for railpack plan: %w", err)
 	}
 
-	args := []string{"prepare", input.AppDir, "--output", input.PlanPath}
+	args := []string{"prepare", input.AppDir, "--plan-out", input.PlanPath}
 	if input.BuildConfig.BuildCommand != nil && *input.BuildConfig.BuildCommand != "" {
 		args = append(args, "--build-cmd", *input.BuildConfig.BuildCommand)
-	}
-	if input.BuildConfig.InstallCommand != nil && *input.BuildConfig.InstallCommand != "" {
-		args = append(args, "--install-cmd", *input.BuildConfig.InstallCommand)
 	}
 	if input.BuildConfig.StartCommand != nil && *input.BuildConfig.StartCommand != "" {
 		args = append(args, "--start-cmd", *input.BuildConfig.StartCommand)
