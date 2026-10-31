@@ -1,11 +1,12 @@
 # Go API Control Plane Implementation Plan
 
-**Owner:** Priyanshu (API Engineer)  
-**Collaborators:** Rudra (Orchestrator Engineer), Arpit (Database Engineer), UI Developer (Frontend / Dashboard Owner)  
-**Target Component:** `apps/backend` (Go 1.23 service)  
-**API Contract:** `packages/api_spec/openapi.yaml` (OpenAPI 3.1)  
-**Status:** DRAFT / PROPOSAL FOR BACKEND REVIEW  
-**Date:** October 2026  
+- **Document Path:** `docs/implementation_priyanshu.md`
+- **Owner:** Priyanshu (API & Builder Engineer)<br>
+- **Collaborators:** Rudra (Orchestrator Engineer), Arpit (Database Engineer - DB only), UI Developer (Frontend / Dashboard Owner)<br>
+- **Target Component:** `apps/backend` (Go 1.23 service) & `builder` (Entire Isolated Builder: host gVisor `runsc`, `gvisor` runtimeClass, rootless BuildKit + Railpack container)<br>
+- **API Contract:** `packages/api_spec/openapi.yaml` (OpenAPI 3.1)  
+- **Status:** ACTIVE / CORE FOUNDATION & GITHUB INTEGRATION IMPLEMENTED (PR #3 MERGED)  
+- **Date:** October 2026  
 
 ---
 
@@ -13,32 +14,37 @@
 
 The Summit Jetway platform is an edge-native developer platform and PaaS control plane. The system architecture (`docs/system_architechture.png`) comprises a central `platform` control-plane namespace containing the Go API service, an administrative dashboard (`apps/web`), a Supabase PostgreSQL platform database, a transactional job queue/outbox, and a Go-based Kubernetes operator/orchestrator managing Custom Resource Definitions (CRDs). Customer builds are executed inside an ephemeral, sandboxed gVisor (`runsc`) pool using rootless BuildKit and Railpack to build OCI images, which are pushed to an internal registry before the build pod is terminated. Tenant workloads, persistent volumes, and databases execute within isolated tenant namespaces protected by Cilium network policies and Traefik ingress routing.
 
-This document serves as the definitive, actionable implementation plan for **Priyanshu** (API Engineer). It defines how the Go HTTP control plane in `apps/backend` will evolve from its current minimal scaffold into a robust, high-performance, and secure API service.
+This document serves as the implementation plan for **Priyanshu** (API & Builder Engineer). It covers the existing Go HTTP control plane and the remaining API work, and assigns Priyanshu ownership of the **entire isolated builder**, including host gVisor (`runsc`) installation/configuration and `gvisor` runtimeClass setup on the Kubernetes host machines, plus the rootless BuildKit + Railpack builder container image, daemon configuration, and build logic. Rudra must NOT own, install, or configure gVisor; Rudra owns the orchestrator engine and Kubernetes scheduling, launching, monitoring, and cleanup of pods using Priyanshu's configured builder. Arpit owns the database only (Supabase PostgreSQL persistence, schemas, and outbox table).
 
 ---
 
 ## 2. Role, Scope & Non-Goals
 
 ### 2.1 Owner Role & Core Responsibilities
-- **Owner:** Priyanshu (API Engineer).
+- **Owner:** Priyanshu (API & Builder Engineer).
 - **Core Scope:**
   - Architecture, design, and implementation of the Go HTTP service within `apps/backend`.
   - HTTP routing, request deserialization, payload validation, and response serialization.
   - Core HTTP middleware pipeline: authentication verification, tenant extraction, request tracing (`X-Request-ID`), structured logging (`log/slog`), panic recovery, rate limiting, and CORS.
   - Contract lifecycle management: driving the OpenAPI-first evolution in `packages/api_spec/openapi.yaml` in lockstep with the UI developer.
-  - Clean repository abstraction interfaces (`internal/platformdb`) coordinating with Arpit on Supabase PostgreSQL persistence models.
+  - Clean repository abstraction interfaces (`internal/platformdb`) coordinating with Arpit on Supabase PostgreSQL persistence models (Arpit owns DB only).
   - Orchestration dispatch abstraction (`internal/orchestrator` / transactional outbox) coordinating with Rudra on asynchronous build and deployment lifecycles.
   - External webhook intake and security (GitHub HMAC-SHA256 signature verification and replay prevention).
   - Telemetry read APIs: exposing aggregated Prometheus metrics and Loki structured log streams to the frontend dashboard.
-  - API automated test suites (unit, integration, and contract tests).
+  - **Entire isolated builder ownership:**
+    - Installing and configuring gVisor (`runsc`) on the Kubernetes host nodes, configuring containerd runtime handlers, and setting up the `gvisor` runtimeClass in the Kubernetes cluster.
+    - Implementing, packaging, and configuring the rootless BuildKit and Railpack builder container image (`builder/Dockerfile`), unprivileged execution (UID 1000), build cache management, and artifact compilation targeting the gVisor sandbox.
+  - API and builder automated test suites (unit, integration, contract, container build, and gVisor sandbox verification tests).
 
 ### 2.2 Cross-Functional Teammates & Interfaces
-- **Arpit (Database Engineer):** Owns Supabase Postgres schemas, DDL migrations, connection pooling (`pgxpool`), database indexing, transaction semantics, and Row-Level Security (RLS) policies. Priyanshu consumes repository interfaces implemented or reviewed by Arpit.
-- **Rudra (Orchestrator Engineer):** Owns the Kubernetes controller/operator, custom resources (`CRDs`), the gVisor ephemeral build sandbox pool, rootless BuildKit integration, Traefik ingress routing configurations, and Cilium network policies. Priyanshu hands off intent via the database outbox and reads status without directly coupling HTTP requests to K8s API server load.
+- **Arpit (Database Engineer):** Owns database persistence only: Supabase Postgres schemas, DDL migrations, connection pooling (`pgxpool`), database indexing, transaction semantics, and Row-Level Security (RLS) policies. Priyanshu consumes repository interfaces implemented or reviewed by Arpit.
+- **Rudra (Orchestrator Engineer):** Owns the orchestrator engine, custom resources (`CRDs`), and Kubernetes scheduling, launching, monitoring, and cleanup of pods (including ephemeral build pods using Priyanshu's configured `gvisor` runtimeClass and builder container image) as well as tenant workloads. Rudra also owns Traefik ingress routing configurations and Cilium network policies. Rudra must NOT own, install, or configure gVisor. Priyanshu hands off dispatch intent via the database outbox and provides the configured gVisor runtimeClass and builder container image, while Rudra schedules the ephemeral build pods and reports execution status back to the database.
 - **UI Developer (Frontend Owner):** Owns `apps/web` (Next.js dashboard). Priyanshu coordinates all breaking changes, schema additions, error envelopes, and polling/streaming mechanisms against `packages/api_spec/openapi.yaml`.
 
-### 2.3 Explicit Non-Goals for the API Service
-- **No Direct Container/Build Execution:** Customer builds must NEVER run inside the control-plane Go process or on the bare host. All build executions are strictly delegated to Rudra's sandboxed gVisor pool.
+### 2.3 Explicit Non-Goals for the API Service & Builder
+- **No Direct Container/Build Execution in API Process:** Customer builds must NEVER run inside the control-plane Go process or on the bare host. All build executions are strictly delegated to isolated builder pods scheduled by Rudra's orchestrator using Priyanshu's configured builder (runtimeClass and container image).
+- **No Orchestrator Pod Scheduling Engine Implemented by Priyanshu:** While Priyanshu owns the entire isolated builder—including host gVisor (`runsc`) installation/configuration, the `gvisor` runtimeClass, and the builder container image—Priyanshu does NOT build the orchestrator reconciliation loop or manage the Kubernetes scheduling/lifecycle engine. Pod scheduling, launching, monitoring, and cleanup are strictly owned by Rudra. Rudra must NOT own, install, or configure gVisor.
+- **No Custom Backup Automation in MVP:** Custom database backup and recovery automation is out of scope for this MVP.
 - **No Direct Kubernetes API Mutation in HTTP Handlers:** HTTP handlers must not issue synchronous `client-go` create/update calls against Kubernetes etcd. State changes are persisted to the platform database and picked up by Rudra's reconciliation loop.
 - **No Plaintext Secret Storage:** The API service must never persist or log raw customer secrets (database passwords, API tokens, webhook secrets). Plaintext secrets are brokered via OpenBao and AWS Secrets Manager using the External Secrets Operator (ESO).
 - **No Monorepo Split:** The Go service remains inside `apps/backend` within the existing repository structure.
@@ -47,16 +53,26 @@ This document serves as the definitive, actionable implementation plan for **Pri
 
 ## 3. Current Repository Baseline & Audit
 
-### 3.1 Existing Repository State
-An inspection of the workspace reveals:
+### 3.1 Existing Repository State (Post-PR #3)
+An inspection of the workspace confirms the current baseline:
 - **`apps/backend`:**
-  - Defined as Go module `github.com/summit/backend` (Go 1.23).
-  - Uses strictly standard library dependencies (`net/http`, `log/slog`, `os/signal`, `time`).
-  - `cmd/api/main.go`: Initializes logging, loads environment configuration, boots the HTTP server, and traps `SIGINT`/`SIGTERM` with a 10-second graceful shutdown timeout.
-  - `internal/config/config.go`: Parses `PORT` (default `4000`), `HOST`, `SERVICE_NAME` (`meridian-api`), `SERVICE_VERSION` (`1.0.0`), `REGION` (`cdg-1 (Paris)`), `EDGE_ROUTING` (`anycast`), and `ENVIRONMENT`.
-  - `internal/health/handler.go`: Implements `GET /api/v1/health` and `GET /health` responding with `HealthResponse`.
-  - `internal/server/server.go`: Sets up `http.ServeMux`, wraps it with basic CORS (`*`) and debug logging middleware.
-  - **Status:** Functional health check scaffold only. No database connection, no authentication, no project/release/resource endpoints implemented.
+  - Defined as Go module `github.com/summit/backend` (Go 1.23) and npm workspace package `@summit/backend` orchestrated via Turborepo 2.11+.
+  - **Core Production Packages (15 Packages Landed & Tested):**
+    - `cmd/api/main.go`: Application entrypoint initializing logger, config, pgx pool, secrets router, GitHub App client, HTTP server, and spawning the background webhook poller with graceful shutdown.
+    - `cmd/migrate/main.go`: Standalone database migration CLI with advisory locking.
+    - `internal/auth`: Supabase JWT verification (`verifier.go`) supporting JWKS caching and explicit algorithm allowlists (`RS256`, `ES256`, `HS256`), and platform user synchronization (`user.go`).
+    - `internal/authz`: Role-based access control matrix (`owner`, `admin`, `member`, `viewer`) and tenant organization check middleware.
+    - `internal/db`: `pgxpool` lifecycle manager (`pool.go`), schema migration runner (`migrate.go`), and migrations `0001_baseline.up.sql` & `0002_github_integration.up.sql`.
+    - `internal/githubapi`: REST handlers and consumer-defined `ServiceAPI` interface for GitHub installations, OAuth callbacks, repository listing, on-demand synchronization, service sources, and manual deployment dispatch.
+    - `internal/githubapp`: GitHub App client (`client.go`), RS256 App JWT generator (9-minute TTL), in-memory installation token cache with single-flight mutexes, and thread-safe cache invalidation (`InvalidateInstallationTokens`).
+    - `internal/githubwebhook`: Raw HMAC-SHA256 constant-time verification (`signature.go`), 10MB payload size limits (`body.go`), and event normalization (`normalize.go`).
+    - `internal/githubworker`: High-throughput webhook receiver (`webhook_handler.go`), asynchronous background event consumer using `FOR UPDATE SKIP LOCKED` (`processor.go`), and internal worker credential broker (`broker_handler.go`) with job-scoped JWT validation.
+    - `internal/httpx`: Standard RFC 7807 JSON error envelopes and response helpers.
+    - `internal/installstate`: Single-use CSRF installation state generator with SHA-256 state hashing.
+    - `internal/secrets`: OpenBao AppRole client and multi-tier router with development fallback controls.
+    - `internal/sourcepath`: Lexical path traversal sanitizer rejecting directory escape (`..`), null bytes, and absolute paths.
+    - `internal/audit`: Redacted audit event publisher.
+    - `internal/testutil`: Schema-isolated PostgreSQL test runner for local and CI testing.
 - **`packages/api_spec/openapi.yaml`:**
   - OpenAPI 3.1.0 document declaring paths for:
     - `GET /api/v1/health`
@@ -95,8 +111,8 @@ These are **working proposals**, not approved architecture. Later implementation
 - **Auth and tenancy:** choose the identity provider and tenant context contract at Gate 1. Supabase Auth is one candidate only; Supabase Postgres does not imply Supabase Auth. Enforce tenant scope in every repository operation; decide separately whether database RLS is needed and which DB role can enforce it.
 - **Async deployment:** propose `POST /api/v1/projects/{slug}/deployments` returning `202 Accepted` only after the deployment and dispatch intent are persisted atomically. Return a deployment ID and `Location: /api/v1/deployments/{id}`. Add `GET /api/v1/deployments/{id}` to OpenAPI after joint approval. Keep `/releases` for release history/artifacts unless the UI and team choose otherwise.
 - **Lifecycle vocabulary:** propose `queued → building → image_ready → deploying → health_checking → running`, with terminal `failed` and `cancelled`. Record retries as attempt metadata; add a visible retry state only if all owners and the UI agree. Gate 2 owns approval of the state graph and transitions.
-- **Dispatch and persistence:** a PostgreSQL transactional outbox is the recommended Phase 1 option, not a settled fact. If approved, Arpit owns its schema and shared Go persistence contracts under `apps/backend/internal/platformdb`; Priyanshu and Rudra consume those contracts. Do not create competing `internal/platformdb` and `internal/platformdb` abstractions.
-- **Infrastructure details:** exact providers, queue technology, schema/migration tools, leases, retention, backup/PITR support, and resource limits remain decisions until verified against selected services and the test cluster. The architecture diagram does not establish those implementation details.
+- **Dispatch and persistence:** a PostgreSQL transactional outbox is the recommended Phase 1 option, not a settled fact. If approved, Arpit (who owns DB only) owns its schema and shared Go persistence contracts under `apps/backend/internal/platformdb`; Priyanshu and Rudra consume those contracts. Do not create competing `internal/repository` and `internal/platformdb` abstractions.
+- **Infrastructure details:** exact providers, queue technology, schema/migration tools, leases, retention, and resource limits remain decisions until verified against selected services and the test cluster. The architecture diagram does not establish those implementation details.
 
 To guarantee operational alignment across the platform, the following four architecture gates are shared across all three backend owners (Priyanshu, Rudra, and Arpit). Each gate requires joint sign-off before implementation or promotion.
 
@@ -108,7 +124,7 @@ To guarantee operational alignment across the platform, the following four archi
 - **Scope & Objectives:**
   - Define the end-to-end identity propagation model from the HTTP request down to database queries and Kubernetes tenant namespaces.
   - Standardize authentication and tenant context after selecting an identity provider; validate its signed tokens and resolve membership/role server-side.
-  - Establish database tenant isolation: Arpit configures Row-Level Security (RLS) policies or strict `tenant_id` foreign key tenancy in Supabase PostgreSQL; Priyanshu ensures every repository call injects verified tenant context.
+  - Establish database tenant isolation: Arpit (DB only) configures Row-Level Security (RLS) policies or strict `tenant_id` foreign key tenancy in Supabase PostgreSQL; Priyanshu ensures every repository call injects verified tenant context.
   - Establish orchestrator tenant isolation: Rudra enforces that all tenant pods, services, secrets, and volumes deploy into dedicated Kubernetes namespaces (`tenant-{tenant_id}`) protected by Cilium network policies preventing cross-tenant and tenant-to-control-plane communication.
 - **Required Deliverables:**
   1. Signed-off Auth & Tenant Context specification document.
@@ -122,7 +138,7 @@ To guarantee operational alignment across the platform, the following four archi
 
 - **Scope & Objectives:**
   - Approve the deployment state machine. The shared working proposal is `queued` &rarr; `building` &rarr; `image_ready` &rarr; `deploying` &rarr; `health_checking` &rarr; `running`, with terminal `failed` / `cancelled`.
-  - Evaluate and, if approved, establish a PostgreSQL transactional outbox: Priyanshu writes deployment records and outbox events in one transaction; Arpit owns its schema and concurrency design; Rudra consumes dispatch events and schedules reconciliation.
+  - Evaluate and, if approved, establish a PostgreSQL transactional outbox: Priyanshu writes deployment records and outbox events in one transaction; Arpit (DB only) owns its schema and concurrency design; Rudra consumes dispatch events and schedules reconciliation.
   - Define API response semantics: Propose transitioning `POST /api/v1/releases` (or `POST /api/v1/projects/{slug}/deployments`) to return `202 Accepted` with a `Location: /api/v1/deployments/{id}` header and initial state payload.
   - Guarantee idempotency: Implement `Idempotency-Key` HTTP header handling to prevent duplicate builds and releases on client retries or automated webhook triggers.
   - Handoff status reads: Priyanshu serves status via `GET /api/v1/deployments/{id}` by reading the database read-model populated by Rudra's operator, eliminating any API-to-K8s coupling.
@@ -138,12 +154,15 @@ To guarantee operational alignment across the platform, the following four archi
 
 - **Scope & Objectives:**
   - Establish cluster conventions for the 1-2 shared SSH test machines (strictly test-only; volatile and subject to recreation).
-  - Enforce build sandbox constraints: Customer code builds execute exclusively within ephemeral gVisor (`runsc`) pods via rootless BuildKit + Railpack, pushing to an in-cluster OCI registry, with immediate pod destruction upon completion. No build steps may execute inside the API service container.
+  - Enforce build sandbox constraints & clear ownership boundary:
+    - **Priyanshu (Entire Isolated Builder Owner):** Owns the entire isolated builder end-to-end: installs and configures gVisor (`runsc`) and containerd runtime handlers on the Kubernetes host machines, registers the `gvisor` runtimeClass on the cluster, and builds/configures the rootless BuildKit + Railpack container image (`Dockerfile`, rootless BuildKit daemon configuration, Railpack build logic, non-root user execution at UID 1000, build caching, and OCI image artifact generation). Guarantees that compilation requires zero host privileges and operates cleanly within user-space inside the gVisor sandbox.
+    - **Rudra (Orchestrator & Pod Lifecycle Owner):** Owns the orchestrator engine, establishes the `summit-builds` namespace, defines the build pod manifest/CRD, schedules and launches the ephemeral build pods using Priyanshu's configured builder (`gvisor` runtimeClass and container image), monitors pod status/logs, and handles pod destruction/cleanup upon completion. Rudra must NOT own, install, or configure gVisor.
+    - **Arpit (Database Engineer):** Owns database persistence only (schemas, migrations, pooling, and outbox tables).
   - Ingress & Network isolation: Rudra configures Traefik ingress controller routing and Cilium network policies. Priyanshu defines required routing rules for custom tenant domains and platform API routing.
   - Secrets Management conventions: Integration of OpenBao & AWS Secrets Manager via External Secrets Operator (ESO). The API stores only secret references/metadata in Postgres; Rudra synchronizes secret values directly into tenant Kubernetes secrets.
 - **Required Deliverables:**
-  1. Test cluster deployment manifest and namespace layout documentation.
-  2. Verified gVisor runtime configuration and non-root BuildKit profile.
+  1. Test cluster deployment manifest and namespace layout documentation (Rudra).
+  2. Verified host gVisor (`runsc`) installation, containerd configuration, registered `gvisor` runtimeClass, and isolated rootless BuildKit + Railpack container image/profile (Priyanshu).
   3. Secret reference exchange contract between API and Orchestrator.
 
 ---
@@ -153,9 +172,9 @@ To guarantee operational alignment across the platform, the following four archi
 
 - **Scope & Objectives:**
   - Execute end-to-end platform validation on the test-only Kubernetes machines before any production rollout.
-  - Workflow under test: Developer pushes commit / triggers deploy via API &rarr; API validates auth, writes deployment & outbox record &rarr; Orchestrator claims outbox event &rarr; Ephemeral gVisor worker builds OCI image &rarr; Image pushed to registry &rarr; Tenant deployment updated in tenant namespace &rarr; Traefik ingress routes traffic &rarr; Cilium enforces network boundary &rarr; Metrics/logs emitted to Prometheus/Loki &rarr; API streams logs/metrics back to dashboard.
-  - Comprehensive Database Migration & Rollback Review: Validate Arpit’s forward and rollback migrations against populated test datasets without service interruption.
-  - Security Penetration & Compliance Review: Verify non-root enforcement, gVisor syscall filtering, egress firewalls, lack of secret leakage in logs, and tenant isolation integrity.
+  - Workflow under test: Developer pushes commit / triggers deploy via API &rarr; API validates auth, writes deployment & outbox record &rarr; Orchestrator claims outbox event &rarr; Rudra schedules and launches ephemeral build pod using Priyanshu's configured `gvisor` runtimeClass and builder container &rarr; Builder executes rootless BuildKit inside gVisor sandbox &rarr; Image pushed to internal registry &rarr; Pod destroyed/cleaned up by Rudra &rarr; Tenant deployment updated in tenant namespace &rarr; Traefik ingress routes traffic &rarr; Cilium enforces network boundary &rarr; Metrics/logs emitted to Prometheus/Loki &rarr; API streams logs/metrics back to dashboard.
+  - Comprehensive Database Migration & Rollback Review: Validate Arpit’s forward and rollback migrations against populated test datasets without service interruption (Arpit owns DB only).
+  - Security Penetration & Compliance Review: Verify non-root enforcement (UID 1000), gVisor syscall filtering, egress firewalls, lack of secret leakage in logs, and tenant isolation integrity.
 - **Required Deliverables:**
   1. Automated E2E test execution report run against test-only Kubernetes machines.
   2. Signed security and migration review checklist.
@@ -198,7 +217,7 @@ apps/backend/
 │   │   ├── cors.go                     # Environment-aware CORS configuration
 │   │   ├── ratelimit.go                # Token-bucket rate limiting per IP / tenant
 │   │   └── idempotency.go              # Idempotency-Key validation and caching
-│   ├── repository/                     # Persistence Abstraction Interfaces (Coordinated with Arpit)
+│   ├── platformdb/                     # Persistence Abstraction Interfaces (Coordinated with Arpit - DB only)
 │   │   ├── interfaces.go               # ProjectRepository, ResourceRepository, DeploymentRepository
 │   │   └── outbox.go                   # OutboxEvent repository and transactional unit-of-work
 │   ├── orchestrator/                   # Orchestrator Dispatch Interfaces (Coordinated with Rudra)
@@ -216,46 +235,56 @@ apps/backend/
 ├── go.mod
 ├── go.sum
 └── README.md
+
+builder/                                # Entire Isolated Builder Component (Priyanshu)
+├── gvisor/                             # Host gVisor installation & runtimeClass configuration (Priyanshu)
+│   ├── install-runsc.sh                # Host gVisor (runsc) installer and containerd configuration
+│   └── runtimeclass.yaml               # Kubernetes gvisor runtimeClass definition
+├── Dockerfile                          # Rootless BuildKit + Railpack container specification
+├── entrypoint.sh                       # Unprivileged build runner & cache initializer
+├── buildkitd.toml                      # Rootless BuildKit daemon configuration
+└── README.md                           # Builder container documentation & local test instructions
 ```
 
 ### Package Boundary Rules
 1. `internal/domain` has **zero external dependencies** and does not import `net/http` or database drivers.
 2. `internal/api` depends only on `internal/domain`, `internal/platformdb`, and standard library HTTP packages.
-3. `internal/platformdb` declares pure Go interfaces for database operations; concrete PostgreSQL implementations (`pgxpool`) are injected at `cmd/api/main.go`.
+3. `internal/platformdb` declares pure Go interfaces for database operations; concrete PostgreSQL implementations (`pgxpool`) are injected at `cmd/api/main.go`. (Avoid competing repository abstractions).
 4. `internal/orchestrator` declares event publishing interfaces; the HTTP handlers never directly call Kubernetes client libraries.
+5. `builder/` encapsulates the entire isolated builder component (host gVisor `runsc` installation, `gvisor` runtimeClass setup, and rootless BuildKit + Railpack container image); it has zero coupling to Kubernetes API machinery or orchestrator pod scheduling/lifecycle loops (which are owned by Rudra).
 
 ---
 
 ## 6. Phased Implementation Roadmap & Deliverables
 
 ```
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│ Phase 0: Foundations & Contract Realignment (Priyanshu + UI Dev + Arpit + Rudra)       │
-└────────────────────────────────────────┬───────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ Phase 0: Foundations & Contract Realignment (Priyanshu + UI Dev + Arpit + Rudra)│
+└──────────────────────────────────────┬───────────────────────────────────────┘
                                          ▼
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│ Phase 1: Core Middleware, Tenant Context & Security Infrastructure (Priyanshu)         │
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ Phase 1: Core Middleware, Tenant Context & Security Infrastructure (Priyanshu) │
 │ └── <span style="color:#7C3AED"><strong>TEAM OF THREE REQUIRED</strong></span> (Shared Gate 1: Tenant & Auth Isolation)                     │
-└────────────────────────────────────────┬───────────────────────────────────────────────┘
+└──────────────────────────────────────┬───────────────────────────────────────┘
                                          ▼
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│ Phase 2: Persistence Abstractions & Core CRUD Endpoints (Priyanshu + Arpit)            │
-└────────────────────────────────────────┬───────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ Phase 2: Persistence Abstractions & Core CRUD Endpoints (Priyanshu + Arpit)    │
+└──────────────────────────────────────┬───────────────────────────────────────┘
                                          ▼
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│ Phase 3: Asynchronous Deployment Pipeline & Orchestrator Outbox (Priyanshu + Rudra)    │
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ Phase 3: Asynchronous Deployment Pipeline, Outbox & Builder Component          │
 │ └── <span style="color:#7C3AED"><strong>TEAM OF THREE REQUIRED</strong></span> (Shared Gate 2: Deployment & Outbox Lifecycle)                 │
-└────────────────────────────────────────┬───────────────────────────────────────────────┘
+└──────────────────────────────────────┬───────────────────────────────────────┘
                                          ▼
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│ Phase 4: Webhook Ingress, Secret Safety & Observability Streams (Priyanshu)            │
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ Phase 4: Webhook Ingress, Secret Safety & Observability Streams (Priyanshu)    │
 │ └── <span style="color:#7C3AED"><strong>TEAM OF THREE REQUIRED</strong></span> (Shared Gate 3: Test Cluster, Ingress & Secrets)                │
-└────────────────────────────────────────┬───────────────────────────────────────────────┘
+└──────────────────────────────────────┬───────────────────────────────────────┘
                                          ▼
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│ Phase 5: Test-Cluster Integration, Hardening & Acceptance (Priyanshu + Rudra + Arpit)  │
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ Phase 5: Test-Cluster Integration, Hardening & Acceptance (Priyanshu + Rudra)  │
 │ └── <span style="color:#7C3AED"><strong>TEAM OF THREE REQUIRED</strong></span> (Shared Gate 4: End-to-End Acceptance on Test Cluster)          │
-└────────────────────────────────────────────────────────────────────────────────────────┘
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -290,7 +319,7 @@ apps/backend/
 
 ### Phase 2: Persistence Abstractions & Read/Write CRUD Endpoints
 - **Owner:** Priyanshu
-- **Collaborators:** Arpit (Database Engineer), UI Developer
+- **Collaborators:** Arpit (Database Engineer - DB only), UI Developer
 - **Deliverables:**
   1. `internal/domain/project.go` & `internal/domain/resource.go`: Domain entities strictly modeling platform concepts.
   2. `internal/platformdb/interfaces.go`: Definition of `ProjectRepository` and `ResourceRepository`.
@@ -307,9 +336,9 @@ apps/backend/
 
 ---
 
-### Phase 3: Asynchronous Deployment Pipeline & Orchestrator Outbox
+### Phase 3: Asynchronous Deployment Pipeline, Orchestrator Outbox & Builder Component
 - **Owner:** Priyanshu
-- **Collaborators:** Rudra (Orchestrator Engineer), Arpit (Database Engineer)
+- **Collaborators:** Rudra (Orchestrator Engineer), Arpit (Database Engineer - DB only)
 - **Shared Gate Alignment:** <span style="color:#7C3AED"><strong>TEAM OF THREE REQUIRED</strong></span> **Gate 2 (Deployment Lifecycle & Outbox Contract)**
 - **Deliverables:**
   1. `internal/platformdb/outbox.go`: Transactional unit-of-work interface executing deployment record creation and outbox event insertion atomically.
@@ -318,7 +347,15 @@ apps/backend/
      - `POST /api/v1/releases`: Accepts build request, validates branch/commit/version, inserts outbox record, and returns `202 Accepted` with tracking URL.
      - `GET /api/v1/releases`: Lists historical releases for the tenant.
      - `GET /api/v1/deployments/{id}` (New Contract): Returns real-time deployment status (`queued`, `building`, etc.), step timestamps, and error summaries read from database.
-  4. **Failure Recovery:** Standardized error mapping when database transaction or outbox write fails.
+  4. **Entire Isolated Builder Component (`builder/`):**
+     - Host gVisor Setup: Installation and configuration scripts for `runsc` on Kubernetes host nodes, containerd runtime configuration, and registration of the `gvisor` runtimeClass.
+     - Package `Dockerfile` for rootless BuildKit and Railpack running as unprivileged user (UID 1000).
+     - Configure `buildkitd.toml` for rootless user-space compilation with no requirement for host root privileges.
+     - Create `entrypoint.sh` for source acquisition, Railpack build plan execution, and pushing to the internal registry.
+  5. **Orchestration Boundary with Rudra:**
+     - Priyanshu owns and provides the entire isolated builder: host gVisor (`runsc`) installation and configuration, the `gvisor` runtimeClass setup, and the tested builder container image.
+     - Rudra owns orchestrator pod scheduling, pod spec/manifest generation, launching, log streaming, monitoring, and cleanup of the ephemeral build pod that invokes Priyanshu's configured builder (runtimeClass + image). Rudra does NOT install or configure gVisor.
+  6. **Failure Recovery:** Standardized error mapping when database transaction or outbox write fails.
 
 ---
 
@@ -347,8 +384,8 @@ apps/backend/
   1. Deploy Go API service to `platform` namespace on the 1-2 shared test Kubernetes machines.
   2. Verify Traefik ingress routing to `/api/v1/*` with TLS termination.
   3. Execute automated contract and integration test suite against live cluster endpoints.
-  4. Conduct joint E2E deployment test: trigger commit &rarr; gVisor build &rarr; tenant rollout &rarr; log streaming.
-  5. Security and vulnerability audit: confirm no control-plane container escape vectors, non-root execution, and strict Cilium network isolation.
+  4. Conduct joint E2E deployment test: trigger commit &rarr; API outbox insertion &rarr; Rudra's orchestrator schedules ephemeral pod on gVisor host (using Priyanshu's configured gVisor runtimeClass) &rarr; Priyanshu's builder container executes rootless BuildKit + Railpack build &rarr; image pushed to internal registry &rarr; tenant rollout &rarr; log streaming.
+  5. Security and vulnerability audit: confirm no control-plane container escape vectors, non-root execution (UID 1000), gVisor syscall filtering, and strict Cilium network isolation.
 
 ---
 
@@ -426,7 +463,7 @@ func FromContext(ctx context.Context) (Context, error) {
 
 ### 7.2 Strict Tenant Isolation Guarantees
 - Any route under `/api/v1/projects`, `/api/v1/resources`, `/api/v1/releases`, and `/api/v1/observability` **MUST** pass through `Auth` and `TenantContext` middleware.
-- If no valid JWT is supplied &rarr; return HTTP `401 Unauthorized`.
+- If no valid JWT is supplied &rarr; return HTTP `401 Unauthorized` evacuations.
 - If the token is valid but the user lacks membership in the requested project/tenant &rarr; return HTTP `403 Forbidden`.
 - Every repository query executed by Priyanshu's handlers will accept `ctx` and pass `tc.TenantID` as the primary filter criterion, ensuring multi-tenant isolation at the database layer.
 
@@ -442,19 +479,18 @@ The repository standard mandates that `packages/api_spec/openapi.yaml` is the ca
 |---|---|---|---|---|
 | `GET /api/v1/health` | Implemented in Go | Retain, add dependency checks (db, k8s, queue) | Enables true readiness vs liveness probes | Team of Three |
 | `GET /api/v1/projects` | Defined in Spec | Add pagination query params (`limit`, `cursor`) | Prevents unbounded payload sizes on large tenants | UI Developer |
-| `POST /api/v1/projects` | **Missing from Spec** | Add creation schema: `name`, `slug`, `framework`, `region` | Required for self-service project creation | UI Developer, Arpit |
+| `POST /api/v1/projects` | **Missing from Spec** | Add creation schema: `name`, `slug`, `framework`, `region` | Required for self-service project creation | UI Developer, Arpit (DB only) |
 | `GET /api/v1/projects/{slug}` | Defined in Spec | Retain schema; refine service status details | Returns real-time status of web/worker/db pods | UI Developer, Rudra |
 | `GET /api/v1/resources` | Defined in Spec | Add pagination and environment filtering | Enables filtering by `production` vs `staging` | UI Developer |
-| `POST /api/v1/resources` | Defined in Spec | Update response to indicate asynchronous provisioning (`202 Accepted`) | Resource provisioning (DB, Redis) takes time | UI Developer, Arpit |
-| Proposed deployment endpoint | Not in current contract | Add `POST /api/v1/projects/{slug}/deployments` returning `202 Accepted`, plus status lookup | Builds are asynchronous; HTTP request cannot wait for completion | UI Developer, Rudra, Arpit |
+| `POST /api/v1/resources` | Defined in Spec | Update response to indicate asynchronous provisioning (`202 Accepted`) | Resource provisioning (DB, Redis) takes time | UI Developer, Arpit (DB only) |
+| Proposed deployment endpoint | Not in current contract | Add `POST /api/v1/projects/{slug}/deployments` returning `202 Accepted`, plus status lookup | Builds are asynchronous; HTTP request cannot wait for completion | UI Developer, Rudra, Arpit (DB only) |
 | `GET /api/v1/deployments/{id}` | **Missing from Spec** | Add deployment tracking endpoint (status, step logs, timings) | Enables dashboard build progress bar and live steps | UI Developer, Rudra |
 | `POST /api/v1/webhooks/github`| **Missing from Spec** | Add webhook endpoint with signature validation schemas | Automated Git-push deployments | Rudra |
 | `GET /api/v1/observability/logs`| Defined in Spec | Add timestamp range (`since`, `until`) and streaming/SSE | Enables historical audit and live log tailing | UI Developer |
 
 ### 8.2 Change Coordination Workflow with UI Developer
 1. **Drafting:** Priyanshu creates an OpenAPI diff branch amending `packages/api_spec/openapi.yaml`.
-2. **Type Generation:** Run `pnpm typecheck:api` to verify TypeScript contract generation in `packages/api_spec`.
-3. **UI Review:** Priyanshu tags the UI Developer to review schema diffs, ensuring request/response shapes match dashboard component expectations.
+2. **Type Generation:** Run `pnpm typecheck:api` to verify TypeScript contract generation in `packages/api_spec`.\n3. **UI Review:** Priyanshu tags the UI Developer to review schema diffs, ensuring request/response shapes match dashboard component expectations.
 4. **Approval & Merge:** Once approved, the OpenAPI spec is committed first; Go handler implementation and frontend client wiring follow immediately.
 
 ---
@@ -477,7 +513,7 @@ Deploying code involves fetching repository tarballs, compiling dependencies ins
 [ status: cloning ] ──> Fetch Git commit from provider
          │
          ▼
-[ status: building ] ──> Ephemeral gVisor Pod runs rootless BuildKit + Railpack
+[ status: building ] ──> Rudra schedules ephemeral pod; Priyanshu's configured gVisor runtime & builder container run rootless BuildKit + Railpack
          │
          ▼
 [ status: pushing ] ──> Push image to internal OCI registry; terminate build pod
@@ -558,11 +594,11 @@ Content-Type: application/json
 
 ## 10. Persistence & Repository Interfaces (Coordinating with Arpit)
 
-Priyanshu will write clean Go repository interfaces in `internal/platformdb`. Arpit will supply the PostgreSQL schema, connection pooling configurations, and query optimization.
+Priyanshu will write clean Go repository interfaces in `internal/platformdb`. Arpit (who owns DB only) will supply the PostgreSQL schema, connection pooling configurations, and query optimization.
 
 ### 10.1 Repository Interface Definitions
 ```go
-package repository
+package platformdb
 
 import (
 	"context"
@@ -629,6 +665,7 @@ type OutboxRepository interface {
 ```
 
 ### 10.3 Database Connection & Pooling Coordination with Arpit
+- **Role Boundary:** Arpit owns DB only.
 - **Library:** `jackc/pgx/v5/pgxpool`.
 - **Configuration:**
   - `DATABASE_URL` injected from environment via Supabase connection string.
@@ -648,9 +685,20 @@ type OutboxRepository interface {
 2. **Orchestrator Responsibility (Rudra):**
    - Poll or listen to `outbox_events` using PostgreSQL `LISTEN/NOTIFY` or periodic batch queries with `FOR UPDATE SKIP LOCKED`.
    - Claim event, mark `status = 'processing'`.
-   - Launch ephemeral gVisor build pod with rootless BuildKit.
+   - Construct, schedule, launch, monitor, and clean up an ephemeral build pod in the `summit-builds` namespace referencing Priyanshu's configured `gvisor` runtimeClass and builder container image.
    - Update `deployments` status in database to `building`, `pushing`, `deploying`, and `verified` as pipeline steps advance.
-3. **Decoupling Guarantee:** The API service never queries Kubernetes etcd or manages container runtimes. The orchestrator never intercepts incoming client HTTP requests.
+3. **Builder Responsibility (Priyanshu - Entire Isolated Builder Owner):**
+   - Priyanshu owns the ENTIRE isolated builder, including host gVisor itself.
+   - Install and configure gVisor (`runsc`) on the Kubernetes host machines, configure containerd runtime handlers, and register the `gvisor` runtimeClass in the Kubernetes cluster.
+   - Implement, test, and package the isolated builder container image (`builder/Dockerfile`) containing rootless BuildKit, Railpack, and the compilation entrypoint.
+   - Ensure the container executes entirely as an unprivileged user (UID 1000), drops all Linux capabilities (`drop: ["ALL"]`), and operates cleanly within gVisor (`runsc`) sandboxing without host root access or privilege escalation.
+   - Publish the builder image to the internal container registry and provide the verified `gvisor` runtimeClass for Rudra's orchestrator to schedule against.
+4. **Orchestrator Pod Lifecycle & Scheduling Responsibility (Rudra):**
+   - Rudra strictly owns the orchestrator engine and pod lifecycle management; Rudra must NOT own, install, or configure gVisor.
+   - Generate the pod specification (assigning `runtimeClassName: gvisor`, user UID 1000, resource limits, and build cache emptyDir volumes).
+   - Schedule, launch, monitor, stream logs from, and terminate/clean up the ephemeral build pod using Priyanshu's configured builder.
+   - Apply Cilium network policies enforcing strict default-deny network egress during compilation.
+5. **Decoupling Guarantee:** The API service never queries Kubernetes etcd or manages container runtimes. The orchestrator never intercepts incoming client HTTP requests. Priyanshu delivers the entire isolated builder (host gVisor `runsc` installation, `gvisor` runtimeClass setup, and rootless BuildKit + Railpack container), while Rudra provides the orchestrator engine that schedules, launches, monitors, and cleans up builder pods. Arpit owns database persistence and schemas only.
 
 ---
 
@@ -690,6 +738,8 @@ func VerifyGitHubSignature(payload []byte, signatureHeader string, secretKey []b
 - **Build Isolation Enforcement:**
   - Build instructions received via API or webhook are strictly payloads serialized into outbox records.
   - Under no circumstances does the API execute shell commands (`os/exec`), Docker commands, or build scripts locally.
+  - Builds execute inside Priyanshu's isolated builder container running rootless BuildKit (UID 1000) inside the gVisor (`runsc`) sandbox configured by Priyanshu, scheduled and monitored by Rudra's orchestrator on the cluster.
+  - Host-level gVisor (`runsc`) installation, configuration, and `gvisor` runtimeClass setup are owned exclusively by Priyanshu; Rudra owns the orchestrator engine that schedules and manages the pod lifecycles. Rudra must NOT own, install, or configure gVisor.
 
 ---
 
@@ -757,6 +807,7 @@ The platform dashboard visualizes cluster telemetry via dedicated API endpoints:
 
 ### 15.1 Local Development Workflow
 Developers can run the Go backend locally without requiring a live Kubernetes cluster:
+
 ```bash
 # 1. Start local dependencies (PostgreSQL / Supabase emulator)
 docker run -d --name summit-db -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:16-alpine
@@ -774,7 +825,7 @@ pnpm dev:backend
 - The test machines host a lightweight test Kubernetes cluster (k3s / kubeadm).
 - Build and deployment workflow:
   1. Automated CI / local Makefile builds Go Linux binary: `CGO_ENABLED=0 GOOS=linux go build -o bin/api ./cmd/api`.
-  2. Builds test container image: `podman build -t registry.test.internal/summit/backend:latest -f apps/backend/Dockerfile .`
+  2. Builds test container image: `podman build -t registry.test.internal/summit/backend:latest -f apps/backend/Dockerfile .`.
   3. Deploys to `platform` namespace via Helm or Kustomize manifests.
   4. Ingress exposed via Traefik; Cilium network policies enforce isolation.
 - **Test-Only Constraint:** These machines are volatile test hosts. Priyanshu will never rely on them for persistent storage or production data.
@@ -792,21 +843,31 @@ pnpm dev:backend
    - Validates transaction rollback, outbox event generation, and RLS tenant isolation.
 3. **OpenAPI Contract Conformance Tests:**
    - Validates that API responses conform strictly to `packages/api_spec/openapi.yaml` schemas using automated schema validators.
-4. **End-to-End Cluster Tests (<span style="color:#7C3AED"><strong>TEAM OF THREE REQUIRED</strong></span> Gate 4):**
-   - Full deployment lifecycle executed on test-only Kubernetes machines.
+4. **Builder Container & Sandbox Tests (`builder/`):**
+   - Verifies host gVisor (`runsc`) installation and `gvisor` runtimeClass registration on the test nodes.
+   - Verifies `builder/Dockerfile` builds cleanly, runs as unprivileged UID 1000, and drops all Linux capabilities.
+   - Validates rootless BuildKit compilation of sample applications inside the gVisor sandbox without host root access.
+5. **End-to-End Cluster Tests (<span style="color:#7C3AED"><strong>TEAM OF THREE REQUIRED</strong></span> Gate 4):**
+   - Full deployment lifecycle executed on test-only Kubernetes machines (Rudra's orchestrator schedules build pod using Priyanshu's configured host gVisor runtimeClass and builder image).
 
-### 16.2 Acceptance Criteria for API Readiness
+### 16.2 Acceptance Criteria for API & Builder Readiness
 - [ ] All endpoints specified in `packages/api_spec/openapi.yaml` return compliant status codes and response bodies.
 - [ ] Tenant isolation verified: unauthorized tenant requests return HTTP 403; cross-tenant data leakage is mathematically impossible.
 - [ ] Panic recovery middleware catches unhandled panics and returns HTTP 500 JSON envelopes without dropping the HTTP listener.
 - [ ] All mutating actions (deployments, resource provisioning) utilize database transactions and outbox event tables.
 - [ ] GitHub webhook endpoint verifies HMAC-SHA256 signatures in constant time.
+- [ ] Priyanshu successfully installs and configures gVisor (`runsc`) on Kubernetes host machines and registers the `gvisor` runtimeClass.
+- [ ] Isolated builder container image builds cleanly, runs as non-root (UID 1000), and executes rootless BuildKit + Railpack compilation without privilege escalation inside the gVisor sandbox.
+- [ ] Rudra's orchestrator successfully schedules, launches, monitors, and cleans up ephemeral build pods using Priyanshu's configured `gvisor` runtimeClass and builder container image.
+- [ ] Clear boundary maintained: Priyanshu owns the entire isolated builder (host gVisor `runsc` installation, `gvisor` runtimeClass setup, and rootless BuildKit + Railpack builder container); Rudra owns orchestrator pod scheduling/launching/monitoring/cleanup; Arpit owns DB schemas and persistence only. Rudra does NOT install or configure gVisor.
 - [ ] Go test coverage exceeds 80% across `internal/api`, `internal/domain`, and `internal/middleware`.
 - [ ] Service starts, responds to health probes, and terminates cleanly within 10 seconds under SIGTERM.
 
 ---
 
-## 17. First-PR Checklist (Priyanshu's Immediate Deliverable)
+## 17. First-PR Checklist & Upcoming Task Lists
+
+### 17.1 First-PR Checklist (Priyanshu's Immediate Backend Deliverable)
 
 The initial Pull Request will establish the architectural foundation in `apps/backend` without breaking existing workflows or introducing premature external dependencies.
 
@@ -820,28 +881,46 @@ The initial Pull Request will establish the architectural foundation in `apps/ba
 - [ ] **Unit Tests:** Add unit tests for configuration parsing, recovery middleware, tracing middleware, and health handler.
 - [ ] **Lint & Vet Cleanliness:** Ensure `pnpm lint` (`go -C apps/backend vet ./...`) and `pnpm build` pass with zero warnings.
 
+### 17.2 Builder Component Task List (Priyanshu's Build Sandbox Deliverable)
+
+Following the core backend foundation, Priyanshu implements the isolated builder component:
+
+- [ ] **Host gVisor Installation & RuntimeClass Setup:** Install and configure gVisor (`runsc`) on the Kubernetes host machines, configure containerd runtime handlers, and register the `gvisor` runtimeClass in the cluster.
+- [ ] **Builder Container Specification:** Create `builder/Dockerfile` specifying rootless BuildKit daemon and Railpack CLI on an unprivileged base (UID 1000).
+- [ ] **Daemon Configuration:** Implement `builder/buildkitd.toml` configured for rootless execution without host root privileges.
+- [ ] **Unprivileged Entrypoint:** Create `builder/entrypoint.sh` handling source extraction, build plan generation, BuildKit build invocation, and image push.
+- [ ] **Container & Sandbox Verification:** Validate user-space compilation on sample code with zero root privileges inside gVisor.
+- [ ] **Handoff to Rudra:** Provide configured `gvisor` runtimeClass and publish builder container image to internal registry for Rudra's orchestrator to schedule, launch, monitor, and clean up build pods.
+
 ---
 
 ## 18. Risks & Decision Register
 
-Decisions not currently established by the repository baseline remain explicitly **OPEN** and will be finalized through the joint Backend Review.
-
-| Decision ID | Description | Options Considered | Recommended Direction | Owner | Status |
+| Decision ID | Description | Options Considered | Selected Direction | Owner | Status |
 |---|---|---|---|---|---|
-| **ADR-01** | Routing framework vs Go 1.23 standard library | (A) Standard library `net/http` mux<br>(B) `chi` / `echo` / `gin` | **Option A (Standard Library)**: Go 1.23 mux supports methods and wildcard path routing (`GET /api/v1/projects/{slug}`) with zero external dependencies. | Priyanshu | **PROPOSED** |
-| **ADR-02** | Database Driver & Query Layer | (A) `pgx/v5` direct pool<br>(B) `sqlc`<br>(C) `GORM` | **Option B (`sqlc` over `pgx`)**: Type-safe Go code generated directly from Arpit's raw SQL migrations. | Arpit & Priyanshu | **OPEN** |
-| **ADR-03** | Auth Provider Protocol | (A) Supabase Auth JWT validation<br>(B) Custom JWT engine<br>(C) OAuth2 proxy | **Option A (Supabase Auth)**: Validating Supabase-issued JWTs against JWKS public key cache in middleware. | Priyanshu | **PROPOSED** |
-| **ADR-04** | Outbox Event Broker / Queue | (A) PostgreSQL table polling (`SKIP LOCKED`)<br>(B) Redis / Dragonfly Streams<br>(C) NATS | **Option A initially**: Simplest transactional guarantees with Supabase Postgres; migrate to NATS if volume exceeds 500 events/sec. | Rudra & Arpit | **OPEN** |
+| **ADR-01** | Routing framework vs Go 1.23 standard library | (A) Standard library `net/http` mux<br>(B) `chi` / `echo` / `gin` | **Option A (Standard Library)**: Go 1.23 `http.NewServeMux()` supports method-matching and wildcard routing with zero external routing dependencies. | Priyanshu | **ACCEPTED** (Implemented in `internal/server`) |
+| **ADR-02** | Database Driver & Query Layer | (A) `pgx/v5` direct pool<br>(B) `sqlc`<br>(C) `GORM` | **Option A (`pgx/v5` Pool)**: Connection pooling via `jackc/pgx/v5/pgxpool` with advisory-locked migrations in `internal/db`. | Arpit & Priyanshu | **ACCEPTED** (Implemented in `internal/db`) |
+| **ADR-03** | Auth Provider Protocol | (A) Supabase Auth JWT validation<br>(B) Custom JWT engine<br>(C) OAuth2 proxy | **Option A (Supabase Auth)**: Validating Supabase-issued JWTs against JWKS public key cache with algorithm allowlist (`RS256`, `ES256`, `HS256`). | Priyanshu | **ACCEPTED** (Implemented in `internal/auth`) |
+| **ADR-04** | Outbox Event Broker / Queue | (A) PostgreSQL table polling (`SKIP LOCKED`)<br>(B) Redis / Dragonfly Streams<br>(C) NATS | **Option A (PostgreSQL `FOR UPDATE SKIP LOCKED`)**: Transactional consistency with domain tables without external broker dependencies. | Rudra & Arpit | **ACCEPTED** (Implemented in `internal/githubworker`) |
 | **ADR-05** | Real-time Build Log Streaming | (A) Server-Sent Events (SSE)<br>(B) WebSockets<br>(C) Short polling `GET /deployments/{id}` | **Option A (SSE)**: Simpler HTTP/2 streaming over Traefik; falls back to polling if client connection drops. | Priyanshu & UI Dev | **OPEN** |
-| **ADR-06** | Ephemeral Build Host Constraints | (A) Dedicated test K8s node pool<br>(B) Shared test node with gVisor `runsc` | **Option B**: Ephemeral pods strictly constrained to gVisor runtimeClass to protect test host integrity. | Rudra | **PROPOSED** |
+| **ADR-06** | Ephemeral Build Host Constraints & Builder Component | (A) Dedicated test K8s node pool<br>(B) Shared test node with gVisor `runsc` + rootless BuildKit container | **Option B**: Ephemeral pods strictly constrained to gVisor runtimeClass. Priyanshu owns the entire isolated builder, including host gVisor (`runsc`) installation/configuration, `gvisor` runtimeClass registration, and the rootless BuildKit + Railpack builder container image. Rudra owns the orchestrator engine that schedules, launches, monitors, and cleans up builder pods. Arpit owns DB only. | Priyanshu (Entire Isolated Builder) & Rudra (Orchestrator) | **ACCEPTED** |
+
+> [!NOTE]
 
 ---
 
 ## 19. Summary & Next Steps
 
-This plan provides a complete, sequenced, and standalone blueprint for Priyanshu to construct the Go API control plane. 
+The foundational Go API control plane and GitHub integration backend are fully implemented, verified, and merged into `main` via PR #3.
 
-**Immediate Actions:**
-1. Review this document with **Rudra** (Orchestrator) and **Arpit** (Database) to validate the four shared architecture gates (<span style="color:#7C3AED"><strong>TEAM OF THREE REQUIRED</strong></span>).
-2. Present the OpenAPI RFC and contract gap proposals to the **UI Developer** for frontend dashboard alignment.
-3. Execute the **First-PR Checklist** to establish the core middleware and domain structures in `apps/backend`.
+**Current Milestones Completed:**
+1. Turborepo monorepo orchestration wired across TypeScript and Go packages.
+2. PostgreSQL connection pool (`pgxpool`) and advisory-locked migrations applied.
+3. Supabase Auth JWT verifier, tenant RBAC middleware, and OpenBao secrets router active.
+4. GitHub App client, webhook ingestion, `FOR UPDATE SKIP LOCKED` processor, and worker credential broker landed with 100% test pass.
+
+**Next Immediate Actions:**
+1. Coordinate with **Rudra** on the builder handoff: Priyanshu implements the entire isolated builder by installing/configuring gVisor (`runsc`) and setting up the `gvisor` runtimeClass on the Kubernetes test hosts, plus packaging the rootless BuildKit + Railpack builder container (`builder/Dockerfile`), while Rudra builds the orchestrator engine to schedule, launch, monitor, and clean up pods using Priyanshu's builder.
+2. Coordinate with **Arpit** (who owns DB only) on `internal/platformdb` persistence contracts and outbox schema, avoiding duplicate repository abstractions.
+3. Coordinate with the **UI Developer** on replacing demo mock routes in `apps/web` with live `/v1/...` API endpoints documented in [`docs/integrations/github/FRONTEND_INTEGRATION.md`](./integrations/github/FRONTEND_INTEGRATION.md).
+4. Implement `POST /api/v1/projects` and project lifecycle CRUD handlers.

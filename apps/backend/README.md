@@ -1,29 +1,43 @@
 # Summit Backend Service
 
-Go backend service scaffold for the Summit / Jetway PaaS Control Plane.
+Go backend control-plane service and worker engine for the Summit PaaS platform.
 
 ## Overview
 
-The service provides a minimal, idiomatic Go HTTP foundation aligned with the monorepo's canonical OpenAPI 3.1 contract (`packages/api_spec/openapi.yaml`). It uses the Go standard library for routing, structured logging (`log/slog`), and graceful shutdown, with no third-party dependencies.
+The service provides a robust, idiomatic Go HTTP control plane aligned with the monorepo's canonical OpenAPI 3.1 contract (`packages/api_spec/openapi.yaml`) and GitHub Integration Specification (`docs/integrations/github/GITHUB_INTEGRATION_BACKEND_SPEC.md`). It uses standard-library HTTP routing, structured logging (`log/slog`), PostgreSQL persistence with advisory-locked migrations (`jackc/pgx/v5`), Supabase JWT verification, multi-tenant RBAC, OpenBao secrets routing, and asynchronous webhook processing.
 
-The service is also the `@summit/backend` pnpm workspace package. Its `package.json` exposes `dev`, `build`, `lint`, and `test` scripts to Turborepo; the Go module remains the only Go dependency definition.
+The service is also the `@summit/backend` pnpm workspace package. Its `package.json` exposes `dev`, `build`, `lint`, and `test` scripts to Turborepo; `go.mod` remains the only Go module definition.
 
 ## Directory Layout
 
 ```text
 apps/backend/
 ├── cmd/
-│   └── api/
-│       └── main.go           # Executable entrypoint & signal handling
+│   ├── api/
+│   │   └── main.go           # Application entrypoint & worker lifecycle spawner
+│   └── migrate/
+│       └── main.go           # Standalone advisory-locked database migration CLI
 ├── internal/
-│   ├── config/
-│   │   └── config.go         # Environment-based configuration with safe defaults
-│   ├── health/
-│   │   └── handler.go        # OpenAPI-compliant health endpoint handler
-│   └── server/
-│       └── server.go         # HTTP server, routing, CORS, and graceful shutdown
+│   ├── audit/                # Redacted audit logging publisher
+│   ├── auth/                 # Supabase JWT verifier (JWKS / HS256) & user synchronizer
+│   ├── authz/                # Multi-tenant RBAC permission matrix & middleware
+│   ├── config/               # Environment configuration with production safety checks
+│   ├── db/                   # pgxpool connection manager & advisory-locked migration runner
+│   │   └── migrations/       # SQL migrations (0001_baseline, 0002_github_integration)
+│   ├── githubapi/            # REST API handlers for installations, repositories & sources
+│   ├── githubapp/            # GitHub App REST client, RS256 JWT, token cache & invalidator
+│   ├── githubwebhook/        # Raw HMAC-SHA256 signature verifier & payload normalizer
+│   ├── githubworker/         # Async SKIP LOCKED poller & worker credential broker
+│   ├── health/               # Health telemetry & liveness probe handlers
+│   ├── httpx/                # RFC 7807 standard JSON error envelopes & response helpers
+│   ├── installstate/         # Single-use CSRF installation state generator & SHA-256 verifier
+│   ├── secrets/              # OpenBao AppRole client & multi-tier secrets router
+│   ├── server/               # HTTP router multiplexer, CORS, & graceful shutdown
+│   ├── sourcepath/           # Lexical path traversal sanitizer & branch/SHA validator
+│   └── testutil/             # Schema-isolated PostgreSQL test database runner
 ├── bin/                      # Local build output (gitignored)
-├── go.mod                    # Go module definition
+├── go.mod                    # Go 1.23 module definition
+├── go.sum                    # Checksums for Go dependencies
 ├── package.json              # Turborepo task adapter
 └── README.md                 # Service documentation
 ```
@@ -36,11 +50,21 @@ Runtime behavior is configured via environment variables with safe defaults:
 |---|---|---|
 | `PORT` | `4000` | HTTP listen port |
 | `HOST` | `""` | Listen host / IP (empty listens on all interfaces) |
-| `SERVICE_NAME` | `meridian-api` | Service name in health response |
-| `SERVICE_VERSION` | `1.0.0` | Service version in health response |
-| `REGION` | `cdg-1 (Paris)` | Edge region reported in health telemetry |
-| `EDGE_ROUTING` | `anycast` | Edge routing policy reported in health response |
+| `DATABASE_URL` | `postgres://...` | PostgreSQL connection string (`pgxpool`) |
+| `TEST_DATABASE_URL` | `""` | Optional database URL for running DB integration tests |
 | `ENVIRONMENT` | `development` | Deployment environment (`development`, `staging`, `production`) |
+| `SUPABASE_URL` | `""` | Supabase project URL (used for fetching JWKS keys) |
+| `SUPABASE_JWT_SECRET` | `""` | Supabase HMAC-SHA256 fallback secret |
+| `OPENBAO_ADDR` | `""` | OpenBao / Vault server address |
+| `OPENBAO_ROLE_ID` | `""` | OpenBao AppRole Role ID |
+| `OPENBAO_SECRET_ID` | `""` | OpenBao AppRole Secret ID |
+| `GITHUB_APP_ID` | `0` | GitHub App numeric Application ID |
+| `GITHUB_APP_PRIVATE_KEY` | `""` | PEM-encoded RSA private key for GitHub App JWT signing |
+| `GITHUB_WEBHOOK_SECRET` | `""` | Secret used to verify `X-Hub-Signature-256` webhook headers |
+| `WORKER_JWT_SECRET` | `""` | Secret for authenticating internal build worker token broker calls |
+
+> [!NOTE]
+> In `development`, secrets fall back to local environment variables if OpenBao is unreachable. In `production`, fallback is strictly disabled to prevent insecure execution.
 
 ## Development & Build Commands
 
@@ -50,14 +74,17 @@ Run the service locally:
 # From workspace root, through Turborepo:
 pnpm dev:backend
 
-# From workspace root, scoped directly to the package:
-pnpm --filter @summit/backend dev
-
 # Or directly from apps/backend:
 go run ./cmd/api
 ```
 
-Build the service binary to `apps/backend/bin/api`:
+Run database migrations:
+
+```bash
+go run ./cmd/migrate
+```
+
+Build the service binaries to `apps/backend/bin/`:
 
 ```bash
 # From workspace root, through Turborepo:
@@ -65,6 +92,7 @@ pnpm build:backend
 
 # Or from apps/backend:
 go build -o bin/api ./cmd/api
+go build -o bin/migrate ./cmd/migrate
 ```
 
 Run static analysis:
@@ -80,17 +108,39 @@ go vet ./...
 Run tests:
 
 ```bash
-# From workspace root, through Turborepo:
+# Unit tests across all packages:
 pnpm test:backend
 
-# Or from apps/backend:
-go test ./...
+# Or with database integration tests against a local PostgreSQL container:
+TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5432/summit_test?sslmode=disable" go test -v -count=1 ./...
 ```
 
-## Endpoints
+## Implemented Endpoints
 
-| Method | Path | Description | Spec Ref |
+### 1. Health & Telemetry
+| Method | Path | Auth / Role | Description |
 |---|---|---|---|
-| `GET`, `HEAD` | `/api/v1/health` | System health, heartbeat, and routing telemetry | `#/components/schemas/HealthResponse` |
-| `GET`, `HEAD` | `/health` | Cluster heartbeat / liveness probe alias | `#/components/schemas/HealthResponse` |
-| `OPTIONS` | `/*` | CORS preflight responder | - |
+| `GET`, `HEAD` | `/api/v1/health` | Public | System health, heartbeat, and routing telemetry |
+| `GET`, `HEAD` | `/health` | Public | Liveness probe alias |
+
+### 2. GitHub App Integration (`/v1/...`)
+| Method | Path | Auth / Role | Description |
+|---|---|---|---|
+| `POST` | `/v1/organizations/{organization_id}/github/installations` | Bearer (`owner`/`admin`) | Generate installation URL with single-use cryptographic state |
+| `GET` | `/v1/integrations/github/callback` | Public redirect | Complete OAuth callback handshake and initiate repository sync |
+| `GET` | `/v1/organizations/{organization_id}/github/installations` | Bearer (Org member) | List active GitHub installations for organization |
+| `GET` | `/v1/organizations/{organization_id}/github/installations/{id}` | Bearer (Org member) | Get installation details |
+| `DELETE` | `/v1/organizations/{organization_id}/github/installations/{id}` | Bearer (`owner`/`admin`) | Disconnect installation and cascade disconnect service sources |
+| `GET` | `/v1/organizations/{organization_id}/github/installations/{id}/repositories` | Bearer (Org member) | List authorized repositories with pagination |
+| `POST` | `/v1/organizations/{organization_id}/github/installations/{id}/sync` | Bearer (`owner`/`admin`) | Trigger immediate repository re-synchronization |
+| `PUT` | `/v1/services/{service_id}/source` | Bearer (Org member) | Connect repository/branch to service (`web` or `worker`) |
+| `GET` | `/v1/services/{service_id}/source` | Bearer (Org member) | Get configured service source repository and branch |
+| `PATCH` | `/v1/services/{service_id}/source` | Bearer (Org member) | Update branch, build directory, or auto-deploy toggle |
+| `DELETE` | `/v1/services/{service_id}/source` | Bearer (Org member) | Disconnect source repository from service |
+| `POST` | `/v1/services/{service_id}/deployments` | Bearer (Org member) | Trigger manual deployment resolving ref to exact commit SHA |
+
+### 3. Webhooks & Internal Worker Broker
+| Method | Path | Auth / Role | Description |
+|---|---|---|---|
+| `POST` | `/v1/webhooks/github` | Raw HMAC (`X-Hub-Signature-256`) | Webhook intake with deduplication on `X-GitHub-Delivery` |
+| `POST` | `/internal/v1/build-requests/{id}/source-token` | M2M Bearer (`WORKER_JWT_SECRET`) | Issue short-lived repository clone token to build workers |

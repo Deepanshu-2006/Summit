@@ -1,14 +1,15 @@
 # Orchestrator Implementation Plan — Summit PaaS Control Plane
 
-- **Document Path:** `docs/orchestrator_implementation_plan.md`
-- **Owner:** Rudra (Orchestrator, Cluster Controller, & Sandboxed Execution Engine)
+- **Document Path:** `docs/implementation_rudra.md`
+- **Owner:** Rudra (Orchestrator, Cluster Controller, & Ephemeral Build Pod Lifecycle)
 - **Backend Team:**
-  - Priyanshu (Go API & Control Plane Ingress)
-  - Rudra (Go Orchestrator & Kubernetes Reconciler)
-  - Arpit (Platform Database & State Management)
+  - Priyanshu (Go API, Control Plane Ingress, & Entire Isolated Builder [Host gVisor `runsc` Installation/Configuration, `RuntimeClass`, & Rootless BuildKit + Railpack Image])
+  - Rudra (Go Orchestrator, Kubernetes Reconciler, & Ephemeral Build Pod Scheduling/Launching/Monitoring/Cleanup)
+  - Arpit (Platform Database & State Management — DB Only)
 - **Frontend Partner:** UI Developer (Design System, Console Dashboard, Real-time Stream Viewer)
 - **Target Go Module:** `apps/backend` (Single Go 1.23 Module Monolith)
 - **Target Test Environment:** 1–2 SSH-accessible Linux machines configured as **TEST ONLY** Kubernetes hosts
+- **Status:** ACTIVE / BASELINE OUTBOX & WORKER BROKER READY (PR #3 MERGED)
 
 ---
 
@@ -16,7 +17,7 @@
 
 Summit is a next-generation Developer Platform-as-a-Service (PaaS) engineered to provide seamless Git-to-deploy workflows, isolated multi-tenant execution, automated networking, and secure secrets injection.
 
-This document serves as the standalone, ticket-ready technical implementation plan for the **Go Orchestrator**, authored from the perspective of its lead engineer (**Rudra**). It details how the orchestrator bridges high-level intent stored in the platform database with the low-level infrastructure reality across Kubernetes clusters, ephemeral gVisor build sandboxes, Cilium network policies, Traefik ingress routes, and External Secrets Operator (ESO) bindings.
+This document serves as the standalone, ticket-ready technical implementation plan for the **Go Orchestrator**, authored from the perspective of its lead engineer (**Rudra**). It details how the orchestrator bridges high-level intent stored in the platform database with the low-level infrastructure reality across Kubernetes clusters, orchestrator scheduling, launching, monitoring, and cleanup of ephemeral build pods consuming Priyanshu's configured builder (host gVisor `runsc` runtimeClass & rootless BuildKit + Railpack image), Cilium network policies, Traefik ingress routes, and External Secrets Operator (ESO) bindings.
 
 ```
 +--------------------------------------------------------------------------------------------------+
@@ -36,7 +37,7 @@ This document serves as the standalone, ticket-ready technical implementation pl
 |                                               | ACID Commit (FOR UPDATE SKIP LOCKED)             |
 |                                               v                                                  |
 |   +-----------------------------------------------------------------------------------------+    |
-|   | Supabase Postgres Platform DB — Arpit                                                    |    |
+|   | Supabase Postgres Platform DB — Arpit (DB Only)                                         |    |
 |   | Source of Truth: Tenants, Projects, Releases, Outbox Jobs, Lease Heartbeats              |    |
 |   +-------------------------------------------+---------------------------------------------+    |
 |                                               |                                                  |
@@ -49,7 +50,7 @@ This document serves as the standalone, ticket-ready technical implementation pl
 |                       |                                       |                                  |
 +-----------------------|---------------------------------------|----------------------------------+
                         |                                       |
-     gVisor Pod Launch  |                    Reconcile CRDs /   |
+     Build Pod Launch   |                    Reconcile CRDs /   |
      & Log Stream Watch |                    Workload Primitives|
                         v                                       v
 +--------------------------------------------------------------------------------------------------+
@@ -58,13 +59,14 @@ This document serves as the standalone, ticket-ready technical implementation pl
 |   +--------------------------------------------+    +---------------------------------------+    |
 |   | Namespace: summit-builds                   |    | Namespace: tenant-<tenant_id>         |    |
 |   |                                            |    |                                       |    |
-|   | - Pod: build-<release_id>                  |    | - Deployment: web / workers           |    |
-|   | - RuntimeClass: gvisor (runsc)             |    | - Service & Traefik IngressRoute      |    |
-|   | - Rootless BuildKit Daemon                 |    | - CiliumNetworkPolicy (L3/L4 Deny-All)|    |
-|   | - Railpack Build Engine                    |    | - ExternalSecret (OpenBao / AWS SM)   |    |
-|   | - Ephemeral (Terminated on complete)       |    | - Tenant DB StatefulSet + PVC         |    |
-|   |                                            |    | - Fluent Bit -> Loki Log Collection   |    |
-|   | Egress: Git repo & Container Registry only |    | - Prometheus Metrics Scraping         |    |
+|   | - Pod: build-<release_id> (Rudra schedules |    | - Deployment: web / workers           |    |
+|   |   & monitors)                              |    | - Service & Traefik IngressRoute      |    |
+|   | - RuntimeClass: gvisor (runsc) (Priyanshu) |    | - CiliumNetworkPolicy (L3/L4 Deny-All)|    |
+|   | - Builder Container: Isolated Rootless     |    | - ExternalSecret (OpenBao / AWS SM)   |    |
+|   |   BuildKit + Railpack (Priyanshu)          |    | - Tenant DB StatefulSet + PVC         |    |
+|   | - Ephemeral (Terminated on complete)       |    | - Fluent Bit -> Loki Log Collection   |    |
+|   |                                            |    | - Prometheus Metrics Scraping         |    |
+|   | Egress: Git repo & Container Registry only |    |                                       |    |
 |   +---------------------+----------------------+    +---------------------------------------+    |
 |                         |                                                                        |
 |                         | Push Built OCI Image                                                   |
@@ -80,23 +82,26 @@ This document serves as the standalone, ticket-ready technical implementation pl
 
 ## 2. Ground Truth & Architectural Baseline
 
-### 2.1 Monorepo Reality Check (Verified on Disk)
+### 2.1 Monorepo Reality Check (Verified on Disk - Post-PR #3)
 1. **Frontend (`apps/web`):** Next.js 16 workspace package. Contains prototype mock handlers and an in-memory Meridian store. These are temporary mocks and do not reflect platform persistence.
-2. **Backend (`apps/backend`):** Go 1.23 module (`github.com/summit/backend`). Contains only a standard-library `net/http` router with structured logging (`log/slog`), configuration loading (`internal/config`), and a health check handler (`GET /api/v1/health` and `/health`).
-   - *Current Implementation Gap:* Zero database integration, zero Kubernetes clients (`client-go` / `controller-runtime`), zero job consumer loops, and zero container runtime hooks currently exist in code.
-3. **API Contract (`packages/api_spec/openapi.yaml`):** OpenAPI 3.1 specification declaring target schemas for `/projects`, `/resources`, `/releases`, `/observability/metrics`, and `/observability/logs`.
-   - *Critical Gaps in Spec:* Does **NOT** declare endpoints for user authentication, tenant membership, project provisioning (`POST /api/v1/projects`), explicit deployment/job triggering, or GitHub webhook ingestion. These endpoints must be specified collaboratively before implementation.
+2. **Backend (`apps/backend`):** Go 1.23 module (`github.com/summit/backend`) managed via Turborepo 2.11+. The foundational platform infrastructure has landed:
+   - **Database & Outbox Engine:** Migrations `0001_baseline.up.sql` and `0002_github_integration.up.sql` are active via `pgxpool`. The `outbox_events` table is implemented and receives asynchronous dispatch jobs (`deployment.build.requested`).
+   - **Build Worker Credential Broker:** `POST /internal/v1/build-requests/{build_request_id}/source-token` is implemented in `apps/backend/internal/githubworker/broker_handler.go`. The orchestrator's ephemeral build pods authenticate using job-scoped JWTs (`WORKER_JWT_SECRET`) to receive repository clone credentials.
+   - *Current Implementation Gap:* Kubernetes reconcilers (`client-go` / `controller-runtime`), outbox consumer loop for cluster scheduling, and ephemeral build pod lifecycle controllers (launching pods onto Priyanshu's configured gVisor runtimeClass) are the immediate targets of this plan.
+3. **API Contract (`packages/api_spec/openapi.yaml` & `docs/integrations/github/`):**
+   - OpenAPI 3.1 specification declaring target schemas for `/projects`, `/resources`, `/releases`, `/observability/metrics`, and `/observability/logs`.
+   - Comprehensive GitHub integration contracts established in [`docs/integrations/github/GITHUB_INTEGRATION_BACKEND_SPEC.md`](./integrations/github/GITHUB_INTEGRATION_BACKEND_SPEC.md) and [`FRONTEND_INTEGRATION.md`](./integrations/github/FRONTEND_INTEGRATION.md).
 4. **Architecture Blueprint (`docs/system_architechture.png`):** Establishes the authoritative target infrastructure:
-   - Supabase Postgres as the centralized platform database + job queue.
+   - Supabase Postgres (owned by Arpit — DB only) as the centralized platform database + job queue.
    - Go Orchestrator functioning as an operator reconciling database outbox jobs into Kubernetes CRDs and native primitives via the K8s API server / etcd.
-   - Isolated ephemeral build pool utilizing **gVisor (`runsc`)** sandbox runtime, **rootless BuildKit**, and **Railpack** to emit OCI images into a cluster registry.
-   - Tenant isolation via dedicated namespaces, **Cilium CNI** L3/L4 network policies, Traefik ingress routing, **External Secrets Operator (ESO)** syncing from OpenBao / AWS Secrets Manager, and persistent volumes (PVC) for tenant databases with S3 WAL/nightly backup pipelines.
+   - Isolated ephemeral build pool utilizing Priyanshu's entire builder subsystem (**gVisor (`runsc`)** host installation/configuration and `RuntimeClass`, plus **isolated rootless BuildKit + Railpack builder image/configuration**), with ephemeral build pods scheduled, launched, monitored, and cleaned up by Rudra's orchestrator, emitting OCI images into a cluster registry.
+   - Tenant isolation via dedicated namespaces, **Cilium CNI** L3/L4 network policies, Traefik ingress routing, **External Secrets Operator (ESO)** syncing from OpenBao / AWS Secrets Manager, and persistent volumes (PVC) for tenant databases.
    - Telemetry through Fluent Bit, Loki, Prometheus, and `metrics-server`.
 5. **Test Environment Constraint:** 1–2 bare-metal or VM Linux machines accessed over SSH designated as **TEST ONLY** Kubernetes hosts.
 
 ### 2.2 Immutable Security Mandates
 > [!CAUTION]
-> **Zero Untrusted Code in Control Plane:** Untrusted customer source code, arbitrary Dockerfiles, and application build steps **MUST NEVER** execute inside the API process, inside the shared control-plane namespace (`summit-system`), or on uncontained Kubernetes worker nodes without gVisor sandbox boundary isolation. Violation of this boundary is an immediate security blocker.
+> **Zero Untrusted Code in Control Plane:** Untrusted customer source code, arbitrary Dockerfiles, and application build steps **MUST NEVER** execute inside the API process, inside the shared control-plane namespace (`summit-system`), or on uncontained Kubernetes worker nodes without gVisor sandbox boundary isolation (configured on hosts by Priyanshu and targeted by Rudra's pod launcher). Violation of this boundary is an immediate security blocker.
 
 ---
 
@@ -105,19 +110,21 @@ This document serves as the standalone, ticket-ready technical implementation pl
 ### 3.1 Core Responsibilities (Rudra)
 - **Durable Job Outbox Consumption:** Poll, lease, heartbeat, and execute asynchronous deployment and build tasks emitted by the API into the platform database outbox table.
 - **Finite State Machine (FSM) Execution:** Implement the deployment state machine approved at Gate 2. The working vocabulary is documented in the cross-plan proposal below.
-- **Ephemeral Sandbox Provisioning:** Coordinate gVisor-isolated build pods (`summit-builds` namespace) running rootless BuildKit and Railpack; manage build timeouts, resource ceilings, log streaming to Loki/S3, and deterministic teardown.
+- **Ephemeral Build Pod Lifecycle & Scheduling:** Dynamically generate build pod specifications referencing Priyanshu's `runtimeClassName: gvisor` and builder image; schedule, launch, monitor, and clean up ephemeral build pods in the `summit-builds` namespace; manage build timeouts, resource ceilings, log streaming to Loki, and handle pod cleanup upon completion. Rudra does NOT install or configure gVisor itself.
 - **OCI Artifact Pipeline:** Ensure compiled application containers are pushed to the internal OCI container registry, addressable by cryptographically immutable SHA-256 digests.
 - **Tenant Infrastructure Lifecycle Management:** Reconcile tenant Kubernetes resources:
   - Tenant Namespaces (`tenant-<tenant_id>`) with `ResourceQuota` and `LimitRange`.
   - Cilium Network Policies enforcing strict tenant boundary isolation and egress whitelisting.
   - Traefik IngressRoutes providing external routing, path routing, and TLS termination.
   - External Secrets Operator (`ExternalSecret` / `SecretStore`) syncing credentials from OpenBao/AWS Secrets Manager into native Kubernetes secrets without control-plane exposure.
-  - Tenant StatefulSets, PVCs, and automated backup triggers.
+  - Tenant StatefulSets and PVCs.
 - **Control-Loop Self-Healing & Leader Election:** Recover from orchestrator restarts, handle Kubernetes node outages on the test hosts, clean up orphaned resources, and ensure active leases prevent split-brain processing.
 
-### 3.2 Explicit Non-Goals (Delegated to Partners)
+### 3.2 Explicit Non-Goals (Delegated to Partners & Scoped Out for MVP)
 - **HTTP Routing, Request Validation, & Authn/Authz:** Owned by **Priyanshu (API)**. The orchestrator exposes no public HTTP endpoints; it interacts with the control plane purely via database state and Kubernetes APIs.
-- **Database Schema DDL & Connection Pooling:** Owned by **Arpit (Database)**. Arpit defines tables, migration scripts, indices, and RLS policies. Rudra defines query requirements and consumes them via typed Go repositories.
+- **Entire Isolated Builder Subsystem & Host gVisor:** Owned by **Priyanshu**. Priyanshu owns the ENTIRE isolated builder subsystem: installing and configuring gVisor (`runsc`) and setting up the `RuntimeClass` (`gvisor`) on the Kubernetes host nodes, plus building, packaging, configuring, and maintaining the rootless BuildKit + Railpack builder container image and engine integration. Rudra does NOT own, install, or configure gVisor (`runsc`) or its Kubernetes `RuntimeClass`; Rudra strictly owns orchestrator-side scheduling, launching, lifecycle monitoring, and cleanup of ephemeral build pods using Priyanshu's configured builder.
+- **Database Schema DDL & Connection Pooling:** Owned by **Arpit (Database — DB Only)**. Arpit owns database design and state management exclusively: schemas, DDL, migrations, connection pools, and query performance. Arpit owns DB only. Rudra defines query requirements and consumes them via typed Go repositories.
+- **Custom Backup Automation:** Out of scope for the MVP.
 - **End-User UI Rendering & Frontend State:** Owned by the **UI Developer**. Rudra guarantees accurate status and event reporting in the database so the UI developer can display real-time progress.
 - **Multi-Region Fleet Federation:** The current milestone targets the 1–2 SSH test hosts. Distributed global routing is out of scope for the test-cluster baseline.
 
@@ -131,7 +138,7 @@ This document serves as the standalone, ticket-ready technical implementation pl
 <span style="color:#7C3AED"><strong>TEAM OF THREE REQUIRED</strong></span>
 - **Context:** Tenant identity dictates access control across the REST API, Row-Level Security (RLS) in the platform database, and cryptographic/network isolation in Kubernetes.
 - **API (Priyanshu):** Validates authentication tokens, extracts verified `tenant_id`, enforces RBAC permissions, and scopes every write operation by tenant.
-- **Database (Arpit):** Enforces multi-tenant foreign keys, tenant isolation schemas/RLS policies, and prevents cross-tenant data leaks.
+- **Database (Arpit — DB Only):** Enforces multi-tenant foreign keys, tenant isolation schemas/RLS policies, and prevents cross-tenant data leaks.
 - **Orchestrator (Rudra):** Maps `tenant_id` to isolated Kubernetes namespace `tenant-<tenant_id>`, establishes non-overlapping Cilium NetworkPolicies preventing cross-namespace traffic, and binds tenant-scoped `SecretStore` credentials.
 - **Acceptance Gate:** Demonstration that a compromised tenant workload cannot access the platform database, control-plane APIs, or another tenant's network pods or volumes.
 
@@ -139,7 +146,7 @@ This document serves as the standalone, ticket-ready technical implementation pl
 <span style="color:#7C3AED"><strong>TEAM OF THREE REQUIRED</strong></span>
 - **Context:** Deployments are long-running asynchronous workflows triggered via the API, persisted durably in the platform database, and driven to completion by the orchestrator.
 - **API (Priyanshu):** Implements the Gate 2-approved deployment request, proposed as `POST /api/v1/projects/{slug}/deployments`, and returns `202 Accepted` after the durable transaction commits.
-- **Database (Arpit):** Models the `deployments`, `releases`, and `orchestrator_outbox` tables with ACID transactional guarantees, state change audit triggers, and lease acquisition indices (`SKIP LOCKED`).
+- **Database (Arpit — DB Only):** Models the `deployments`, `releases`, and `orchestrator_outbox` tables with ACID transactional guarantees, state change audit triggers, and lease acquisition indices (`SKIP LOCKED`).
 - **Orchestrator (Rudra):** Consumes outbox jobs, acquires a 10-second renewable lease, drives the state machine, guarantees idempotent retries, handles cancellation requests, and emits terminal states.
 - **UI Developer Review:** The UI developer reviews the deployment state progression, error payloads, and polling/streaming contracts to guarantee the dashboard displays loading spinners, progress logs, and error toasts properly.
 - **Acceptance Gate:** Simulated API deployment request successfully enqueues an outbox row, is claimed by the orchestrator, and survives an intentional orchestrator kill-and-restart without duplicate build pod creation or state corruption.
@@ -147,18 +154,18 @@ This document serves as the standalone, ticket-ready technical implementation pl
 ### Gate 3: Test-Cluster/Build Isolation/CRDs/Registry/Ingress/Network/Secrets Conventions
 <span style="color:#7C3AED"><strong>TEAM OF THREE REQUIRED</strong></span>
 - **Context:** Establishes cluster conventions for deploying Summit onto the 1–2 SSH test hosts.
-- **API (Priyanshu):** Adheres to resource naming conventions, environment variable payload contracts, and secrets mapping specs.
-- **Database (Arpit):** Stores cluster metadata, node capacity constraints, ingress domain assignments, and secrets manager reference paths.
-- **Orchestrator (Rudra):** Installs and configures gVisor `runsc` runtimeClass, sets up rootless BuildKit in `summit-builds`, deploys Traefik IngressRoutes, configures Cilium egress lockdown, and provisions ESO `ExternalSecret` custom resources targeting OpenBao.
-- **Acceptance Gate:** Successful build of a sample containerized app in a gVisor pod with rootless BuildKit, push to `registry.jetway.internal:5000`, and deployment into `tenant-test` with Traefik serving HTTP 200 over custom ingress.
+- **API & Isolated Builder (Priyanshu):** Adheres to resource naming conventions, environment variable payload contracts, and secrets mapping specs; installs and configures gVisor (`runsc`) and provisions the `RuntimeClass` (`gvisor`) on the test Kubernetes hosts; builds, configures, and publishes the isolated rootless BuildKit + Railpack builder container image matching the agreed pod interface.
+- **Database (Arpit — DB Only):** Stores cluster metadata, node capacity constraints, ingress domain assignments, and secrets manager reference paths in database tables.
+- **Orchestrator (Rudra):** Schedules, launches, monitors, and cleans up ephemeral build pods in `summit-builds` specifying `runtimeClassName: gvisor` and invoking Priyanshu's builder image (Rudra does not install/configure gVisor), sets up deterministic pod cleanup, deploys Traefik IngressRoutes, configures Cilium egress lockdown, and provisions ESO `ExternalSecret` custom resources targeting OpenBao.
+- **Acceptance Gate:** Successful build of a sample containerized app in an ephemeral pod running Priyanshu's builder container under Priyanshu's configured host gVisor runtimeClass, push to `registry.jetway.internal:5000`, and deployment into `tenant-test` with Traefik serving HTTP 200 over custom ingress.
 
 ### Gate 4: End-to-End Acceptance on Test-Only Machines with Migration/Security Review
 <span style="color:#7C3AED"><strong>TEAM OF THREE REQUIRED</strong></span>
 - **Context:** Full lifecycle verification on the physical/VM test Kubernetes hosts.
 - **API (Priyanshu):** Submits real project provisioning and deployment payloads through the API gateway.
-- **Database (Arpit):** Verifies all database migrations apply cleanly on Supabase Postgres, connection pools handle orchestrator burst traffic, and state changes persist without deadlock.
-- **Orchestrator (Rudra):** Drives complete build, push, deploy, ingress configuration, and health check validation. Tests network lockdown, container privilege dropping, and secret masking.
-- **Acceptance Gate:** End-to-end integration test passes: Git webhook trigger -> API validation -> Database transaction -> Orchestrator build in gVisor -> Image push -> Rolling update -> Traefik live traffic -> Verified zero egress leakage -> Teardown and cleanup.
+- **Database (Arpit — DB Only):** Verifies all database migrations apply cleanly on Supabase Postgres, connection pools handle orchestrator burst traffic, and state changes persist without deadlock.
+- **Orchestrator (Rudra):** Drives complete build scheduling, push, deploy, ingress configuration, and health check validation. Tests network lockdown, container privilege dropping, and secret masking.
+- **Acceptance Gate:** End-to-end integration test passes: Git webhook trigger -> API validation -> Database transaction -> Orchestrator schedules and launches ephemeral build pod running Priyanshu's builder container under Priyanshu's configured gVisor runtimeClass -> Image push -> Rolling update -> Traefik live traffic -> Verified zero egress leakage -> Teardown and cleanup.
 
 ---
 
@@ -170,15 +177,15 @@ These proposals align this plan with the API and database plans. Detailed exampl
 
 - **Deployment request:** propose `POST /api/v1/projects/{slug}/deployments` with `202 Accepted`, a deployment ID, and `Location: /api/v1/deployments/{id}` after durable atomic persistence. Add `GET /api/v1/deployments/{id}` to OpenAPI after sign-off; retain `/releases` for release history/artifacts unless the UI and team decide otherwise.
 - **Lifecycle vocabulary:** propose `queued → building → image_ready → deploying → health_checking → running`, with terminal `failed` and `cancelled`; keep retries in attempt metadata unless the team approves a distinct retry state. Gate 2 approves transitions and state ownership.
-- **Queue/database:** a PostgreSQL outbox with `FOR UPDATE SKIP LOCKED` is the recommended Phase 1 option, not an architecture fact. If selected, Arpit owns schema and shared contracts in `apps/backend/internal/platformdb`; API and orchestrator use the same package boundary.
-- **Auth, backup, leases, exact timeouts, and cluster-specific choices** remain open until agreed and verified against the selected provider and test-only machines. The diagram establishes the components, not these operational values.
+- **Queue/database:** a PostgreSQL outbox with `FOR UPDATE SKIP LOCKED` is the recommended Phase 1 option, not an architecture fact. If selected, Arpit (DB only) owns schema and shared contracts in `apps/backend/internal/platformdb`; API and orchestrator use the same package boundary.
+- **Auth, leases, exact timeouts, and cluster-specific choices** remain open until agreed and verified against the selected provider and test-only machines. The diagram establishes the components, not these operational values.
 
 To ensure engineering clarity, architectural boundaries are categorized as either **Settled Facts** (non-negotiable requirements derived from architecture diagrams and monorepo constraints) or **Proposed Decisions** (engineering choices submitted by Rudra for backend team sign-off).
 
 ### 5.1 Settled Architecture Facts
 1. **Single Monorepo Go Module:** All Go backend code remains in `apps/backend` under `github.com/summit/backend`. No `go.work` or repository split is permitted.
-2. **Untrusted Code Sandbox:** Application compilation must use **gVisor (`runsc`)** runtime with **rootless BuildKit** and **Railpack**; build pods must be ephemeral and destroyed immediately upon task termination.
-3. **Platform Database:** Supabase Postgres is shown as the platform metadata database. A database outbox is a proposed dispatch option pending Gate 2 approval.
+2. **Untrusted Code Sandbox & Builder Ownership Split:** Application compilation executes inside an ephemeral pod under **gVisor (`runsc`)** runtime. Priyanshu owns the ENTIRE isolated builder, including gVisor (`runsc`) installation/configuration and `RuntimeClass` setup on the Kubernetes hosts, plus the rootless BuildKit + Railpack builder container image, configuration, and engine integration. Rudra does NOT own, install, or configure gVisor; Rudra owns orchestrator and Kubernetes scheduling, launching, monitoring, and cleanup of pods using Priyanshu's configured builder.
+3. **Platform Database (Arpit — DB Only):** Supabase Postgres is shown as the platform metadata database, owned and managed exclusively by Arpit (DB only). A database outbox is a proposed dispatch option pending Gate 2 approval.
 4. **Network & Ingress Stack:** **Cilium CNI** is the network security layer; **Traefik** is the ingress controller.
 5. **Secrets Governance:** In-cluster secrets are managed via **External Secrets Operator (ESO)** synchronized with OpenBao / AWS Secrets Manager. Plaintext secrets are never held in the platform database or logged by the orchestrator.
 6. **Telemetry Infrastructure:** Logs are shipped via Fluent Bit to Loki; metrics are scraped via Prometheus.
@@ -188,7 +195,7 @@ To ensure engineering clarity, architectural boundaries are categorized as eithe
 
 | Decision ID | Topic | Rudra's Proposed Choice | Alternative Considered | Rationale & Trade-Offs | Status |
 |---|---|---|---|---|---|
-| **D1** | Outbox Job Dispatch Engine | **Postgres Outbox Table with `FOR UPDATE SKIP LOCKED`** | Redis Streams / Asynq / NATS JetStream | Eliminates dual-write anomalies; leverages existing Supabase Postgres; zero extra infrastructure dependencies on test hosts. | **PROPOSED** (Awaiting Arpit/Priyanshu sign-off) |
+| **D1** | Outbox Job Dispatch Engine | **Postgres Outbox Table with `FOR UPDATE SKIP LOCKED`** | Redis Streams / Asynq / NATS JetStream | Eliminates dual-write anomalies; leverages existing Supabase Postgres; zero extra infrastructure dependencies on test hosts. | **PROPOSED** (Awaiting Arpit [DB only]/Priyanshu sign-off) |
 | **D2** | Kubernetes Control Architecture | **Direct `client-go` / `controller-runtime` Reconciler Loop Driven by Outbox** | Full Custom Resource Definitions (CRDs) for Projects & Apps with K8s Operator SDK | Keeps platform state in Postgres (source of truth); Kubernetes acts as the execution substrate rather than an unmanageable metadata datastore. Optional lightweight CRD (`SummitApp`) used strictly for workload abstraction. | **PROPOSED** (Awaiting Priyanshu sign-off) |
 | **D3** | Source Ingestion Strategy | **API downloads Git tarball / commits to S3; Orchestrator pulls from S3** | Build pod executes `git clone` inside gVisor | Ingesting via API prevents passing Git provider access tokens/SSH keys into the untrusted build pod; ensures build inputs are cached and immutably reproducible in S3. | **PROPOSED** (Awaiting Priyanshu sign-off) |
 | **D4** | Container Registry on Test Hosts | **In-Cluster Registry (`registry:2` on NodePort/ClusterIP with Cilium routing)** | External AWS ECR / Quay.io / GHCR | Minimizes test machine dependencies on external internet bandwidth and external cloud credentials during test phase. | **PROPOSED** (Awaiting Team sign-off) |
@@ -211,7 +218,7 @@ apps/backend/
 │   ├── config/                           # Shared configuration (env parsing, validation)
 │   │   ├── config.go
 │   │   └── orchestrator_config.go        # Kubeconfig, worker concurrency, polling intervals
-│   ├── database/                         # Arpit: Database connection pools, migrations, sqlc
+│   ├── database/                         # Arpit (DB only): Database connection pools, migrations, sqlc
 │   │   ├── client.go
 │   │   ├── queries/                      # SQL queries for outbox and releases
 │   │   └── models.go
@@ -229,9 +236,9 @@ apps/backend/
 │   │   ├── statemachine/                 # Deterministic state machine & transitions
 │   │   │   ├── transitions.go
 │   │   │   └── status_writer.go
-│   │   ├── builder/                      # Ephemeral gVisor build engine (BuildKit/Railpack)
-│   │   │   ├── builder.go
-│   │   │   ├── pod_spec.go               # gVisor runtimeClass runsc & rootless BuildKit
+│   │   ├── builder/                      # Ephemeral build pod manager targeting Priyanshu's builder & gVisor runtimeClass
+│   │   │   ├── builder.go                # Build pod scheduler, lifecycle supervisor & cleanup (consumes Priyanshu's builder)
+│   │   │   ├── pod_spec.go               # Pod spec generating runtimeClassName: gvisor & referencing Priyanshu's builder image
 │   │   │   └── log_streamer.go           # Real-time build log piping to Loki & Postgres
 │   │   ├── reconciler/                   # Tenant infrastructure reconciler
 │   │   │   ├── tenant_reconciler.go
@@ -266,10 +273,10 @@ apps/backend/
 The orchestrator operates as a distributed, fault-tolerant worker system consuming jobs from the platform database outbox.
 
 ### 7.1 Outbox Schema & Worker Polling Loop
-The outbox table is managed by Arpit, matching the following operational requirements:
+The outbox table is managed by Arpit (DB only), matching the following operational requirements:
 
 ```sql
--- Logical representation of orchestrator outbox table (Owned by Arpit)
+-- Logical representation of orchestrator outbox table (Owned by Arpit — DB only)
 CREATE TABLE IF NOT EXISTS platform.orchestrator_outbox (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id VARCHAR(64) NOT NULL,
@@ -339,7 +346,7 @@ The state machine governs the entire lifecycle of a release from initial creatio
                                   | Orchestrator claims lease
                                   v
                   +--------------------------------+
-                  |            BUILDING            | (gVisor Pod executing BuildKit/Railpack)
+                  |            BUILDING            | (Pod scheduled by Rudra using Priyanshu's gVisor RuntimeClass & Builder)
                   +---------------+----------------+
                                   |
                                   v
@@ -370,7 +377,7 @@ The state machine governs the entire lifecycle of a release from initial creatio
 | State | Responsible Writer | Description & Actions |
 |---|---|---|
 | `queued` | **Priyanshu (API)** | Initial accepted state after the deployment intent and dispatch record are durably committed. |
-| `building` | **Rudra (Orchestrator)** | Ephemeral gVisor build is in progress. |
+| `building` | **Rudra (Orchestrator)** | Ephemeral build pod running Priyanshu's builder container under Priyanshu's configured gVisor runtimeClass is scheduled and monitored by Rudra. |
 | `image_ready` | **Rudra (Orchestrator)** | OCI image is pushed and identified by digest. |
 | `deploying` | **Rudra (Orchestrator)** | Kubernetes workload and required routing/secrets resources are being reconciled. |
 | `health_checking` | **Rudra (Orchestrator)** | Readiness and route checks are in progress. |
@@ -387,16 +394,27 @@ The state machine governs the entire lifecycle of a release from initial creatio
 
 ## 9. Ephemeral gVisor Build Sandbox & OCI Lifecycle
 
-Building untrusted code submitted by arbitrary tenants represents the highest-risk attack vector in the cluster. The orchestrator implements strict multi-layer containment.
+Building untrusted code submitted by arbitrary tenants represents the highest-risk attack vector in the cluster. Containment and implementation ownership are divided cleanly across the team.
 
-### 9.1 Build Sandbox Architecture
+### 9.1 Build Sandbox Architecture & Ownership Split
+- **Entire Isolated Builder Subsystem (Priyanshu):** Priyanshu owns the ENTIRE isolated builder, including gVisor itself:
+  - Installing and configuring gVisor (`runsc`) on the Kubernetes host nodes.
+  - Setting up and maintaining the Kubernetes `RuntimeClass` (`runtimeClassName: gvisor`).
+  - Building, packaging, configuring, and maintaining the isolated rootless BuildKit (`buildkitd`) + Railpack builder container image (`summit/buildkit-railpack` or `summit/builder`).
+  - Ensuring the builder container runs strictly non-root (UID 1000:1000), drops all Linux capabilities, and manages user-space cache and build layer execution.
+- **Ephemeral Pod Scheduling & Lifecycle Management (Rudra):** Rudra does NOT own, install, or configure gVisor or its host runtimeClass. Rudra owns:
+  - Dynamically generating the Kubernetes build pod specification targeting Priyanshu's configured `runtimeClassName: gvisor` and builder image.
+  - Scheduling, launching, monitoring, and cleaning up ephemeral build pods in the `summit-builds` namespace.
+  - Enforcing resource ceilings, limits, and build execution timeouts.
+  - Streaming stdout/stderr build logs to Loki.
+  - Deterministically terminating and garbage-collecting ephemeral pods immediately upon build completion or failure.
+- **Platform Database Scope (Arpit):** Arpit owns the database only (persisting build status, release records, and outbox events).
 - **Namespace:** Dedicated `summit-builds` namespace, isolated from all tenant runtime workloads and the control-plane namespace.
-- **Runtime Sandboxing:** Enforced Kubernetes `runtimeClassName: gvisor` (utilizing the `runsc` kernel virtualization engine). Syscalls are intercepted and handled in user-space, preventing kernel escape vulnerabilities.
-- **Privilege Elimination:** Executed strictly under **rootless BuildKit** (`buildkitd`). Containers run with non-root UID/GID (1000:1000), `readOnlyRootFilesystem: true`, and all Linux capabilities dropped (`drop: ["ALL"]`).
-- **Build Engine:** **Railpack** executes inside the rootless BuildKit daemon to automatically detect language stacks (Node.js, Go, Python, Rust, Dockerfile) and generate reproducible OCI build layers.
+- **Runtime Sandboxing:** Enforced Kubernetes `runtimeClassName: gvisor` (utilizing the `runsc` kernel virtualization engine installed and configured on hosts by Priyanshu). Syscalls are intercepted and handled in user-space, preventing kernel escape vulnerabilities.
+- **Privilege Elimination:** Executed strictly under **rootless BuildKit** (`buildkitd`) configured by Priyanshu. Containers run with non-root UID/GID (1000:1000), `readOnlyRootFilesystem: false` (user-space cache layer), and all Linux capabilities dropped (`drop: ["ALL"]`).
 
 ### 9.2 Build Pod Specification & Resource Ceilings
-Each build job spawns an ephemeral pod constructed dynamically by `internal/orchestrator/builder/pod_spec.go`:
+Each build job spawns an ephemeral pod constructed dynamically by `internal/orchestrator/builder/pod_spec.go` referencing Priyanshu's builder container and configured `RuntimeClass`:
 
 ```yaml
 apiVersion: v1
@@ -410,7 +428,7 @@ metadata:
     summit.dev/release: "<release_id>"
     summit.dev/component: "builder"
 spec:
-  runtimeClassName: gvisor # Enforces runsc isolation boundary
+  runtimeClassName: gvisor # Enforces runsc isolation boundary (Installed & configured on hosts by Priyanshu; referenced by Rudra)
   restartPolicy: Never
   securityContext:
     runAsNonRoot: true
@@ -421,7 +439,7 @@ spec:
       type: RuntimeDefault
   containers:
     - name: buildkit-railpack
-      image: internal-registry.jetway.internal:5000/summit/buildkit-railpack:v1.0.0
+      image: internal-registry.jetway.internal:5000/summit/buildkit-railpack:v1.0.0 # Built, packaged & configured by Priyanshu (Entire Isolated Builder Owner)
       securityContext:
         allowPrivilegeEscalation: false
         readOnlyRootFilesystem: false # Required for cache layer writes in user-space
@@ -511,7 +529,6 @@ When a release enters the `DEPLOYING` state, the orchestrator reconciles all req
 |    |  +-----------------------------------------+  |           | Tenant Database (StatefulSet)|    |
 |    +-----------------------------------------------+           | - Embedded DB / SQLite / PG  |    |
 |                                                                | - PVC (Local Storage / CEPH) |    |
-|                                                                | - S3 Nightly WAL Backup Job  |    |
 |                                                                +------------------------------+    |
 +----------------------------------------------------------------------------------------------------+
 ```
@@ -567,8 +584,7 @@ Application secrets (API keys, database URLs, encryption tokens) are injected wi
 ### 10.5 Tenant Database & Storage Volume Lifecycle
 For projects requiring stateful storage or an embedded tenant database:
 - Provisioned as a `StatefulSet` with a `PersistentVolumeClaim` (PVC) bound to local host-path storage or a CSI driver on the test machines.
-- The orchestrator configures a backup sidecar or scheduled Kubernetes `CronJob` that initiates WAL archiving and nightly snapshots exported to S3-compatible object storage (e.g., MinIO or AWS S3).
-
+- Tenant database data persists on its PVC.
 ---
 
 ## 11. Kubernetes RBAC & Cluster Access on Test-Only Hosts
@@ -637,17 +653,17 @@ The orchestrator is explicitly **PROHIBITED** from:
 Real-time visibility is vital for both platform operations and user experience.
 
 ### 12.1 Log Streaming Architecture
-- **Build Pod Logs:** As the gVisor build pod compiles source code, BuildKit outputs ANSI/structured logs to `stdout`/`stderr`.
+- **Build Pod Logs:** As the build pod compiles source code, Priyanshu's rootless BuildKit builder outputs ANSI/structured logs to `stdout`/`stderr`.
 - The orchestrator taps the Kubernetes Pod log stream via `client-go` (`CoreV1().Pods(namespace).GetLogs(...)`) and concurrently:
   1. Pipes raw log chunks into Fluent Bit / Loki under stream labels `{tenant="<id>", project="<slug>", release="<id>", component="builder"}`.
-  2. Batches and persists log chunks into S3-compatible storage upon build termination for durable audit retention.
+  2. Streams logs to Loki for MVP log viewing.
 - The UI queries Loki via the API's `/api/v1/observability/logs` endpoint using stream coordinates provided by the orchestrator.
 
 ### 12.2 Metrics & Prometheus Telemetry
 The orchestrator binary exposes a `/metrics` Prometheus endpoint on port `9090` declaring custom instrumentation:
 - `summit_orchestrator_queue_lag_seconds`: Duration outbox jobs remain queued before lease acquisition.
 - `summit_orchestrator_reconcile_duration_seconds{kind="deployment|build"}`: Time spent executing reconciliations.
-- `summit_orchestrator_build_duration_seconds{status="success|failure"}`: gVisor/BuildKit build times.
+- `summit_orchestrator_build_duration_seconds{status="success|failure"}`: Build execution times for ephemeral pods running Priyanshu's builder under gVisor.
 - `summit_orchestrator_active_workers`: Gauge tracking active concurrent worker goroutines.
 - `summit_orchestrator_lease_renew_failures_total`: Counter tracking database lease heartbeat dropouts.
 
@@ -664,7 +680,7 @@ The orchestrator watches Kubernetes Events (`CoreV1().Events(tenantNamespace)`) 
 
 ### 13.2 Garbage Collection & Orphan Pruning
 The leader orchestrator runs an autonomous cleanup loop (`internal/orchestrator/cleaner/pruner.go`) every 10 minutes:
-- **Build Pod Cleanup:** Any build pod in `summit-builds` older than 30 minutes in a `Succeeded` or `Failed` state is deleted after verifying logs are committed to Loki/S3.
+- **Build Pod Cleanup:** Any build pod in `summit-builds` older than 30 minutes in a `Succeeded` or `Failed` state is deleted after verifying logs are available in Loki.
 - **Stale Secret Pruning:** Temporary build credentials secrets (`build-creds-<release_id>`) are removed immediately post-build.
 - **Tombstoned Project Teardown:** Projects marked `DELETED` in the database have their Kubernetes namespace (`tenant-<tenant_id>`), PVCs, and Traefik IngressRoutes systematically deleted using Kubernetes Finalizers.
 
@@ -702,8 +718,8 @@ To guarantee software reliability before physical deployment on test machines, t
 |                                              v                                                   |
 |   +------------------------------------------------------------------------------------------+   |
 |   | LAYER 3: BUILD SANDBOX ISOLATION SUITE (Test Kubernetes Host)                            |   |
-|   | - Verify gVisor `runsc` runtimeClass is active and functional                            |   |
-|   | - Execute test rootless BuildKit pod compiling a sample Node.js and Go repository        |   |
+|   | - Verify gVisor `runsc` and RuntimeClass configured by Priyanshu on test hosts          |   |
+|   | - Rudra schedules test ephemeral pod using Priyanshu's builder & gVisor RuntimeClass    |   |
 |   | - Verify Cilium network policy prevents egress to metadata IP (169.254.169.254)          |   |
 |   +------------------------------------------------------------------------------------------+   |
 |                                              |                                                   |
@@ -711,7 +727,7 @@ To guarantee software reliability before physical deployment on test machines, t
 |   +------------------------------------------------------------------------------------------+   |
 |   | LAYER 4: END-TO-END SYSTEM INTEGRATION ACCEPTANCE (All Three Owners)                      |   |
 |   | - Simulated Webhook / API release creation                                               |   |
-|   | - Outbox claim -> gVisor Build -> Image Push -> Rolling Deploy -> Traefik HTTP 200      |   |
+|   | - Outbox claim -> Ephemeral Pod Scheduled (Priyanshu gVisor/Builder) -> Push -> Deploy  |   |
 |   | - Intentional orchestrator process kill during build & deploy to verify lease recovery   |   |
 |   +------------------------------------------------------------------------------------------+   |
 +--------------------------------------------------------------------------------------------------+
@@ -720,7 +736,7 @@ To guarantee software reliability before physical deployment on test machines, t
 ### Acceptance Criteria Checklist
 - [ ] **Unit Tests:** 100% of manifest builder functions produce valid Kubernetes 1.30+ schemas matching OpenAPI contracts.
 - [ ] **State Machine Integrity:** Invalid transitions (e.g., `building` directly to `running`) return deterministic errors under the Gate 2-approved state vocabulary.
-- [ ] **Sandboxed Build Security:** A malicious test repo attempting root file access or container escape inside a gVisor pod fails with a permission error.
+- [ ] **Sandboxed Build Security:** A malicious test repo attempting root file access or container escape inside an ephemeral pod running Priyanshu's builder container under Priyanshu's configured host gVisor runtime fails with a permission error.
 - [ ] **Network Lockdown:** Probing port 5432 (Postgres) or `169.254.169.254` from a build pod times out (verified by Cilium drop metrics).
 - [ ] **Rolling Updates:** Updating an application deployment from release `v1` to `v2` causes zero HTTP 502/503 dropped packets on Traefik.
 - [ ] **Crash Resilience:** Killing the orchestrator process mid-build leaves the database and cluster in an uncorrupted state; restarted orchestrator cleans up stale pods.
@@ -735,7 +751,7 @@ Delivery is structured into five sequential phases to align with Priyanshu (API)
 - Initialize package tree in `apps/backend` (`cmd/orchestrator`, `internal/orchestrator`, `internal/cluster`).
 - Add Kubernetes Go client dependencies (`k8s.io/client-go`, `sigs.k8s.io/controller-runtime`).
 - Establish shared domain types with Priyanshu and Arpit.
-- **Handoff from Arpit:** Initial database schema definitions and connection pooling client.
+- **Handoff from Arpit:** Initial database schema definitions and connection pooling client (Arpit owns DB only).
 - **Shared Checkpoint:** <span style="color:#7C3AED"><strong>TEAM OF THREE REQUIRED</strong></span> — Finalize **Gate 1** specifications.
 
 ### Phase 1: Outbox Worker Engine & State Machine (Days 4–7)
@@ -746,21 +762,22 @@ Delivery is structured into five sequential phases to align with Priyanshu (API)
 - **Shared Checkpoint:** <span style="color:#7C3AED"><strong>TEAM OF THREE REQUIRED</strong></span> — Finalize **Gate 2** specifications.
 
 ### Phase 2: Isolated Build Sandbox & OCI Pipeline (Days 8–12)
-- Configure gVisor (`runsc`) and rootless BuildKit daemon manifests on test hosts.
-- Implement `internal/orchestrator/builder` to dynamically spawn and monitor build pods in `summit-builds`.
+- **Handoff from Priyanshu (Entire Isolated Builder Owner):** Priyanshu installs and configures gVisor (`runsc`) and provisions the `gvisor` `RuntimeClass` on the test Kubernetes hosts, and provides the isolated rootless BuildKit + Railpack builder container image (`summit/buildkit-railpack`), along with the builder environment variable and volume mount interface contract.
+- Rudra implements `internal/orchestrator/builder` to dynamically schedule, launch, monitor, and clean up ephemeral build pods in `summit-builds` referencing Priyanshu's `runtimeClassName: gvisor` and invoking Priyanshu's builder image (Rudra does not install/configure gVisor).
 - Implement Cilium build network policy and log streamer piping output to Loki.
 - Deploy internal test registry (`registry.jetway.internal:5000`).
-- **Shared Checkpoint:** <span style="color:#7C3AED"><strong>TEAM OF THREE REQUIRED</strong></span> — Finalize **Gate 3** specifications.
+- **Shared Checkpoint:** <span style="color:#7C3AED"><strong>TEAM OF THREE REQUIRED</strong></span> — Finalize **Gate 3** specifications (verifying Priyanshu's builder container executing in Rudra's scheduled ephemeral pod under Priyanshu's configured gVisor runtime).
 
 ### Phase 3: Tenant Workload Reconciler (Days 13–18)
 - Implement manifest generators in `internal/cluster` for Namespaces, Quotas, Deployments, Services, Traefik `IngressRoute`, Cilium `CiliumNetworkPolicy`, and ESO `ExternalSecret`.
 - Implement rolling update progress monitor and canary health checker.
 - Implement garbage collection and orphan pod sweeper.
+- Provision tenant database StatefulSet and PVCs.
 - **Handoff to UI Developer:** Finalize status event schemas, log query URLs, and deployment timeline states.
 
 ### Phase 4: End-to-End Test Host Acceptance & Hardening (Days 19–24)
 - Deploy API, Database, and Orchestrator to the 1–2 SSH test Kubernetes hosts.
-- Execute full integration test pipeline: Git webhook -> Outbox -> Build -> Push -> Deploy -> Traffic.
+- Execute full integration test pipeline: Git webhook -> Outbox -> Ephemeral Build Pod Scheduled by Rudra (using Priyanshu's gVisor runtimeClass & builder) -> Image Push -> Deploy -> Traffic.
 - Conduct simulated failure injection (process kills, network dropouts, build timeouts).
 - **Shared Checkpoint:** <span style="color:#7C3AED"><strong>TEAM OF THREE REQUIRED</strong></span> — Execute **Gate 4** comprehensive review.
 
@@ -776,7 +793,8 @@ Before opening the initial orchestrator pull request, verify each of the followi
 - [ ] **Zero Implementation Claims:** PR description explicitly clarifies what is being added (scaffolding, clients, types) without claiming unimplemented features are complete.
 - [ ] **Code Hygiene:** Code passes `go -C apps/backend vet ./...` and `go -C apps/backend test ./...`.
 - [ ] **Logging Standards:** All logs use structured logging (`log/slog`) with context fields (`tenant_id`, `project_id`, `release_id`, `worker_id`).
-- [ ] **Sandboxing Enforced:** Build pod generator unconditionally sets `runtimeClassName: gvisor` and drops all capabilities.
+- [ ] **Sandboxing Enforced:** Build pod generator unconditionally sets `runtimeClassName: gvisor` (configured on host by Priyanshu), drops all capabilities, and conforms to the interface for Priyanshu's builder container.
+- [ ] **Builder & gVisor Ownership Boundary:** Rudra does not install, configure, or manage gVisor (`runsc`), host `RuntimeClass` setup, or package the rootless BuildKit + Railpack container (Priyanshu owns the ENTIRE isolated builder); Rudra focuses strictly on orchestrator scheduling, launching, lifecycle monitoring, and cleanup of ephemeral build pods using Priyanshu's configured builder.
 
 ---
 
@@ -786,9 +804,9 @@ Before opening the initial orchestrator pull request, verify each of the followi
 
 | ID | Category | Context / Question | Decision | Owner | Reviewers |
 |---|---|---|---|---|---|
-| **DEC-01** | Architecture | Monorepo layout for Orchestrator | Single Go module (`apps/backend`) with multiple binary targets (`cmd/api`, `cmd/orchestrator`) | Rudra | Priyanshu, Arpit |
-| **DEC-02** | Queue Engine | Storage medium for asynchronous job queue | Postgres Outbox table using `FOR UPDATE SKIP LOCKED` | Rudra | Arpit, Priyanshu |
-| **DEC-03** | Sandbox | Runtime engine for untrusted customer code compilation | gVisor (`runsc`) + Rootless BuildKit + Railpack in isolated `summit-builds` namespace | Rudra | Team of Three |
+| **DEC-01** | Architecture | Monorepo layout for Orchestrator | Single Go module (`apps/backend`) with multiple binary targets (`cmd/api`, `cmd/orchestrator`) | Rudra | Priyanshu, Arpit (DB Only) |
+| **DEC-02** | Queue Engine | Storage medium for asynchronous job queue | Postgres Outbox table using `FOR UPDATE SKIP LOCKED` | Rudra | Arpit (DB Only), Priyanshu |
+| **DEC-03** | Sandbox | Runtime engine & builder ownership for untrusted customer code compilation | gVisor (`runsc`) + Rootless BuildKit + Railpack in isolated `summit-builds` namespace; Priyanshu owns the ENTIRE isolated builder (gVisor `runsc` installation/configuration, host `RuntimeClass` setup, rootless BuildKit + Railpack builder image/configuration/integration); Rudra does not own/install/configure gVisor; Rudra owns orchestrator and Kubernetes scheduling, launching, monitoring, and cleanup of pods using Priyanshu's configured builder; Arpit owns DB only | Priyanshu & Rudra | Team of Three |
 | **DEC-04** | Ingress | Edge ingress controller for customer routing | Traefik with custom `IngressRoute` CRDs and path-based routing | Rudra | Priyanshu |
 | **DEC-05** | Network Security| Container networking interface and isolation policy | Cilium CNI with `CiliumNetworkPolicy` enforcing default-deny egress/ingress | Rudra | Team of Three |
 | **DEC-06** | Secrets | Secret injection into tenant pods | External Secrets Operator (ESO) bridging OpenBao / AWS Secrets Manager | Rudra | Priyanshu |
@@ -797,7 +815,7 @@ Before opening the initial orchestrator pull request, verify each of the followi
 
 | Risk ID | Description | Severity | Likelihood | Mitigation Strategy | Owner |
 |---|---|---|---|---|---|
-| **RSK-01** | Kernel escape during untrusted customer application build | Critical | Low | Enforce gVisor (`runsc`) user-space kernel virtualization + rootless BuildKit (UID 1000) with all Linux capabilities dropped. | Rudra |
+| **RSK-01** | Kernel escape during untrusted customer application build | Critical | Low | Enforce host gVisor (`runsc`) user-space kernel virtualization and `RuntimeClass` setup (Priyanshu) + rootless BuildKit + Railpack builder container (Priyanshu) with non-root UID 1000 and all Linux capabilities dropped; Rudra enforces `runtimeClassName: gvisor` in pod spec, resource ceilings, and pod cleanup. | Priyanshu & Rudra |
 | **RSK-02** | Outbox worker lease starvation or split-brain execution | High | Medium | Implement renewable 10s heartbeats with 30s expiration; require idempotency keys on every reconciliation action; utilize K8s Lease leader election. | Rudra |
 | **RSK-03** | Resource exhaustion on 1–2 test Kubernetes hosts | High | High | Strict `ResourceQuota` and `LimitRange` per tenant namespace; build pod memory capped at 4Gi; automated pod GC after 30 minutes. | Rudra |
 | **RSK-04** | Cross-tenant network snooping | Critical | Low | Cilium L3/L4 NetworkPolicies block all inter-namespace traffic; DNS resolution restricted to cluster DNS; link-local metadata addresses blocked. | Rudra |
