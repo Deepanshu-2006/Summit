@@ -3,6 +3,7 @@
 import React, { useRef, useEffect, useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { BRAND } from "@/lib/brand";
 
 // Reduced Motion Subscription helper
 function subscribeReducedMotion(callback: () => void) {
@@ -531,7 +532,7 @@ export function FinalCta() {
             >
               {/* Primary Action: Start building */}
               <Link
-                href="#getting-started"
+                href={BRAND.links.workspace}
                 className="inline-flex items-center justify-between sm:justify-center gap-3.5 h-[50px] sm:h-[52px] px-7 sm:px-8 rounded-[6px] bg-accent-orange hover:bg-accent-orange-hover text-[#121110] text-[15px] font-medium tracking-[-0.01em] transition-all duration-200 shadow-sm shadow-accent-orange/15 hover:shadow-accent-orange/25 active:translate-y-0 w-full sm:w-auto group"
               >
                 <span>Start building</span>

@@ -10,7 +10,8 @@ export const BRAND = {
     home: "/",
     docs: "/docs",
     login: "/login",
-    signup: "/signup",
+    signup: "/dashboard/project/new",
+    workspace: "/dashboard/project/new",
     pricing: "/pricing",
   },
 } as const;

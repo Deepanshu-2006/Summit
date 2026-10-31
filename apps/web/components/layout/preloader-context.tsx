@@ -173,6 +173,16 @@ export function PreloaderProvider({ children }: { children: React.ReactNode }) {
   }, [clearAllTimers]);
 
   useEffect(() => {
+    // Check if not on homepage (e.g. dashboard workspace routes)
+    if (typeof window !== "undefined" && window.location.pathname !== "/") {
+      setProgress(100);
+      setProgressFloat(100);
+      setIsTransitionDone(true);
+      setIsHeroActive(true);
+      setPhase("complete");
+      return;
+    }
+
     // Check prefers-reduced-motion
     const isReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (isReduced) {
