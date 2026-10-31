@@ -2,6 +2,7 @@ package githubapi_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -506,6 +507,44 @@ func TestServiceSource_CRUD(t *testing.T) {
 	}
 }
 
+func TestPutServiceSourceRejectsRepositoryOwnedByAnotherUser(t *testing.T) {
+	pool := testutil.NewDB(t)
+	svc := setupTestService(t, pool, &mockGitHubClient{})
+
+	serviceOwner := testutil.SeedUser(t, pool, "service-owner@example.com", "Service owner")
+	repositoryOwner := testutil.SeedUser(t, pool, "repository-owner@example.com", "Repository owner")
+	project := testutil.SeedProject(t, pool, serviceOwner.ID, "Project", "project")
+	environment := testutil.SeedEnvironment(t, pool, project.ID, "production", "production")
+	service := testutil.SeedService(t, pool, environment.ID, "web", "web")
+
+	var installationID, repositoryID uuid.UUID
+	if err := pool.QueryRow(context.Background(), `
+		INSERT INTO github_installations (
+			user_id, github_installation_id, account_id, account_login, account_type, status
+		) VALUES ($1, 55666, 223, 'other-owner', 'User', 'active')
+		RETURNING id
+	`, repositoryOwner.ID).Scan(&installationID); err != nil {
+		t.Fatalf("seeding foreign installation: %v", err)
+	}
+	if err := pool.QueryRow(context.Background(), `
+		INSERT INTO github_repositories (
+			installation_id, github_repository_id, owner_login, name, full_name, default_branch, private
+		) VALUES ($1, 302, 'other-owner', 'private-app', 'other-owner/private-app', 'main', true)
+		RETURNING id
+	`, installationID).Scan(&repositoryID); err != nil {
+		t.Fatalf("seeding foreign repository: %v", err)
+	}
+
+	_, err := svc.PutServiceSource(context.Background(), service.ID, serviceOwner.ID, githubapi.PutServiceSourceRequest{
+		RepositoryID: repositoryID,
+		Branch:       "main",
+	}, "127.0.0.1", "test-agent", "req-cross-user")
+	var apiErr *httpx.APIError
+	if !errors.As(err, &apiErr) || apiErr.Status != 403 || apiErr.Code != httpx.CodeGitHubRepositoryNotAccessible {
+		t.Fatalf("expected cross-user repository reference to be rejected with 403, got %v", err)
+	}
+}
+
 func TestManualDeployment_SuccessAndIdempotency(t *testing.T) {
 	pool := testutil.NewDB(t)
 	mockGH := &mockGitHubClient{
@@ -590,6 +629,70 @@ func TestManualDeployment_SuccessAndIdempotency(t *testing.T) {
 	}
 	if depRes2.ID != depRes.ID {
 		t.Fatalf("expected matching deployment ID on replay, got %v vs %v", depRes2.ID, depRes.ID)
+	}
+}
+
+func TestSyncAllUserRepositoriesIsPaginatedIdempotentAndContinuesAfterFailure(t *testing.T) {
+	pool := testutil.NewDB(t)
+	goodUser := testutil.SeedUser(t, pool, "sync-good@example.com", "Sync Good")
+	badUser := testutil.SeedUser(t, pool, "sync-bad@example.com", "Sync Bad")
+	_, err := pool.Exec(context.Background(), `
+		INSERT INTO github_installations (user_id, github_installation_id, account_id, account_login, account_type, status)
+		VALUES ($1, 71001, 1, 'good', 'User', 'active'), ($2, 71002, 2, 'bad', 'User', 'active')
+	`, goodUser.ID, badUser.ID)
+	if err != nil {
+		t.Fatalf("seeding installations: %v", err)
+	}
+	var version int
+	client := &mockGitHubClient{}
+	client.listInstallationReposFunc = func(_ context.Context, installationID int64, page, perPage int) (githubapp.RepositoryPage, error) {
+		if perPage != 100 {
+			t.Fatalf("expected page size 100, got %d", perPage)
+		}
+		if installationID == 71002 {
+			return githubapp.RepositoryPage{}, fmt.Errorf("simulated GitHub failure")
+		}
+		repoName := "one"
+		if version > 0 {
+			repoName = "one-renamed"
+		}
+		repo := githubapp.Repository{ID: 9001, OwnerLogin: "good", Name: repoName, FullName: "good/" + repoName, DefaultBranch: "main", Private: true, HTMLURL: "https://github.com/good/" + repoName}
+		if page == 1 {
+			return githubapp.RepositoryPage{Repositories: []githubapp.Repository{repo}, HasNext: true}, nil
+		}
+		if page == 2 {
+			return githubapp.RepositoryPage{Repositories: []githubapp.Repository{
+				repo,
+				{ID: 9002, OwnerLogin: "good", Name: "two", FullName: "good/two", DefaultBranch: "main", HTMLURL: "https://github.com/good/two"},
+			}}, nil
+		}
+		return githubapp.RepositoryPage{}, nil
+	}
+	svc := setupTestService(t, pool, client)
+
+	first, err := svc.SyncAllUserRepositories(context.Background())
+	if err != nil {
+		t.Fatalf("first all-user sync: %v", err)
+	}
+	if first.UsersProcessed != 2 || first.RepositoriesFetched != 2 || first.RepositoriesCreated != 2 || first.RepositoriesUpdated != 0 || first.FailedUsers != 1 {
+		t.Fatalf("unexpected first sync counts: %+v", first)
+	}
+
+	version++
+	second, err := svc.SyncAllUserRepositories(context.Background())
+	if err != nil {
+		t.Fatalf("second all-user sync: %v", err)
+	}
+	if second.RepositoriesFetched != 2 || second.RepositoriesCreated != 0 || second.RepositoriesUpdated != 2 || second.FailedUsers != 1 {
+		t.Fatalf("unexpected repeat sync counts: %+v", second)
+	}
+	var count int
+	var updatedName string
+	if err := pool.QueryRow(context.Background(), "SELECT count(*), max(name) FILTER (WHERE github_repository_id=9001) FROM github_repositories WHERE installation_id=(SELECT id FROM github_installations WHERE github_installation_id=71001)").Scan(&count, &updatedName); err != nil {
+		t.Fatalf("checking repositories after sync: %v", err)
+	}
+	if count != 2 || updatedName != "one-renamed" {
+		t.Fatalf("expected exactly two repos and updated metadata, got count=%d name=%q", count, updatedName)
 	}
 }
 

@@ -19,6 +19,7 @@ type ServiceAPI interface {
 	StartInstallation(ctx context.Context, userID uuid.UUID, ip, userAgent, reqID string) (*StartInstallationResponse, error)
 	HandleCallback(ctx context.Context, rawInstallationID, rawState, setupAction, ip, userAgent, reqID string) (string, error)
 	ListInstallations(ctx context.Context, userID uuid.UUID) (*ListInstallationsResponse, error)
+	ListServices(ctx context.Context, userID uuid.UUID) (*ListServicesResponse, error)
 	GetInstallation(ctx context.Context, userID uuid.UUID, installationIDStr string) (*InstallationDetailResponse, error)
 	DisconnectInstallation(ctx context.Context, userID uuid.UUID, installationIDStr string, ip, userAgent, reqID string) (*DisconnectInstallationResponse, error)
 	ListRepositories(ctx context.Context, userID uuid.UUID, installationIDStr, cursor string, limit int) (*ListRepositoriesResponse, error)
@@ -72,6 +73,9 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.Handle("GET /v1/github/installations",
 		requireAuth(h.handleListInstallations))
 
+	// GET /v1/services returns this user's web and worker services for source selection.
+	mux.Handle("GET /v1/services", requireAuth(h.handleListServices))
+
 	// 4. GET /v1/github/installations/{installation_id}
 	mux.Handle("GET /v1/github/installations/{installation_id}",
 		requireAuth(h.handleGetInstallation))
@@ -108,6 +112,21 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	// POST /v1/services/{service_id}/deployments
 	mux.Handle("POST /v1/services/{service_id}/deployments",
 		requireAuth(h.handleManualDeployment))
+}
+
+func (h *Handler) handleListServices(w http.ResponseWriter, r *http.Request) {
+	principal, ok := auth.GetPrincipal(r.Context())
+	if !ok {
+		httpx.WriteError(w, r, http.StatusUnauthorized, httpx.CodeUnauthorized, "unauthenticated")
+		return
+	}
+
+	res, err := h.svc.ListServices(r.Context(), principal.UserID)
+	if err != nil {
+		handleError(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, res)
 }
 
 // 1. POST /v1/github/installations

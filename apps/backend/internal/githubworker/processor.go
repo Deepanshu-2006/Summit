@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/summit/backend/internal/audit"
+	"github.com/summit/backend/internal/githubrepo"
 	"github.com/summit/backend/internal/githubwebhook"
 )
 
@@ -162,7 +163,7 @@ func processEventRecord(ctx context.Context, pool *pgxpool.Pool, ghClient GitHub
 	case githubwebhook.KindInstallation:
 		return handleInstallation(ctx, pool, ghClient, auditWriter, rec, ev)
 	case githubwebhook.KindInstallationRepositories:
-		return handleInstallationRepositories(ctx, pool, auditWriter, rec, ev)
+		return handleInstallationRepositories(ctx, pool, ghClient, auditWriter, rec, ev)
 	default:
 		return markEventIgnored(ctx, pool, rec.ID, "unhandled_event_kind")
 	}
@@ -731,7 +732,7 @@ func handleInstallation(ctx context.Context, pool *pgxpool.Pool, ghClient GitHub
 }
 
 // handleInstallationRepositories processes repository additions and removals.
-func handleInstallationRepositories(ctx context.Context, pool *pgxpool.Pool, auditWriter audit.Writer, rec webhookEventRecord, ev *githubwebhook.Event) error {
+func handleInstallationRepositories(ctx context.Context, pool *pgxpool.Pool, ghClient GitHubClient, auditWriter audit.Writer, rec webhookEventRecord, ev *githubwebhook.Event) error {
 	if ev.Repositories == nil {
 		return markEventIgnored(ctx, pool, rec.ID, "missing_repositories_data")
 	}
@@ -756,56 +757,20 @@ func handleInstallationRepositories(ctx context.Context, pool *pgxpool.Pool, aud
 		return fmt.Errorf("resolving installation for repos change: %w", err)
 	}
 
-	// 1. Process added repositories
+	// Resolve additions through the GitHub REST API so every inserted row has the
+	// same complete metadata as a normal installation repository sync.
+	if len(ev.Repositories.Added) > 0 {
+		if ghClient == nil {
+			return fmt.Errorf("GitHub client unavailable while syncing added repositories")
+		}
+		if err := syncRepositoriesForInstallation(ctx, pool, ghClient, instUUID, instGitHubID); err != nil {
+			return fmt.Errorf("syncing repositories after installation change: %w", err)
+		}
+	}
 	for _, repo := range ev.Repositories.Added {
-		upsertRepoQuery := `
-			INSERT INTO github_repositories (
-				installation_id,
-				github_repository_id,
-				owner_login,
-				name,
-				full_name,
-				default_branch,
-				private,
-				archived,
-				disabled,
-				html_url,
-				pushed_at,
-				last_synced_at,
-				removed_at
-			) VALUES (
-				$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now(), NULL
-			)
-			ON CONFLICT (github_repository_id) DO UPDATE SET
-				installation_id = EXCLUDED.installation_id,
-				owner_login = EXCLUDED.owner_login,
-				name = EXCLUDED.name,
-				full_name = EXCLUDED.full_name,
-				default_branch = COALESCE(NULLIF(EXCLUDED.default_branch, ''), github_repositories.default_branch),
-				private = EXCLUDED.private,
-				archived = EXCLUDED.archived,
-				disabled = EXCLUDED.disabled,
-				html_url = COALESCE(NULLIF(EXCLUDED.html_url, ''), github_repositories.html_url),
-				removed_at = NULL,
-				updated_at = now()
-			RETURNING id;
-		`
 		var repoUUID uuid.UUID
-		err := pool.QueryRow(ctx, upsertRepoQuery,
-			instUUID,
-			repo.ID,
-			repo.OwnerLogin,
-			repo.Name,
-			repo.FullName,
-			repo.DefaultBranch,
-			repo.Private,
-			repo.Archived,
-			repo.Disabled,
-			repo.HTMLURL,
-			repo.PushedAt,
-		).Scan(&repoUUID)
-		if err != nil {
-			return fmt.Errorf("upserting added repository %s: %w", repo.FullName, err)
+		if err := pool.QueryRow(ctx, "SELECT id FROM github_repositories WHERE github_repository_id=$1", repo.ID).Scan(&repoUUID); err != nil {
+			return fmt.Errorf("resolving synced repository %d: %w", repo.ID, err)
 		}
 
 		if auditWriter != nil {
@@ -939,37 +904,6 @@ func handleProcessingError(ctx context.Context, pool *pgxpool.Pool, eventID uuid
 }
 
 func syncRepositoriesForInstallation(ctx context.Context, pool *pgxpool.Pool, ghClient GitHubClient, instUUID uuid.UUID, instGitHubID int64) error {
-	page := 1
-	for {
-		repoPage, err := ghClient.ListInstallationRepositories(ctx, instGitHubID, page, 100)
-		if err != nil {
-			return err
-		}
-		for _, repo := range repoPage.Repositories {
-			upsertQuery := `
-				INSERT INTO github_repositories (
-					installation_id, github_repository_id, owner_login, name, full_name,
-					default_branch, private, archived, disabled, html_url, last_synced_at, removed_at
-				) VALUES (
-					$1, $2, $3, $4, $5, $6, $7, false, false, $8, now(), NULL
-				)
-				ON CONFLICT (github_repository_id) DO UPDATE SET
-					installation_id = EXCLUDED.installation_id,
-					owner_login = EXCLUDED.owner_login,
-					name = EXCLUDED.name,
-					full_name = EXCLUDED.full_name,
-					default_branch = COALESCE(NULLIF(EXCLUDED.default_branch, ''), github_repositories.default_branch),
-					private = EXCLUDED.private,
-					html_url = COALESCE(NULLIF(EXCLUDED.html_url, ''), github_repositories.html_url),
-					removed_at = NULL,
-					updated_at = now();
-			`
-			_, _ = pool.Exec(ctx, upsertQuery, instUUID, repo.ID, repo.OwnerLogin, repo.Name, repo.FullName, repo.DefaultBranch, repo.Private, repo.HTMLURL)
-		}
-		if !repoPage.HasNext || len(repoPage.Repositories) == 0 {
-			break
-		}
-		page++
-	}
-	return nil
+	_, err := githubrepo.SyncInstallation(ctx, pool, ghClient, instUUID, instGitHubID)
+	return err
 }

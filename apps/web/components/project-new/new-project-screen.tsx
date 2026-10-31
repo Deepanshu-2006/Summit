@@ -2,17 +2,13 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Sparkles,
   ChevronRight,
   Database,
   Terminal,
-  X,
-  Check,
-  AlertCircle,
   LogOut,
-  User as UserIcon,
 } from "lucide-react";
 import { SummitLogo } from "@/components/layout/navbar";
 import { useAuth } from "@/components/auth/auth-context";
@@ -26,7 +22,6 @@ import {
   getEmptyArchitecture,
   createNodeByOptionId,
 } from "@/lib/canvas/initial-graph";
-import type { SummitNode } from "@/lib/canvas/types";
 import { NodeChooserDialogs } from "@/components/canvas/node-chooser-dialogs";
 import { getStoredProjects, saveStoredProjects } from "@/lib/dashboard/mock-data";
 import type { DashboardProject } from "@/lib/dashboard/types";
@@ -54,6 +49,7 @@ function DockerIcon({ className }: { className?: string }) {
 
 export function NewProjectScreen() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, signOut, openAuthModal } = useAuth();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const userDropdownRef = useRef<HTMLDivElement>(null);
@@ -75,7 +71,12 @@ export function NewProjectScreen() {
   const [inputValue, setInputValue] = useState("");
   const [activeChooser, setActiveChooser] = useState<
     "none" | "github" | "application" | "database" | "docker"
-  >("none");
+  >(() => (searchParams.has("github_setup") ? "github" : "none"));
+
+  useEffect(() => {
+    if (!searchParams.has("github_setup")) return;
+    router.replace("/dashboard/project/new", { scroll: false });
+  }, [router, searchParams]);
 
   // Helper to generate a unique project ID
   const generateProjectId = () => {

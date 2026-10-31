@@ -21,6 +21,7 @@ type mockGitHubClient struct {
 	mintedTokens  []string
 	createdTokens map[int64]githubapp.InstallationToken
 	mintErr       error
+	listRepos     func(context.Context, int64, int, int) (githubapp.RepositoryPage, error)
 }
 
 func newMockGitHubClient() *mockGitHubClient {
@@ -50,7 +51,10 @@ func (m *mockGitHubClient) CreateInstallationToken(_ context.Context, installati
 	return tok, nil
 }
 
-func (m *mockGitHubClient) ListInstallationRepositories(_ context.Context, _ int64, _, _ int) (githubapp.RepositoryPage, error) {
+func (m *mockGitHubClient) ListInstallationRepositories(ctx context.Context, installationID int64, page, perPage int) (githubapp.RepositoryPage, error) {
+	if m.listRepos != nil {
+		return m.listRepos(ctx, installationID, page, perPage)
+	}
 	return githubapp.RepositoryPage{}, nil
 }
 
@@ -645,6 +649,15 @@ func TestProcessor_InstallationRepositories(t *testing.T) {
 	instID := seedInstallation(t, pool, owner.ID, 3333, "active")
 
 	t.Run("added repositories upserts records into github_repositories", func(t *testing.T) {
+		ghClient.listRepos = func(_ context.Context, _ int64, page, _ int) (githubapp.RepositoryPage, error) {
+			if page != 1 {
+				return githubapp.RepositoryPage{}, nil
+			}
+			return githubapp.RepositoryPage{Repositories: []githubapp.Repository{
+				{ID: 44441, OwnerLogin: "acme", Name: "frontend", FullName: "acme/frontend", DefaultBranch: "main", Private: true, HTMLURL: "https://github.com/acme/frontend"},
+				{ID: 44442, OwnerLogin: "acme", Name: "backend", FullName: "acme/backend", DefaultBranch: "main", HTMLURL: "https://github.com/acme/backend"},
+			}}, nil
+		}
 		payload := map[string]any{
 			"action": "added",
 			"installation": map[string]any{

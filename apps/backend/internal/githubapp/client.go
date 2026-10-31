@@ -518,7 +518,8 @@ func (c *Client) ListInstallationRepositories(ctx context.Context, installationI
 
 	path := fmt.Sprintf("/installation/repositories?page=%d&per_page=%d", page, perPage)
 	var raw repositoryListResponse
-	if err := c.doRequestWithLinkHeader(ctx, http.MethodGet, path, "token "+tok.Token, nil, &raw); err != nil {
+	hasNext, err := c.doRequestWithLinkHeader(ctx, http.MethodGet, path, "token "+tok.Token, nil, &raw)
+	if err != nil {
 		return RepositoryPage{}, err
 	}
 
@@ -532,7 +533,7 @@ func (c *Client) ListInstallationRepositories(ctx context.Context, installationI
 		TotalCount:   raw.TotalCount,
 		Page:         page,
 		PerPage:      perPage,
-		HasNext:      raw.hasNext,
+		HasNext:      hasNext,
 	}, nil
 }
 
@@ -572,20 +573,20 @@ func (c *Client) GetCommit(ctx context.Context, installationID int64, owner, rep
 	return raw.toCommit(ref), nil
 }
 
-// doRequestWithLinkHeader is like doRequest but also parses the Link header
-// for pagination and sets hasNext on the result.
-func (c *Client) doRequestWithLinkHeader(ctx context.Context, method, path, authHeader string, body io.Reader, result *repositoryListResponse) error {
+// doRequestWithLinkHeader is like doRequest but returns whether the Link header
+// contains a next page.
+func (c *Client) doRequestWithLinkHeader(ctx context.Context, method, path, authHeader string, body io.Reader, result interface{}) (bool, error) {
 	var lastErr error
 
 	for attempt := 0; attempt <= c.maxRetries; attempt++ {
 		if err := ctx.Err(); err != nil {
-			return err
+			return false, err
 		}
 
 		reqURL := c.baseURL + path
 		req, err := http.NewRequestWithContext(ctx, method, reqURL, body)
 		if err != nil {
-			return fmt.Errorf("githubapp: create request: %w", err)
+			return false, fmt.Errorf("githubapp: create request: %w", err)
 		}
 
 		req.Header.Set("Accept", "application/vnd.github+json")
@@ -604,7 +605,7 @@ func (c *Client) doRequestWithLinkHeader(ctx context.Context, method, path, auth
 				c.backoff(ctx, attempt, 0)
 				continue
 			}
-			return fmt.Errorf("githubapp: request failed: %w", err)
+			return false, fmt.Errorf("githubapp: request failed: %w", err)
 		}
 
 		respBody, err := readLimitedBody(resp.Body, c.maxRespBytes)
@@ -615,19 +616,18 @@ func (c *Client) doRequestWithLinkHeader(ctx context.Context, method, path, auth
 				c.backoff(ctx, attempt, 0)
 				continue
 			}
-			return lastErr
+			return false, lastErr
 		}
 
 		requestID := resp.Header.Get("X-GitHub-Request-Id")
 
 		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			if err := json.Unmarshal(respBody, result); err != nil {
-				return fmt.Errorf("githubapp: decode response: %w", err)
+				return false, fmt.Errorf("githubapp: decode response: %w", err)
 			}
 
 			// Parse Link header for pagination.
-			result.hasNext = parseLinkHeaderHasNext(resp.Header.Get("Link"))
-			return nil
+			return parseLinkHeaderHasNext(resp.Header.Get("Link")), nil
 		}
 
 		apiErr := parseAPIError(resp, respBody, requestID)
@@ -641,13 +641,13 @@ func (c *Client) doRequestWithLinkHeader(ctx context.Context, method, path, auth
 			continue
 		}
 
-		return apiErr
+		return false, apiErr
 	}
 
 	if lastErr != nil {
-		return lastErr
+		return false, lastErr
 	}
-	return fmt.Errorf("githubapp: request failed after retries")
+	return false, fmt.Errorf("githubapp: request failed after retries")
 }
 
 // parseLinkHeaderHasNext returns true if the Link header contains a rel="next" link.
