@@ -535,7 +535,7 @@ function CanvasContent({
       />
 
       {/* Main Canvas Viewport */}
-      <div className="relative flex-1 w-full h-full overflow-hidden">
+      <div className="relative flex-1 w-full h-full overflow-hidden bg-[#080807]">
         <ReactFlow<SummitNode, Edge>
           nodes={nodes}
           edges={edges}
@@ -560,51 +560,55 @@ function CanvasContent({
           maxZoom={2.2}
           deleteKeyCode={["Backspace", "Delete"]}
           proOptions={{ hideAttribution: true }}
-          className="bg-[#0D0D0D]"
+          className="bg-[#080807]"
+          style={{
+            background:
+              "radial-gradient(ellipse 75% 60% at 50% 48%, rgba(229, 139, 98, 0.045) 0%, rgba(20, 20, 19, 0.65) 45%, #080807 100%)",
+          }}
         >
-          {/* Subtle Neutral Gray Dotted Blueprint Grid */}
+          {/* Crisp, Tactile Dot Matrix Blueprint Coordinates */}
           <Background
             variant={BackgroundVariant.Dots}
             gap={24}
-            size={1.25}
-            color="#242424"
+            size={2.5}
+            color="rgba(240, 238, 233, 0.22)"
           />
         </ReactFlow>
 
         {/* Empty Canvas Railway Hero Prompt */}
         {nodes.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center z-10 p-4 pointer-events-none select-none animate-in fade-in duration-300">
-            <div className="w-full max-w-[420px] bg-[#141414] border border-[#2A2A2A] rounded-[16px] p-6 text-center pointer-events-auto shadow-2xl">
-              <div className="w-11 h-11 rounded-[12px] bg-[#191919] border border-[#2A2A2A] flex items-center justify-center text-[#E79570] mx-auto mb-3 shadow-md">
-                <div className="grid grid-cols-2 gap-1 w-4 h-4">
-                  <span className="w-1.5 h-1.5 rounded-sm bg-[#A09D98]" />
-                  <span className="w-1.5 h-1.5 rounded-sm bg-[#A09D98]" />
-                  <span className="w-1.5 h-1.5 rounded-sm bg-[#A09D98]" />
-                  <span className="w-1.5 h-1.5 rounded-sm bg-[#E79570]" />
+            <div className="w-full max-w-[420px] bg-[#111110] border border-[#222220] rounded-[14px] p-6 text-center pointer-events-auto shadow-[0_20px_50px_rgba(0,0,0,0.85)]">
+              <div className="w-9 h-9 rounded-[8px] bg-[#181817] border border-[#262522] flex items-center justify-center text-[#E58B62] mx-auto mb-3 shadow-inner">
+                <div className="grid grid-cols-2 gap-1 w-3.5 h-3.5">
+                  <span className="w-1.5 h-1.5 rounded-sm bg-[#A09E98]" />
+                  <span className="w-1.5 h-1.5 rounded-sm bg-[#A09E98]" />
+                  <span className="w-1.5 h-1.5 rounded-sm bg-[#A09E98]" />
+                  <span className="w-1.5 h-1.5 rounded-sm bg-[#E58B62]" />
                 </div>
               </div>
-              <h3 className="font-sans text-[18px] font-semibold text-[#F2F0EC] tracking-[-0.02em]">
+              <h3 className="font-sans text-[18px] font-semibold text-[#F1F0ED] tracking-[-0.02em]">
                 New Service
               </h3>
-              <p className="font-sans text-[12.5px] text-[#A09D98] mt-1 mb-4">
+              <p className="font-sans text-[12.5px] text-[#77756F] mt-1 mb-4">
                 Deploy your application, database, or worker to production effortlessly
               </p>
 
               <button
                 type="button"
                 onClick={() => setIsDeployPaletteOpen(true)}
-                className="w-full h-10 px-3.5 bg-[#191919] hover:bg-[#202020] border border-[#242424] hover:border-[#2A2A2A] rounded-[9px] flex items-center justify-between text-[#A09D98] hover:text-[#F2F0EC] transition-all cursor-pointer text-[13px] group"
+                className="w-full h-10 px-3.5 bg-[#161615] hover:bg-[#181817] border border-[#222220] hover:border-[#2C2B28] rounded-[8px] flex items-center justify-between text-[#77756F] hover:text-[#F1F0ED] transition-all cursor-pointer text-[12.5px] group"
               >
-                <span className="text-[#A09D98] group-hover:text-[#F2F0EC] transition-colors">
+                <span className="text-[#77756F] group-hover:text-[#F1F0ED] transition-colors">
                   What are we going to deploy today?
                 </span>
-                <kbd className="px-2 py-0.5 rounded bg-[#141414] border border-[#242424] text-[10.5px] font-mono text-[#77746F]">
+                <kbd className="px-2 py-0.5 rounded bg-[#121211] border border-[#222220] text-[10.5px] font-mono text-[#77756F]">
                   ⌘K
                 </kbd>
               </button>
 
-              <p className="font-mono text-[11px] text-[#77746F] mt-3">
-                Press <span className="text-[#A09D98]">C</span> or <span className="text-[#A09D98]">⌘K</span>, or choose from the dock below
+              <p className="font-mono text-[11px] text-[#77756F] mt-3">
+                Press <span className="text-[#A09E98]">C</span> or <span className="text-[#A09E98]">⌘K</span>, or choose from the dock below
               </p>
             </div>
           </div>
@@ -617,7 +621,11 @@ function CanvasContent({
         />
 
         {/* Minimal Floating Zoom Controls (Bottom-Right Pill Capsule) */}
-        <div className="absolute bottom-6 right-6 z-30 flex items-center gap-0.5 bg-[#141414]/95 backdrop-blur-md border border-[#2A2A2A] rounded-full p-1 shadow-lg">
+        <div
+          className={`absolute bottom-6 transition-all duration-200 ease-out z-30 flex items-center gap-0.5 bg-[#141414]/95 backdrop-blur-md border border-[#2A2A2A] rounded-full p-1 shadow-lg ${
+            selectedNode ? "right-[360px]" : "right-6"
+          }`}
+        >
           <button
             type="button"
             onClick={() => zoomIn({ duration: 220 })}

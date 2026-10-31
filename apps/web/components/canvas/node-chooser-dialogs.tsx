@@ -12,6 +12,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { GitHubImportDialog } from "./github-import-dialog";
+import { DatabaseChooserDialog } from "./database-chooser-dialog";
 
 // Authentic Docker Container Whale Icon
 function DockerIcon({ className }: { className?: string }) {
@@ -22,14 +23,6 @@ function DockerIcon({ className }: { className?: string }) {
   );
 }
 
-// Authentic PostgreSQL Elephant Icon
-function PostgresIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 2C6.48 2 2 6.48 2 12c0 4.14 2.53 7.69 6.12 9.17-.08-.7-.12-1.52-.12-2.17 0-1.8.44-3.5 1.25-4.99-.44-.22-.9-.4-1.38-.52-1.33-.33-2.18-1.52-2.18-2.89 0-1.54 1.15-2.83 2.67-2.98.65-.07 1.31.06 1.9.36.42-.51.93-.94 1.51-1.26C11.95 6.07 12 5.37 12 5c0-.6.18-1.18.52-1.68C12.18 3.1 12.09 3 12 3zm6.86 7.64c-.2-.04-.4-.06-.6-.06-1.05 0-2.02.48-2.66 1.29-.62-.31-1.31-.47-2.01-.47-2.48 0-4.5 2.02-4.5 4.5 0 .61.12 1.2.35 1.74-1.11 1.53-1.74 3.39-1.74 5.36 0 .47.04.93.1 1.38 1.25.76 2.72 1.2 4.29 1.2 4.65 0 8.44-3.56 8.87-8.1-.63.26-1.32.4-2.05.4-.55 0-1.07-.08-1.56-.24.58-.87.91-1.9.91-3 0-1.71-.82-3.23-2.1-4.2.43-.5.98-.9 1.6-1.14-.3-.39-.62-.73-.9-.66z" />
-    </svg>
-  );
-}
 
 export interface NodeChooserDialogsProps {
   activeChooser: "none" | "github" | "application" | "database" | "docker";
@@ -84,101 +77,22 @@ export function NodeChooserDialogs({
     );
   }
 
+  if (activeChooser === "database") {
+    return (
+      <DatabaseChooserDialog
+        isOpen={true}
+        onClose={onClose}
+        onConfirm={onConfirm}
+        onShowToast={onShowToast}
+      />
+    );
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-[3px] animate-in fade-in duration-150 select-none"
       onClick={onClose}
     >
-      {/* ---------------- 2. Database Engine Chooser ---------------- */}
-      {activeChooser === "database" && (
-        <div
-          className="w-full max-w-[420px] bg-[#141414] border border-[#2A2A2A] rounded-[14px] shadow-[0_24px_64px_rgba(0,0,0,0.85)] p-5 select-none animate-in zoom-in-95 duration-150"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex items-center justify-between pb-3 border-b border-[#242424]">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-[7px] bg-[#191919] border border-[#2A2A2A] flex items-center justify-center text-[#E79570]">
-                <Database className="w-4 h-4" />
-              </div>
-              <h3 className="font-sans text-[14.5px] font-semibold text-[#F2F0EC]">
-                Select Database Engine
-              </h3>
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="text-[#A09D98] hover:text-[#F2F0EC] p-1 rounded hover:bg-[#202020] transition-colors cursor-pointer"
-              title="Close (Esc)"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          <div className="mt-4 space-y-2">
-            {/* PostgreSQL Engine */}
-            <button
-              type="button"
-              onClick={() => {
-                onConfirm("database", {
-                  label: "postgres-db",
-                  subType: "PostgreSQL",
-                  databaseEngine: "postgresql",
-                  port: 5432,
-                  connectionString: "postgresql://postgres:***@localhost:5432/main_db",
-                });
-                onClose();
-              }}
-              className="w-full flex items-center justify-between p-3.5 rounded-[9px] bg-[#191919] hover:bg-[#202020] border border-[#242424] hover:border-[#E79570] text-left transition-all group cursor-pointer"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-[7px] bg-[#141414] border border-[#2A2A2A] flex items-center justify-center text-[#93C5FD] shrink-0">
-                  <PostgresIcon className="w-4 h-4" />
-                </div>
-                <div>
-                  <h4 className="font-sans text-[13.5px] font-medium text-[#F2F0EC] group-hover:text-[#E79570] transition-colors">
-                    PostgreSQL
-                  </h4>
-                  <p className="font-mono text-[11px] text-[#A09D98] mt-0.5">
-                    Version 16 · Standard port 5432
-                  </p>
-                </div>
-              </div>
-              <ChevronRight className="w-4 h-4 text-[#77746F] group-hover:text-[#E79570] group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
-            </button>
-
-            {/* MySQL Engine */}
-            <button
-              type="button"
-              onClick={() => {
-                onConfirm("database", {
-                  label: "mysql-db",
-                  subType: "MySQL",
-                  databaseEngine: "mysql",
-                  port: 3306,
-                  connectionString: "mysql://root:***@localhost:3306/main_db",
-                });
-                onClose();
-              }}
-              className="w-full flex items-center justify-between p-3.5 rounded-[9px] bg-[#191919] hover:bg-[#202020] border border-[#242424] hover:border-[#E79570] text-left transition-all group cursor-pointer"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-[7px] bg-[#141414] border border-[#2A2A2A] flex items-center justify-center text-[#E79570] shrink-0">
-                  <Database className="w-4 h-4" />
-                </div>
-                <div>
-                  <h4 className="font-sans text-[13.5px] font-medium text-[#F2F0EC] group-hover:text-[#E79570] transition-colors">
-                    MySQL
-                  </h4>
-                  <p className="font-mono text-[11px] text-[#A09D98] mt-0.5">
-                    Version 8.4 · Standard port 3306
-                  </p>
-                </div>
-              </div>
-              <ChevronRight className="w-4 h-4 text-[#77746F] group-hover:text-[#E79570] group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* ---------------- 3. Application Template Chooser ---------------- */}
       {activeChooser === "application" && (
@@ -317,35 +231,39 @@ export function NodeChooserDialogs({
               <label className="text-[11px] font-mono text-[#A09D98]">
                 Image Reference
               </label>
-              <input
-                ref={dockerInputRef}
-                type="text"
-                value={dockerImage}
-                onChange={(e) => {
-                  setDockerImage(e.target.value);
-                  setDockerError("");
-                }}
-                placeholder="docker.io/library/nginx:alpine"
-                className="w-full bg-[#191919] border border-[#2A2A2A] focus:border-[#E79570] rounded-[7px] px-3 py-2 text-[12px] font-mono text-[#F2F0EC] placeholder:text-[#77746F] outline-none transition-colors"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    const trimmed = dockerImage.trim();
-                    if (!trimmed) {
-                      setDockerError("Please enter a valid Docker image reference");
-                      return;
+              <div className="relative group bg-[#191919] rounded-[7px] border border-[#2A2A2A] overflow-hidden transition-colors">
+                <input
+                  ref={dockerInputRef}
+                  type="text"
+                  value={dockerImage}
+                  onChange={(e) => {
+                    setDockerImage(e.target.value);
+                    setDockerError("");
+                  }}
+                  placeholder="docker.io/library/nginx:alpine"
+                  className="w-full h-9 px-3 bg-transparent text-[12px] font-mono text-[#F2F0EC] placeholder:text-[#77746F] outline-none border-none focus:outline-none focus:ring-0 focus-visible:outline-none"
+                  style={{ outline: "none", boxShadow: "none", border: "none" }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      const trimmed = dockerImage.trim();
+                      if (!trimmed) {
+                        setDockerError("Please enter a valid Docker image reference");
+                        return;
+                      }
+                      const containerName =
+                        trimmed.split("/").pop()?.split(":")[0] || "docker-service";
+                      onConfirm("docker", {
+                        label: containerName,
+                        subType: "Docker Container",
+                        port: parseInt(dockerPort, 10) || 80,
+                        startCommand: `docker run -p ${dockerPort}:${dockerPort} ${trimmed}`,
+                      });
+                      onClose();
                     }
-                    const containerName =
-                      trimmed.split("/").pop()?.split(":")[0] || "docker-service";
-                    onConfirm("docker", {
-                      label: containerName,
-                      subType: "Docker Container",
-                      port: parseInt(dockerPort, 10) || 80,
-                      startCommand: `docker run -p ${dockerPort}:${dockerPort} ${trimmed}`,
-                    });
-                    onClose();
-                  }
-                }}
-              />
+                  }}
+                />
+                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#E79570] scale-x-0 group-focus-within:scale-x-100 transition-transform duration-200 ease-out origin-left pointer-events-none" />
+              </div>
               {dockerError && (
                 <p className="text-[11px] font-sans text-[#D77D7D] flex items-center gap-1">
                   <AlertCircle className="w-3 h-3" />
@@ -358,13 +276,17 @@ export function NodeChooserDialogs({
               <label className="text-[11px] font-mono text-[#A09D98]">
                 Exposed Port
               </label>
-              <input
-                type="number"
-                value={dockerPort}
-                onChange={(e) => setDockerPort(e.target.value)}
-                placeholder="80"
-                className="w-full bg-[#191919] border border-[#2A2A2A] focus:border-[#E79570] rounded-[7px] px-3 py-2 text-[12px] font-mono text-[#F2F0EC] outline-none transition-colors"
-              />
+              <div className="relative group bg-[#191919] rounded-[7px] border border-[#2A2A2A] overflow-hidden transition-colors">
+                <input
+                  type="number"
+                  value={dockerPort}
+                  onChange={(e) => setDockerPort(e.target.value)}
+                  placeholder="80"
+                  className="w-full h-9 px-3 bg-transparent text-[12px] font-mono text-[#F2F0EC] outline-none border-none focus:outline-none focus:ring-0 focus-visible:outline-none"
+                  style={{ outline: "none", boxShadow: "none", border: "none" }}
+                />
+                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#E79570] scale-x-0 group-focus-within:scale-x-100 transition-transform duration-200 ease-out origin-left pointer-events-none" />
+              </div>
             </div>
           </div>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Plus, Layout, Database, Cpu, Layers } from "lucide-react";
+import { Plus, Database } from "lucide-react";
 
 export interface BottomNodeSelectorProps {
   onSelectOption: (optionId: string) => void;
@@ -39,13 +39,6 @@ const RESOURCE_ITEMS = [
     glowColor: "group-hover:text-[#F2F0EC]",
   },
   {
-    id: "application",
-    label: "Application",
-    icon: Layout,
-    iconColor: "text-[#72B69A]",
-    glowColor: "group-hover:text-[#72B69A]",
-  },
-  {
     id: "database",
     label: "Database",
     icon: Database,
@@ -58,20 +51,6 @@ const RESOURCE_ITEMS = [
     icon: DockerIcon,
     iconColor: "text-[#60A5FA]",
     glowColor: "group-hover:text-[#60A5FA]",
-  },
-  {
-    id: "worker",
-    label: "Worker",
-    icon: Cpu,
-    iconColor: "text-[#D1A5F5]",
-    glowColor: "group-hover:text-[#D1A5F5]",
-  },
-  {
-    id: "cache",
-    label: "Cache",
-    icon: Layers,
-    iconColor: "text-[#F0A17B]",
-    glowColor: "group-hover:text-[#F0A17B]",
   },
 ];
 

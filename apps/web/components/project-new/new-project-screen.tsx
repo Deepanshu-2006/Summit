@@ -217,23 +217,25 @@ export function NewProjectScreen() {
 
   return (
     <div className="relative w-full h-screen bg-[#0C0B0A] text-[#FAF8F5] flex flex-col overflow-hidden font-sans select-none">
-      {/* ---------------- Slim Header (56px) ---------------- */}
-      <header className="h-[56px] w-full bg-[#0E0E0D]/90 border-b border-[#222220] flex items-center justify-between px-6 z-20 shrink-0 backdrop-blur-md">
+      {/* ---------------- Slim Header (48px) ---------------- */}
+      <header className="h-[48px] w-full bg-[#0E0E0D]/95 border-b border-[#20201E] flex items-center justify-between px-4 z-20 shrink-0 backdrop-blur-md">
         {/* Left: Brand & New Project Indicator */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <Link
             href="/"
-            className="flex items-center gap-2 group hover:opacity-90 transition-opacity pr-3 border-r border-[#222220]"
+            className="flex items-center gap-2 group hover:opacity-90 transition-opacity"
             title="Summit Homepage"
           >
-            <SummitLogo className="w-4 h-4 text-accent-orange shrink-0 transition-transform group-hover:scale-105" />
-            <span className="font-sans text-[14px] font-semibold tracking-[-0.02em] text-[#FAF8F5]">
+            <SummitLogo className="w-4 h-4 shrink-0 transition-transform group-hover:scale-105" />
+            <span className="font-sans text-[13.5px] font-semibold tracking-[-0.02em] text-[#F1F0ED]">
               Summit
             </span>
           </Link>
 
-          <div className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-accent-orange/80" />
+          <span className="text-[#3E3D39] text-[13px] font-mono select-none">/</span>
+
+          <div className="flex items-center gap-1.5 px-1.5 py-0.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-accent-orange/90" />
             <span className="font-mono text-[12px] text-[#A0A09C]">
               New project
             </span>
@@ -247,17 +249,17 @@ export function NewProjectScreen() {
               <button
                 type="button"
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="w-7 h-7 rounded-full bg-[#1A1A18] border border-[#2E2E2A] hover:border-accent-orange text-[#FAF8F5] text-[11px] font-mono flex items-center justify-center font-medium shadow-inner transition-colors"
+                className="w-7 h-7 rounded-full bg-[#181817] hover:bg-[#1E1E1C] border border-[#262522] hover:border-[#E58B62]/60 flex items-center justify-center text-[11.5px] font-mono font-medium text-[#F1F0ED] transition-colors cursor-pointer"
                 title={user.email ?? "Account"}
               >
                 {user.email ? user.email.charAt(0).toUpperCase() : "DK"}
               </button>
 
               {isUserMenuOpen && (
-                <div className="absolute right-0 mt-2 w-52 bg-[#141413] border border-[#282826] rounded-[6px] shadow-2xl py-1.5 z-50 animate-in fade-in duration-100">
-                  <div className="px-3 py-2 border-b border-[#222220]">
-                    <div className="text-[11px] font-mono text-[#8E8C86] uppercase tracking-wider">Signed in as</div>
-                    <div className="text-[12px] font-mono text-[#FAF8F5] truncate mt-0.5">{user.email}</div>
+                <div className="absolute right-0 mt-1.5 w-52 bg-[#141413] border border-[#222220] rounded-[7px] shadow-2xl py-1.5 z-50 animate-in fade-in duration-100">
+                  <div className="px-3 py-2 border-b border-[#20201E]">
+                    <div className="text-[10.5px] font-mono text-[#77756F] uppercase tracking-wider">Signed in as</div>
+                    <div className="text-[12px] font-mono text-[#F1F0ED] truncate mt-0.5">{user.email}</div>
                   </div>
                   <button
                     type="button"
@@ -265,7 +267,7 @@ export function NewProjectScreen() {
                       setIsUserMenuOpen(false);
                       await signOut();
                     }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-left text-[12px] font-mono text-[#E06C75] hover:bg-[#1A1A18] transition-colors"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-left text-[12px] font-mono text-[#D77D7D] hover:bg-[#1A1A18] transition-colors cursor-pointer"
                   >
                     <LogOut className="w-3.5 h-3.5" />
                     <span>Sign out</span>
@@ -277,7 +279,7 @@ export function NewProjectScreen() {
             <button
               type="button"
               onClick={() => openAuthModal({ mode: "signin" })}
-              className="text-[12px] font-mono text-[#D1CFCA] hover:text-[#FAF8F5] px-2.5 py-1 rounded-[6px] hover:bg-[#1C1C1A] border border-[#262624] transition-colors"
+              className="text-[12px] font-mono text-[#A09E98] hover:text-[#F1F0ED] px-2.5 py-1 rounded-[5px] hover:bg-[#181817] border border-[#222220] transition-colors cursor-pointer"
             >
               Sign in
             </button>
@@ -329,15 +331,17 @@ export function NewProjectScreen() {
         <div className="relative w-full max-w-[440px] mx-4 bg-[#141413] border border-[#262624] rounded-[12px] shadow-[0_16px_48px_rgba(0,0,0,0.85)] p-2 z-10 animate-in fade-in zoom-in-95 duration-200">
           {/* Top Single-Line Input */}
           <form onSubmit={handleInputSubmit} className="relative">
-            <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-[8px] bg-[#181817] border border-[#262624] focus-within:border-accent-orange transition-colors">
-              <Sparkles className="w-3.5 h-3.5 text-[#8E8C86] shrink-0" />
+            <div className="relative group flex items-center gap-2.5 px-3 py-2.5 rounded-[8px] bg-[#181817] border border-[#262624] overflow-hidden transition-colors">
+              <Sparkles className="w-3.5 h-3.5 text-[#8E8C86] group-focus-within:text-[#E58B62] transition-colors shrink-0" />
               <input
                 type="text"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder="Describe your project or paste a repo link"
-                className="w-full bg-transparent text-[12.5px] font-sans text-[#FAF8F5] placeholder-[#60605C] outline-none tracking-[-0.01em]"
+                className="w-full bg-transparent text-[12.5px] font-sans text-[#FAF8F5] placeholder-[#60605C] outline-none border-none focus:outline-none focus:ring-0 tracking-[-0.01em]"
+                style={{ outline: "none", boxShadow: "none", border: "none" }}
               />
+              <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent-orange scale-x-0 group-focus-within:scale-x-100 transition-transform duration-200 ease-out origin-left pointer-events-none" />
             </div>
           </form>
 
@@ -455,26 +459,34 @@ export function NewProjectScreen() {
                 <label className="text-[11px] font-mono text-[#8E8C86]">
                   Repository URL
                 </label>
-                <input
-                  type="text"
-                  value={githubRepoUrl}
-                  onChange={(e) => setGithubRepoUrl(e.target.value)}
-                  placeholder="https://github.com/organization/repository"
-                  className="w-full bg-[#181817] border border-[#2B2B28] focus:border-accent-orange rounded-[6px] px-3 py-2 text-[12px] font-mono text-[#FAF8F5] outline-none"
-                />
+                <div className="relative group bg-[#181817] rounded-[6px] border border-[#2B2B28] overflow-hidden transition-colors">
+                  <input
+                    type="text"
+                    value={githubRepoUrl}
+                    onChange={(e) => setGithubRepoUrl(e.target.value)}
+                    placeholder="https://github.com/organization/repository"
+                    className="w-full h-9 px-3 bg-transparent text-[12px] font-mono text-[#FAF8F5] placeholder-[#555] outline-none border-none focus:outline-none focus:ring-0 focus-visible:outline-none"
+                    style={{ outline: "none", boxShadow: "none", border: "none" }}
+                  />
+                  <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent-orange scale-x-0 group-focus-within:scale-x-100 transition-transform duration-200 ease-out origin-left pointer-events-none" />
+                </div>
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-[11px] font-mono text-[#8E8C86]">
                   Default Branch
                 </label>
-                <input
-                  type="text"
-                  value={githubBranch}
-                  onChange={(e) => setGithubBranch(e.target.value)}
-                  placeholder="main"
-                  className="w-full bg-[#181817] border border-[#2B2B28] focus:border-accent-orange rounded-[6px] px-3 py-2 text-[12px] font-mono text-[#FAF8F5] outline-none"
-                />
+                <div className="relative group bg-[#181817] rounded-[6px] border border-[#2B2B28] overflow-hidden transition-colors">
+                  <input
+                    type="text"
+                    value={githubBranch}
+                    onChange={(e) => setGithubBranch(e.target.value)}
+                    placeholder="main"
+                    className="w-full h-9 px-3 bg-transparent text-[12px] font-mono text-[#FAF8F5] outline-none border-none focus:outline-none focus:ring-0 focus-visible:outline-none"
+                    style={{ outline: "none", boxShadow: "none", border: "none" }}
+                  />
+                  <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent-orange scale-x-0 group-focus-within:scale-x-100 transition-transform duration-200 ease-out origin-left pointer-events-none" />
+                </div>
               </div>
             </div>
 
@@ -608,16 +620,20 @@ export function NewProjectScreen() {
                 <label className="text-[11px] font-mono text-[#8E8C86]">
                   Image Reference
                 </label>
-                <input
-                  type="text"
-                  value={dockerImage}
-                  onChange={(e) => {
-                    setDockerImage(e.target.value);
-                    setDockerError("");
-                  }}
-                  placeholder="docker.io/library/nginx:alpine"
-                  className="w-full bg-[#181817] border border-[#2B2B28] focus:border-accent-orange rounded-[6px] px-3 py-2 text-[12px] font-mono text-[#FAF8F5] outline-none"
-                />
+                <div className="relative group bg-[#181817] rounded-[6px] border border-[#2B2B28] overflow-hidden transition-colors">
+                  <input
+                    type="text"
+                    value={dockerImage}
+                    onChange={(e) => {
+                      setDockerImage(e.target.value);
+                      setDockerError("");
+                    }}
+                    placeholder="docker.io/library/nginx:alpine"
+                    className="w-full h-9 px-3 bg-transparent text-[12px] font-mono text-[#FAF8F5] outline-none border-none focus:outline-none focus:ring-0 focus-visible:outline-none"
+                    style={{ outline: "none", boxShadow: "none", border: "none" }}
+                  />
+                  <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent-orange scale-x-0 group-focus-within:scale-x-100 transition-transform duration-200 ease-out origin-left pointer-events-none" />
+                </div>
                 {dockerError && (
                   <p className="text-[11px] font-sans text-[#D77D7D] flex items-center gap-1">
                     <AlertCircle className="w-3 h-3" />
@@ -630,13 +646,17 @@ export function NewProjectScreen() {
                 <label className="text-[11px] font-mono text-[#8E8C86]">
                   Exposed Port
                 </label>
-                <input
-                  type="number"
-                  value={dockerPort}
-                  onChange={(e) => setDockerPort(e.target.value)}
-                  placeholder="80"
-                  className="w-full bg-[#181817] border border-[#2B2B28] focus:border-accent-orange rounded-[6px] px-3 py-2 text-[12px] font-mono text-[#FAF8F5] outline-none"
-                />
+                <div className="relative group bg-[#181817] rounded-[6px] border border-[#2B2B28] overflow-hidden transition-colors">
+                  <input
+                    type="number"
+                    value={dockerPort}
+                    onChange={(e) => setDockerPort(e.target.value)}
+                    placeholder="80"
+                    className="w-full h-9 px-3 bg-transparent text-[12px] font-mono text-[#FAF8F5] outline-none border-none focus:outline-none focus:ring-0 focus-visible:outline-none"
+                    style={{ outline: "none", boxShadow: "none", border: "none" }}
+                  />
+                  <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent-orange scale-x-0 group-focus-within:scale-x-100 transition-transform duration-200 ease-out origin-left pointer-events-none" />
+                </div>
               </div>
             </div>
 
