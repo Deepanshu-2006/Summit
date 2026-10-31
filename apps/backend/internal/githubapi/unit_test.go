@@ -53,7 +53,7 @@ func TestUnit_RoutesRegistered(t *testing.T) {
 	}
 
 	// Protected routes require Authorization header
-	protectedReq := httptest.NewRequest(http.MethodPost, "/v1/organizations/"+uuid.New().String()+"/github/installations", nil)
+	protectedReq := httptest.NewRequest(http.MethodPost, "/v1/github/installations", nil)
 	recProtected := httptest.NewRecorder()
 	mux.ServeHTTP(recProtected, protectedReq)
 

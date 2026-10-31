@@ -1,0 +1,12 @@
+{
+  "name": "node-express-sample",
+  "version": "1.0.0",
+  "description": "Sample Node.js Express application for Summit Builder",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

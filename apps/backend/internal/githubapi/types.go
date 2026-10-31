@@ -30,7 +30,7 @@ type Pool interface {
 	Begin(ctx context.Context) (pgx.Tx, error)
 }
 
-// StartInstallationResponse is returned by POST /v1/organizations/{organization_id}/github/installations.
+// StartInstallationResponse is returned by POST /v1/github/installations.
 type StartInstallationResponse struct {
 	InstallationURL string `json:"installation_url"`
 	StateExpiresAt  string `json:"state_expires_at"`
@@ -44,44 +44,43 @@ type InstallationAccount struct {
 
 // InstallationSummary models summarized installation metadata in lists.
 type InstallationSummary struct {
-	ID                  uuid.UUID           `json:"id"`
-	GitHubInstallationID int64              `json:"github_installation_id"`
-	GitHubAccount       InstallationAccount `json:"github_account"`
-	Status              string              `json:"status"`
-	RepositorySelection string              `json:"repository_selection"`
-	RepositoryCount     int                 `json:"repository_count"`
-	LastSyncedAt        *time.Time          `json:"last_synced_at"`
-	InstalledAt         *time.Time          `json:"installed_at"`
-	CreatedAt           time.Time           `json:"created_at"`
-	UpdatedAt           time.Time           `json:"updated_at"`
+	ID                   uuid.UUID           `json:"id"`
+	GitHubInstallationID int64               `json:"github_installation_id"`
+	GitHubAccount        InstallationAccount `json:"github_account"`
+	Status               string              `json:"status"`
+	RepositorySelection  string              `json:"repository_selection"`
+	RepositoryCount      int                 `json:"repository_count"`
+	LastSyncedAt         *time.Time          `json:"last_synced_at"`
+	InstalledAt          *time.Time          `json:"installed_at"`
+	CreatedAt            time.Time           `json:"created_at"`
+	UpdatedAt            time.Time           `json:"updated_at"`
 }
 
-// ListInstallationsResponse is returned by GET /v1/organizations/{organization_id}/github/installations.
+// ListInstallationsResponse is returned by GET /v1/github/installations.
 type ListInstallationsResponse struct {
 	Data       []InstallationSummary `json:"data"`
 	NextCursor *string               `json:"next_cursor"`
 }
 
-// InstallationDetailResponse is returned by GET /v1/organizations/{organization_id}/github/installations/{installation_id}.
+// InstallationDetailResponse is returned by GET /v1/github/installations/{installation_id}.
 type InstallationDetailResponse struct {
-	ID                  uuid.UUID           `json:"id"`
-	OrganizationID      uuid.UUID           `json:"organization_id"`
-	GitHubInstallationID int64              `json:"github_installation_id"`
-	AccountID           int64               `json:"account_id"`
-	GitHubAccount       InstallationAccount `json:"github_account"`
-	Status              string              `json:"status"`
-	RepositorySelection string              `json:"repository_selection"`
-	Permissions         map[string]string   `json:"permissions"`
-	RepositoryCount     int                 `json:"repository_count"`
-	SuspendedAt         *time.Time          `json:"suspended_at"`
-	SuspendedByGitHub   bool                `json:"suspended_by_github"`
-	InstalledAt         *time.Time          `json:"installed_at"`
-	LastSyncedAt        *time.Time          `json:"last_synced_at"`
-	CreatedAt           time.Time           `json:"created_at"`
-	UpdatedAt           time.Time           `json:"updated_at"`
+	ID                   uuid.UUID           `json:"id"`
+	GitHubInstallationID int64               `json:"github_installation_id"`
+	AccountID            int64               `json:"account_id"`
+	GitHubAccount        InstallationAccount `json:"github_account"`
+	Status               string              `json:"status"`
+	RepositorySelection  string              `json:"repository_selection"`
+	Permissions          map[string]string   `json:"permissions"`
+	RepositoryCount      int                 `json:"repository_count"`
+	SuspendedAt          *time.Time          `json:"suspended_at"`
+	SuspendedByGitHub    bool                `json:"suspended_by_github"`
+	InstalledAt          *time.Time          `json:"installed_at"`
+	LastSyncedAt         *time.Time          `json:"last_synced_at"`
+	CreatedAt            time.Time           `json:"created_at"`
+	UpdatedAt            time.Time           `json:"updated_at"`
 }
 
-// DisconnectInstallationResponse is returned by DELETE /v1/organizations/{organization_id}/github/installations/{installation_id}.
+// DisconnectInstallationResponse is returned by DELETE /v1/github/installations/{installation_id}.
 type DisconnectInstallationResponse struct {
 	ID     uuid.UUID `json:"id"`
 	Status string    `json:"status"`
@@ -100,13 +99,13 @@ type RepositorySummary struct {
 	HTMLURL            string    `json:"html_url"`
 }
 
-// ListRepositoriesResponse is returned by GET /v1/organizations/{organization_id}/github/installations/{installation_id}/repositories.
+// ListRepositoriesResponse is returned by GET /v1/github/installations/{installation_id}/repositories.
 type ListRepositoriesResponse struct {
 	Data       []RepositorySummary `json:"data"`
 	NextCursor *string             `json:"next_cursor"`
 }
 
-// SyncResponse is returned by POST /v1/organizations/{organization_id}/github/installations/{installation_id}/sync.
+// SyncResponse is returned by POST /v1/github/installations/{installation_id}/sync.
 type SyncResponse struct {
 	SyncID             uuid.UUID `json:"sync_id"`
 	Status             string    `json:"status"`

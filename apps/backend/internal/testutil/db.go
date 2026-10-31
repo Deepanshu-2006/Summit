@@ -83,30 +83,17 @@ func NewDB(t *testing.T) *pgxpool.Pool {
 }
 
 // Seed structures
-type Org struct {
-	ID   uuid.UUID
-	Name string
-	Slug string
-}
-
 type User struct {
 	ID    uuid.UUID
 	Email string
 	Name  string
 }
 
-type Membership struct {
-	ID             uuid.UUID
-	OrganizationID uuid.UUID
-	UserID         uuid.UUID
-	Role           string
-}
-
 type Project struct {
-	ID             uuid.UUID
-	OrganizationID uuid.UUID
-	Name           string
-	Slug           string
+	ID     uuid.UUID
+	UserID uuid.UUID
+	Name   string
+	Slug   string
 }
 
 type Environment struct {
@@ -121,26 +108,6 @@ type Service struct {
 	EnvironmentID uuid.UUID
 	Name          string
 	Type          string
-}
-
-// SeedOrg inserts a test organization.
-func SeedOrg(t *testing.T, pool *pgxpool.Pool, name, slug string) Org {
-	t.Helper()
-	if slug == "" {
-		slug = "org-" + uuid.New().String()[:8]
-	}
-	if name == "" {
-		name = "Test Org " + slug
-	}
-	var id uuid.UUID
-	err := pool.QueryRow(context.Background(),
-		"INSERT INTO organizations (name, slug) VALUES ($1, $2) RETURNING id",
-		name, slug,
-	).Scan(&id)
-	if err != nil {
-		t.Fatalf("seeding org: %v", err)
-	}
-	return Org{ID: id, Name: name, Slug: slug}
 }
 
 // SeedUser inserts a test user.
@@ -163,25 +130,8 @@ func SeedUser(t *testing.T, pool *pgxpool.Pool, email, name string) User {
 	return User{ID: id, Email: email, Name: name}
 }
 
-// SeedMembership inserts an organization membership.
-func SeedMembership(t *testing.T, pool *pgxpool.Pool, orgID, userID uuid.UUID, role string) Membership {
-	t.Helper()
-	if role == "" {
-		role = "member"
-	}
-	var id uuid.UUID
-	err := pool.QueryRow(context.Background(),
-		"INSERT INTO organization_memberships (organization_id, user_id, role) VALUES ($1, $2, $3) RETURNING id",
-		orgID, userID, role,
-	).Scan(&id)
-	if err != nil {
-		t.Fatalf("seeding membership: %v", err)
-	}
-	return Membership{ID: id, OrganizationID: orgID, UserID: userID, Role: role}
-}
-
-// SeedProject inserts a project under an organization.
-func SeedProject(t *testing.T, pool *pgxpool.Pool, orgID uuid.UUID, name, slug string) Project {
+// SeedProject inserts a project owned by a personal user.
+func SeedProject(t *testing.T, pool *pgxpool.Pool, userID uuid.UUID, name, slug string) Project {
 	t.Helper()
 	if slug == "" {
 		slug = "project-" + uuid.New().String()[:8]
@@ -191,13 +141,13 @@ func SeedProject(t *testing.T, pool *pgxpool.Pool, orgID uuid.UUID, name, slug s
 	}
 	var id uuid.UUID
 	err := pool.QueryRow(context.Background(),
-		"INSERT INTO projects (organization_id, name, slug) VALUES ($1, $2, $3) RETURNING id",
-		orgID, name, slug,
+		"INSERT INTO projects (user_id, name, slug) VALUES ($1, $2, $3) RETURNING id",
+		userID, name, slug,
 	).Scan(&id)
 	if err != nil {
 		t.Fatalf("seeding project: %v", err)
 	}
-	return Project{ID: id, OrganizationID: orgID, Name: name, Slug: slug}
+	return Project{ID: id, UserID: userID, Name: name, Slug: slug}
 }
 
 // SeedEnvironment inserts an environment under a project.

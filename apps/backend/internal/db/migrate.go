@@ -58,7 +58,17 @@ func MigrateWithLogger(ctx context.Context, pool *pgxpool.Pool, logger *slog.Log
 		CREATE TABLE IF NOT EXISTS schema_migrations (
 			version TEXT PRIMARY KEY,
 			applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
-		)
+		);
+		ALTER TABLE schema_migrations ENABLE ROW LEVEL SECURITY;
+		REVOKE ALL ON TABLE schema_migrations FROM PUBLIC;
+		DO $$ BEGIN
+			IF to_regrole('anon') IS NOT NULL THEN
+				REVOKE ALL ON TABLE schema_migrations FROM anon;
+			END IF;
+			IF to_regrole('authenticated') IS NOT NULL THEN
+				REVOKE ALL ON TABLE schema_migrations FROM authenticated;
+			END IF;
+		END $$;
 	`)
 	if err != nil {
 		return fmt.Errorf("creating schema_migrations table: %w", err)
@@ -124,7 +134,17 @@ func Status(ctx context.Context, pool *pgxpool.Pool) ([]MigrationStatus, error) 
 		CREATE TABLE IF NOT EXISTS schema_migrations (
 			version TEXT PRIMARY KEY,
 			applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
-		)
+		);
+		ALTER TABLE schema_migrations ENABLE ROW LEVEL SECURITY;
+		REVOKE ALL ON TABLE schema_migrations FROM PUBLIC;
+		DO $$ BEGIN
+			IF to_regrole('anon') IS NOT NULL THEN
+				REVOKE ALL ON TABLE schema_migrations FROM anon;
+			END IF;
+			IF to_regrole('authenticated') IS NOT NULL THEN
+				REVOKE ALL ON TABLE schema_migrations FROM authenticated;
+			END IF;
+		END $$;
 	`)
 	if err != nil {
 		return nil, fmt.Errorf("creating schema_migrations table: %w", err)

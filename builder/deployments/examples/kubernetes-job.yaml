@@ -1,0 +1,128 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: summit-build-a5d09f7b-attempt-1
+  namespace: summit-builders
+  labels:
+    app.kubernetes.io/name: summit-builder
+    app.kubernetes.io/component: worker
+    summit.io/build-id: "a5d09f7b-6c41-477e-8c31-1e967a5b3a4f"
+    summit.io/attempt-id: "f8c3e210-9b44-42f1-8f52-47d3412019aa"
+    summit.io/tenant-id: "tenant-acme"
+spec:
+  # Do not allow Kubernetes in-place restarts on failure.
+  # Retries are handled cleanly by Rudra Control Plane with a new attempt ID.
+  backoffLimit: 0
+
+  # Watchdog deadline: timeout_seconds (1200) + 60s grace buffer
+  activeDeadlineSeconds: 1260
+
+  # Automatic resource cleanup after completion or failure
+  ttlSecondsAfterFinished: 600
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: summit-builder
+        app.kubernetes.io/component: worker
+        summit.io/build-id: "a5d09f7b-6c41-477e-8c31-1e967a5b3a4f"
+        summit.io/attempt-id: "f8c3e210-9b44-42f1-8f52-47d3412019aa"
+        summit.io/tenant-id: "tenant-acme"
+    spec:
+      runtimeClassName: gvisor
+      restartPolicy: Never
+
+      # Hardened pod-level security context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: worker
+          image: ghcr.io/summit/builder-worker:v1.0.0
+          imagePullPolicy: IfNotPresent
+
+          # Hardened container-level security context
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+
+          # Resource boundaries matching execution spec limits
+          resources:
+            requests:
+              cpu: "1000m"
+              memory: "2048Mi"
+              ephemeral-storage: "4096Mi"
+            limits:
+              cpu: "2000m"
+              memory: "4096Mi"
+              ephemeral-storage: "8192Mi"
+
+          # Runtime configuration and downward API bindings
+          env:
+            - name: SUMMIT_EXECUTION_SPEC
+              value: "/run/summit/execution.json"
+            - name: SUMMIT_WORKSPACE_BASE_DIR
+              value: "/workspace"
+            - name: SUMMIT_LOG_LEVEL
+              value: "info"
+            - name: SUMMIT_DEFAULT_TIMEOUT_SECONDS
+              value: "1200"
+            - name: BUILDKIT_ROOTLESS
+              value: "true"
+            - name: SUMMIT_WORKER_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+
+          # Mount writable ephemeral workspaces and projected configuration
+          volumeMounts:
+            - name: workspace-volume
+              mountPath: /workspace
+              readOnly: false
+            - name: buildkit-run
+              mountPath: /run/buildkit
+              readOnly: false
+            - name: tmp-volume
+              mountPath: /tmp
+              readOnly: false
+            - name: execution-spec
+              mountPath: /run/summit
+              readOnly: true
+            - name: secret-tokens
+              mountPath: /run/secrets
+              readOnly: true
+
+      volumes:
+        - name: workspace-volume
+          emptyDir:
+            sizeLimit: 10Gi
+        - name: buildkit-run
+          emptyDir:
+            medium: "Memory"
+            sizeLimit: 2Gi
+        - name: tmp-volume
+          emptyDir:
+            sizeLimit: 5Gi
+        - name: execution-spec
+          configMap:
+            name: summit-spec-f8c3e210
+            items:
+              - key: execution.json
+                path: execution.json
+        - name: secret-tokens
+          secret:
+            secretName: summit-creds-f8c3e210
+            defaultMode: 0400
+            items:
+              - key: source-token
+                path: source-credentials/token
+              - key: registry-auth
+                path: registry-credentials/auth

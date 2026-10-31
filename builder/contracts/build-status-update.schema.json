@@ -1,0 +1,73 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://summit.dev/schemas/builder/build-status-update.schema.json",
+  "title": "BuildStatusUpdate",
+  "description": "Progress update sent during execution stage transitions",
+  "type": "object",
+  "required": [
+    "build_id",
+    "attempt_id",
+    "sequence",
+    "stage",
+    "status",
+    "timestamp"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "build_id": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+      "description": "Authoritative UUID of the build"
+    },
+    "attempt_id": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+      "description": "Authoritative UUID of this execution attempt"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonically increasing sequence number for this attempt"
+    },
+    "stage": {
+      "type": "string",
+      "enum": [
+        "initializing",
+        "validating_spec",
+        "preparing_workspace",
+        "source_checkout",
+        "source_validation",
+        "application_detection",
+        "build_plan_generation",
+        "dependency_installation",
+        "image_build",
+        "image_push",
+        "image_verification",
+        "finalizing",
+        "result_submission",
+        "heartbeat"
+      ],
+      "description": "Current lifecycle execution stage"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "running",
+        "succeeded",
+        "failed",
+        "skipped"
+      ],
+      "description": "Stage execution status"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC3339 timestamp of the status event"
+    },
+    "message": {
+      "type": "string",
+      "description": "Optional contextual human-readable status detail"
+    }
+  }
+}

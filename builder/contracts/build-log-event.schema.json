@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://summit.dev/schemas/builder/build-log-event.schema.json",
+  "title": "BuildLogEvent",
+  "description": "Structured log entry emitted during build execution",
+  "type": "object",
+  "required": [
+    "build_id",
+    "attempt_id",
+    "sequence",
+    "timestamp",
+    "stream",
+    "stage",
+    "severity",
+    "message"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "build_id": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+      "description": "Authoritative UUID of the build"
+    },
+    "attempt_id": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+      "description": "Authoritative UUID of this execution attempt"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonically increasing log sequence number for this attempt"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC3339 timestamp when log event occurred"
+    },
+    "stream": {
+      "type": "string",
+      "enum": ["stdout", "stderr"],
+      "description": "Output source stream"
+    },
+    "stage": {
+      "type": "string",
+      "description": "Stage during which log was emitted"
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["debug", "info", "warn", "error"],
+      "description": "Log severity level"
+    },
+    "message": {
+      "type": "string",
+      "description": "Sanitized log message text"
+    }
+  }
+}
