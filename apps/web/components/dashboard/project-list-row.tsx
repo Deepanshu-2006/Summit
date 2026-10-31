@@ -115,10 +115,13 @@ export function ProjectListRow({
   return (
     <div
       onClick={handleRowClick}
-      className="group flex items-center justify-between px-4 py-3 bg-[#141413] hover:bg-[#181817] border-b border-[#20201E] last:border-b-0 transition-colors cursor-pointer text-[13px]"
+      className={`group relative flex items-center justify-between px-4 py-3 bg-[#141413] hover:bg-[#181817] border-b border-[#20201E] last:border-b-0 transition-colors cursor-pointer text-[13px] ${
+        isMenuOpen ? "z-30" : "z-0 hover:z-10"
+      }`}
       style={{
         animation: "fadeUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) both",
         animationDelay: `${Math.min(index * 30, 200)}ms`,
+        zIndex: isMenuOpen ? 30 : undefined,
       }}
       tabIndex={0}
       onKeyDown={(e) => {

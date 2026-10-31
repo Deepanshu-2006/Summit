@@ -2,7 +2,8 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
-import { GitBranch, ArrowUpRight, CheckCircle2, Clock } from "lucide-react";
+import { GitBranch, ArrowUpRight } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 import type { DashboardProject } from "@/lib/dashboard/types";
 
 interface DeploymentsViewProps {
@@ -11,6 +12,7 @@ interface DeploymentsViewProps {
 
 export function DeploymentsView({ projects }: DeploymentsViewProps) {
   const router = useRouter();
+  const shouldReduceMotion = useReducedMotion();
 
   // Create a realistic sequence of deployments based on the projects
   const deployments = [
@@ -72,19 +74,29 @@ export function DeploymentsView({ projects }: DeploymentsViewProps) {
   ];
 
   return (
-    <div className="w-full flex flex-col animate-in fade-in duration-200">
+    <div className="w-full flex flex-col">
       {/* Header */}
-      <div className="mb-6">
+      <motion.div
+        initial={shouldReduceMotion ? false : { opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+        className="mb-6"
+      >
         <h1 className="font-sans text-[20px] font-medium text-[#FAF8F5] tracking-tight">
           Deployments
         </h1>
         <p className="text-[12.5px] text-[#75736D] mt-0.5">
           Live build executions and active cloud infrastructure runs.
         </p>
-      </div>
+      </motion.div>
 
       {/* Deployments List */}
-      <div className="w-full bg-[#111110] border border-[#1E1E1C] rounded-[8px] overflow-hidden">
+      <motion.div
+        initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
+        className="w-full bg-[#111110] border border-[#1E1E1C] rounded-[8px] overflow-hidden"
+      >
         {/* Table Header */}
         <div className="flex items-center justify-between px-4 py-2.5 bg-[#141413] border-b border-[#1E1E1C] text-[10.5px] font-mono uppercase tracking-wider text-[#55544E]">
           <div className="w-1/4">Deployment</div>
@@ -95,9 +107,16 @@ export function DeploymentsView({ projects }: DeploymentsViewProps) {
         </div>
 
         {/* Rows */}
-        {deployments.map((dep) => (
-          <div
+        {deployments.map((dep, idx) => (
+          <motion.div
             key={dep.id}
+            initial={shouldReduceMotion ? false : { opacity: 0, x: -6 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{
+              duration: 0.22,
+              delay: shouldReduceMotion ? 0 : 0.08 + idx * 0.035,
+              ease: [0.16, 1, 0.3, 1],
+            }}
             onClick={() => router.push(`/dashboard/project/${dep.project.id}`)}
             className="flex items-center justify-between px-4 py-3 border-b border-[#181817] last:border-b-0 hover:bg-[#141413] transition-colors cursor-pointer text-[12.5px] group"
           >
@@ -152,9 +171,9 @@ export function DeploymentsView({ projects }: DeploymentsViewProps) {
                 <ArrowUpRight className="w-3 h-3" />
               </button>
             </div>
-          </div>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
     </div>
   );
 }
