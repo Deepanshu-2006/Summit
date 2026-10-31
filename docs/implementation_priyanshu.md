@@ -1,11 +1,12 @@
 # Go API Control Plane Implementation Plan
 
-**Owner:** Priyanshu (API Engineer)  
-**Collaborators:** Rudra (Orchestrator Engineer), Arpit (Database Engineer), UI Developer (Frontend / Dashboard Owner)  
-**Target Component:** `apps/backend` (Go 1.23 service)  
-**API Contract:** `packages/api_spec/openapi.yaml` (OpenAPI 3.1)  
-**Status:** DRAFT / PROPOSAL FOR BACKEND REVIEW  
-**Date:** October 2026  
+- **Document Path:** `docs/implementation_priyanshu.md`
+- **Owner:** Priyanshu (API Engineer)  
+- **Collaborators:** Rudra (Orchestrator Engineer), Arpit (Database Engineer), UI Developer (Frontend / Dashboard Owner)  
+- **Target Component:** `apps/backend` (Go 1.23 service)  
+- **API Contract:** `packages/api_spec/openapi.yaml` (OpenAPI 3.1)  
+- **Status:** ACTIVE / CORE FOUNDATION & GITHUB INTEGRATION IMPLEMENTED (PR #3 MERGED)  
+- **Date:** October 2026  
 
 ---
 
@@ -47,16 +48,26 @@ This document serves as the definitive, actionable implementation plan for **Pri
 
 ## 3. Current Repository Baseline & Audit
 
-### 3.1 Existing Repository State
-An inspection of the workspace reveals:
+### 3.1 Existing Repository State (Post-PR #3)
+An inspection of the workspace confirms the current baseline:
 - **`apps/backend`:**
-  - Defined as Go module `github.com/summit/backend` (Go 1.23).
-  - Uses strictly standard library dependencies (`net/http`, `log/slog`, `os/signal`, `time`).
-  - `cmd/api/main.go`: Initializes logging, loads environment configuration, boots the HTTP server, and traps `SIGINT`/`SIGTERM` with a 10-second graceful shutdown timeout.
-  - `internal/config/config.go`: Parses `PORT` (default `4000`), `HOST`, `SERVICE_NAME` (`meridian-api`), `SERVICE_VERSION` (`1.0.0`), `REGION` (`cdg-1 (Paris)`), `EDGE_ROUTING` (`anycast`), and `ENVIRONMENT`.
-  - `internal/health/handler.go`: Implements `GET /api/v1/health` and `GET /health` responding with `HealthResponse`.
-  - `internal/server/server.go`: Sets up `http.ServeMux`, wraps it with basic CORS (`*`) and debug logging middleware.
-  - **Status:** Functional health check scaffold only. No database connection, no authentication, no project/release/resource endpoints implemented.
+  - Defined as Go module `github.com/summit/backend` (Go 1.23) and npm workspace package `@summit/backend` orchestrated via Turborepo 2.11+.
+  - **Core Production Packages (15 Packages Landed & Tested):**
+    - `cmd/api/main.go`: Application entrypoint initializing logger, config, pgx pool, secrets router, GitHub App client, HTTP server, and spawning the background webhook poller with graceful shutdown.
+    - `cmd/migrate/main.go`: Standalone database migration CLI with advisory locking.
+    - `internal/auth`: Supabase JWT verification (`verifier.go`) supporting JWKS caching and explicit algorithm allowlists (`RS256`, `ES256`, `HS256`), and platform user synchronization (`user.go`).
+    - `internal/authz`: Role-based access control matrix (`owner`, `admin`, `member`, `viewer`) and tenant organization check middleware.
+    - `internal/db`: `pgxpool` lifecycle manager (`pool.go`), schema migration runner (`migrate.go`), and migrations `0001_baseline.up.sql` & `0002_github_integration.up.sql`.
+    - `internal/githubapi`: REST handlers and consumer-defined `ServiceAPI` interface for GitHub installations, OAuth callbacks, repository listing, on-demand synchronization, service sources, and manual deployment dispatch.
+    - `internal/githubapp`: GitHub App client (`client.go`), RS256 App JWT generator (9-minute TTL), in-memory installation token cache with single-flight mutexes, and thread-safe cache invalidation (`InvalidateInstallationTokens`).
+    - `internal/githubwebhook`: Raw HMAC-SHA256 constant-time verification (`signature.go`), 10MB payload size limits (`body.go`), and event normalization (`normalize.go`).
+    - `internal/githubworker`: High-throughput webhook receiver (`webhook_handler.go`), asynchronous background event consumer using `FOR UPDATE SKIP LOCKED` (`processor.go`), and internal worker credential broker (`broker_handler.go`) with job-scoped JWT validation.
+    - `internal/httpx`: Standard RFC 7807 JSON error envelopes and response helpers.
+    - `internal/installstate`: Single-use CSRF installation state generator with SHA-256 state hashing.
+    - `internal/secrets`: OpenBao AppRole client and multi-tier router with development fallback controls.
+    - `internal/sourcepath`: Lexical path traversal sanitizer rejecting directory escape (`..`), null bytes, and absolute paths.
+    - `internal/audit`: Redacted audit event publisher.
+    - `internal/testutil`: Schema-isolated PostgreSQL test runner for local and CI testing.
 - **`packages/api_spec/openapi.yaml`:**
   - OpenAPI 3.1.0 document declaring paths for:
     - `GET /api/v1/health`
@@ -824,24 +835,28 @@ The initial Pull Request will establish the architectural foundation in `apps/ba
 
 ## 18. Risks & Decision Register
 
-Decisions not currently established by the repository baseline remain explicitly **OPEN** and will be finalized through the joint Backend Review.
-
-| Decision ID | Description | Options Considered | Recommended Direction | Owner | Status |
+| Decision ID | Description | Options Considered | Selected Direction | Owner | Status |
 |---|---|---|---|---|---|
-| **ADR-01** | Routing framework vs Go 1.23 standard library | (A) Standard library `net/http` mux<br>(B) `chi` / `echo` / `gin` | **Option A (Standard Library)**: Go 1.23 mux supports methods and wildcard path routing (`GET /api/v1/projects/{slug}`) with zero external dependencies. | Priyanshu | **PROPOSED** |
-| **ADR-02** | Database Driver & Query Layer | (A) `pgx/v5` direct pool<br>(B) `sqlc`<br>(C) `GORM` | **Option B (`sqlc` over `pgx`)**: Type-safe Go code generated directly from Arpit's raw SQL migrations. | Arpit & Priyanshu | **OPEN** |
-| **ADR-03** | Auth Provider Protocol | (A) Supabase Auth JWT validation<br>(B) Custom JWT engine<br>(C) OAuth2 proxy | **Option A (Supabase Auth)**: Validating Supabase-issued JWTs against JWKS public key cache in middleware. | Priyanshu | **PROPOSED** |
-| **ADR-04** | Outbox Event Broker / Queue | (A) PostgreSQL table polling (`SKIP LOCKED`)<br>(B) Redis / Dragonfly Streams<br>(C) NATS | **Option A initially**: Simplest transactional guarantees with Supabase Postgres; migrate to NATS if volume exceeds 500 events/sec. | Rudra & Arpit | **OPEN** |
+| **ADR-01** | Routing framework vs Go 1.23 standard library | (A) Standard library `net/http` mux<br>(B) `chi` / `echo` / `gin` | **Option A (Standard Library)**: Go 1.23 `http.NewServeMux()` supports method-matching and wildcard routing with zero external routing dependencies. | Priyanshu | **ACCEPTED** (Implemented in `internal/server`) |
+| **ADR-02** | Database Driver & Query Layer | (A) `pgx/v5` direct pool<br>(B) `sqlc`<br>(C) `GORM` | **Option A (`pgx/v5` Pool)**: Connection pooling via `jackc/pgx/v5/pgxpool` with advisory-locked migrations in `internal/db`. | Arpit & Priyanshu | **ACCEPTED** (Implemented in `internal/db`) |
+| **ADR-03** | Auth Provider Protocol | (A) Supabase Auth JWT validation<br>(B) Custom JWT engine<br>(C) OAuth2 proxy | **Option A (Supabase Auth)**: Validating Supabase-issued JWTs against JWKS public key cache with algorithm allowlist (`RS256`, `ES256`, `HS256`). | Priyanshu | **ACCEPTED** (Implemented in `internal/auth`) |
+| **ADR-04** | Outbox Event Broker / Queue | (A) PostgreSQL table polling (`SKIP LOCKED`)<br>(B) Redis / Dragonfly Streams<br>(C) NATS | **Option A (PostgreSQL `FOR UPDATE SKIP LOCKED`)**: Transactional consistency with domain tables without external broker dependencies. | Rudra & Arpit | **ACCEPTED** (Implemented in `internal/githubworker`) |
 | **ADR-05** | Real-time Build Log Streaming | (A) Server-Sent Events (SSE)<br>(B) WebSockets<br>(C) Short polling `GET /deployments/{id}` | **Option A (SSE)**: Simpler HTTP/2 streaming over Traefik; falls back to polling if client connection drops. | Priyanshu & UI Dev | **OPEN** |
-| **ADR-06** | Ephemeral Build Host Constraints | (A) Dedicated test K8s node pool<br>(B) Shared test node with gVisor `runsc` | **Option B**: Ephemeral pods strictly constrained to gVisor runtimeClass to protect test host integrity. | Rudra | **PROPOSED** |
+| **ADR-06** | Ephemeral Build Host Constraints | (A) Dedicated test K8s node pool<br>(B) Shared test node with gVisor `runsc` | **Option B**: Ephemeral pods strictly constrained to gVisor runtimeClass to protect test host integrity. | Rudra | **ACCEPTED** |
 
 ---
 
 ## 19. Summary & Next Steps
 
-This plan provides a complete, sequenced, and standalone blueprint for Priyanshu to construct the Go API control plane. 
+The foundational Go API control plane and GitHub integration backend are fully implemented, verified, and merged into `main` via PR #3.
 
-**Immediate Actions:**
-1. Review this document with **Rudra** (Orchestrator) and **Arpit** (Database) to validate the four shared architecture gates (<span style="color:#7C3AED"><strong>TEAM OF THREE REQUIRED</strong></span>).
-2. Present the OpenAPI RFC and contract gap proposals to the **UI Developer** for frontend dashboard alignment.
-3. Execute the **First-PR Checklist** to establish the core middleware and domain structures in `apps/backend`.
+**Current Milestones Completed:**
+1. Turborepo monorepo orchestration wired across TypeScript and Go packages.
+2. PostgreSQL connection pool (`pgxpool`) and advisory-locked migrations applied.
+3. Supabase Auth JWT verifier, tenant RBAC middleware, and OpenBao secrets router active.
+4. GitHub App client, webhook ingestion, `FOR UPDATE SKIP LOCKED` processor, and worker credential broker landed with 100% test pass.
+
+**Next Immediate Actions:**
+1. Coordinate with **Rudra** on outbox event format consumption (`deployment.build.requested`) and build worker token handoff.
+2. Coordinate with the **UI Developer** on replacing demo mock routes in `apps/web` with live `/v1/...` API endpoints documented in [`docs/integrations/github/FRONTEND_INTEGRATION.md`](./integrations/github/FRONTEND_INTEGRATION.md).
+3. Implement `POST /api/v1/projects` and project lifecycle CRUD handlers.

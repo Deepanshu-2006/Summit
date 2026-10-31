@@ -5,11 +5,16 @@ Summit is organized as a Turborepo monorepo. pnpm manages the JavaScript/TypeScr
 ```text
 apps/
   web/                 Next.js frontend
-  backend/             Go API service and Turbo task adapter
+  backend/             Go API service, worker engine, and Turbo task adapter
 packages/
   api_spec/            OpenAPI 3.1 contract and TypeScript API models
-docs/
+docs/                  Architecture plans, integration specs, and documentation index
+  README.md            Documentation hub and architecture map
   system_architechture.png
+  implementation_priyanshu.md  Go API Control Plane Plan
+  implementation_arpit.md      Platform Database & Outbox Plan
+  implementation_rudra.md      Orchestrator & K8s Engine Plan
+  integrations/github/         GitHub App, Webhook, and Broker specifications
 turbo.json             Turborepo task graph and cache configuration
 ```
 
@@ -82,12 +87,25 @@ Turborepo reads `turbo.json` and runs each package's `package.json` scripts. The
 
 Edit `packages/api_spec/openapi.yaml` first when changing an HTTP endpoint, request, response, or error shape. Coordinate the contract change with both teams, then update the Go handler and frontend client to match. The OpenAPI document is the source of truth; generated clients or server stubs should be added only when the team chooses and maintains a generation workflow.
 
+## Documentation
+
+The `docs/` directory contains complete architecture references, implementation blueprints, and subsystem specifications:
+
+- **[Documentation Index & Architecture Map](docs/README.md):** Central catalog of all platform docs, subsystem status matrix, and monorepo guidelines.
+- **[Go API Control Plane Implementation Plan](docs/implementation_priyanshu.md):** Auth middleware, REST routing, webhook ingestion, and worker broker specifications (Owner: Priyanshu).
+- **[Platform Database & Outbox Plan](docs/implementation_arpit.md):** Supabase PostgreSQL data models, advisory-locked migrations, connection pooling, and transactional outbox (Owner: Arpit).
+- **[Orchestrator & K8s Engine Plan](docs/implementation_rudra.md):** Ephemeral gVisor build sandboxes, rootless BuildKit/Railpack, K8s reconcilers, Traefik ingress, and Cilium policies (Owner: Rudra).
+- **[GitHub Integration Backend Suite](docs/integrations/github/):**
+  - [Technical Specification](docs/integrations/github/GITHUB_INTEGRATION_BACKEND_SPEC.md)
+  - [Frontend & MCP Integration Guide](docs/integrations/github/FRONTEND_INTEGRATION.md)
+  - [Implementation & Verification Report](docs/integrations/github/IMPLEMENTATION_REPORT.md)
+
 ## Ownership
 
 - `apps/web`: frontend UI and API client integration.
-- `apps/backend`: Go control-plane API implementation and its Turbo task adapter.
-- `packages/api_spec`: versioned API contract and shared TypeScript types.
+- `apps/backend`: Go control-plane API implementation, worker queue poller, and Turbo task adapter.
+- `packages/api_spec`: versioned OpenAPI 3.1 contract and shared TypeScript types.
 - `turbo.json` and the root `package.json`: workspace task orchestration.
-- `docs`: architecture references.
+- `docs`: authoritative architecture and subsystem plans.
 
 Keep credentials in local environment files. Commit only safe placeholders such as `.env.example`.
