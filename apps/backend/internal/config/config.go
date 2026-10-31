@@ -89,6 +89,16 @@ func Load() *Config {
 		ghWebhookSecretPath = getEnv("OPENBAO_GITHUB_WEBHOOK_SECRET_PATH", "")
 	}
 
+	supabaseURL := strings.TrimRight(getEnv("SUPABASE_URL", getEnv("NEXT_PUBLIC_SUPABASE_URL", "")), "/")
+	supabaseJWKSURL := getEnv("SUPABASE_JWKS_URL", "")
+	if supabaseJWKSURL == "" && supabaseURL != "" {
+		supabaseJWKSURL = supabaseURL + "/auth/v1/.well-known/jwks.json"
+	}
+	supabaseJWTIssuer := getEnv("SUPABASE_JWT_ISSUER", "")
+	if supabaseJWTIssuer == "" && supabaseURL != "" {
+		supabaseJWTIssuer = supabaseURL + "/auth/v1"
+	}
+
 	return &Config{
 		// Core (preserved from original)
 		Host:           getEnv("HOST", ""),
@@ -103,10 +113,10 @@ func Load() *Config {
 		DatabaseURL: getEnv("DATABASE_URL", ""),
 
 		// Supabase Auth
-		SupabaseURL:         getEnv("SUPABASE_URL", ""),
-		SupabaseJWKSURL:     getEnv("SUPABASE_JWKS_URL", ""),
-		SupabaseJWTIssuer:   getEnv("SUPABASE_JWT_ISSUER", ""),
-		SupabaseJWTAudience: getEnv("SUPABASE_JWT_AUDIENCE", ""),
+		SupabaseURL:         supabaseURL,
+		SupabaseJWKSURL:     supabaseJWKSURL,
+		SupabaseJWTIssuer:   supabaseJWTIssuer,
+		SupabaseJWTAudience: getEnv("SUPABASE_JWT_AUDIENCE", "authenticated"),
 		SupabaseJWTSecret:   getEnv("SUPABASE_JWT_SECRET", ""),
 
 		// GitHub App

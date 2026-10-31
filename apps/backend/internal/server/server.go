@@ -31,6 +31,8 @@ type Server struct {
 	deps       Dependencies
 	httpServer *http.Server
 	startTime  time.Time
+	syncCancel context.CancelFunc
+	githubSvc  *githubapi.Service
 }
 
 // New initializes the HTTP server with route registration performed prior to Start.
@@ -51,9 +53,13 @@ func New(deps Dependencies) *Server {
 	mux.Handle("HEAD /api/v1/health", healthHandler)
 	mux.Handle("GET /health", healthHandler)
 	mux.Handle("HEAD /health", healthHandler)
+	// Keep the endpoint registered even when the database is unavailable so the
+	// profile-sync client receives a clear 503 instead of a misleading 404.
+	mux.Handle("POST /v1/auth/profile", auth.ProfileSyncHandler(deps.Verifier, deps.Pool))
 
+	var ghSvc *githubapi.Service
 	if deps.Pool != nil {
-		ghSvc := githubapi.NewService(githubapi.Config{
+		ghSvc = githubapi.NewService(githubapi.Config{
 			Pool:     deps.Pool,
 			GHClient: deps.GHClient,
 			AppCfg:   deps.Config,
@@ -88,6 +94,7 @@ func New(deps Dependencies) *Server {
 		deps:       deps,
 		httpServer: httpSrv,
 		startTime:  startTime,
+		githubSvc:  ghSvc,
 	}
 }
 
@@ -99,6 +106,15 @@ func (s *Server) Start() error {
 		"service", s.deps.Config.ServiceName,
 		"version", s.deps.Config.ServiceVersion,
 	)
+	if s.githubSvc != nil && s.deps.GHClient != nil {
+		syncCtx, cancel := context.WithCancel(context.Background())
+		s.syncCancel = cancel
+		go func() {
+			if _, err := s.githubSvc.SyncAllUserRepositories(syncCtx); err != nil {
+				s.deps.Logger.ErrorContext(syncCtx, "all-user GitHub repository sync failed", "error", err)
+			}
+		}()
+	}
 
 	if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		return fmt.Errorf("server error: %w", err)
@@ -109,6 +125,9 @@ func (s *Server) Start() error {
 // Shutdown gracefully terminates the HTTP server.
 func (s *Server) Shutdown(ctx context.Context) error {
 	s.deps.Logger.Info("shutting down backend service")
+	if s.syncCancel != nil {
+		s.syncCancel()
+	}
 	return s.httpServer.Shutdown(ctx)
 }
 

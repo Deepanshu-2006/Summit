@@ -249,6 +249,33 @@ func TestHandler_ListAndGetInstallations(t *testing.T) {
 	}
 }
 
+func TestHandler_ListServicesIsScopedToAuthenticatedUser(t *testing.T) {
+	f := setupHandlerFixture(t)
+	recOwner := doRequest(f.mux, http.MethodGet, "/v1/services", f.tokens[f.owner.ID], nil)
+	if recOwner.Code != http.StatusOK {
+		t.Fatalf("expected 200 for service owner, got %d: %s", recOwner.Code, recOwner.Body.String())
+	}
+	var ownerResponse githubapi.ListServicesResponse
+	if err := json.Unmarshal(recOwner.Body.Bytes(), &ownerResponse); err != nil {
+		t.Fatalf("decoding owner service response: %v", err)
+	}
+	if len(ownerResponse.Data) != 1 || ownerResponse.Data[0].ID != f.service.ID {
+		t.Fatalf("expected the owner's web service, got %+v", ownerResponse.Data)
+	}
+
+	recForeign := doRequest(f.mux, http.MethodGet, "/v1/services", f.tokens[f.foreign.ID], nil)
+	if recForeign.Code != http.StatusOK {
+		t.Fatalf("expected 200 for another user, got %d: %s", recForeign.Code, recForeign.Body.String())
+	}
+	var foreignResponse githubapi.ListServicesResponse
+	if err := json.Unmarshal(recForeign.Body.Bytes(), &foreignResponse); err != nil {
+		t.Fatalf("decoding foreign service response: %v", err)
+	}
+	if len(foreignResponse.Data) != 0 {
+		t.Fatalf("expected no services belonging to another user, got %+v", foreignResponse.Data)
+	}
+}
+
 func TestHandler_DisconnectInstallation(t *testing.T) {
 	f := setupHandlerFixture(t)
 	discPath := fmt.Sprintf("/v1/github/installations/%s", f.instUUID)

@@ -1,23 +1,23 @@
 import { Suspense } from "react";
 import { Metadata } from "next";
-import { InfrastructureCanvas } from "@/components/canvas/infrastructure-canvas";
+import { DashboardScreen } from "@/components/dashboard/dashboard-screen";
 
 export const metadata: Metadata = {
-  title: "Summit Infrastructure Canvas",
+  title: "New Project · Summit",
   description:
-    "Interactive node-based infrastructure canvas for building, configuring, and orchestrating cloud services on Summit.",
+    "Start building your cloud architecture on Summit from a GitHub repository, database, Docker image, or clean canvas.",
 };
 
-export default function NewProjectCanvasPage() {
+export default function NewProjectPage() {
   return (
     <Suspense
       fallback={
-        <div className="w-full h-screen bg-[#0C0B0A] flex items-center justify-center text-[#8E8C86] font-mono text-[13px]">
-          Loading canvas...
+        <div className="w-full h-screen bg-[#0A0A09] flex items-center justify-center text-[#8E8C86] font-mono text-[13px]">
+          Loading...
         </div>
       }
     >
-      <InfrastructureCanvas />
+      <DashboardScreen initialNewProject={true} />
     </Suspense>
   );
 }

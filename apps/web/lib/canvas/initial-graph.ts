@@ -3,7 +3,6 @@
  * Empty-canvas default, structured graph serialization, and node factory.
  */
 
-import type { Edge } from "@xyflow/react";
 import type {
   ProjectArchitecture,
   SummitNode,
@@ -106,7 +105,8 @@ export const SUPPORTED_RESOURCES: ResourceTemplate[] = [
  */
 export function createNodeByOptionId(
   optionId: string,
-  position: { x: number; y: number }
+  position: { x: number; y: number },
+  customData?: Record<string, unknown>
 ): SummitNode {
   const match = SUPPORTED_RESOURCES.find((r) => {
     if (optionId === "github" && r.type === "repository") return true;
@@ -118,7 +118,14 @@ export function createNodeByOptionId(
     return false;
   }) || SUPPORTED_RESOURCES[1]; // default to Application
 
-  return createNodeFromTemplate(match, position);
+  const node = createNodeFromTemplate(match, position);
+  if (customData) {
+    node.data = {
+      ...node.data,
+      ...customData,
+    };
+  }
+  return node;
 }
 
 /**
@@ -183,6 +190,14 @@ export function loadProjectArchitecture(projectId: string = "default"): ProjectA
 
     const parsed = JSON.parse(raw);
     if (!parsed || !Array.isArray(parsed.nodes)) {
+      return getEmptyArchitecture(projectId);
+    }
+
+    // If this is legacy pre-populated Meridian Studio demo data, purge it to guarantee empty canvas
+    if (parsed.name === "Meridian Studio") {
+      try {
+        localStorage.removeItem(`${LOCAL_STORAGE_KEY_PREFIX}${projectId}`);
+      } catch {}
       return getEmptyArchitecture(projectId);
     }
 

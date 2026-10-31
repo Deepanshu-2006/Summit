@@ -12,6 +12,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/summit/backend/internal/config"
 	"github.com/summit/backend/internal/db"
 )
 
@@ -19,6 +20,7 @@ func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
 	}))
+	config.LoadDevelopmentEnv(logger)
 
 	subcommand := "up"
 	if len(os.Args) > 1 {
