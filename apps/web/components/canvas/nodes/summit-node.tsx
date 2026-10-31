@@ -9,13 +9,15 @@ import {
   Layers,
   Cpu,
   GitBranch,
+  Box,
 } from "lucide-react";
 import type { SummitNode, NodeType } from "@/lib/canvas/types";
 
 /**
  * Maps service type to its canonical Lucide icon
  */
-function getServiceIcon(type: NodeType) {
+function getServiceIcon(type: NodeType, subType?: string) {
+  if (subType === "Docker Image") return Box;
   switch (type) {
     case "repository":
       return GitBranch;
@@ -41,7 +43,7 @@ export const SummitNodeComponent = memo(function SummitNodeComponent({
   data,
   selected,
 }: NodeProps<SummitNode>) {
-  const Icon = getServiceIcon(data.serviceType);
+  const Icon = getServiceIcon(data.serviceType, data.subType);
 
   return (
     <div

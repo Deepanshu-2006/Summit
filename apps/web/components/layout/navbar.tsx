@@ -2,10 +2,12 @@
 
 import React, { useState, useEffect, useRef, useId } from "react";
 import Link from "next/link";
-import { ChevronDown, Menu, X, ArrowRight } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ChevronDown, Menu, X, ArrowRight, LogOut, User as UserIcon } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { BRAND, NAV_DROPDOWNS, type NavDropdownItem } from "@/lib/brand";
 import { usePreloader } from "@/components/layout/preloader-context";
+import { useAuth } from "@/components/auth/auth-context";
 
 /**
  * Geometric Brand Logo Mark for Summit
@@ -134,7 +136,25 @@ interface MobileMenuProps {
 }
 
 function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
+  const { user, openAuthModal, signOut } = useAuth();
+  const router = useRouter();
   const [expandedSection, setExpandedSection] = useState<string | null>("product");
+
+  const handleSignIn = (e: React.MouseEvent) => {
+    e.preventDefault();
+    onClose();
+    openAuthModal({ mode: "signin" });
+  };
+
+  const handleGetStarted = (e: React.MouseEvent) => {
+    e.preventDefault();
+    onClose();
+    if (user) {
+      router.push(BRAND.links.workspace);
+    } else {
+      openAuthModal({ mode: "signup", redirectTo: BRAND.links.workspace });
+    }
+  };
 
   const toggleSection = (id: string) => {
     setExpandedSection((prev) => (prev === id ? null : id));
@@ -242,22 +262,36 @@ function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
 
           {/* Bottom Action Buttons */}
           <div className="grid grid-cols-2 gap-3 pt-4 border-t border-[#222220] mt-4">
-            <Link
-              href={BRAND.links.login}
-              onClick={onClose}
-              className="h-[40px] px-4 rounded-[7px] border border-[#3A3A38] bg-[#1E1E1C] hover:bg-[#282826] text-[#F5F5F3] text-[13px] font-medium flex items-center justify-center transition-colors"
-            >
-              Sign in
-            </Link>
+            {user ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  signOut();
+                }}
+                className="h-[40px] px-4 rounded-[7px] border border-[#3A3A38] bg-[#1E1E1C] hover:bg-[#282826] text-[#D77D7D] text-[13px] font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Sign out</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleSignIn}
+                className="h-[40px] px-4 rounded-[7px] border border-[#3A3A38] bg-[#1E1E1C] hover:bg-[#282826] text-[#F5F5F3] text-[13px] font-medium flex items-center justify-center transition-colors cursor-pointer"
+              >
+                Sign in
+              </button>
+            )}
 
-            <Link
-              href={BRAND.links.signup}
-              onClick={onClose}
-              className="h-[40px] px-4 rounded-[7px] bg-[#D88762] hover:bg-[#E39A76] text-[#111111] text-[13px] font-semibold flex items-center justify-center gap-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] transition-colors"
+            <button
+              type="button"
+              onClick={handleGetStarted}
+              className="h-[40px] px-4 rounded-[7px] bg-[#D88762] hover:bg-[#E39A76] text-[#111111] text-[13px] font-semibold flex items-center justify-center gap-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] transition-colors cursor-pointer"
             >
               <span>Get started</span>
               <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
+            </button>
           </div>
         </motion.div>
       )}
@@ -271,12 +305,47 @@ function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
  */
 export function Navbar() {
   const { isComplete, isHeroActive } = usePreloader();
+  const { user, openAuthModal, signOut } = useAuth();
+  const router = useRouter();
+
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const navContainerRef = useRef<HTMLElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const baseId = useId();
+
+  const handleSignIn = (e: React.MouseEvent) => {
+    e.preventDefault();
+    openAuthModal({ mode: "signin" });
+  };
+
+  const handleGetStarted = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (user) {
+      router.push(BRAND.links.workspace);
+    } else {
+      openAuthModal({ mode: "signup", redirectTo: BRAND.links.workspace });
+    }
+  };
+
+  // Close user dropdown on click outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        userMenuRef.current &&
+        !userMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsUserMenuOpen(false);
+      }
+    }
+    if (isUserMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [isUserMenuOpen]);
 
   // Scroll detection for navbar background transition
   useEffect(() => {
@@ -451,22 +520,67 @@ export function Navbar() {
             Docs
           </Link>
 
-          {/* Prominent, Clearly Visible Sign In Button */}
-          <Link
-            href={BRAND.links.login}
-            className="inline-flex items-center justify-center h-[38px] px-4 rounded-[7px] bg-[#1E1E1C]/85 hover:bg-[#282826] border border-[#3A3A38] hover:border-[#52524D] text-[#F5F5F3] hover:text-white text-[13px] font-medium transition-all duration-150 shadow-sm focus-visible:outline-2 focus-visible:outline-accent-orange"
-          >
-            Sign in
-          </Link>
+          {/* User Profile or Sign In Button */}
+          {user ? (
+            <div className="relative" ref={userMenuRef}>
+              <button
+                type="button"
+                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                className="inline-flex items-center gap-2 h-[38px] px-3 rounded-[7px] bg-[#1E1E1C]/85 hover:bg-[#282826] border border-[#3A3A38] text-[12.5px] font-mono text-[#FAF8F5] transition-colors cursor-pointer"
+              >
+                <div className="w-5 h-5 rounded-full bg-accent-orange/20 text-accent-orange text-[10px] flex items-center justify-center font-bold">
+                  {user.email?.charAt(0).toUpperCase() || "U"}
+                </div>
+                <span className="max-w-[110px] truncate">{user.email?.split("@")[0]}</span>
+                <ChevronDown className="w-3 h-3 text-[#8E8C86]" />
+              </button>
+
+              {isUserMenuOpen && (
+                <div className="absolute right-0 mt-1.5 w-44 bg-[#141413] border border-[#282826] rounded-[8px] shadow-xl py-1 z-50 animate-in fade-in duration-100">
+                  <div className="px-3 py-1.5 border-b border-[#222220]">
+                    <p className="font-mono text-[10px] text-[#70706C] truncate">Signed in as</p>
+                    <p className="font-mono text-[11px] text-[#FAF8F5] truncate">{user.email}</p>
+                  </div>
+                  <Link
+                    href={BRAND.links.workspace}
+                    onClick={() => setIsUserMenuOpen(false)}
+                    className="block px-3 py-1.5 text-[12px] font-sans text-[#FAF8F5] hover:bg-[#1E1E1C]"
+                  >
+                    Open Workspace
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      signOut();
+                    }}
+                    className="w-full text-left px-3 py-1.5 text-[12px] font-sans text-[#D77D7D] hover:bg-[#1E1E1C] flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <LogOut className="w-3 h-3" />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={handleSignIn}
+              className="inline-flex items-center justify-center h-[38px] px-4 rounded-[7px] bg-[#1E1E1C]/85 hover:bg-[#282826] border border-[#3A3A38] hover:border-[#52524D] text-[#F5F5F3] hover:text-white text-[13px] font-medium transition-all duration-150 shadow-sm focus-visible:outline-2 focus-visible:outline-accent-orange cursor-pointer"
+            >
+              Sign in
+            </button>
+          )}
 
           {/* Primary CTA Button */}
-          <Link
-            href={BRAND.links.signup}
-            className="group inline-flex items-center justify-center gap-1.5 h-[38px] px-4 rounded-[7px] bg-[#D88762] hover:bg-[#E39A76] text-[#111111] text-[13px] font-semibold transition-all duration-[150ms] shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] focus-visible:outline-2 focus-visible:outline-accent-orange focus-visible:outline-offset-2"
+          <button
+            type="button"
+            onClick={handleGetStarted}
+            className="group inline-flex items-center justify-center gap-1.5 h-[38px] px-4 rounded-[7px] bg-[#D88762] hover:bg-[#E39A76] text-[#111111] text-[13px] font-semibold transition-all duration-[150ms] shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] focus-visible:outline-2 focus-visible:outline-accent-orange focus-visible:outline-offset-2 cursor-pointer"
           >
             <span>Get started</span>
             <ArrowRight className="w-3.5 h-3.5 transition-transform duration-150 group-hover:translate-x-0.5" />
-          </Link>
+          </button>
         </div>
 
         {/* =============================================================
@@ -474,20 +588,32 @@ export function Navbar() {
             ============================================================= */}
         <div className="flex lg:hidden items-center gap-2.5">
           {/* Visible Sign In on tablets (>= 640px) */}
-          <Link
-            href={BRAND.links.login}
-            className="hidden sm:inline-flex items-center justify-center h-[36px] px-3.5 rounded-[7px] border border-[#3A3A38] bg-[#1E1E1C]/85 hover:bg-[#282826] text-[#F5F5F3] hover:text-white text-[12.5px] font-medium transition-colors"
-          >
-            Sign in
-          </Link>
+          {user ? (
+            <button
+              type="button"
+              onClick={() => signOut()}
+              className="hidden sm:inline-flex items-center justify-center h-[36px] px-3.5 rounded-[7px] border border-[#3A3A38] bg-[#1E1E1C]/85 hover:bg-[#282826] text-[#D77D7D] text-[12px] font-medium transition-colors cursor-pointer"
+            >
+              Sign out
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleSignIn}
+              className="hidden sm:inline-flex items-center justify-center h-[36px] px-3.5 rounded-[7px] border border-[#3A3A38] bg-[#1E1E1C]/85 hover:bg-[#282826] text-[#F5F5F3] hover:text-white text-[12.5px] font-medium transition-colors cursor-pointer"
+            >
+              Sign in
+            </button>
+          )}
 
           {/* Primary CTA on tablets */}
-          <Link
-            href={BRAND.links.signup}
-            className="inline-flex items-center justify-center h-[36px] px-3.5 rounded-[7px] bg-[#D88762] hover:bg-[#E39A76] text-[#111111] text-[12.5px] font-semibold transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.22)]"
+          <button
+            type="button"
+            onClick={handleGetStarted}
+            className="inline-flex items-center justify-center h-[36px] px-3.5 rounded-[7px] bg-[#D88762] hover:bg-[#E39A76] text-[#111111] text-[12.5px] font-semibold transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] cursor-pointer"
           >
             Get started
-          </Link>
+          </button>
 
           {/* Mobile Menu Toggle Button */}
           <button

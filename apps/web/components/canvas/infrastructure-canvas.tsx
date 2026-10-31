@@ -16,7 +16,6 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import {
-  Plus,
   ZoomIn,
   ZoomOut,
   Maximize2,
@@ -25,20 +24,20 @@ import {
 import { SummitNodeComponent } from "./nodes/summit-node";
 import { SummitEdgeComponent } from "./edges/summit-edge";
 import { CanvasTopBar } from "./top-bar";
-import { NodeSelectorDialog } from "./node-selector-dialog";
+import { BottomNodeSelector } from "./bottom-node-selector";
 import { ConfigInspector } from "./config-inspector";
 import { DeploymentDialog } from "./deployment-dialog";
+import { useAuth } from "@/components/auth/auth-context";
 import {
   loadProjectArchitecture,
   saveProjectArchitecture,
-  createNodeFromTemplate,
+  createNodeByOptionId,
 } from "@/lib/canvas/initial-graph";
 import type {
   SummitNode,
   SummitNodeData,
   Environment,
   ProjectArchitecture,
-  ResourceTemplate,
 } from "@/lib/canvas/types";
 
 // Registered custom node & edge definitions
@@ -50,7 +49,11 @@ const edgeTypes = {
   default: SummitEdgeComponent,
 };
 
-function CanvasContent({ projectId: initialProjectId = "default" }: { projectId?: string }) {
+function CanvasContent({
+  projectId: initialProjectId = "default",
+}: {
+  projectId?: string;
+}) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition, fitView, zoomIn, zoomOut } = useReactFlow();
 
@@ -59,13 +62,26 @@ function CanvasContent({ projectId: initialProjectId = "default" }: { projectId?
   const [environment, setEnvironment] = useState<Environment>("production");
   const [isSaving, setIsSaving] = useState(false);
 
+  // Authentication check
+  const { user, isLoading: isAuthLoading, openAuthModal } = useAuth();
+  const hasPromptedAuth = useRef(false);
+
+  useEffect(() => {
+    if (!isAuthLoading && !user && !hasPromptedAuth.current) {
+      hasPromptedAuth.current = true;
+      openAuthModal({
+        mode: "signin",
+        redirectTo: typeof window !== "undefined" ? window.location.pathname : "/dashboard/project/new",
+      });
+    }
+  }, [user, isAuthLoading, openAuthModal]);
+
   // Core Graph State (starts empty by default!)
   const [nodes, setNodes, onNodesChange] = useNodesState<SummitNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
   // Modals & Panels
-  const [isNodeSelectorOpen, setIsNodeSelectorOpen] = useState(false);
   const [isDeployModalOpen, setIsDeployModalOpen] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string>("");
 
@@ -113,7 +129,7 @@ function CanvasContent({ projectId: initialProjectId = "default" }: { projectId?
     };
   }, [projectId, projectName, environment, nodes, edges]);
 
-  // Handle Edge connection from source to target handle
+  // Handle Edge connection from source to target handle (manual only!)
   const onConnect: OnConnect = useCallback(
     (params: Connection) => {
       // Disallow self-connections
@@ -196,32 +212,28 @@ function CanvasContent({ projectId: initialProjectId = "default" }: { projectId?
     [setNodes, setEdges]
   );
 
-  // Add node from Node Selector (placed cleanly in center of viewport)
-  const handleAddNodeFromTemplate = useCallback(
-    (template: ResourceTemplate) => {
+  // Add node from Bottom Floating Selector
+  const handleSelectBottomOption = useCallback(
+    (optionId: string) => {
       let position = { x: 300, y: 200 };
 
       if (reactFlowWrapper.current) {
         const rect = reactFlowWrapper.current.getBoundingClientRect();
-        // Screen center converted to flow coordinates
         const center = screenToFlowPosition({
           x: rect.left + rect.width / 2,
           y: rect.top + rect.height / 2,
         });
 
-        // Smart stagger if a node is already at this exact position
-        const collision = nodes.some(
-          (n) => Math.hypot(n.position.x - center.x, n.position.y - center.y) < 60
-        );
-
-        position = collision
-          ? { x: center.x + (nodes.length % 5) * 35, y: center.y + (nodes.length % 5) * 35 }
-          : { x: center.x - 100, y: center.y - 30 };
+        // Slight offset so multiple consecutive nodes don't stack directly
+        const offset = (nodes.length % 6) * 36;
+        position = {
+          x: center.x - 100 + offset,
+          y: center.y - 35 + offset,
+        };
       }
 
-      const newNode = createNodeFromTemplate(template, position);
+      const newNode = createNodeByOptionId(optionId, position);
       setNodes((nds) => [...nds, newNode]);
-      setIsNodeSelectorOpen(false);
       setSelectedNodeId(newNode.id);
     },
     [nodes, screenToFlowPosition, setNodes]
@@ -230,7 +242,6 @@ function CanvasContent({ projectId: initialProjectId = "default" }: { projectId?
   // Global Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't intercept if user is typing in an input or textarea
       const target = e.target as HTMLElement;
       if (
         target.tagName === "INPUT" ||
@@ -240,20 +251,13 @@ function CanvasContent({ projectId: initialProjectId = "default" }: { projectId?
         return;
       }
 
-      // 'A' or '+' opens Node Selector
-      if (e.key === "a" || e.key === "A" || e.key === "+") {
-        e.preventDefault();
-        setIsNodeSelectorOpen(true);
-      }
-
       // Escape deselects and closes panels
       if (e.key === "Escape") {
         setSelectedNodeId(null);
-        setIsNodeSelectorOpen(false);
         setIsDeployModalOpen(false);
       }
 
-      // Delete or Backspace deletes selected node or edge
+      // Delete or Backspace deletes selected node
       if (e.key === "Backspace" || e.key === "Delete") {
         if (selectedNodeId) {
           e.preventDefault();
@@ -282,7 +286,6 @@ function CanvasContent({ projectId: initialProjectId = "default" }: { projectId?
         environment={environment}
         onChangeEnvironment={setEnvironment}
         isSaving={isSaving}
-        onOpenNodeSelector={() => setIsNodeSelectorOpen(true)}
         onDeploy={() => setIsDeployModalOpen(true)}
       />
 
@@ -313,37 +316,20 @@ function CanvasContent({ projectId: initialProjectId = "default" }: { projectId?
           />
         </ReactFlow>
 
-        {/* Empty Canvas State: "Start with a node" */}
+        {/* Empty Canvas Hint: "Add a node to get started" */}
         {nodes.length === 0 && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none z-10 animate-in fade-in duration-200">
-            <p className="text-[14px] font-sans text-[#70706C] tracking-[-0.01em]">
-              Start with a node
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-10 animate-in fade-in duration-200">
+            <p className="text-[13px] font-sans text-[#70706C] tracking-[-0.01em]">
+              Add a node to get started
             </p>
-            <button
-              type="button"
-              onClick={() => setIsNodeSelectorOpen(true)}
-              className="mt-3.5 pointer-events-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] bg-[#161615] hover:bg-[#1E1E1C] border border-[#282826] hover:border-[#3E3E3B] text-[12.5px] font-sans text-[#FAF8F5] transition-all shadow-lg group cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5 text-accent-orange group-hover:scale-110 transition-transform" />
-              <span>+ Add node</span>
-            </button>
           </div>
         )}
 
-        {/* Floating Minimal Controls (Bottom-Left) */}
-        <div className="absolute bottom-5 left-5 z-20 flex items-center gap-1 bg-[#121211]/90 backdrop-blur-sm border border-[#242422] rounded-[8px] p-1 shadow-xl">
-          <button
-            type="button"
-            onClick={() => setIsNodeSelectorOpen(true)}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-[5px] text-[12px] font-sans text-[#D1CFCA] hover:text-[#FAF8F5] hover:bg-[#1E1E1C] transition-colors"
-            title="Add Node (A)"
-          >
-            <Plus className="w-3.5 h-3.5 text-accent-orange" />
-            <span className="hidden sm:inline">Add node</span>
-          </button>
+        {/* Primary Bottom Floating Node Selector */}
+        <BottomNodeSelector onSelectOption={handleSelectBottomOption} />
 
-          <div className="w-px h-4 bg-[#262624] mx-0.5" />
-
+        {/* Minimal Floating Zoom Controls (Bottom-Right) */}
+        <div className="absolute bottom-6 right-6 z-20 flex items-center gap-1 bg-[#121211]/90 backdrop-blur-sm border border-[#242422] rounded-[8px] p-1 shadow-xl">
           <button
             type="button"
             onClick={() => zoomIn({ duration: 250 })}
@@ -362,11 +348,13 @@ function CanvasContent({ projectId: initialProjectId = "default" }: { projectId?
             <ZoomOut className="w-3.5 h-3.5" />
           </button>
 
+          <div className="w-px h-3.5 bg-[#262624] mx-0.5" />
+
           <button
             type="button"
             onClick={() => fitView({ padding: 0.25, duration: 400 })}
             className="w-7 h-7 flex items-center justify-center rounded-[5px] text-[#8E8C86] hover:text-[#FAF8F5] hover:bg-[#1E1E1C] transition-colors"
-            title="Fit to View"
+            title="Fit View"
           >
             <Maximize2 className="w-3.5 h-3.5" />
           </button>
@@ -380,13 +368,6 @@ function CanvasContent({ projectId: initialProjectId = "default" }: { projectId?
           onDeleteNode={handleDeleteNode}
         />
       </div>
-
-      {/* Floating Node Selector Dialog */}
-      <NodeSelectorDialog
-        isOpen={isNodeSelectorOpen}
-        onClose={() => setIsNodeSelectorOpen(false)}
-        onSelect={handleAddNodeFromTemplate}
-      />
 
       {/* Honest Deployment Dialog */}
       <DeploymentDialog
@@ -405,7 +386,11 @@ function CanvasContent({ projectId: initialProjectId = "default" }: { projectId?
   );
 }
 
-export function InfrastructureCanvas({ projectId = "default" }: { projectId?: string }) {
+export function InfrastructureCanvas({
+  projectId = "default",
+}: {
+  projectId?: string;
+}) {
   return (
     <ReactFlowProvider>
       <CanvasContent projectId={projectId} />

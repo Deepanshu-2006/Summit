@@ -13,63 +13,40 @@ import type {
 export const LOCAL_STORAGE_KEY_PREFIX = "summit:architecture:project:";
 
 /**
- * Supported Resource Templates for the Node Selector
+ * Supported Resource Templates for the Node Selector & Bottom Bar
  */
 export const SUPPORTED_RESOURCES: ResourceTemplate[] = [
-  // Compute
   {
-    category: "Compute",
-    type: "application",
-    subType: "Web Application",
-    defaultLabel: "web-app",
-    description: "Next.js, React, or static frontend application",
-    icon: "layout",
+    category: "Source",
+    type: "repository",
+    subType: "GitHub Repository",
+    defaultLabel: "github-repo",
+    description: "GitHub source repository and branch tracking",
+    icon: "git-branch",
     defaultConfig: {
-      rootDir: "apps/web",
-      buildCommand: "pnpm build",
-      startCommand: "pnpm start",
-      envVars: [
-        { id: "ev_1", key: "NODE_ENV", value: "production" },
-      ],
-    },
-  },
-  {
-    category: "Compute",
-    type: "application",
-    subType: "API Service",
-    defaultLabel: "api-service",
-    description: "Go, Node.js, or Python backend HTTP service",
-    icon: "server",
-    defaultConfig: {
-      rootDir: "apps/api",
-      buildCommand: "go build -o bin/api ./cmd/api",
-      startCommand: "./bin/api",
-      port: 8080,
-      envVars: [
-        { id: "ev_1", key: "PORT", value: "8080" },
-      ],
-    },
-  },
-  {
-    category: "Compute",
-    type: "worker",
-    subType: "Background Worker",
-    defaultLabel: "queue-worker",
-    description: "Asynchronous task or queue processor",
-    icon: "cpu",
-    defaultConfig: {
-      rootDir: "apps/worker",
-      buildCommand: "go build -o bin/worker ./cmd/worker",
-      startCommand: "./bin/worker",
+      repoUrl: "https://github.com/org/repo",
+      branch: "main",
       envVars: [],
     },
   },
-
-  // Data
+  {
+    category: "Compute",
+    type: "application",
+    subType: "Application",
+    defaultLabel: "web-app",
+    description: "Next.js, Go API, or web service application",
+    icon: "layout",
+    defaultConfig: {
+      rootDir: ".",
+      buildCommand: "pnpm build",
+      startCommand: "pnpm start",
+      envVars: [{ id: "ev_1", key: "NODE_ENV", value: "production" }],
+    },
+  },
   {
     category: "Data",
     type: "database",
-    subType: "PostgreSQL",
+    subType: "Database",
     defaultLabel: "postgres-db",
     description: "PostgreSQL 16 relational database cluster",
     icon: "database",
@@ -82,24 +59,36 @@ export const SUPPORTED_RESOURCES: ResourceTemplate[] = [
     },
   },
   {
-    category: "Data",
-    type: "database",
-    subType: "MySQL",
-    defaultLabel: "mysql-db",
-    description: "MySQL 8.4 relational database instance",
-    icon: "database",
+    category: "Compute",
+    type: "application",
+    subType: "Docker Image",
+    defaultLabel: "docker-service",
+    description: "Containerized service deployed from Docker registry",
+    icon: "server",
     defaultConfig: {
-      databaseEngine: "mysql",
-      databaseName: "app_db",
-      port: 3306,
-      connectionString: "mysql://root:***@localhost:3306/app_db",
+      port: 80,
+      startCommand: "docker run -p 80:80 nginx:alpine",
+      envVars: [],
+    },
+  },
+  {
+    category: "Compute",
+    type: "worker",
+    subType: "Worker",
+    defaultLabel: "queue-worker",
+    description: "Asynchronous task or queue processor",
+    icon: "cpu",
+    defaultConfig: {
+      rootDir: "worker",
+      buildCommand: "go build -o bin/worker ./cmd/worker",
+      startCommand: "./bin/worker",
       envVars: [],
     },
   },
   {
     category: "Data",
     type: "cache",
-    subType: "Redis",
+    subType: "Cache",
     defaultLabel: "redis-cache",
     description: "Redis 7.2 in-memory cache and key-value store",
     icon: "layers",
@@ -110,22 +99,27 @@ export const SUPPORTED_RESOURCES: ResourceTemplate[] = [
       envVars: [],
     },
   },
-
-  // Source
-  {
-    category: "Source",
-    type: "repository",
-    subType: "GitHub Repository",
-    defaultLabel: "github-repo",
-    description: "Source code repository and branch tracking",
-    icon: "git-branch",
-    defaultConfig: {
-      repoUrl: "https://github.com/org/repo",
-      branch: "main",
-      envVars: [],
-    },
-  },
 ];
+
+/**
+ * Creates a node directly from a bottom-bar option id
+ */
+export function createNodeByOptionId(
+  optionId: string,
+  position: { x: number; y: number }
+): SummitNode {
+  const match = SUPPORTED_RESOURCES.find((r) => {
+    if (optionId === "github" && r.type === "repository") return true;
+    if (optionId === "application" && r.subType === "Application") return true;
+    if (optionId === "database" && r.subType === "Database") return true;
+    if (optionId === "docker" && r.subType === "Docker Image") return true;
+    if (optionId === "worker" && r.subType === "Worker") return true;
+    if (optionId === "cache" && r.subType === "Cache") return true;
+    return false;
+  }) || SUPPORTED_RESOURCES[1]; // default to Application
+
+  return createNodeFromTemplate(match, position);
+}
 
 /**
  * Generates a clean, unique node ID

@@ -3,6 +3,8 @@ import { Space_Grotesk, Geist_Mono } from "next/font/google";
 import { BRAND } from "@/lib/brand";
 import { SmoothScrollProvider } from "@/components/layout/smooth-scroll-provider";
 import { PreloaderProvider } from "@/components/layout/preloader-context";
+import { AuthProvider } from "@/components/auth/auth-context";
+import { AuthModal } from "@/components/auth/auth-modal";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -45,7 +47,10 @@ export default function RootLayout({
       <body className="min-h-screen bg-bg-main text-text-primary font-sans antialiased selection:bg-accent-orange/25 selection:text-text-primary">
         <SmoothScrollProvider>
           <PreloaderProvider>
-            {children}
+            <AuthProvider>
+              {children}
+              <AuthModal />
+            </AuthProvider>
           </PreloaderProvider>
         </SmoothScrollProvider>
       </body>

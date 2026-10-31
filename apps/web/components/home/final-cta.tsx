@@ -3,7 +3,9 @@
 import React, { useRef, useEffect, useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { BRAND } from "@/lib/brand";
+import { useAuth } from "@/components/auth/auth-context";
 
 // Reduced Motion Subscription helper
 function subscribeReducedMotion(callback: () => void) {
@@ -44,6 +46,9 @@ const TOTAL_HEADLINE_CHARS = HEADLINE_LINES.reduce(
  * 5. Stage 4: Settled plateau where the complete scene remains stable and interactive
  */
 export function FinalCta() {
+  const { user, openAuthModal } = useAuth();
+  const router = useRouter();
+
   const sectionRef = useRef<HTMLElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
 
@@ -531,9 +536,17 @@ export function FinalCta() {
               style={{ opacity: 0 }}
             >
               {/* Primary Action: Start building */}
-              <Link
-                href={BRAND.links.workspace}
-                className="inline-flex items-center justify-between sm:justify-center gap-3.5 h-[50px] sm:h-[52px] px-7 sm:px-8 rounded-[6px] bg-accent-orange hover:bg-accent-orange-hover text-[#121110] text-[15px] font-medium tracking-[-0.01em] transition-all duration-200 shadow-sm shadow-accent-orange/15 hover:shadow-accent-orange/25 active:translate-y-0 w-full sm:w-auto group"
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (user) {
+                    router.push(BRAND.links.workspace);
+                  } else {
+                    openAuthModal({ mode: "signup", redirectTo: BRAND.links.workspace });
+                  }
+                }}
+                className="inline-flex items-center justify-between sm:justify-center gap-3.5 h-[50px] sm:h-[52px] px-7 sm:px-8 rounded-[6px] bg-accent-orange hover:bg-accent-orange-hover text-[#121110] text-[15px] font-medium tracking-[-0.01em] transition-all duration-200 shadow-sm shadow-accent-orange/15 hover:shadow-accent-orange/25 active:translate-y-0 w-full sm:w-auto group cursor-pointer"
               >
                 <span>Start building</span>
                 <span
@@ -542,7 +555,7 @@ export function FinalCta() {
                 >
                   ↗
                 </span>
-              </Link>
+              </button>
 
               {/* Secondary Action: Explore the repository */}
               <Link

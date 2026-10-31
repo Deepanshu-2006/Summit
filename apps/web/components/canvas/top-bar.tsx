@@ -2,8 +2,9 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { ChevronDown, Check, Plus } from "lucide-react";
+import { ChevronDown, Check, Plus, LogOut, User as UserIcon } from "lucide-react";
 import { SummitLogo } from "@/components/layout/navbar";
+import { useAuth } from "@/components/auth/auth-context";
 import type { Environment } from "@/lib/canvas/types";
 
 interface CanvasTopBarProps {
@@ -12,7 +13,6 @@ interface CanvasTopBarProps {
   environment: Environment;
   onChangeEnvironment: (env: Environment) => void;
   isSaving: boolean;
-  onOpenNodeSelector: () => void;
   onDeploy: () => void;
 }
 
@@ -22,14 +22,16 @@ export function CanvasTopBar({
   environment,
   onChangeEnvironment,
   isSaving,
-  onOpenNodeSelector,
   onDeploy,
 }: CanvasTopBarProps) {
+  const { user, signOut, openAuthModal } = useAuth();
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempName, setTempName] = useState(projectName);
   const [isEnvMenuOpen, setIsEnvMenuOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const envDropdownRef = useRef<HTMLDivElement>(null);
+  const userDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setTempName(projectName);
@@ -42,7 +44,7 @@ export function CanvasTopBar({
     }
   }, [isEditingName]);
 
-  // Click outside listener for environment dropdown
+  // Click outside listener for environment and user dropdowns
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -50,6 +52,12 @@ export function CanvasTopBar({
         !envDropdownRef.current.contains(event.target as Node)
       ) {
         setIsEnvMenuOpen(false);
+      }
+      if (
+        userDropdownRef.current &&
+        !userDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsUserMenuOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -118,19 +126,8 @@ export function CanvasTopBar({
         </div>
       </div>
 
-      {/* Right: Actions, Environment, Save Status, Deploy */}
+      {/* Right: Environment, Save Status, Deploy */}
       <div className="flex items-center gap-3">
-        {/* Add Node Action Button */}
-        <button
-          type="button"
-          onClick={onOpenNodeSelector}
-          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[6px] bg-[#181817] hover:bg-[#20201E] border border-[#2A2A28] text-[12px] font-sans text-[#FAF8F5] transition-colors"
-          title="Add resource node (Press A)"
-        >
-          <Plus className="w-3.5 h-3.5 text-accent-orange" />
-          <span>Add node</span>
-        </button>
-
         {/* Environment Selector Dropdown */}
         <div className="relative" ref={envDropdownRef}>
           <button
@@ -188,6 +185,50 @@ export function CanvasTopBar({
         >
           <span>Deploy</span>
         </button>
+
+        {/* User Account Controls */}
+        <div className="relative pl-2 border-l border-[#262624]" ref={userDropdownRef}>
+          {user ? (
+            <div>
+              <button
+                type="button"
+                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                className="w-7 h-7 rounded-full bg-[#20201D] border border-[#2E2E2B] hover:border-accent-orange/60 flex items-center justify-center text-[12px] font-mono text-[#FAF8F5] transition-all"
+                title={user.email ?? "Account"}
+              >
+                {user.email ? user.email.charAt(0).toUpperCase() : <UserIcon className="w-3.5 h-3.5 text-[#8E8C86]" />}
+              </button>
+
+              {isUserMenuOpen && (
+                <div className="absolute right-0 mt-2 w-52 bg-[#141413] border border-[#282826] rounded-[6px] shadow-2xl py-1.5 z-50 animate-in fade-in duration-100">
+                  <div className="px-3 py-2 border-b border-[#222220]">
+                    <div className="text-[11px] font-mono text-[#8E8C86] uppercase tracking-wider">Signed in as</div>
+                    <div className="text-[12px] font-mono text-[#FAF8F5] truncate mt-0.5">{user.email}</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setIsUserMenuOpen(false);
+                      await signOut();
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-left text-[12px] font-mono text-[#E06C75] hover:bg-[#1A1A18] transition-colors"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Sign out</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => openAuthModal({ mode: "signin" })}
+              className="text-[12px] font-mono text-[#D1CFCA] hover:text-[#FAF8F5] px-2.5 py-1 rounded-[6px] hover:bg-[#1C1C1A] border border-[#262624] transition-colors"
+            >
+              Sign in
+            </button>
+          )}
+        </div>
       </div>
     </header>
   );
