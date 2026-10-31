@@ -15,7 +15,15 @@ import { SummitLogo } from "@/components/layout/navbar";
 import { DEMO_WORKSPACES } from "@/lib/dashboard/mock-data";
 import type { WorkspaceItem } from "@/lib/dashboard/types";
 
-export function DashboardTopNav() {
+interface DashboardTopNavProps {
+  isCreatingProject?: boolean;
+  onBackToProjects?: () => void;
+}
+
+export function DashboardTopNav({
+  isCreatingProject = false,
+  onBackToProjects,
+}: DashboardTopNavProps = {}) {
   const shouldReduceMotion = useReducedMotion();
   const [workspaces, setWorkspaces] = useState<WorkspaceItem[]>(DEMO_WORKSPACES);
   const [currentWorkspace, setCurrentWorkspace] = useState<WorkspaceItem>(
@@ -76,61 +84,99 @@ export function DashboardTopNav() {
 
         <span className="text-[#3A3834] text-[13px] font-mono select-none">/</span>
 
-        {/* Workspace Dropdown */}
-        <div className="relative" ref={wsDropdownRef}>
-          <button
-            type="button"
-            onClick={() => setIsWorkspaceMenuOpen(!isWorkspaceMenuOpen)}
-            className="flex items-center gap-1.5 px-2 py-1 rounded-[5px] text-[#A6A4A0] hover:text-[#FAF8F5] hover:bg-[#161615] text-[12.5px] font-mono transition-colors cursor-pointer"
-          >
-            <span>{currentWorkspace.name}</span>
-            <ChevronDown
-              className={`w-3 h-3 text-[#75736D] transition-transform duration-150 ${
-                isWorkspaceMenuOpen ? "rotate-180 text-[#FAF8F5]" : ""
-              }`}
-            />
-          </button>
-
-          <AnimatePresence>
-            {isWorkspaceMenuOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: -4, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -2, scale: 0.98 }}
-                transition={{ duration: 0.12, ease: "easeOut" }}
-                className="absolute left-0 mt-1.5 w-52 bg-[#141413] border border-[#242422] rounded-[8px] shadow-[0_12px_32px_rgba(0,0,0,0.85)] p-1 z-50 text-[12.5px] font-sans"
+        <AnimatePresence mode="wait">
+          {isCreatingProject ? (
+            <motion.div
+              key="nav-new-project-crumbs"
+              initial={{ opacity: 0, x: -6 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -6 }}
+              transition={{ duration: 0.18 }}
+              className="flex items-center gap-2.5"
+            >
+              <button
+                type="button"
+                onClick={onBackToProjects}
+                className="text-[#8E8C86] hover:text-[#FAF8F5] transition-colors text-[13px] font-sans cursor-pointer"
+                title="Back to Projects"
               >
-                <div className="px-2.5 py-1.5 text-[10.5px] font-mono uppercase tracking-wider text-[#666560]">
-                  Workspaces
-                </div>
-                <div className="space-y-0.5">
-                  {workspaces.map((ws) => (
+                Projects
+              </button>
+
+              <span className="text-[#3A3834] text-[13px] font-mono select-none">/</span>
+
+              <div className="flex items-center gap-1.5 px-1 py-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#E58B62]" />
+                <span className="font-mono text-[12px] text-[#A0A09C]">
+                  New project
+                </span>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="nav-workspace-crumbs"
+              initial={{ opacity: 0, x: 6 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 6 }}
+              transition={{ duration: 0.18 }}
+              className="relative"
+              ref={wsDropdownRef}
+            >
+              <button
+                type="button"
+                onClick={() => setIsWorkspaceMenuOpen(!isWorkspaceMenuOpen)}
+                className="flex items-center gap-1.5 px-2 py-1 rounded-[5px] text-[#A6A4A0] hover:text-[#FAF8F5] hover:bg-[#161615] text-[12.5px] font-mono transition-colors cursor-pointer"
+              >
+                <span>{currentWorkspace.name}</span>
+                <ChevronDown
+                  className={`w-3 h-3 text-[#75736D] transition-transform duration-150 ${
+                    isWorkspaceMenuOpen ? "rotate-180 text-[#FAF8F5]" : ""
+                  }`}
+                />
+              </button>
+
+              <AnimatePresence>
+                {isWorkspaceMenuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -2, scale: 0.98 }}
+                    transition={{ duration: 0.12, ease: "easeOut" }}
+                    className="absolute left-0 mt-1.5 w-52 bg-[#141413] border border-[#242422] rounded-[8px] shadow-[0_12px_32px_rgba(0,0,0,0.85)] p-1 z-50 text-[12.5px] font-sans"
+                  >
+                    <div className="px-2.5 py-1.5 text-[10.5px] font-mono uppercase tracking-wider text-[#666560]">
+                      Workspaces
+                    </div>
+                    <div className="space-y-0.5">
+                      {workspaces.map((ws) => (
+                        <button
+                          key={ws.id}
+                          type="button"
+                          onClick={() => handleSelectWorkspace(ws)}
+                          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[5px] text-left hover:bg-[#1C1C1A] transition-colors cursor-pointer"
+                        >
+                          <span className="text-[#FAF8F5] font-medium">{ws.name}</span>
+                          {ws.isCurrent && (
+                            <Check className="w-3.5 h-3.5 text-[#E58B62]" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="h-px bg-[#20201E] my-1" />
                     <button
-                      key={ws.id}
                       type="button"
-                      onClick={() => handleSelectWorkspace(ws)}
-                      className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[5px] text-left hover:bg-[#1C1C1A] transition-colors cursor-pointer"
+                      onClick={() => setIsWorkspaceMenuOpen(false)}
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-[5px] text-left text-[#8E8C86] hover:text-[#FAF8F5] hover:bg-[#1C1C1A] transition-colors cursor-pointer text-[12px]"
                     >
-                      <span className="text-[#FAF8F5] font-medium">{ws.name}</span>
-                      {ws.isCurrent && (
-                        <Check className="w-3.5 h-3.5 text-[#E58B62]" />
-                      )}
+                      <Plus className="w-3 h-3" />
+                      <span>Create workspace</span>
                     </button>
-                  ))}
-                </div>
-                <div className="h-px bg-[#20201E] my-1" />
-                <button
-                  type="button"
-                  onClick={() => setIsWorkspaceMenuOpen(false)}
-                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-[5px] text-left text-[#8E8C86] hover:text-[#FAF8F5] hover:bg-[#1C1C1A] transition-colors cursor-pointer text-[12px]"
-                >
-                  <Plus className="w-3 h-3" />
-                  <span>Create workspace</span>
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Right: Docs Link + User Profile */}

@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { Metadata } from "next";
-import { NewProjectScreen } from "@/components/project-new/new-project-screen";
+import { DashboardScreen } from "@/components/dashboard/dashboard-screen";
 
 export const metadata: Metadata = {
   title: "New Project · Summit",
@@ -12,12 +12,12 @@ export default function NewProjectPage() {
   return (
     <Suspense
       fallback={
-        <div className="w-full h-screen bg-[#0C0B0A] flex items-center justify-center text-[#8E8C86] font-mono text-[13px]">
+        <div className="w-full h-screen bg-[#0A0A09] flex items-center justify-center text-[#8E8C86] font-mono text-[13px]">
           Loading...
         </div>
       }
     >
-      <NewProjectScreen />
+      <DashboardScreen initialNewProject={true} />
     </Suspense>
   );
 }
