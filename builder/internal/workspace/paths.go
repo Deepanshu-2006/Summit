@@ -49,7 +49,7 @@ func (p *Paths) SpecFilePath() string {
 
 // RailpackPlanFilePath returns the path to the generated Railpack plan JSON file.
 func (p *Paths) RailpackPlanFilePath() string {
-	return filepath.Join(p.RailpackDir, "plan.json")
+	return filepath.Join(p.RailpackDir, "railpack-plan.json")
 }
 
 // ResolveAppSourceDir safely resolves the application source directory given a relative root directory.

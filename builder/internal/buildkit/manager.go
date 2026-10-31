@@ -145,13 +145,17 @@ func (m *Manager) WaitReady(ctx context.Context) error {
 func (m *Manager) Build(ctx context.Context, spec BuildKitBuildSpec, callback process.StreamCallback) (*BuildKitResult, error) {
 	var args []string
 	if spec.PlanPath != "" {
+		frontendImage := "ghcr.io/railwayapp/railpack-frontend:v0.43.0"
+		if envImg := os.Getenv("SUMMIT_RAILPACK_FRONTEND_IMAGE"); envImg != "" {
+			frontendImage = envImg
+		}
 		args = []string{
 			fmt.Sprintf("--addr=unix://%s", m.socketPath),
 			"build",
 			"--frontend=gateway.v0",
-			"--opt", "source=ghcr.io/railwayapp/railpack-frontend:v0.3.2",
+			fmt.Sprintf("--opt=source=%s", frontendImage),
 			"--local", fmt.Sprintf("context=%s", spec.AppDir),
-			"--local", fmt.Sprintf("railpack=%s", filepath.Dir(spec.PlanPath)),
+			"--local", fmt.Sprintf("dockerfile=%s", filepath.Dir(spec.PlanPath)),
 		}
 	} else {
 		dfName := "Dockerfile"
