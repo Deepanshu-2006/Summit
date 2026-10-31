@@ -10,8 +10,8 @@ export const BRAND = {
     home: "/",
     docs: "/docs",
     login: "/login",
-    signup: "/dashboard/project/new",
-    workspace: "/dashboard/project/new",
+    signup: "/dashboard",
+    workspace: "/dashboard",
     pricing: "/pricing",
   },
 } as const;

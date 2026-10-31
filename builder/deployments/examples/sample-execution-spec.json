@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "build": {
+    "id": "a5d09f7b-6c41-477e-8c31-1e967a5b3a4f",
+    "attempt_id": "f8c3e210-9b44-42f1-8f52-47d3412019aa",
+    "attempt_number": 1,
+    "correlation_id": "corr-build-a5d09f7b-trace-01"
+  },
+  "source": {
+    "provider": "github",
+    "repository": "summit-org/sample-service",
+    "clone_url": "https://github.com/summit-org/sample-service.git",
+    "branch": "main",
+    "commit_sha": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "root_directory": "/"
+  },
+  "build_config": {
+    "builder": "railpack",
+    "build_command": null,
+    "install_command": null,
+    "start_command": null,
+    "dockerfile_path": null,
+    "env_vars": {
+      "NODE_ENV": "production",
+      "PORT": "3000"
+    }
+  },
+  "credentials": {
+    "source_credential_ref": "source-token-github",
+    "registry_credential_ref": "registry-token-internal"
+  },
+  "output": {
+    "registry": "registry.jetway.internal:5000",
+    "repository": "apps/sample-service",
+    "tag": "v1.0.0",
+    "platforms": [
+      "linux/amd64"
+    ]
+  },
+  "resources": {
+    "cpu_millicores": 2000,
+    "memory_mib": 4096,
+    "ephemeral_storage_mib": 8192
+  },
+  "timeout_seconds": 1200,
+  "reporting": {
+    "endpoint": "http://rudra.summit.svc.cluster.local:8080/api/v1/builds",
+    "token_ref": "reporting-bearer-token-1234"
+  }
+}

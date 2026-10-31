@@ -35,10 +35,13 @@ export interface SummitNodeData extends Record<string, unknown> {
   rootDir?: string;
 
   // Database / Cache fields
-  databaseEngine?: "postgresql" | "mysql" | "redis";
+  databaseEngine?: "postgresql" | "mysql" | "redis" | "mongodb";
   databaseName?: string;
   port?: number;
   connectionString?: string;
+  region?: string;
+  memorySize?: string;
+  username?: string;
 
   // Environment variables
   envVars?: EnvironmentVariable[];

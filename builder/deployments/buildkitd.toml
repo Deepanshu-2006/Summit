@@ -1,0 +1,22 @@
+# BuildKit daemon rootless configuration
+# Compatible with unprivileged gVisor sandbox / UID 1000
+
+root = "/run/buildkit"
+
+[grpc]
+  address = ["unix:///run/buildkit/buildkitd.sock"]
+  uid = 1000
+  gid = 1000
+
+[worker.oci]
+  enabled = true
+  rootless = true
+  platforms = ["linux/amd64"]
+  snapshotter = "native"
+
+[worker.containerd]
+  enabled = false
+
+[registry."registry.jetway.internal:5000"]
+  http = true
+  insecure = true

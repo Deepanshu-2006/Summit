@@ -174,6 +174,11 @@ body {
   outline-offset: 2px;
 }
 
+input:focus-visible,
+textarea:focus-visible {
+  outline: none;
+}
+
 /* Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -506,5 +511,48 @@ body {
   100% {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Summit Infrastructure Canvas — Connection & Handle Polish
+   ------------------------------------------------------------------------- */
+.react-flow__handle {
+  transition: transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+/* When dragging a connection, reveal all target handles across all nodes */
+.react-flow.react-flow__connection-connecting .react-flow__handle-target span,
+.react-flow__pane.react-flow__container-connecting .react-flow__handle-target span {
+  opacity: 1 !important;
+  border-color: #D88762 !important;
+  background-color: #241A15 !important;
+  box-shadow: 0 0 0 3px rgba(216, 135, 98, 0.18);
+}
+
+/* While handle is the active source of an outgoing connection */
+.react-flow__handle-connecting span {
+  background-color: #D88762 !important;
+  border-color: #FAF8F5 !important;
+  transform: scale(1.25);
+  box-shadow: 0 0 0 4px rgba(216, 135, 98, 0.25);
+}
+
+/* When hovering over a valid target handle while connecting */
+.react-flow__handle-valid span {
+  background-color: #D88762 !important;
+  border-color: #FAF8F5 !important;
+  transform: scale(1.35);
+  box-shadow: 0 0 0 5px rgba(216, 135, 98, 0.35);
+}
+
+/* -------------------------------------------------------------------------
+   Summit 1.5–2s Connection Sequence Polish & Reduced Motion
+   ------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .react-flow__handle,
+  .react-flow__handle span {
+    animation: none !important;
+    transition: none !important;
   }
 }

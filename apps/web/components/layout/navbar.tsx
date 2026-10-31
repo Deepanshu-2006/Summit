@@ -324,11 +324,8 @@ export function Navbar() {
 
   const handleGetStarted = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (user) {
-      router.push(BRAND.links.workspace);
-    } else {
-      openAuthModal({ mode: "signup", redirectTo: BRAND.links.workspace });
-    }
+    setIsMobileOpen(false);
+    router.push(BRAND.links.workspace);
   };
 
   // Close user dropdown on click outside

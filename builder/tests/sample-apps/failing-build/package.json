@@ -1,0 +1,10 @@
+{
+  "name": "failing-build-sample",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "exit 1"
+  },
+  "dependencies": {
+    "nonexistent-package-summit-fail-12345": "99.99.99"
+  }
+}
