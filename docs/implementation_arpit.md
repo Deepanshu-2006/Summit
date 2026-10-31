@@ -1,8 +1,8 @@
 # Platform Database Implementation Plan: Supabase Postgres & Control Plane State
 
 - **Document Path:** `docs/implementation_arpit.md`
-- **Owner:** Arpit (Platform Database Engineer)
-- **Collaborators:** Priyanshu (API Platform Engineer), Rudra (Orchestrator & K8s Operator Engineer), Frontend Developer (UI / Next.js)
+- **Owner:** Arpit (Platform Database Engineer - Persistence, Schema & Interfaces)
+- **Collaborators:** Priyanshu (API Platform & Isolated Builder Engineer - gVisor host setup, runtimeClass, rootless BuildKit + Railpack), Rudra (Orchestrator & K8s Operator Engineer - pod scheduling, launching, monitoring, cleanup), Frontend Developer (UI / Next.js)
 - **Target Subsystem:** Control Plane Platform Persistence Layer (`apps/backend/internal/platformdb` and `apps/backend/internal/db`)
 - **System Architecture Context:** Architecture reference [`docs/system_architechture.png`](../docs/system_architechture.png)
 - **Status:** ACTIVE / CORE MIGRATIONS & SCHEMA IMPLEMENTED (PR #3 MERGED)
@@ -14,11 +14,11 @@
 This document defines the database architecture and persistence implementation plan for the Summit Jetway developer platform. The architecture identifies Supabase Postgres as the platform metadata database. The database stores platform metadata, tenancy, deployment lifecycle state, resource topology, and durable metering records.
 
 ### 1.1 In-Scope (Arpit Ownership)
+Arpit owns platform persistence, schema design, and database access interfaces only:
 - **Control Plane State Architecture:** Logical schema design, multi-tenant relational modeling, index optimization, and relational constraints for organizations, projects, environments, services, deployments, releases, domains, and audit trails.
 - **Transactional Outbox Engine:** A durable PostgreSQL-backed outbox pattern supporting atomic HTTP request mutations and concurrent worker claims via `FOR UPDATE SKIP LOCKED`.
 - **Database Access Layer (`apps/backend/internal/db`):** Safe, idiomatic Go repository interfaces, connection pooling via `pgx/v5` (`pgxpool`), transaction lifecycle management, and typed query abstractions consumed by Priyanshu (API) and Rudra (Orchestrator).
 - **Migration & Evolution Framework:** Zero-downtime, expand/contract migration tooling decision workflow, automated local/CI testing via ephemeral containers, and rollback verification.
-- **Durability & Disaster Recovery:** WAL-G / pgBackRest S3-compatible continuous archiving, nightly snapshots, and automated point-in-time restore (PITR) verification.
 - **Durable Metering Ledger:** Append-only, idempotent usage event storage distinct from ephemeral operational metric scrapers.
 
 ### 1.2 Non-Goals & Strict System Boundaries
@@ -44,7 +44,7 @@ An inspection of the workspace confirms the current baseline:
   - An asynchronous Job Queue connecting the API to the Go Operator and Custom Resource Definitions (CRDs).
   - Per-tenant Kubernetes namespaces containing Web, Worker, and DB PVC workloads.
   - OpenBao synchronized to AWS Secrets Manager via External Secrets Operator (ESO).
-  - Ephemeral rootless BuildKit + Railpack running in gVisor sandboxes pushing to an OCI registry.
+  - Ephemeral rootless BuildKit + Railpack running in gVisor sandboxes pushing to an OCI registry (entire isolated builder including gVisor host `runsc` installation/configuration, Kubernetes `runtimeClass` setup, and rootless BuildKit + Railpack builder image/configuration/integration owned by Priyanshu; orchestrator and Kubernetes scheduling/launching/monitoring/cleanup of pods using Priyanshu's configured builder owned by Rudra; platform DB/persistence/schema/interfaces owned by Arpit).
   - Traefik ingress controller and Cilium CNI for networking and tenant network policies.
   - 1-2 SSH machines acting strictly as **test-only** Kubernetes nodes.
 
@@ -94,7 +94,7 @@ Before laying down table DDL, the three backend engineers must resolve key archi
 
 | Dimension | Platform Metadata DB (Supabase Postgres) | Tenant Workload DBs (Per-Tenant PVCs) |
 | :--- | :--- | :--- |
-| **Owner** | Arpit (Platform Database Engineer) | Tenant User Applications (Managed by Rudra Operator) |
+| **Owner** | Arpit (Platform Database Engineer - Persistence/Schema/Interfaces Only) | Tenant User Applications (Managed by Rudra Operator) |
 | **Location** | Managed Supabase Postgres Instance | Ephemeral / Persistent Pods in `tenant-<org>-<env>` |
 | **Data Stored** | Tenancy, RBAC, Git repos, build logs metadata, deployment state, outbox jobs, secret pointers, billing ledger | End-user tables, customer application business data, session state |
 | **Network Access** | Control plane only (`apps/backend`, internal worker pool) | In-cluster service mesh, tenant ingress via Traefik |
@@ -122,7 +122,8 @@ The detailed schema and SQL below are design candidates, not approved requiremen
 - **Deployment API contract:** propose `POST /api/v1/projects/{slug}/deployments` returning `202 Accepted` only after deployment and dispatch intent commit atomically, with a deployment ID and `Location: /api/v1/deployments/{id}`. Add the status endpoint to OpenAPI after Gate 2 approval; preserve `/releases` for release history unless team/UI review selects another mapping.
 - **Lifecycle vocabulary:** shared proposal is `queued → building → image_ready → deploying → health_checking → running`, terminal `failed` / `cancelled`, and retry attempt metadata. Final states, transitions, and database representation require Gate 2 approval.
 - **Outbox and package boundary:** PostgreSQL outbox is the recommended Phase 1 option, pending approval. If selected, Arpit owns schema, migrations, and shared Go contracts under `apps/backend/internal/platformdb`; API and orchestrator consume those contracts. Avoid a second competing repository abstraction.
-- **Provider limits and operations:** verify migration tooling, connection/pool settings, HA, WAL archiving, PITR, retention, and recovery objectives against the actual Supabase plan and test setup. Do not assume managed Supabase exposes host-level WAL controls or imply a recovery target until verified.
+- **Build subsystem ownership:** Priyanshu owns the ENTIRE isolated builder subsystem, including gVisor (`runsc`) host installation/configuration and `runtimeClass` setup on Kubernetes hosts, plus rootless BuildKit + Railpack builder image, configuration, and integration; Rudra does NOT own, install, or configure gVisor, but owns the orchestrator and Kubernetes scheduling/launching/monitoring/cleanup of pods using Priyanshu's configured builder; Arpit owns platform DB/persistence/schema/interfaces only.
+- **Provider limits and operations:** verify migration tooling, connection/pool settings, and HA against the actual Supabase plan and test setup.
 
 ---
 
@@ -135,28 +136,28 @@ The following four cross-cutting gates require explicit, synchronous sign-off fr
 - **Objective:** Finalize how a user request establishes tenant context and how isolation is enforced across the stack.
 - **Priyanshu (API):** Extracts identity from JWT, establishes tenant context in Go `context.Context`, validates RBAC.
 - **Rudra (Orchestrator):** Maps tenant ID to Kubernetes namespace naming (`tenant-<org_slug>-<env>`) and applies Cilium isolation policies.
-- **Arpit (Database):** Implements multi-tenant relational schemas where every resource includes `organization_id`; defines foreign key cascades and isolation filters.
+- **Arpit (Database):** Implements multi-tenant relational schemas where every resource includes `organization_id`; defines foreign key cascades and isolation filters (DB/persistence/schema/interfaces only).
 - **UI Coordination:** Establishes session token handling and organization switching UI semantics.
 
 ### Gate 2: Deployment Lifecycle + Persistence/Outbox + API Response Contract / Retries / Idempotency
 - **Objective:** Establish the atomic deployment creation protocol, outbox event schema, and worker reconciliation state machine.
-- **Priyanshu (API):** Accepts `POST /api/v1/projects/{slug}/deployments` with client-provided `Idempotency-Key`; writes deployment record and outbox event in a single transaction.
-- **Rudra (Orchestrator):** Worker daemon claims events via `FOR UPDATE SKIP LOCKED`, schedules gVisor BuildKit jobs, updates execution state.
-- **Arpit (Database):** Designs `deployments`, `build_jobs`, `releases`, and `outbox_events` tables with state machine enums, retry counters, and lock leases.
+- **Priyanshu (API & Builder):** Accepts `POST /api/v1/projects/{slug}/deployments` with client-provided `Idempotency-Key`; writes deployment record and outbox event in a single transaction; owns the ENTIRE isolated builder subsystem (gVisor `runsc` host installation/configuration, Kubernetes `runtimeClass` setup, and rootless BuildKit + Railpack builder image/configuration/integration).
+- **Rudra (Orchestrator):** Worker daemon claims events via `FOR UPDATE SKIP LOCKED`, manages orchestrator state reconciliation and Kubernetes scheduling/launching/monitoring/cleanup of pods using Priyanshu's configured builder, updates execution state (does not own, install, or configure gVisor).
+- **Arpit (Database):** Designs `deployments`, `build_jobs`, `releases`, and `outbox_events` tables with state machine enums, retry counters, and lock leases (DB/persistence/schema/interfaces only).
 - **UI Coordination:** Real-time polling or SSE/WebSocket event contracts for deployment terminal states and build logs.
 
 ### Gate 3: Test-Cluster / Build Isolation / CRDs / Registry / Ingress / Network / Secrets Conventions
 - **Objective:** Unify naming, resource limits, and secret referencing across test Kubernetes hosts.
-- **Priyanshu (API):** Exposes resource quotas and environment variable CRUD (pointers only).
-- **Rudra (Orchestrator):** Implements CRDs for `TenantApp`, deploys Traefik IngressRoutes, configures ESO sync to OpenBao.
-- **Arpit (Database):** Provides metadata schema for provisioned resources, custom domains, and secret reference mappings (zero secret values).
+- **Priyanshu (API & Builder):** Exposes resource quotas and environment variable CRUD (pointers only); packages rootless BuildKit + Railpack builder image and installs/configures gVisor (`runsc`) and `runtimeClass` across Kubernetes hosts.
+- **Rudra (Orchestrator):** Implements CRDs for `TenantApp`, deploys Traefik IngressRoutes, configures ESO sync to OpenBao, and handles Kubernetes scheduling/launching/monitoring/cleanup of pods using Priyanshu's configured builder (does NOT install or configure gVisor).
+- **Arpit (Database):** Provides metadata schema for provisioned resources, custom domains, and secret reference mappings (zero secret values) — DB/persistence/schema/interfaces only.
 - **UI Coordination:** Displays build logs, custom domain verification DNS records, and environment variable keys (with masked values).
 
 ### Gate 4: End-to-End Acceptance on Test-Only Machines with Migration / Security Review
 - **Objective:** Execute live smoke testing on the 1-2 SSH test nodes verifying migrations, failover, and deployment execution.
-- **Priyanshu (API):** Verifies end-to-end HTTP request flows against deployed test workloads.
-- **Rudra (Orchestrator):** Verifies pod scheduling, rootless BuildKit builds in gVisor, and network isolation between tenant namespaces.
-- **Arpit (Database):** Executes forward and rollback migrations against Supabase Postgres, validates connection pooling limits, runs PITR restore tests, and audits query performance.
+- **Priyanshu (API & Builder):** Verifies end-to-end HTTP request flows against deployed test workloads and validates the entire isolated builder stack (gVisor `runsc` host runtime, `runtimeClass`, rootless BuildKit, and Railpack image generation).
+- **Rudra (Orchestrator):** Verifies orchestrator reconciliation, Kubernetes scheduling/launching/monitoring/cleanup of pods using Priyanshu's configured builder, and network isolation between tenant namespaces.
+- **Arpit (Database):** Executes forward and rollback migrations against Supabase Postgres, validates connection pooling limits, and audits query performance (DB/persistence/schema/interfaces only).
 - **UI Coordination:** Frontend end-to-end integration test validating end-user flow against the real API.
 
 ---
@@ -346,7 +347,7 @@ CREATE TABLE deployments (
 CREATE INDEX idx_deployments_env_status ON deployments(environment_id, status);
 CREATE INDEX idx_deployments_created ON deployments(created_at DESC);
 
--- Build Jobs (gVisor BuildKit execution)
+-- Build Jobs (entire isolated builder including gVisor runsc host installation/config, runtimeClass, and rootless BuildKit + Railpack owned by Priyanshu; orchestrator and Kubernetes scheduling/launching/monitoring/cleanup of pods using Priyanshu's configured builder owned by Rudra; DB/persistence/schema/interfaces owned by Arpit)
 CREATE TABLE build_jobs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     deployment_id UUID NOT NULL REFERENCES deployments(id) ON DELETE CASCADE,
@@ -549,7 +550,7 @@ When an API user triggers a deployment via `POST /api/v1/projects/{slug}/deploym
 4. **Proposed response:** return HTTP `202 Accepted` only after the deployment and outbox event are durably committed. No deployment can be accepted without its dispatch intent when the outbox design is approved.
 
 ### 8.2 Worker Claim Pattern (Rudra Hand-off)
-The orchestrator background worker pool claims events using standard PostgreSQL row-level locks without blocking concurrent workers:
+The orchestrator background worker pool claims events using standard PostgreSQL row-level locks without blocking concurrent workers (Rudra owns orchestrator reconciliation and Kubernetes scheduling/launching/monitoring/cleanup of pods using Priyanshu's configured builder; Priyanshu owns the entire isolated builder including gVisor `runsc` host installation/configuration, Kubernetes `runtimeClass` setup, and rootless BuildKit + Railpack builder image/configuration/integration; Arpit owns DB/persistence/schema/interfaces only):
 
 ```sql
 -- Concurrent Safe Worker Claim Query
@@ -641,19 +642,9 @@ Approach B: Defense-in-Depth RLS with Runtime Session Variable
 
 ---
 
-## 11. Durability, Backup & Restore Verification
+## 11. Durability & Recovery Policy (MVP Scope)
 
-In accordance with [`docs/system_architechture.png`](../docs/system_architechture.png), the platform database must support continuous WAL archiving and automated recovery drills.
-
-### 11.1 Backup Pipeline Proposal (Provider Capability Must Be Verified)
-- **WAL archiving:** If the selected database plan exposes the required controls, evaluate continuous WAL archiving to S3-compatible object storage and PITR. Managed-service backup/PITR capabilities must be verified before selecting WAL-G / pgBackRest or promising retention.
-- **Snapshots:** Evaluate scheduled snapshots and storage/retention based on the selected provider's capabilities and cost.
-- **Logical dumps:** Evaluate encrypted logical exports and retention as a separate recovery mechanism.
-
-### 11.2 Automated Restore Verification Drills
-A backup is invalid until a restore has been verified.
-- **Restore verification:** define a repeatable restore drill after confirming which backup artifacts and restore interfaces the selected provider exposes. The test-only Kubernetes machines may host isolated validation workloads if appropriate.
-- **Recovery objectives:** agree RPO/RTO targets with the team and verify they are achievable under the selected service plan before documenting them as commitments.
+Custom database backup and recovery automation is out of scope for this MVP.
 
 ---
 
@@ -684,7 +675,6 @@ Operational metrics collected by Prometheus and Loki are ephemeral and subject t
 - [ ] Schema applies successfully from scratch with zero errors or unindexed foreign keys.
 - [ ] Outbox table successfully handles 50 concurrent worker claims without lock deadlocks or duplicate event processing.
 - [ ] Unit and integration test suite achieves $>85\%$ code coverage across `platformdb`.
-- [ ] Continuous WAL archiving to S3-compatible storage and restore verification script passes on test Kubernetes hosts.
 
 ---
 
@@ -694,7 +684,7 @@ Operational metrics collected by Prometheus and Loki are ephemeral and subject t
 ==================================================================================================
 PHASE 0: Foundations & Tooling Agreement (Week 1)
 --------------------------------------------------------------------------------------------------
-[Arpit] Select migration tool (Goose); setup local Docker Compose Postgres; create baseline schema.
+[Arpit] Select migration tool (Goose); setup local Docker Compose Postgres; create baseline schema (DB/persistence/schema/interfaces only).
 [Shared Gate 1] <span style="color:#7C3AED"><strong>TEAM OF THREE REQUIRED</strong></span>: Finalize Auth & Tenant boundary spec.
 
 ==================================================================================================
@@ -707,17 +697,17 @@ PHASE 1: Core Tenancy, Projects & Go Repository (Weeks 2-3)
 ==================================================================================================
 PHASE 2: Deployments, Releases & Outbox Engine (Weeks 4-5)
 --------------------------------------------------------------------------------------------------
-[Arpit] Implement `deployments`, `releases`, `build_jobs`, and `outbox_events` tables with locks.
-[Shared Gate 2] <span style="color:#7C3AED"><strong>TEAM OF THREE REQUIRED</strong></span>: Deployment lifecycle & outbox contract.
-[Priyanshu Handoff] API writes deployment + outbox event in atomic transaction.
-[Rudra Handoff] Orchestrator consumes outbox queue via `FOR UPDATE SKIP LOCKED`.
+[Arpit] Implement `deployments`, `releases`, `build_jobs`, and `outbox_events` tables with locks (DB/persistence/schema/interfaces only).
+[Shared Gate 2] <span style="color:#7C3AED"><strong>TEAM OF THREE REQUIRED</strong></span>: Deployment lifecycle & outbox contract (Priyanshu owns the ENTIRE isolated builder including gVisor runsc host installation/configuration, runtimeClass setup, and rootless BuildKit + Railpack builder; Rudra owns orchestrator and Kubernetes scheduling/launching/monitoring/cleanup of pods using Priyanshu's configured builder; Arpit owns DB/persistence/schema/interfaces only).
+[Priyanshu Handoff] API writes deployment + outbox event in atomic transaction; delivers configured isolated builder image, gVisor (runsc) host setup, and runtimeClass.
+[Rudra Handoff] Orchestrator consumes outbox queue via FOR UPDATE SKIP LOCKED and manages Kubernetes scheduling/launching/monitoring/cleanup of builder pods.
 
 ==================================================================================================
 PHASE 3: Resource Specs & Secret Pointers (Weeks 6-7)
 --------------------------------------------------------------------------------------------------
-[Arpit] Implement `services`, `service_resources`, and `secret_references` (Pointers only).
-[Shared Gate 3] <span style="color:#7C3AED"><strong>TEAM OF THREE REQUIRED</strong></span>: K8s CRD, ESO sync & secret pointer conventions.
-[Rudra Handoff] Operator reads service resource specs to generate Kubernetes CRDs.
+[Arpit] Implement `services`, `service_resources`, and `secret_references` (Pointers only; DB/persistence/schema/interfaces only).
+[Shared Gate 3] <span style="color:#7C3AED"><strong>TEAM OF THREE REQUIRED</strong></span>: K8s CRD, ESO sync & secret pointer conventions (Priyanshu's gVisor/runtimeClass host setup & builder integration; Rudra's pod scheduling/monitoring/cleanup).
+[Rudra Handoff] Operator reads service resource specs to generate Kubernetes CRDs and manages Kubernetes scheduling/launching/monitoring/cleanup of pods using Priyanshu's configured builder.
 
 ==================================================================================================
 PHASE 4: Metering Ledger, Audit Logs & Production Hardening (Weeks 8-9)
@@ -726,9 +716,9 @@ PHASE 4: Metering Ledger, Audit Logs & Production Hardening (Weeks 8-9)
 [Priyanshu Handoff] Expose billing usage and audit log query APIs.
 
 ==================================================================================================
-PHASE 5: End-to-End Acceptance & DR Drill (Week 10)
+PHASE 5: End-to-End Acceptance & Test Cluster Verification (Week 10)
 --------------------------------------------------------------------------------------------------
-[Shared Gate 4] <span style="color:#7C3AED"><strong>TEAM OF THREE REQUIRED</strong></span>: Test-cluster deployment & PITR restore drill.
+[Shared Gate 4] <span style="color:#7C3AED"><strong>TEAM OF THREE REQUIRED</strong></span>: Test-cluster deployment & end-to-end verification.
 ==================================================================================================
 ```
 
@@ -758,7 +748,6 @@ This checklist defines the exact scope of Arpit's initial pull request:
 - [ ] **Next Milestone (Arpit Action Plan):**
   - Implement typed query repository interfaces consumed by API handlers (`internal/platformdb`).
   - Wire database pool ping into `GET /api/v1/health` deep readiness check.
-  - Set up WAL-G / pgBackRest S3-compatible automated backup script.
 
 ---
 
