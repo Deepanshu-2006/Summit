@@ -1,0 +1,20 @@
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: gvisor
+  labels:
+    app.kubernetes.io/name: summit-runtime
+    app.kubernetes.io/component: sandbox
+handler: runsc
+overhead:
+  podFixed:
+    cpu: "250m"
+    memory: "256Mi"
+scheduling:
+  nodeSelector:
+    summit.io/node-role: builder-sandbox
+  tolerations:
+    - key: "summit.io/sandbox-workload"
+      operator: "Equal"
+      value: "true"
+      effect: "NoSchedule"

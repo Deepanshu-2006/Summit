@@ -57,10 +57,10 @@ type CredentialsSpec struct {
 
 // OutputSpec defines the destination OCI image coordinates.
 type OutputSpec struct {
-	Registry  string   `json:"registry"`
+	Registry   string   `json:"registry"`
 	Repository string   `json:"repository"`
-	Tag       string   `json:"tag"`
-	Platforms []string `json:"platforms"`
+	Tag        string   `json:"tag"`
+	Platforms  []string `json:"platforms"`
 }
 
 // FullTargetImage returns the fully qualified target image reference without tag.
