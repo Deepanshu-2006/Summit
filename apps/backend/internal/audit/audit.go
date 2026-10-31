@@ -30,16 +30,16 @@ const (
 
 // Event models an immutable audit log record.
 type Event struct {
-	OrganizationID uuid.UUID
-	ActorUserID    *uuid.UUID // nil for system, webhook, or worker actions
-	Action         string
-	EntityType     string
-	EntityID       uuid.UUID
-	Metadata       map[string]any
-	IPAddress      string
-	UserAgent      string
-	RequestID      string
-	CreatedAt      time.Time
+	UserID      uuid.UUID
+	ActorUserID *uuid.UUID // nil for system, webhook, or worker actions
+	Action      string
+	EntityType  string
+	EntityID    uuid.UUID
+	Metadata    map[string]any
+	IPAddress   string
+	UserAgent   string
+	RequestID   string
+	CreatedAt   time.Time
 }
 
 // Writer persists audit events.
@@ -87,13 +87,13 @@ func (w *PgxWriter) Write(ctx context.Context, event Event) error {
 
 	query := `
 		INSERT INTO audit_logs (
-			organization_id, actor_user_id, action, entity_type, entity_id,
+			user_id, actor_user_id, action, entity_type, entity_id,
 			metadata, ip_address, user_agent, request_id, created_at
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	`
 
 	_, err = w.db.Exec(ctx, query,
-		event.OrganizationID,
+		event.UserID,
 		event.ActorUserID,
 		event.Action,
 		event.EntityType,

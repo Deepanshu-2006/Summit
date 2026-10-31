@@ -62,9 +62,9 @@ func NewService(c Config) *Service {
 	}
 }
 
-// StartInstallation initiates the GitHub App installation flow for an organization.
+// StartInstallation initiates the GitHub App installation flow for the authenticated user.
 // It generates a secure single-use state, persists its hash, and formats the installation URL.
-func (s *Service) StartInstallation(ctx context.Context, orgID, userID uuid.UUID, ip, userAgent, reqID string) (*StartInstallationResponse, error) {
+func (s *Service) StartInstallation(ctx context.Context, userID uuid.UUID, ip, userAgent, reqID string) (*StartInstallationResponse, error) {
 	if s.pool == nil {
 		return nil, httpx.NewAPIError(500, httpx.CodeInternalError, "database pool unavailable", nil)
 	}
@@ -87,24 +87,23 @@ func (s *Service) StartInstallation(ctx context.Context, orgID, userID uuid.UUID
 
 	stateID := uuid.New()
 	insertQuery := `
-		INSERT INTO github_installation_states (id, state_hash, user_id, organization_id, expires_at)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO github_installation_states (id, state_hash, user_id, expires_at)
+		VALUES ($1, $2, $3, $4)
 	`
-	if _, err := s.pool.Exec(ctx, insertQuery, stateID, stateHash, userID, orgID, expiresAt); err != nil {
+	if _, err := s.pool.Exec(ctx, insertQuery, stateID, stateHash, userID, expiresAt); err != nil {
 		return nil, httpx.NewAPIError(500, httpx.CodeInternalError, "failed to persist installation state", err)
 	}
 
 	if s.audit != nil {
 		_ = s.audit.Write(ctx, audit.Event{
-			OrganizationID: orgID,
-			ActorUserID:    &userID,
-			Action:         audit.ActionInstallationInitiated,
-			EntityType:     "github_installation_state",
-			EntityID:       stateID,
+			UserID:      userID,
+			ActorUserID: &userID,
+			Action:      audit.ActionInstallationInitiated,
+			EntityType:  "github_installation_state",
+			EntityID:    stateID,
 			Metadata: map[string]any{
-				"organization_id": orgID.String(),
-				"user_id":         userID.String(),
-				"expires_at":      expiresAt.Format(time.RFC3339),
+				"user_id":    userID.String(),
+				"expires_at": expiresAt.Format(time.RFC3339),
 			},
 			IPAddress: ip,
 			UserAgent: userAgent,
@@ -161,22 +160,20 @@ func (s *Service) HandleCallback(ctx context.Context, rawInstallationID, rawStat
 
 	stateHash := installstate.Hash(rawState)
 	var stateRecord struct {
-		ID             uuid.UUID
-		UserID         uuid.UUID
-		OrganizationID uuid.UUID
-		ExpiresAt      time.Time
-		ConsumedAt     *time.Time
+		ID         uuid.UUID
+		UserID     uuid.UUID
+		ExpiresAt  time.Time
+		ConsumedAt *time.Time
 	}
 
 	selectStateQuery := `
-		SELECT id, user_id, organization_id, expires_at, consumed_at
+		SELECT id, user_id, expires_at, consumed_at
 		FROM github_installation_states
 		WHERE state_hash = $1
 	`
 	err = s.pool.QueryRow(ctx, selectStateQuery, stateHash).Scan(
 		&stateRecord.ID,
 		&stateRecord.UserID,
-		&stateRecord.OrganizationID,
 		&stateRecord.ExpiresAt,
 		&stateRecord.ConsumedAt,
 	)
@@ -221,12 +218,16 @@ func (s *Service) HandleCallback(ctx context.Context, rawInstallationID, rawStat
 		return buildRedirect("error", httpx.CodeGitHubInstallationNotActive, ""), nil
 	}
 
-	// Verify single organization association constraint per spec 4.4
-	var existingOrgID uuid.UUID
-	checkOrgQuery := `SELECT organization_id FROM github_installations WHERE github_installation_id = $1`
-	err = s.pool.QueryRow(ctx, checkOrgQuery, installationID).Scan(&existingOrgID)
-	if err == nil && existingOrgID != stateRecord.OrganizationID {
+	// A GitHub installation is linked to one Summit personal account.
+	var existingUserID uuid.UUID
+	checkOwnerQuery := `SELECT user_id FROM github_installations WHERE github_installation_id = $1`
+	err = s.pool.QueryRow(ctx, checkOwnerQuery, installationID).Scan(&existingUserID)
+	if err == nil && existingUserID != stateRecord.UserID {
 		return buildRedirect("error", httpx.CodeGitHubInstallationAlreadyLinked, ""), nil
+	}
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		s.logger.Error("failed to check github installation owner", "error", err)
+		return buildRedirect("error", httpx.CodeInternalError, ""), nil
 	}
 
 	permissionsJSON, err := json.Marshal(inst.Permissions)
@@ -237,13 +238,12 @@ func (s *Service) HandleCallback(ctx context.Context, rawInstallationID, rawStat
 	var platformInstID uuid.UUID
 	upsertInstQuery := `
 		INSERT INTO github_installations (
-			organization_id, github_installation_id, account_id, account_login,
+			user_id, github_installation_id, account_id, account_login,
 			account_type, status, repository_selection, permissions, installed_at, last_synced_at
 		) VALUES (
 			$1, $2, $3, $4, $5, 'active', $6, $7, now(), now()
 		)
 		ON CONFLICT (github_installation_id) DO UPDATE SET
-			organization_id = EXCLUDED.organization_id,
 			account_id = EXCLUDED.account_id,
 			account_login = EXCLUDED.account_login,
 			account_type = EXCLUDED.account_type,
@@ -253,10 +253,11 @@ func (s *Service) HandleCallback(ctx context.Context, rawInstallationID, rawStat
 			installed_at = COALESCE(github_installations.installed_at, now()),
 			last_synced_at = now(),
 			updated_at = now()
+		WHERE github_installations.user_id = EXCLUDED.user_id
 		RETURNING id
 	`
 	err = s.pool.QueryRow(ctx, upsertInstQuery,
-		stateRecord.OrganizationID,
+		stateRecord.UserID,
 		installationID,
 		inst.AccountID,
 		inst.AccountLogin,
@@ -265,6 +266,9 @@ func (s *Service) HandleCallback(ctx context.Context, rawInstallationID, rawStat
 		permissionsJSON,
 	).Scan(&platformInstID)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return buildRedirect("error", httpx.CodeGitHubInstallationAlreadyLinked, ""), nil
+		}
 		s.logger.Error("failed to upsert github installation", "error", err)
 		return buildRedirect("error", httpx.CodeInternalError, ""), nil
 	}
@@ -279,11 +283,11 @@ func (s *Service) HandleCallback(ctx context.Context, rawInstallationID, rawStat
 	}
 	if s.audit != nil {
 		_ = s.audit.Write(ctx, audit.Event{
-			OrganizationID: stateRecord.OrganizationID,
-			ActorUserID:    &stateRecord.UserID,
-			Action:         action,
-			EntityType:     "github_installation",
-			EntityID:       platformInstID,
+			UserID:      stateRecord.UserID,
+			ActorUserID: &stateRecord.UserID,
+			Action:      action,
+			EntityType:  "github_installation",
+			EntityID:    platformInstID,
 			Metadata: map[string]any{
 				"github_installation_id": installationID,
 				"account_login":          inst.AccountLogin,
@@ -384,8 +388,8 @@ func (s *Service) syncRepositories(ctx context.Context, platformInstID uuid.UUID
 	return totalSynced, nil
 }
 
-// ListInstallations lists all installations for an organization.
-func (s *Service) ListInstallations(ctx context.Context, orgID uuid.UUID) (*ListInstallationsResponse, error) {
+// ListInstallations lists installations owned by a personal user.
+func (s *Service) ListInstallations(ctx context.Context, userID uuid.UUID) (*ListInstallationsResponse, error) {
 	if s.pool == nil {
 		return nil, httpx.NewAPIError(500, httpx.CodeInternalError, "database pool unavailable", nil)
 	}
@@ -397,11 +401,11 @@ func (s *Service) ListInstallations(ctx context.Context, orgID uuid.UUID) (*List
 		       i.last_synced_at, i.installed_at, i.created_at, i.updated_at
 		FROM github_installations i
 		LEFT JOIN github_repositories r ON r.installation_id = i.id
-		WHERE i.organization_id = $1 AND i.status != 'disconnected'
+		WHERE i.user_id = $1 AND i.status != 'disconnected'
 		GROUP BY i.id
 		ORDER BY i.created_at DESC
 	`
-	rows, err := s.pool.Query(ctx, query, orgID)
+	rows, err := s.pool.Query(ctx, query, userID)
 	if err != nil {
 		return nil, httpx.NewAPIError(500, httpx.CodeInternalError, "failed to query installations", err)
 	}
@@ -441,7 +445,7 @@ func (s *Service) ListInstallations(ctx context.Context, orgID uuid.UUID) (*List
 }
 
 // GetInstallation returns detailed metadata for an installation.
-func (s *Service) GetInstallation(ctx context.Context, orgID uuid.UUID, installationIDStr string) (*InstallationDetailResponse, error) {
+func (s *Service) GetInstallation(ctx context.Context, userID uuid.UUID, installationIDStr string) (*InstallationDetailResponse, error) {
 	if s.pool == nil {
 		return nil, httpx.NewAPIError(500, httpx.CodeInternalError, "database pool unavailable", nil)
 	}
@@ -457,7 +461,7 @@ func (s *Service) GetInstallation(ctx context.Context, orgID uuid.UUID, installa
 	}
 
 	query := `
-		SELECT i.id, i.organization_id, i.github_installation_id, i.account_id,
+		SELECT i.id, i.github_installation_id, i.account_id,
 		       i.account_login, i.account_type, i.status, COALESCE(i.repository_selection, ''),
 		       i.permissions,
 		       COUNT(r.id) FILTER (WHERE r.removed_at IS NULL) as repo_count,
@@ -466,16 +470,15 @@ func (s *Service) GetInstallation(ctx context.Context, orgID uuid.UUID, installa
 		FROM github_installations i
 		LEFT JOIN github_repositories r ON r.installation_id = i.id
 		WHERE (i.id = $1 OR ($2 > 0 AND i.github_installation_id = $2))
-		  AND i.organization_id = $3
+		  AND i.user_id = $3
 		GROUP BY i.id
 	`
 	var res InstallationDetailResponse
 	var login, accType string
 	var permissionsBytes []byte
 
-	err := s.pool.QueryRow(ctx, query, instUUID, ghInstID, orgID).Scan(
+	err := s.pool.QueryRow(ctx, query, instUUID, ghInstID, userID).Scan(
 		&res.ID,
-		&res.OrganizationID,
 		&res.GitHubInstallationID,
 		&res.AccountID,
 		&login,
@@ -510,8 +513,8 @@ func (s *Service) GetInstallation(ctx context.Context, orgID uuid.UUID, installa
 	return &res, nil
 }
 
-// DisconnectInstallation disconnects an installation from an organization and disconnects dependent sources.
-func (s *Service) DisconnectInstallation(ctx context.Context, orgID uuid.UUID, installationIDStr string, actorUserID uuid.UUID, ip, userAgent, reqID string) (*DisconnectInstallationResponse, error) {
+// DisconnectInstallation disconnects a user's installation and its dependent sources.
+func (s *Service) DisconnectInstallation(ctx context.Context, userID uuid.UUID, installationIDStr string, ip, userAgent, reqID string) (*DisconnectInstallationResponse, error) {
 	if s.pool == nil {
 		return nil, httpx.NewAPIError(500, httpx.CodeInternalError, "database pool unavailable", nil)
 	}
@@ -526,15 +529,15 @@ func (s *Service) DisconnectInstallation(ctx context.Context, orgID uuid.UUID, i
 		}
 	}
 
-	// Verify installation exists for this org
+	// Verify installation belongs to this personal user.
 	var platformID uuid.UUID
 	var actualGhInstID int64
 	checkQuery := `
 		SELECT id, github_installation_id FROM github_installations
 		WHERE (id = $1 OR ($2 > 0 AND github_installation_id = $2))
-		  AND organization_id = $3
+		  AND user_id = $3
 	`
-	err := s.pool.QueryRow(ctx, checkQuery, instUUID, ghInstID, orgID).Scan(&platformID, &actualGhInstID)
+	err := s.pool.QueryRow(ctx, checkQuery, instUUID, ghInstID, userID).Scan(&platformID, &actualGhInstID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, httpx.NewAPIError(404, httpx.CodeGitHubInstallationNotFound, "installation not found", nil)
@@ -580,11 +583,11 @@ func (s *Service) DisconnectInstallation(ctx context.Context, orgID uuid.UUID, i
 
 	if s.audit != nil {
 		_ = s.audit.Write(ctx, audit.Event{
-			OrganizationID: orgID,
-			ActorUserID:    &actorUserID,
-			Action:         audit.ActionInstallationRevoked,
-			EntityType:     "github_installation",
-			EntityID:       platformID,
+			UserID:      userID,
+			ActorUserID: &userID,
+			Action:      audit.ActionInstallationRevoked,
+			EntityType:  "github_installation",
+			EntityID:    platformID,
 			Metadata: map[string]any{
 				"status": "disconnected",
 			},
@@ -601,7 +604,7 @@ func (s *Service) DisconnectInstallation(ctx context.Context, orgID uuid.UUID, i
 }
 
 // ListRepositories returns repositories accessible through an installation with cursor pagination.
-func (s *Service) ListRepositories(ctx context.Context, orgID uuid.UUID, installationIDStr, cursor string, limit int) (*ListRepositoriesResponse, error) {
+func (s *Service) ListRepositories(ctx context.Context, userID uuid.UUID, installationIDStr, cursor string, limit int) (*ListRepositoriesResponse, error) {
 	if s.pool == nil {
 		return nil, httpx.NewAPIError(500, httpx.CodeInternalError, "database pool unavailable", nil)
 	}
@@ -620,9 +623,9 @@ func (s *Service) ListRepositories(ctx context.Context, orgID uuid.UUID, install
 	checkQuery := `
 		SELECT id FROM github_installations
 		WHERE (id = $1 OR ($2 > 0 AND github_installation_id = $2))
-		  AND organization_id = $3
+		  AND user_id = $3
 	`
-	err := s.pool.QueryRow(ctx, checkQuery, instUUID, ghInstID, orgID).Scan(&platformID)
+	err := s.pool.QueryRow(ctx, checkQuery, instUUID, ghInstID, userID).Scan(&platformID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, httpx.NewAPIError(404, httpx.CodeGitHubInstallationNotFound, "installation not found", nil)
@@ -688,7 +691,7 @@ func (s *Service) ListRepositories(ctx context.Context, orgID uuid.UUID, install
 }
 
 // SyncInstallation manually triggers repository synchronization for an installation.
-func (s *Service) SyncInstallation(ctx context.Context, orgID uuid.UUID, installationIDStr string, actorUserID uuid.UUID, ip, userAgent, reqID string) (*SyncResponse, error) {
+func (s *Service) SyncInstallation(ctx context.Context, userID uuid.UUID, installationIDStr string, ip, userAgent, reqID string) (*SyncResponse, error) {
 	if s.pool == nil {
 		return nil, httpx.NewAPIError(500, httpx.CodeInternalError, "database pool unavailable", nil)
 	}
@@ -709,9 +712,9 @@ func (s *Service) SyncInstallation(ctx context.Context, orgID uuid.UUID, install
 	checkQuery := `
 		SELECT id, github_installation_id, status FROM github_installations
 		WHERE (id = $1 OR ($2 > 0 AND github_installation_id = $2))
-		  AND organization_id = $3
+		  AND user_id = $3
 	`
-	err := s.pool.QueryRow(ctx, checkQuery, instUUID, ghInstID, orgID).Scan(&platformID, &actualGhInstID, &status)
+	err := s.pool.QueryRow(ctx, checkQuery, instUUID, ghInstID, userID).Scan(&platformID, &actualGhInstID, &status)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, httpx.NewAPIError(404, httpx.CodeGitHubInstallationNotFound, "installation not found", nil)
@@ -731,11 +734,11 @@ func (s *Service) SyncInstallation(ctx context.Context, orgID uuid.UUID, install
 	syncID := uuid.New()
 	if s.audit != nil {
 		_ = s.audit.Write(ctx, audit.Event{
-			OrganizationID: orgID,
-			ActorUserID:    &actorUserID,
-			Action:         audit.ActionRepositorySynced,
-			EntityType:     "github_installation",
-			EntityID:       platformID,
+			UserID:      userID,
+			ActorUserID: &userID,
+			Action:      audit.ActionRepositorySynced,
+			EntityType:  "github_installation",
+			EntityID:    platformID,
 			Metadata: map[string]any{
 				"sync_id":             syncID.String(),
 				"repositories_synced": syncedCount,
@@ -759,12 +762,15 @@ func (s *Service) PutServiceSource(ctx context.Context, serviceID, actorUserID u
 		return nil, httpx.NewAPIError(500, httpx.CodeInternalError, "database pool unavailable", nil)
 	}
 
-	serviceOrgID, err := authz.ServiceOrganization(ctx, s.pool, serviceID)
+	serviceUserID, err := authz.ServiceUser(ctx, s.pool, serviceID)
 	if err != nil {
 		if errors.Is(err, authz.ErrServiceNotFound) {
 			return nil, httpx.NewAPIError(404, httpx.CodeNotFound, "service not found", err)
 		}
-		return nil, httpx.NewAPIError(500, httpx.CodeInternalError, "failed to resolve service organization", err)
+		return nil, httpx.NewAPIError(500, httpx.CodeInternalError, "failed to resolve service owner", err)
+	}
+	if serviceUserID != actorUserID {
+		return nil, httpx.NewAPIError(404, httpx.CodeNotFound, "service not found", nil)
 	}
 
 	// Validate service type per spec 7.7 (only application/worker services support source builds)
@@ -780,15 +786,15 @@ func (s *Service) PutServiceSource(ctx context.Context, serviceID, actorUserID u
 		return nil, httpx.NewAPIError(400, httpx.CodeBadRequest, fmt.Sprintf("service type %q does not support source builds (must be web or worker)", srvType), nil)
 	}
 
-	// Verify repository belongs to active installation linked to the same organization
+	// Verify repository belongs to an active installation owned by the same user.
 	var repoInfo struct {
-		ID             uuid.UUID
-		FullName       string
-		OrgID          uuid.UUID
-		InstStatus     string
+		ID         uuid.UUID
+		FullName   string
+		UserID     uuid.UUID
+		InstStatus string
 	}
 	repoQuery := `
-		SELECT r.id, r.full_name, i.organization_id, i.status
+		SELECT r.id, r.full_name, i.user_id, i.status
 		FROM github_repositories r
 		JOIN github_installations i ON i.id = r.installation_id
 		WHERE r.id = $1 AND r.removed_at IS NULL
@@ -796,7 +802,7 @@ func (s *Service) PutServiceSource(ctx context.Context, serviceID, actorUserID u
 	err = s.pool.QueryRow(ctx, repoQuery, req.RepositoryID).Scan(
 		&repoInfo.ID,
 		&repoInfo.FullName,
-		&repoInfo.OrgID,
+		&repoInfo.UserID,
 		&repoInfo.InstStatus,
 	)
 	if err != nil {
@@ -810,8 +816,8 @@ func (s *Service) PutServiceSource(ctx context.Context, serviceID, actorUserID u
 		return nil, httpx.NewAPIError(400, httpx.CodeGitHubInstallationNotActive, "github installation is not active", nil)
 	}
 
-	if repoInfo.OrgID != serviceOrgID {
-		return nil, httpx.NewAPIError(403, httpx.CodeGitHubRepositoryNotAccessible, "repository belongs to a different organization", nil)
+	if repoInfo.UserID != serviceUserID {
+		return nil, httpx.NewAPIError(403, httpx.CodeGitHubRepositoryNotAccessible, "repository belongs to a different user", nil)
 	}
 
 	// Validate branch name
@@ -910,11 +916,11 @@ func (s *Service) PutServiceSource(ctx context.Context, serviceID, actorUserID u
 
 	if s.audit != nil {
 		_ = s.audit.Write(ctx, audit.Event{
-			OrganizationID: serviceOrgID,
-			ActorUserID:    &actorUserID,
-			Action:         audit.ActionSourceConnected,
-			EntityType:     "service_source",
-			EntityID:       res.ID,
+			UserID:      serviceUserID,
+			ActorUserID: &actorUserID,
+			Action:      audit.ActionSourceConnected,
+			EntityType:  "service_source",
+			EntityID:    res.ID,
 			Metadata: map[string]any{
 				"service_id":    serviceID.String(),
 				"repository_id": req.RepositoryID.String(),
@@ -981,6 +987,16 @@ func (s *Service) GetServiceSource(ctx context.Context, serviceID uuid.UUID) (*S
 func (s *Service) PatchServiceSource(ctx context.Context, serviceID, actorUserID uuid.UUID, req PatchServiceSourceRequest, ip, userAgent, reqID string) (*ServiceSourceResponse, error) {
 	if s.pool == nil {
 		return nil, httpx.NewAPIError(500, httpx.CodeInternalError, "database pool unavailable", nil)
+	}
+	serviceUserID, err := authz.ServiceUser(ctx, s.pool, serviceID)
+	if err != nil {
+		if errors.Is(err, authz.ErrServiceNotFound) {
+			return nil, httpx.NewAPIError(404, httpx.CodeNotFound, "service not found", nil)
+		}
+		return nil, httpx.NewAPIError(500, httpx.CodeInternalError, "failed to resolve service owner", err)
+	}
+	if serviceUserID != actorUserID {
+		return nil, httpx.NewAPIError(404, httpx.CodeNotFound, "service not found", nil)
 	}
 
 	current, err := s.GetServiceSource(ctx, serviceID)
@@ -1078,14 +1094,13 @@ func (s *Service) PatchServiceSource(ctx context.Context, serviceID, actorUserID
 		_ = json.Unmarshal(buildConfigBytes, &res.BuildConfiguration)
 	}
 
-	serviceOrgID, _ := authz.ServiceOrganization(ctx, s.pool, serviceID)
 	if s.audit != nil {
 		_ = s.audit.Write(ctx, audit.Event{
-			OrganizationID: serviceOrgID,
-			ActorUserID:    &actorUserID,
-			Action:         audit.ActionSourceUpdated,
-			EntityType:     "service_source",
-			EntityID:       res.ID,
+			UserID:      serviceUserID,
+			ActorUserID: &actorUserID,
+			Action:      audit.ActionSourceUpdated,
+			EntityType:  "service_source",
+			EntityID:    res.ID,
 			Metadata: map[string]any{
 				"service_id": serviceID.String(),
 				"branch":     branch,
@@ -1104,6 +1119,16 @@ func (s *Service) DisconnectServiceSource(ctx context.Context, serviceID, actorU
 	if s.pool == nil {
 		return nil, httpx.NewAPIError(500, httpx.CodeInternalError, "database pool unavailable", nil)
 	}
+	serviceUserID, err := authz.ServiceUser(ctx, s.pool, serviceID)
+	if err != nil {
+		if errors.Is(err, authz.ErrServiceNotFound) {
+			return nil, httpx.NewAPIError(404, httpx.CodeNotFound, "service not found", nil)
+		}
+		return nil, httpx.NewAPIError(500, httpx.CodeInternalError, "failed to resolve service owner", err)
+	}
+	if serviceUserID != actorUserID {
+		return nil, httpx.NewAPIError(404, httpx.CodeNotFound, "service not found", nil)
+	}
 
 	updateQuery := `
 		UPDATE service_sources
@@ -1114,7 +1139,7 @@ func (s *Service) DisconnectServiceSource(ctx context.Context, serviceID, actorU
 	var res DisconnectSourceResponse
 	var discReason *string
 
-	err := s.pool.QueryRow(ctx, updateQuery, serviceID).Scan(
+	err = s.pool.QueryRow(ctx, updateQuery, serviceID).Scan(
 		&res.ID,
 		&res.ServiceID,
 		&res.SourceStatus,
@@ -1130,14 +1155,13 @@ func (s *Service) DisconnectServiceSource(ctx context.Context, serviceID, actorU
 		res.DisconnectReason = *discReason
 	}
 
-	serviceOrgID, _ := authz.ServiceOrganization(ctx, s.pool, serviceID)
 	if s.audit != nil {
 		_ = s.audit.Write(ctx, audit.Event{
-			OrganizationID: serviceOrgID,
-			ActorUserID:    &actorUserID,
-			Action:         audit.ActionSourceDisconnected,
-			EntityType:     "service_source",
-			EntityID:       res.ID,
+			UserID:      serviceUserID,
+			ActorUserID: &actorUserID,
+			Action:      audit.ActionSourceDisconnected,
+			EntityType:  "service_source",
+			EntityID:    res.ID,
 			Metadata: map[string]any{
 				"service_id": serviceID.String(),
 				"reason":     "user_disconnected",
@@ -1159,15 +1183,15 @@ func (s *Service) CreateManualDeployment(ctx context.Context, serviceID, actorUs
 		return nil, httpx.NewAPIError(500, httpx.CodeInternalError, "database pool unavailable", nil)
 	}
 
-	// 1. Resolve hierarchy: service -> environment -> project -> organization
+	// 1. Resolve hierarchy: service -> environment -> project -> personal user.
 	var hierarchy struct {
-		ServiceID      uuid.UUID
-		EnvironmentID  uuid.UUID
-		ProjectID      uuid.UUID
-		OrganizationID uuid.UUID
+		ServiceID     uuid.UUID
+		EnvironmentID uuid.UUID
+		ProjectID     uuid.UUID
+		UserID        uuid.UUID
 	}
 	hierarchyQuery := `
-		SELECT s.id, s.environment_id, e.project_id, p.organization_id
+		SELECT s.id, s.environment_id, e.project_id, p.user_id
 		FROM services s
 		JOIN environments e ON e.id = s.environment_id
 		JOIN projects p ON p.id = e.project_id
@@ -1177,13 +1201,16 @@ func (s *Service) CreateManualDeployment(ctx context.Context, serviceID, actorUs
 		&hierarchy.ServiceID,
 		&hierarchy.EnvironmentID,
 		&hierarchy.ProjectID,
-		&hierarchy.OrganizationID,
+		&hierarchy.UserID,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, httpx.NewAPIError(404, httpx.CodeNotFound, "service not found", nil)
 		}
 		return nil, httpx.NewAPIError(500, httpx.CodeInternalError, "failed to query service hierarchy", err)
+	}
+	if hierarchy.UserID != actorUserID {
+		return nil, httpx.NewAPIError(404, httpx.CodeNotFound, "service not found", nil)
 	}
 
 	// 2. Load connected active service source
@@ -1388,7 +1415,7 @@ func (s *Service) CreateManualDeployment(ctx context.Context, serviceID, actorUs
 		"build_run_id":      buildJobID.String(),
 		"service_id":        serviceID.String(),
 		"service_source_id": sourceInfo.SourceID.String(),
-		"organization_id":   hierarchy.OrganizationID.String(),
+		"user_id":           hierarchy.UserID.String(),
 		"project_id":        hierarchy.ProjectID.String(),
 		"environment_id":    hierarchy.EnvironmentID.String(),
 		"repository": map[string]any{
@@ -1440,11 +1467,11 @@ func (s *Service) CreateManualDeployment(ctx context.Context, serviceID, actorUs
 
 	if s.audit != nil {
 		_ = s.audit.Write(ctx, audit.Event{
-			OrganizationID: hierarchy.OrganizationID,
-			ActorUserID:    &actorUserID,
-			Action:         audit.ActionDeploymentManualRequested,
-			EntityType:     "deployment",
-			EntityID:       deploymentID,
+			UserID:      hierarchy.UserID,
+			ActorUserID: &actorUserID,
+			Action:      audit.ActionDeploymentManualRequested,
+			EntityType:  "deployment",
+			EntityID:    deploymentID,
 			Metadata: map[string]any{
 				"service_id":   serviceID.String(),
 				"commit_sha":   commit.SHA,

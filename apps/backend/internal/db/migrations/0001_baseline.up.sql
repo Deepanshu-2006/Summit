@@ -1,6 +1,6 @@
 -- 0001_baseline.up.sql
 -- Baseline schema for Summit PaaS control plane.
--- Creates core platform tables: organizations, users, memberships, projects,
+-- Creates personal-user-owned platform tables: users, projects,
 -- environments, services, resources, secrets, deployments, builds, releases,
 -- domains, metering, audit, and outbox.
 
@@ -16,27 +16,9 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ============================================================================
--- Organizations (Tenants)
--- ============================================================================
-CREATE TABLE organizations (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    slug VARCHAR(63) NOT NULL UNIQUE,
-    name VARCHAR(255) NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    deleted_at TIMESTAMPTZ
-);
-CREATE INDEX idx_organizations_slug ON organizations(slug) WHERE deleted_at IS NULL;
-
-CREATE TRIGGER trg_organizations_updated_at
-    BEFORE UPDATE ON organizations
-    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
--- ============================================================================
 -- Users
 -- Supabase Auth linkage: the id column matches the Supabase auth.users(id).
--- We do NOT add a foreign key to auth.users because this schema must apply
--- to plain PostgreSQL. The application layer ensures id consistency.
+-- The table remains usable with plain PostgreSQL for local/integration tests.
 -- ============================================================================
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -52,29 +34,11 @@ CREATE TRIGGER trg_users_updated_at
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- ============================================================================
--- Organization Memberships (RBAC)
--- ============================================================================
-CREATE TABLE organization_memberships (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    role VARCHAR(32) NOT NULL CHECK (role IN ('owner', 'admin', 'member', 'viewer')),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT uq_org_user UNIQUE (organization_id, user_id)
-);
-CREATE INDEX idx_org_memberships_user ON organization_memberships(user_id);
-
-CREATE TRIGGER trg_org_memberships_updated_at
-    BEFORE UPDATE ON organization_memberships
-    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
--- ============================================================================
 -- Projects
 -- ============================================================================
 CREATE TABLE projects (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     slug VARCHAR(63) NOT NULL,
     name VARCHAR(255) NOT NULL,
     git_repository_url VARCHAR(512),
@@ -82,9 +46,10 @@ CREATE TABLE projects (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at TIMESTAMPTZ,
-    CONSTRAINT uq_org_project_slug UNIQUE (organization_id, slug)
+    CONSTRAINT uq_user_project_slug UNIQUE (user_id, slug),
+    CONSTRAINT uq_project_owner UNIQUE (id, user_id)
 );
-CREATE INDEX idx_projects_org ON projects(organization_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_projects_user ON projects(user_id) WHERE deleted_at IS NULL;
 
 CREATE TRIGGER trg_projects_updated_at
     BEFORE UPDATE ON projects
@@ -102,7 +67,8 @@ CREATE TABLE environments (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at TIMESTAMPTZ,
-    CONSTRAINT uq_project_env_name UNIQUE (project_id, name)
+    CONSTRAINT uq_project_env_name UNIQUE (project_id, name),
+    CONSTRAINT uq_environment_project UNIQUE (id, project_id)
 );
 CREATE INDEX idx_environments_project ON environments(project_id) WHERE deleted_at IS NULL;
 
@@ -155,16 +121,22 @@ CREATE TRIGGER trg_service_resources_updated_at
 -- ============================================================================
 CREATE TABLE secret_references (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
-    environment_id UUID REFERENCES environments(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    project_id UUID,
+    environment_id UUID,
     key_name VARCHAR(255) NOT NULL,
     provider VARCHAR(64) NOT NULL CHECK (provider IN ('openbao', 'aws_secrets_manager', 'kubernetes_secret')),
     provider_vault_path VARCHAR(512) NOT NULL,
     provider_version_id VARCHAR(128),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT uq_env_secret_key UNIQUE (environment_id, key_name)
+    CONSTRAINT uq_env_secret_key UNIQUE (environment_id, key_name),
+    CONSTRAINT fk_secret_project_owner FOREIGN KEY (project_id, user_id)
+        REFERENCES projects(id, user_id) ON DELETE CASCADE,
+    CONSTRAINT fk_secret_environment_project FOREIGN KEY (environment_id, project_id)
+        REFERENCES environments(id, project_id) ON DELETE CASCADE,
+    CONSTRAINT ck_secret_environment_requires_project
+        CHECK (environment_id IS NULL OR project_id IS NOT NULL)
 );
 CREATE INDEX idx_secret_ref_env ON secret_references(environment_id);
 
@@ -185,7 +157,7 @@ CREATE TYPE deployment_status AS ENUM (
 CREATE TABLE deployments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     project_id UUID NOT NULL REFERENCES projects(id) ON DELETE RESTRICT,
-    environment_id UUID NOT NULL REFERENCES environments(id) ON DELETE RESTRICT,
+    environment_id UUID NOT NULL,
     service_id UUID REFERENCES services(id),
     service_source_id UUID, -- FK added in 0002_github_integration
     git_commit_sha VARCHAR(40) NOT NULL,
@@ -200,7 +172,9 @@ CREATE TABLE deployments (
     error_message TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT uq_project_idempotency UNIQUE (project_id, idempotency_key)
+    CONSTRAINT uq_project_idempotency UNIQUE (project_id, idempotency_key),
+    CONSTRAINT fk_deployment_environment_project FOREIGN KEY (environment_id, project_id)
+        REFERENCES environments(id, project_id) ON DELETE RESTRICT
 );
 CREATE INDEX idx_deployments_env_status ON deployments(environment_id, status);
 CREATE INDEX idx_deployments_created ON deployments(created_at DESC);
@@ -286,24 +260,28 @@ CREATE TRIGGER trg_custom_domains_updated_at
 -- ============================================================================
 CREATE TABLE metering_ledger (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT,
-    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE RESTRICT,
-    environment_id UUID NOT NULL REFERENCES environments(id) ON DELETE RESTRICT,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    project_id UUID NOT NULL,
+    environment_id UUID NOT NULL,
     metric_type VARCHAR(64) NOT NULL,
     quantity NUMERIC(18, 4) NOT NULL,
     window_start TIMESTAMPTZ NOT NULL,
     window_end TIMESTAMPTZ NOT NULL,
     idempotency_hash VARCHAR(64) NOT NULL UNIQUE,
-    recorded_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    recorded_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT fk_metering_project_owner FOREIGN KEY (project_id, user_id)
+        REFERENCES projects(id, user_id) ON DELETE RESTRICT,
+    CONSTRAINT fk_metering_environment_project FOREIGN KEY (environment_id, project_id)
+        REFERENCES environments(id, project_id) ON DELETE RESTRICT
 );
-CREATE INDEX idx_metering_org_window ON metering_ledger(organization_id, window_start, window_end);
+CREATE INDEX idx_metering_user_window ON metering_ledger(user_id, window_start, window_end);
 
 -- ============================================================================
 -- Audit Logs (immutable)
 -- ============================================================================
 CREATE TABLE audit_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     actor_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
     action VARCHAR(128) NOT NULL,
     entity_type VARCHAR(64) NOT NULL,
@@ -314,7 +292,7 @@ CREATE TABLE audit_logs (
     request_id TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX idx_audit_org_created ON audit_logs(organization_id, created_at DESC);
+CREATE INDEX idx_audit_user_created ON audit_logs(user_id, created_at DESC);
 
 -- ============================================================================
 -- Transactional Outbox
@@ -345,3 +323,26 @@ CREATE INDEX idx_outbox_queue ON outbox_events(status, available_at, created_at)
 CREATE TRIGGER trg_outbox_events_updated_at
     BEFORE UPDATE ON outbox_events
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- These control-plane tables are accessed through the Go API, not directly
+-- through Supabase's Data API. Keep RLS enabled and remove client-role grants.
+DO $$
+DECLARE
+    table_name TEXT;
+BEGIN
+    FOREACH table_name IN ARRAY ARRAY[
+        'users', 'projects', 'environments', 'services', 'service_resources',
+        'secret_references', 'deployments', 'build_jobs', 'releases',
+        'custom_domains', 'metering_ledger', 'audit_logs', 'outbox_events'
+    ] LOOP
+        EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', table_name);
+        EXECUTE format('REVOKE ALL ON TABLE %I FROM PUBLIC', table_name);
+        IF to_regrole('anon') IS NOT NULL THEN
+            EXECUTE format('REVOKE ALL ON TABLE %I FROM anon', table_name);
+        END IF;
+        IF to_regrole('authenticated') IS NOT NULL THEN
+            EXECUTE format('REVOKE ALL ON TABLE %I FROM authenticated', table_name);
+        END IF;
+    END LOOP;
+END;
+$$;

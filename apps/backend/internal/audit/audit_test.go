@@ -78,16 +78,15 @@ func TestPgxWriter_Write(t *testing.T) {
 	mockDB := &mockDBExecutor{}
 	writer := NewPgxWriter(mockDB)
 
-	orgID := uuid.New()
 	userID := uuid.New()
 	entityID := uuid.New()
 
 	event := Event{
-		OrganizationID: orgID,
-		ActorUserID:    &userID,
-		Action:         ActionSourceConnected,
-		EntityType:     "service_source",
-		EntityID:       entityID,
+		UserID:      userID,
+		ActorUserID: &userID,
+		Action:      ActionSourceConnected,
+		EntityType:  "service_source",
+		EntityID:    entityID,
 		Metadata: map[string]any{
 			"branch":       "main",
 			"access_token": "secret-token",
@@ -113,8 +112,8 @@ func TestPgxWriter_Write(t *testing.T) {
 		t.Fatalf("expected 10 args, got %d", len(args))
 	}
 
-	if args[0] != orgID {
-		t.Errorf("expected orgID %v, got %v", orgID, args[0])
+	if args[0] != userID {
+		t.Errorf("expected userID %v, got %v", userID, args[0])
 	}
 	if args[1].(*uuid.UUID) == nil || *args[1].(*uuid.UUID) != userID {
 		t.Errorf("expected userID %v, got %v", userID, args[1])
@@ -155,12 +154,12 @@ func TestPgxWriter_EmptyIPBecomesNil(t *testing.T) {
 	writer := NewPgxWriter(mockDB)
 
 	event := Event{
-		OrganizationID: uuid.New(),
-		ActorUserID:    nil, // system event
-		Action:         ActionDeploymentWebhookCreated,
-		EntityType:     "deployment",
-		EntityID:       uuid.New(),
-		IPAddress:      "  ", // whitespace only
+		UserID:      uuid.New(),
+		ActorUserID: nil, // system event
+		Action:      ActionDeploymentWebhookCreated,
+		EntityType:  "deployment",
+		EntityID:    uuid.New(),
+		IPAddress:   "  ", // whitespace only
 	}
 
 	err := writer.Write(context.Background(), event)

@@ -12,7 +12,7 @@
 1. **Thin Client Philosophy:** The frontend (Next.js) and MCP servers must **never** call GitHub REST/GraphQL APIs directly for platform repository integration. All interactions go through the Go API.
 2. **Zero Credentials on Clients:** Next.js and MCP must never store GitHub App private keys, App JWTs, webhook secrets, or installation access tokens.
 3. **Authentication:** All user endpoints require a Supabase Auth access token in the `Authorization: Bearer <token>` header.
-4. **Stable Platform Identifiers:** Resource operations use platform UUIDs (`organization_id`, `installation_id`, `repository_id`, `service_id`), not GitHub's internal numeric IDs.
+4. **Stable Platform Identifiers:** Resource operations use platform UUIDs (`installation_id`, `repository_id`, `service_id`), not GitHub's internal numeric IDs.
 
 ---
 
@@ -23,7 +23,7 @@
 ```text
 Next.js (authenticated) 
   │ 
-  │ 1. POST /v1/organizations/{org_id}/github/installations
+  │ 1. POST /v1/github/installations
   ▼
 Go API (creates single-use state in DB)
   │
@@ -47,7 +47,7 @@ Next.js shows confirmation and refreshes installation list
 
 #### Step 1: Initiate Installation Request
 ```http
-POST /v1/organizations/b95d2c4e-28f0-4560-b8d4-539c36294e50/github/installations
+POST /v1/github/installations
 Authorization: Bearer <supabase_token>
 Content-Type: application/json
 ```
@@ -63,7 +63,7 @@ Content-Type: application/json
 #### Step 2: Handle Frontend Return Callback
 Next.js handles the return path `/settings/github/callback`:
 - Inspect query parameter `status`:
-  - If `status=success`: Query `GET /v1/organizations/{org_id}/github/installations` to display the connected installation.
+  - If `status=success`: Query `GET /v1/github/installations` to display the connected installation.
   - If `status=error`: Inspect `error_code` (e.g., `state_invalid`, `state_expired`, `flow_cancelled`) and display a friendly message.
 
 ---
@@ -73,10 +73,10 @@ Next.js handles the return path `/settings/github/callback`:
 ```text
 Next.js
   │
-  ├─► 1. GET /v1/organizations/{org_id}/github/installations
+  ├─► 1. GET /v1/github/installations
   │      Returns list of linked installations
   │
-  ├─► 2. GET /v1/organizations/{org_id}/github/installations/{inst_id}/repositories
+  ├─► 2. GET /v1/github/installations/{inst_id}/repositories
   │      Returns synchronized repositories available to connect
   │
   └─► 3. PUT /v1/services/{service_id}/source
@@ -85,7 +85,7 @@ Next.js
 
 #### Step 1: List Accessible Repositories
 ```http
-GET /v1/organizations/b95d2c4e-28f0-4560-b8d4-539c36294e50/github/installations/a01b2c3d-4e5f-6a7b-8c9d-0e1f2a3b4c5d/repositories
+GET /v1/github/installations/a01b2c3d-4e5f-6a7b-8c9d-0e1f2a3b4c5d/repositories
 Authorization: Bearer <supabase_token>
 ```
 
@@ -184,8 +184,8 @@ Content-Type: application/json
 - **Disconnect Service Source:** `DELETE /v1/services/{service_id}/source`
   - Stops future auto-deployments for that service.
   - Does NOT delete deployment history or revoke the GitHub App installation.
-- **Disconnect Installation:** `DELETE /v1/organizations/{organization_id}/github/installations/{installation_id}`
-  - Requires `owner` or `admin` role.
+- **Disconnect Installation:** `DELETE /v1/github/installations/{installation_id}`
+  - Requires the authenticated user to own the installation.
   - Marks the installation disconnected and marks all connected service sources as `disconnected`.
 
 ---
@@ -198,13 +198,10 @@ MCP servers should expose the following tool definitions calling the Go API:
 [
   {
     "name": "list_github_installations",
-    "description": "List GitHub App installations linked to a platform organization.",
+    "description": "List GitHub App installations linked to the authenticated personal user.",
     "parameters": {
       "type": "object",
-      "properties": {
-        "organization_id": { "type": "string", "format": "uuid" }
-      },
-      "required": ["organization_id"]
+      "properties": {}
     }
   },
   {
@@ -213,10 +210,9 @@ MCP servers should expose the following tool definitions calling the Go API:
     "parameters": {
       "type": "object",
       "properties": {
-        "organization_id": { "type": "string", "format": "uuid" },
         "installation_id": { "type": "string", "format": "uuid" }
       },
-      "required": ["organization_id", "installation_id"]
+      "required": ["installation_id"]
     }
   },
   {
@@ -268,8 +264,8 @@ The API returns standard JSON error responses:
 | Error Code | HTTP Status | Meaning |
 |---|---|---|
 | `UNAUTHORIZED` | 401 | Missing or invalid Supabase Bearer token |
-| `FORBIDDEN` | 403 | User lacks required role/permission in organization |
-| `GITHUB_INSTALLATION_NOT_FOUND` | 404 | Installation ID does not exist in platform organization |
+| `FORBIDDEN` | 403 | Authenticated user is not authorized to access the requested resource |
+| `GITHUB_INSTALLATION_NOT_FOUND` | 404 | Installation ID does not exist for the authenticated user |
 | `GITHUB_REPOSITORY_NOT_FOUND` | 404 | Repository ID not found |
 | `SERVICE_SOURCE_NOT_FOUND` | 404 | No source connected to service |
 | `SERVICE_SOURCE_INVALID_PATH` | 400 | Root directory or Dockerfile path contains path traversal (`..`) or invalid characters |

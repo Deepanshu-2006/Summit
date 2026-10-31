@@ -133,7 +133,7 @@ func (h *BrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			gr.removed_at,
 			gi.github_installation_id,
 			gi.status AS inst_status,
-			gi.organization_id
+			gi.user_id
 		FROM build_jobs bj
 		JOIN service_sources ss ON bj.service_source_id = ss.id
 		JOIN github_repositories gr ON ss.repository_id = gr.id
@@ -151,7 +151,7 @@ func (h *BrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		removedAt            *time.Time
 		githubInstallationID int64
 		instStatus           string
-		orgID                uuid.UUID
+		userID               uuid.UUID
 	)
 
 	err = h.pool.QueryRow(r.Context(), lookupQuery, buildJobID).Scan(
@@ -164,7 +164,7 @@ func (h *BrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		&removedAt,
 		&githubInstallationID,
 		&instStatus,
-		&orgID,
+		&userID,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		httpx.WriteError(w, r, http.StatusNotFound, httpx.CodeNotFound, "build request not found")
@@ -235,11 +235,11 @@ func (h *BrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// 9. Audit token issuance (Token itself is NEVER logged or stored)
 	if h.auditWriter != nil {
 		_ = h.auditWriter.Write(r.Context(), audit.Event{
-			OrganizationID: orgID,
-			ActorUserID:    nil, // machine worker actor
-			Action:         audit.ActionWorkerTokenIssued,
-			EntityType:     "build_job",
-			EntityID:       buildJobID,
+			UserID:      userID,
+			ActorUserID: nil, // machine worker actor
+			Action:      audit.ActionWorkerTokenIssued,
+			EntityType:  "build_job",
+			EntityID:    buildJobID,
 			Metadata: map[string]any{
 				"github_repository_id":   githubRepoID,
 				"github_installation_id": githubInstallationID,

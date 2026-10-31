@@ -1,5 +1,9 @@
 # Platform Database Implementation Plan: Supabase Postgres & Control Plane State
 
+> **Current ownership model:** Summit control-plane records belong directly to
+> personal users. The current migrations do not create Summit organizations or
+> organization memberships. GitHub accounts may still be GitHub organizations.
+
 - **Document Path:** `docs/implementation_arpit.md`
 - **Owner:** Arpit (Platform Database Engineer - Persistence, Schema & Interfaces)
 - **Collaborators:** Priyanshu (API Platform & Isolated Builder Engineer - gVisor host setup, runtimeClass, rootless BuildKit + Railpack), Rudra (Orchestrator & K8s Operator Engineer - pod scheduling, launching, monitoring, cleanup), Frontend Developer (UI / Next.js)
@@ -11,11 +15,11 @@
 
 ## 1. Executive Summary & Scope
 
-This document defines the database architecture and persistence implementation plan for the Summit Jetway developer platform. The architecture identifies Supabase Postgres as the platform metadata database. The database stores platform metadata, tenancy, deployment lifecycle state, resource topology, and durable metering records.
+This document defines the database architecture and persistence implementation plan for the Summit Jetway developer platform. The architecture identifies Supabase Postgres as the platform metadata database. The database stores platform metadata, personal-user ownership, deployment lifecycle state, resource topology, and durable metering records.
 
 ### 1.1 In-Scope (Arpit Ownership)
 Arpit owns platform persistence, schema design, and database access interfaces only:
-- **Control Plane State Architecture:** Logical schema design, multi-tenant relational modeling, index optimization, and relational constraints for organizations, projects, environments, services, deployments, releases, domains, and audit trails.
+- **Control Plane State Architecture:** Logical schema design, personal-user ownership, index optimization, and relational constraints for users, projects, environments, services, deployments, releases, domains, and audit trails.
 - **Transactional Outbox Engine:** A durable PostgreSQL-backed outbox pattern supporting atomic HTTP request mutations and concurrent worker claims via `FOR UPDATE SKIP LOCKED`.
 - **Database Access Layer (`apps/backend/internal/db`):** Safe, idiomatic Go repository interfaces, connection pooling via `pgx/v5` (`pgxpool`), transaction lifecycle management, and typed query abstractions consumed by Priyanshu (API) and Rudra (Orchestrator).
 - **Migration & Evolution Framework:** Zero-downtime, expand/contract migration tooling decision workflow, automated local/CI testing via ephemeral containers, and rollback verification.
@@ -34,7 +38,7 @@ Arpit owns platform persistence, schema design, and database access interfaces o
 ### 2.1 Monorepo Reality Check
 An inspection of the workspace confirms the current baseline:
 - **`apps/backend`:** Fully integrated with `jackc/pgx/v5/pgxpool` in `internal/db/pool.go`. Schema migrations are governed by the advisory-locked migration engine in `internal/db/migrate.go` and CLI `cmd/migrate/main.go`. Two production migrations are committed and active:
-  - `0001_baseline.up.sql`: Core tenancy (`organizations`, `users`, `organization_memberships`), `projects`, `environments`, `services`, `service_resources`, `secret_references`, `deployments`, `build_jobs`, `releases`, `outbox_events`, `custom_domains`, `metering_ledger`, and `audit_logs`.
+  - `0001_baseline.up.sql`: Personal-user-owned core tables (`users`, `projects`, `environments`, `services`, `service_resources`, `secret_references`, `deployments`, `build_jobs`, `releases`, `outbox_events`, `custom_domains`, `metering_ledger`, and `audit_logs`).
   - `0002_github_integration.up.sql`: `github_installations`, `github_installation_states`, `github_repositories`, `github_webhook_events`, and `service_sources`, with `deployments.git_commit_sha` widened to `VARCHAR(64)` for full Git SHA-256 support.
 - **Test Harness:** Dedicated schema-isolated PostgreSQL test runner in `internal/testutil/db.go` verifies migrations and query execution against local `postgres:16-alpine` containers.
 - **`packages/api_spec/openapi.yaml`:** OpenAPI 3.1 contract containing endpoints for projects, resources, releases, and observability.
@@ -67,7 +71,7 @@ Before laying down table DDL, the three backend engineers must resolve key archi
 |             v                                                               v                     |
 |   +-------------------------------------------------------------------------------------------+   |
 |   |                                SUPABASE POSTGRES (PLATFORM DB)                            |   |
-|   |  - Organizations & Users (Tenancy)           - Deployments, Builds & Releases             |   |
+|   |  - Personal Users & Projects                  - Deployments, Builds & Releases             |   |
 |   |  - Projects & Workload Specs                 - Transactional Outbox (Job Queue)           |   |
 |   |  - Secret Metadata (Pointers/ARNs Only)      - Metering Ledger & Audit Trail              |   |
 |   +-------------------------------------------------------------------------------------------+   |
@@ -96,7 +100,7 @@ Before laying down table DDL, the three backend engineers must resolve key archi
 | :--- | :--- | :--- |
 | **Owner** | Arpit (Platform Database Engineer - Persistence/Schema/Interfaces Only) | Tenant User Applications (Managed by Rudra Operator) |
 | **Location** | Managed Supabase Postgres Instance | Ephemeral / Persistent Pods in `tenant-<org>-<env>` |
-| **Data Stored** | Tenancy, RBAC, Git repos, build logs metadata, deployment state, outbox jobs, secret pointers, billing ledger | End-user tables, customer application business data, session state |
+| **Data Stored** | Personal user ownership, Git repos, build metadata, deployment state, outbox jobs, secret pointers, billing ledger | End-user tables, customer application business data, session state |
 | **Network Access** | Control plane only (`apps/backend`, internal worker pool) | In-cluster service mesh, tenant ingress via Traefik |
 | **Secret Storage** | OpenBao paths and AWS Secrets Manager ARNs only | Injected environment variables via External Secrets Operator |
 | **Failure Domain** | Global control plane outage (blocks new deploys/logins) | Localized tenant outage (isolated by Cilium network policies) |
@@ -132,12 +136,12 @@ The detailed schema and SQL below are design candidates, not approved requiremen
 <span style="color:#7C3AED"><strong>TEAM OF THREE REQUIRED</strong></span>
 The following four cross-cutting gates require explicit, synchronous sign-off from Priyanshu (API), Rudra (Orchestrator), and Arpit (Database), with coordination from the UI developer on contract visibility:
 
-### Gate 1: Tenant/Auth Identity and Isolation Boundary
-- **Objective:** Finalize how a user request establishes tenant context and how isolation is enforced across the stack.
-- **Priyanshu (API):** Extracts identity from JWT, establishes tenant context in Go `context.Context`, validates RBAC.
-- **Rudra (Orchestrator):** Maps tenant ID to Kubernetes namespace naming (`tenant-<org_slug>-<env>`) and applies Cilium isolation policies.
-- **Arpit (Database):** Implements multi-tenant relational schemas where every resource includes `organization_id`; defines foreign key cascades and isolation filters (DB/persistence/schema/interfaces only).
-- **UI Coordination:** Establishes session token handling and organization switching UI semantics.
+### Gate 1: Personal User Identity and Isolation Boundary
+- **Objective:** Establish how the authenticated user owns projects and their resource trees.
+- **Priyanshu (API):** Extracts user identity from JWT and checks resource ownership in Go handlers.
+- **Rudra (Orchestrator):** Maps each personal user's workloads to Kubernetes namespaces and applies Cilium isolation policies.
+- **Arpit (Database):** Stores `user_id` on owned records and enforces ownership across project relationships with foreign keys.
+- **UI Coordination:** Uses the authenticated user's projects without organization switching.
 
 ### Gate 2: Deployment Lifecycle + Persistence/Outbox + API Response Contract / Retries / Idempotency
 - **Objective:** Establish the atomic deployment creation protocol, outbox event schema, and worker reconciliation state machine.
@@ -164,20 +168,14 @@ The following four cross-cutting gates require explicit, synchronous sign-off fr
 
 ## 5. Conceptual Entity Map & Relational Schemas
 
-All entities utilize **UUIDv7** (time-ordered, index-friendly, collision-resistant) or structured string prefixes (`org_01J...`, `prj_01J...`, `dep_01J...`) to optimize B-Tree index locality and avoid sequential integer enumeration.
+Entities use UUID primary keys generated by PostgreSQL. Projects and their resource hierarchy belong to a personal user.
 
 ```
 +-------------------------------------------------------------------------------------------------+
 |                                    ENTITY RELATIONSHIP DIAGRAM                                  |
 |                                                                                                 |
 |   +-----------------------+           1:N           +---------------------------------------+   |
-|   |     organizations     | ----------------------> |        organization_memberships       |   |
-|   +-----------------------+                         +---------------------------------------+   |
-|               |                                                         |                       |
-|               | 1:N                                                     | N:1                   |
-|               v                                                         v                       |
-|   +-----------------------+                         +---------------------------------------+   |
-|   |       projects        |                         |                 users                 |   |
+|   |         users         | ----------------------> |                projects               |   |
 |   +-----------------------+                         +---------------------------------------+   |
 |               |                                                                                 |
 |       +-------+-------+                                                                         |
@@ -207,39 +205,17 @@ All entities utilize **UUIDv7** (time-ordered, index-friendly, collision-resista
 +-------------------------------------------------------------------------------------------------+
 ```
 
-### 5.1 Identity, Tenancy & Membership
+### 5.1 Personal User Identity
 ```sql
--- Organizations (Tenants)
-CREATE TABLE organizations (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    slug VARCHAR(63) NOT NULL UNIQUE,
-    name VARCHAR(255) NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    deleted_at TIMESTAMPTZ
-);
-CREATE INDEX idx_organizations_slug ON organizations(slug) WHERE deleted_at IS NULL;
-
--- Users
+-- User IDs match Supabase Auth auth.users IDs.
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    email VARCHAR(255) NOT NULL UNIQUE,
-    display_name VARCHAR(255),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    email TEXT UNIQUE,
+    name TEXT,
+    avatar_url TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-
--- Organization Memberships (RBAC)
-CREATE TABLE organization_memberships (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    role VARCHAR(32) NOT NULL CHECK (role IN ('owner', 'admin', 'member', 'viewer')),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT uq_org_user UNIQUE (organization_id, user_id)
-);
-CREATE INDEX idx_org_memberships_user ON organization_memberships(user_id);
 ```
 
 ### 5.2 Projects, Environments & Git Repositories
@@ -247,7 +223,7 @@ CREATE INDEX idx_org_memberships_user ON organization_memberships(user_id);
 -- Projects
 CREATE TABLE projects (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     slug VARCHAR(63) NOT NULL,
     name VARCHAR(255) NOT NULL,
     git_repository_url VARCHAR(512),
@@ -255,9 +231,9 @@ CREATE TABLE projects (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     deleted_at TIMESTAMPTZ,
-    CONSTRAINT uq_org_project_slug UNIQUE (organization_id, slug)
+    CONSTRAINT uq_user_project_slug UNIQUE (user_id, slug)
 );
-CREATE INDEX idx_projects_org ON projects(organization_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_projects_user ON projects(user_id) WHERE deleted_at IS NULL;
 
 -- Environments (production, staging, preview-pr-12)
 CREATE TABLE environments (
@@ -309,7 +285,7 @@ CREATE TABLE service_resources (
 -- Secret References: Strictly metadata and external vault pointers
 CREATE TABLE secret_references (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
     environment_id UUID REFERENCES environments(id) ON DELETE CASCADE,
     key_name VARCHAR(255) NOT NULL,
@@ -416,7 +392,7 @@ CREATE INDEX idx_custom_domains_env ON custom_domains(environment_id);
 -- Durable, Append-Only Usage Ledger (Financial/Billing Invariant)
 CREATE TABLE metering_ledger (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     project_id UUID NOT NULL REFERENCES projects(id) ON DELETE RESTRICT,
     environment_id UUID NOT NULL REFERENCES environments(id) ON DELETE RESTRICT,
     metric_type VARCHAR(64) NOT NULL,       -- 'vcpu_seconds', 'memory_byte_seconds', 'build_minutes'
@@ -426,12 +402,12 @@ CREATE TABLE metering_ledger (
     idempotency_hash VARCHAR(64) NOT NULL UNIQUE,
     recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-CREATE INDEX idx_metering_org_window ON metering_ledger(organization_id, window_start, window_end);
+CREATE INDEX idx_metering_user_window ON metering_ledger(user_id, window_start, window_end);
 
 -- Immutable Security & Compliance Audit Log
 CREATE TABLE audit_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     actor_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
     action VARCHAR(128) NOT NULL,           -- 'project.create', 'secret.rotate', 'deployment.trigger'
     entity_type VARCHAR(64) NOT NULL,
@@ -441,7 +417,7 @@ CREATE TABLE audit_logs (
     user_agent TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-CREATE INDEX idx_audit_org_created ON audit_logs(organization_id, created_at DESC);
+CREATE INDEX idx_audit_user_created ON audit_logs(user_id, created_at DESC);
 ```
 
 ---
@@ -609,38 +585,11 @@ cfg.HealthCheckPeriod = 1 * time.Minute
 
 ---
 
-## 10. Tenant Isolation Strategy & RLS Architecture
+## 10. Personal User Ownership and Database Access
 
-A critical architectural decision is whether to rely on Supabase Row Level Security (RLS) or application-level enforcement in the Go control plane:
+The Go API is the public data access layer for control-plane records. It derives the owner from the verified Supabase user and checks that owner before reading or changing projects and their resources. The database stores personal ownership with `user_id` and uses composite foreign keys where a child record must remain under the same project owner.
 
-### 10.1 Evaluated Approaches
-
-```
-Approach A: Application-Level Enforcement (WHERE organization_id = $1)
-[HTTP Request] ---> [Go Middleware (Auth Context)] ---> [Query with Explicit org_id] ---> [Postgres (service_role)]
-- Pros: Simple, fast, explicit in Go code, easily testable with mocks.
-- Cons: Human error in a query can cause cross-tenant data leaks.
-
-Approach B: Defense-in-Depth RLS with Runtime Session Variable
-[HTTP Request] ---> [Go Middleware] ---> [Tx: SET LOCAL app.current_org_id = $1] ---> [Postgres RLS Policy Enforced]
-- Pros: Database mathematically prevents cross-tenant leaks even if Go query omits WHERE org_id.
-- Cons: Requires wrapping every query in a transaction or session context; adds slight query latency.
-```
-
-### 10.2 Recommended Strategy: Hybrid Defense-in-Depth
-1. **Primary Control:** Priyanshu's Go handlers extract and validate `organization_id` from the request claims. Every repository query in `apps/backend/internal/platformdb` explicitly filters by `organization_id`.
-2. **Database Floor (RLS):** Supabase RLS is enabled on all multi-tenant tables (`organizations`, `projects`, `environments`, `deployments`, `secret_references`, `metering_ledger`).
-3. **Session Variable Enforcement:**
-   ```sql
-   ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
-
-   CREATE POLICY tenant_isolation_policy ON projects
-       AS RESTRICTIVE
-       USING (organization_id = NULLIF(current_setting('app.current_org_id', true), '')::uuid);
-   ```
-4. **Backend Role:** Background outbox workers and migration runners operate under a privileged `service_role` that bypasses RLS, while customer-facing request sessions execute with `SET LOCAL app.current_org_id = $1`.
-
----
+The migrations enable RLS on control-plane tables and revoke grants from Supabase's `anon` and `authenticated` Data API roles. Browser clients call the Go API rather than querying these tables directly. The API and background workers use a privileged server-side database role, so they can operate with RLS enabled while applying ownership checks in application code.
 
 ## 11. Durability & Recovery Policy (MVP Scope)
 
@@ -654,7 +603,7 @@ Operational metrics collected by Prometheus and Loki are ephemeral and subject t
 
 ### 12.1 Durable Usage Ledger Semantics
 - **Reconciliation Engine:** A scheduled background reconciler reads aggregated consumption from Prometheus / metrics-server, converts it into typed, immutable usage records (`vcpu_seconds`, `memory_byte_seconds`, `build_minutes`, `egress_bytes`), and inserts them into `metering_ledger`.
-- **Idempotency Invariant:** Every ledger record contains a SHA-256 hash derived from `(organization_id, project_id, metric_type, window_start, window_end)`. Duplicate reconciliation runs trigger `ON CONFLICT (idempotency_hash) DO NOTHING`.
+- **Idempotency Invariant:** Every ledger record contains a SHA-256 hash derived from `(user_id, project_id, metric_type, window_start, window_end)`. Duplicate reconciliation runs trigger `ON CONFLICT (idempotency_hash) DO NOTHING`.
 - **Immutability:** The `metering_ledger` table is strictly append-only. `UPDATE` and `DELETE` permissions are revoked for all application users. Corrections are recorded as compensating negative entries.
 
 ---
@@ -666,7 +615,7 @@ Operational metrics collected by Prometheus and Loki are ephemeral and subject t
 2. **Integration Tests (`testcontainers-go`):** Automated Go integration tests in `apps/backend/internal/platformdb` that spin up a real PostgreSQL 16 container, apply all Goose migrations, and verify:
    - Foreign key cascading and deletion constraints.
    - Outbox concurrent claim locks using `FOR UPDATE SKIP LOCKED`.
-   - Multi-tenant query isolation and RLS boundaries.
+   - Personal-user query isolation and RLS boundaries.
    - Idempotency key conflict handling.
 3. **Migration Regression Tests:** CI pipeline executes `goose up` followed immediately by `goose down` and `goose up` to verify bidirectional migration safety.
 
@@ -688,11 +637,11 @@ PHASE 0: Foundations & Tooling Agreement (Week 1)
 [Shared Gate 1] <span style="color:#7C3AED"><strong>TEAM OF THREE REQUIRED</strong></span>: Finalize Auth & Tenant boundary spec.
 
 ==================================================================================================
-PHASE 1: Core Tenancy, Projects & Go Repository (Weeks 2-3)
+PHASE 1: Personal User Ownership, Projects & Go Repository (Weeks 2-3)
 --------------------------------------------------------------------------------------------------
-[Arpit] Implement `organizations`, `users`, `projects`, `environments` tables & `platformdb` package.
+[Arpit] Implement personal-user-owned `users`, `projects`, `environments` tables & `platformdb` package.
 [Priyanshu Handoff] Deliver `platformdb.ProjectRepository` for API CRUD endpoints.
-[UI Coordination] Coordinate tenant-switching and project list response contract.
+[UI Coordination] Coordinate personal project list response contract.
 
 ==================================================================================================
 PHASE 2: Deployments, Releases & Outbox Engine (Weeks 4-5)
@@ -735,7 +684,7 @@ This checklist defines the exact scope of Arpit's initial pull request:
   - Introduced `github.com/jackc/pgx/v5` and `github.com/google/uuid` to `apps/backend/go.mod`.
   - Built programmatic PostgreSQL advisory-locked migration runner (`internal/db/migrate.go`) and CLI (`cmd/migrate/main.go`).
 - [x] **Initial Migration (`0001_baseline.up.sql` & `0002_github_integration.up.sql`):**
-  - Implemented `organizations`, `users`, and `organization_memberships`.
+  - Implemented personal `users` and user-owned `projects`.
   - Implemented `projects` and `environments`.
   - Implemented `services`, `service_resources`, `secret_references`, `deployments`, `build_jobs`, `releases`, `outbox_events`, `custom_domains`, `metering_ledger`, `audit_logs`.
   - Implemented GitHub integration tables: `github_installations`, `github_installation_states`, `github_repositories`, `github_webhook_events`, `service_sources`.

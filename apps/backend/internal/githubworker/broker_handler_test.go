@@ -162,10 +162,10 @@ func TestBrokerHandler_TokenMintingFlow(t *testing.T) {
 
 	handler := NewBrokerHandler(pool, ghClient, secProvider, auditWriter, logger)
 
-	org := testutil.SeedOrg(t, pool, "Broker Org", "")
-	instID := seedInstallation(t, pool, org.ID, 8881, "active")
+	owner := testutil.SeedUser(t, pool, "", "Broker Owner")
+	instID := seedInstallation(t, pool, owner.ID, 8881, "active")
 	repoID := seedRepository(t, pool, instID, 9991, "core-app", "acme/core-app")
-	proj := testutil.SeedProject(t, pool, org.ID, "Core Project", "")
+	proj := testutil.SeedProject(t, pool, owner.ID, "Core Project", "")
 	env := testutil.SeedEnvironment(t, pool, proj.ID, "prod", "production")
 	svc := testutil.SeedService(t, pool, env.ID, "core-svc", "web")
 	sourceID := seedServiceSource(t, pool, svc.ID, repoID, "main", ".", true, "active")
@@ -209,8 +209,8 @@ func TestBrokerHandler_TokenMintingFlow(t *testing.T) {
 		for _, e := range events {
 			if e.Action == audit.ActionWorkerTokenIssued && e.EntityID == buildJobID {
 				foundAudit = true
-				if e.OrganizationID != org.ID {
-					t.Errorf("expected audit orgID=%s, got %s", org.ID, e.OrganizationID)
+				if e.UserID != owner.ID {
+					t.Errorf("expected audit userID=%s, got %s", owner.ID, e.UserID)
 				}
 				// Verify token was not in audit metadata
 				for k, v := range e.Metadata {
@@ -253,7 +253,7 @@ func TestBrokerHandler_TokenMintingFlow(t *testing.T) {
 	})
 
 	t.Run("suspended installation blocks token minting with 403", func(t *testing.T) {
-		suspInstID := seedInstallation(t, pool, org.ID, 8882, "suspended")
+		suspInstID := seedInstallation(t, pool, owner.ID, 8882, "suspended")
 		suspRepoID := seedRepository(t, pool, suspInstID, 9992, "susp-app", "acme/susp-app")
 		suspSvc := testutil.SeedService(t, pool, env.ID, "susp-svc", "web")
 		suspSourceID := seedServiceSource(t, pool, suspSvc.ID, suspRepoID, "main", ".", true, "active")

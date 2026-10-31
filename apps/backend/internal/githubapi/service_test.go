@@ -123,10 +123,9 @@ func TestStartInstallation(t *testing.T) {
 	pool := testutil.NewDB(t)
 	svc := setupTestService(t, pool, &mockGitHubClient{})
 
-	org := testutil.SeedOrg(t, pool, "Test Org", "test-org")
 	user := testutil.SeedUser(t, pool, "admin@example.com", "Admin User")
 
-	res, err := svc.StartInstallation(context.Background(), org.ID, user.ID, "127.0.0.1", "test-agent", "req-1")
+	res, err := svc.StartInstallation(context.Background(), user.ID, "127.0.0.1", "test-agent", "req-1")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -140,7 +139,7 @@ func TestStartInstallation(t *testing.T) {
 
 	// Verify state row exists in database
 	var stateCount int
-	err = pool.QueryRow(context.Background(), "SELECT COUNT(*) FROM github_installation_states WHERE organization_id = $1 AND user_id = $2", org.ID, user.ID).Scan(&stateCount)
+	err = pool.QueryRow(context.Background(), "SELECT COUNT(*) FROM github_installation_states WHERE user_id = $1", user.ID).Scan(&stateCount)
 	if err != nil || stateCount != 1 {
 		t.Fatalf("expected 1 state record in db, got %d (err: %v)", stateCount, err)
 	}
@@ -151,7 +150,6 @@ func TestHandleCallback_Success(t *testing.T) {
 	mockGH := &mockGitHubClient{}
 	svc := setupTestService(t, pool, mockGH)
 
-	org := testutil.SeedOrg(t, pool, "Callback Org", "callback-org")
 	user := testutil.SeedUser(t, pool, "user@example.com", "User")
 
 	// Generate and persist state
@@ -160,8 +158,8 @@ func TestHandleCallback_Success(t *testing.T) {
 		t.Fatalf("generating state: %v", err)
 	}
 	_, err = pool.Exec(context.Background(),
-		"INSERT INTO github_installation_states (id, state_hash, user_id, organization_id, expires_at) VALUES (gen_random_uuid(), $1, $2, $3, $4)",
-		stateHash, user.ID, org.ID, time.Now().Add(10*time.Minute),
+		"INSERT INTO github_installation_states (id, state_hash, user_id, expires_at) VALUES (gen_random_uuid(), $1, $2, $3)",
+		stateHash, user.ID, time.Now().Add(10*time.Minute),
 	)
 	if err != nil {
 		t.Fatalf("inserting state: %v", err)
@@ -189,7 +187,7 @@ func TestHandleCallback_Success(t *testing.T) {
 
 	// Verify installation row created
 	var instCount int
-	err = pool.QueryRow(context.Background(), "SELECT COUNT(*) FROM github_installations WHERE organization_id = $1 AND github_installation_id = 12345", org.ID).Scan(&instCount)
+	err = pool.QueryRow(context.Background(), "SELECT COUNT(*) FROM github_installations WHERE user_id = $1 AND github_installation_id = 12345", user.ID).Scan(&instCount)
 	if err != nil || instCount != 1 {
 		t.Fatalf("expected 1 installation record, got %d (err: %v)", instCount, err)
 	}
@@ -220,13 +218,12 @@ func TestHandleCallback_ExpiredState(t *testing.T) {
 	pool := testutil.NewDB(t)
 	svc := setupTestService(t, pool, &mockGitHubClient{})
 
-	org := testutil.SeedOrg(t, pool, "Expired Org", "expired-org")
 	user := testutil.SeedUser(t, pool, "expired@example.com", "Expired User")
 
 	rawState, stateHash, _ := installstate.Generate()
 	_, _ = pool.Exec(context.Background(),
-		"INSERT INTO github_installation_states (id, state_hash, user_id, organization_id, expires_at) VALUES (gen_random_uuid(), $1, $2, $3, $4)",
-		stateHash, user.ID, org.ID, time.Now().Add(-5*time.Minute), // expired in past
+		"INSERT INTO github_installation_states (id, state_hash, user_id, expires_at) VALUES (gen_random_uuid(), $1, $2, $3)",
+		stateHash, user.ID, time.Now().Add(-5*time.Minute), // expired in past
 	)
 
 	redirectURL, _ := svc.HandleCallback(context.Background(), "12345", rawState, "install", "127.0.0.1", "test-agent", "req-exp")
@@ -235,29 +232,28 @@ func TestHandleCallback_ExpiredState(t *testing.T) {
 	}
 }
 
-func TestHandleCallback_AlreadyLinkedToDifferentOrg(t *testing.T) {
+func TestHandleCallback_AlreadyLinkedToDifferentUser(t *testing.T) {
 	pool := testutil.NewDB(t)
 	svc := setupTestService(t, pool, &mockGitHubClient{})
 
-	org1 := testutil.SeedOrg(t, pool, "Org 1", "org-1")
-	org2 := testutil.SeedOrg(t, pool, "Org 2", "org-2")
-	user := testutil.SeedUser(t, pool, "user@example.com", "User")
+	owner1 := testutil.SeedUser(t, pool, "owner1@example.com", "Owner 1")
+	owner2 := testutil.SeedUser(t, pool, "owner2@example.com", "Owner 2")
 
-	// Seed installation already under org1
+	// Seed an installation already owned by another user.
 	_, err := pool.Exec(context.Background(), `
 		INSERT INTO github_installations (
-			organization_id, github_installation_id, account_id, account_login, account_type, status
+			user_id, github_installation_id, account_id, account_login, account_type, status
 		) VALUES ($1, 99999, 111, 'conflict-acc', 'Organization', 'active')
-	`, org1.ID)
+	`, owner1.ID)
 	if err != nil {
-		t.Fatalf("seeding org1 installation: %v", err)
+		t.Fatalf("seeding installation: %v", err)
 	}
 
-	// State belongs to org2
+	// State belongs to a different personal user.
 	rawState, stateHash, _ := installstate.Generate()
 	_, _ = pool.Exec(context.Background(),
-		"INSERT INTO github_installation_states (id, state_hash, user_id, organization_id, expires_at) VALUES (gen_random_uuid(), $1, $2, $3, $4)",
-		stateHash, user.ID, org2.ID, time.Now().Add(10*time.Minute),
+		"INSERT INTO github_installation_states (id, state_hash, user_id, expires_at) VALUES (gen_random_uuid(), $1, $2, $3)",
+		stateHash, owner2.ID, time.Now().Add(10*time.Minute),
 	)
 
 	redirectURL, _ := svc.HandleCallback(context.Background(), "99999", rawState, "install", "127.0.0.1", "test-agent", "req-conflict")
@@ -270,22 +266,22 @@ func TestListAndGetInstallations(t *testing.T) {
 	pool := testutil.NewDB(t)
 	svc := setupTestService(t, pool, &mockGitHubClient{})
 
-	org := testutil.SeedOrg(t, pool, "List Org", "list-org")
+	user := testutil.SeedUser(t, pool, "list@example.com", "List Owner")
 
 	// Seed installation
 	var instID uuid.UUID
 	err := pool.QueryRow(context.Background(), `
 		INSERT INTO github_installations (
-			organization_id, github_installation_id, account_id, account_login, account_type, status, repository_selection
+			user_id, github_installation_id, account_id, account_login, account_type, status, repository_selection
 		) VALUES ($1, 77777, 555, 'acme-inc', 'Organization', 'active', 'all')
 		RETURNING id
-	`, org.ID).Scan(&instID)
+	`, user.ID).Scan(&instID)
 	if err != nil {
 		t.Fatalf("inserting installation: %v", err)
 	}
 
 	// List installations
-	listRes, err := svc.ListInstallations(context.Background(), org.ID)
+	listRes, err := svc.ListInstallations(context.Background(), user.ID)
 	if err != nil {
 		t.Fatalf("unexpected list error: %v", err)
 	}
@@ -297,7 +293,7 @@ func TestListAndGetInstallations(t *testing.T) {
 	}
 
 	// Get installation detail by UUID
-	getRes, err := svc.GetInstallation(context.Background(), org.ID, instID.String())
+	getRes, err := svc.GetInstallation(context.Background(), user.ID, instID.String())
 	if err != nil {
 		t.Fatalf("unexpected get error: %v", err)
 	}
@@ -306,7 +302,7 @@ func TestListAndGetInstallations(t *testing.T) {
 	}
 
 	// Get installation detail by numeric GitHub ID
-	getResByNum, err := svc.GetInstallation(context.Background(), org.ID, "77777")
+	getResByNum, err := svc.GetInstallation(context.Background(), user.ID, "77777")
 	if err != nil {
 		t.Fatalf("unexpected get by numeric ID error: %v", err)
 	}
@@ -319,9 +315,8 @@ func TestDisconnectInstallation(t *testing.T) {
 	pool := testutil.NewDB(t)
 	svc := setupTestService(t, pool, &mockGitHubClient{})
 
-	org := testutil.SeedOrg(t, pool, "Disc Org", "disc-org")
 	user := testutil.SeedUser(t, pool, "admin@example.com", "Admin")
-	proj := testutil.SeedProject(t, pool, org.ID, "Proj", "proj")
+	proj := testutil.SeedProject(t, pool, user.ID, "Proj", "proj")
 	env := testutil.SeedEnvironment(t, pool, proj.ID, "prod", "production")
 	service := testutil.SeedService(t, pool, env.ID, "web-app", "web")
 
@@ -329,10 +324,10 @@ func TestDisconnectInstallation(t *testing.T) {
 	var instID uuid.UUID
 	_ = pool.QueryRow(context.Background(), `
 		INSERT INTO github_installations (
-			organization_id, github_installation_id, account_id, account_login, account_type, status
+			user_id, github_installation_id, account_id, account_login, account_type, status
 		) VALUES ($1, 88888, 444, 'disc-acc', 'Organization', 'active')
 		RETURNING id
-	`, org.ID).Scan(&instID)
+	`, user.ID).Scan(&instID)
 
 	// Create repository
 	var repoID uuid.UUID
@@ -354,7 +349,7 @@ func TestDisconnectInstallation(t *testing.T) {
 	}
 
 	// Disconnect installation
-	discRes, err := svc.DisconnectInstallation(context.Background(), org.ID, instID.String(), user.ID, "127.0.0.1", "test-agent", "req-disc")
+	discRes, err := svc.DisconnectInstallation(context.Background(), user.ID, instID.String(), "127.0.0.1", "test-agent", "req-disc")
 	if err != nil {
 		t.Fatalf("unexpected disconnect error: %v", err)
 	}
@@ -401,16 +396,15 @@ func TestSyncInstallation(t *testing.T) {
 	}
 	svc := setupTestService(t, pool, mockGH)
 
-	org := testutil.SeedOrg(t, pool, "Sync Org", "sync-org")
 	user := testutil.SeedUser(t, pool, "admin@example.com", "Admin")
 
 	var instID uuid.UUID
 	_ = pool.QueryRow(context.Background(), `
 		INSERT INTO github_installations (
-			organization_id, github_installation_id, account_id, account_login, account_type, status
+			user_id, github_installation_id, account_id, account_login, account_type, status
 		) VALUES ($1, 66666, 333, 'synced-org', 'Organization', 'active')
 		RETURNING id
-	`, org.ID).Scan(&instID)
+	`, user.ID).Scan(&instID)
 
 	// Pre-seed an old repo that won't be returned by sync
 	_, _ = pool.Exec(context.Background(), `
@@ -419,7 +413,7 @@ func TestSyncInstallation(t *testing.T) {
 		) VALUES ($1, 199, 'synced-org', 'old-repo', 'synced-org/old-repo', true)
 	`, instID)
 
-	syncRes, err := svc.SyncInstallation(context.Background(), org.ID, instID.String(), user.ID, "127.0.0.1", "test-agent", "req-sync")
+	syncRes, err := svc.SyncInstallation(context.Background(), user.ID, instID.String(), "127.0.0.1", "test-agent", "req-sync")
 	if err != nil {
 		t.Fatalf("unexpected sync error: %v", err)
 	}
@@ -446,9 +440,8 @@ func TestServiceSource_CRUD(t *testing.T) {
 	pool := testutil.NewDB(t)
 	svc := setupTestService(t, pool, &mockGitHubClient{})
 
-	org := testutil.SeedOrg(t, pool, "Source Org", "source-org")
 	user := testutil.SeedUser(t, pool, "admin@example.com", "Admin")
-	proj := testutil.SeedProject(t, pool, org.ID, "Proj", "proj")
+	proj := testutil.SeedProject(t, pool, user.ID, "Proj", "proj")
 	env := testutil.SeedEnvironment(t, pool, proj.ID, "prod", "production")
 	service := testutil.SeedService(t, pool, env.ID, "api-srv", "web")
 
@@ -456,10 +449,10 @@ func TestServiceSource_CRUD(t *testing.T) {
 	var instID, repoID uuid.UUID
 	_ = pool.QueryRow(context.Background(), `
 		INSERT INTO github_installations (
-			organization_id, github_installation_id, account_id, account_login, account_type, status
+			user_id, github_installation_id, account_id, account_login, account_type, status
 		) VALUES ($1, 55555, 222, 'source-acc', 'Organization', 'active')
 		RETURNING id
-	`, org.ID).Scan(&instID)
+	`, user.ID).Scan(&instID)
 
 	_ = pool.QueryRow(context.Background(), `
 		INSERT INTO github_repositories (
@@ -525,9 +518,8 @@ func TestManualDeployment_SuccessAndIdempotency(t *testing.T) {
 	}
 	svc := setupTestService(t, pool, mockGH)
 
-	org := testutil.SeedOrg(t, pool, "Deploy Org", "deploy-org")
 	user := testutil.SeedUser(t, pool, "deployer@example.com", "Deployer")
-	proj := testutil.SeedProject(t, pool, org.ID, "Deploy Project", "deploy-project")
+	proj := testutil.SeedProject(t, pool, user.ID, "Deploy Project", "deploy-project")
 	env := testutil.SeedEnvironment(t, pool, proj.ID, "production", "production")
 	service := testutil.SeedService(t, pool, env.ID, "deploy-svc", "web")
 
@@ -535,10 +527,10 @@ func TestManualDeployment_SuccessAndIdempotency(t *testing.T) {
 	var instID, repoID uuid.UUID
 	_ = pool.QueryRow(context.Background(), `
 		INSERT INTO github_installations (
-			organization_id, github_installation_id, account_id, account_login, account_type, status
+			user_id, github_installation_id, account_id, account_login, account_type, status
 		) VALUES ($1, 44444, 111, 'deploy-acc', 'Organization', 'active')
 		RETURNING id
-	`, org.ID).Scan(&instID)
+	`, user.ID).Scan(&instID)
 
 	_ = pool.QueryRow(context.Background(), `
 		INSERT INTO github_repositories (

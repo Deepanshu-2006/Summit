@@ -6,7 +6,7 @@
 -- ============================================================================
 CREATE TABLE github_installations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    organization_id UUID NOT NULL REFERENCES organizations(id),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     github_installation_id BIGINT NOT NULL UNIQUE,
     account_id BIGINT NOT NULL,
     account_login TEXT NOT NULL,
@@ -21,7 +21,7 @@ CREATE TABLE github_installations (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX idx_github_installations_org ON github_installations(organization_id);
+CREATE INDEX idx_github_installations_user ON github_installations(user_id);
 
 CREATE TRIGGER trg_github_installations_updated_at
     BEFORE UPDATE ON github_installations
@@ -35,8 +35,7 @@ CREATE TRIGGER trg_github_installations_updated_at
 CREATE TABLE github_installation_states (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     state_hash TEXT NOT NULL UNIQUE,
-    user_id UUID NOT NULL REFERENCES users(id),
-    organization_id UUID NOT NULL REFERENCES organizations(id),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     expires_at TIMESTAMPTZ NOT NULL,
     consumed_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -150,3 +149,25 @@ CREATE INDEX idx_service_sources_status ON service_sources(source_status);
 -- ============================================================================
 ALTER TABLE deployments
     ALTER COLUMN git_commit_sha TYPE VARCHAR(64);
+
+-- GitHub integration data is accessed through the Go API, not directly
+-- through Supabase's Data API. Keep RLS enabled and remove client-role grants.
+DO $$
+DECLARE
+    table_name TEXT;
+BEGIN
+    FOREACH table_name IN ARRAY ARRAY[
+        'github_installations', 'github_installation_states',
+        'github_repositories', 'github_webhook_events', 'service_sources'
+    ] LOOP
+        EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', table_name);
+        EXECUTE format('REVOKE ALL ON TABLE %I FROM PUBLIC', table_name);
+        IF to_regrole('anon') IS NOT NULL THEN
+            EXECUTE format('REVOKE ALL ON TABLE %I FROM anon', table_name);
+        END IF;
+        IF to_regrole('authenticated') IS NOT NULL THEN
+            EXECUTE format('REVOKE ALL ON TABLE %I FROM authenticated', table_name);
+        END IF;
+    END LOOP;
+END;
+$$;

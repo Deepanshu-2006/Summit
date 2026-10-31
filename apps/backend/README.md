@@ -4,7 +4,7 @@ Go backend control-plane service and worker engine for the Summit PaaS platform.
 
 ## Overview
 
-The service provides a robust, idiomatic Go HTTP control plane aligned with the monorepo's canonical OpenAPI 3.1 contract (`packages/api_spec/openapi.yaml`) and GitHub Integration Specification (`docs/integrations/github/GITHUB_INTEGRATION_BACKEND_SPEC.md`). It uses standard-library HTTP routing, structured logging (`log/slog`), PostgreSQL persistence with advisory-locked migrations (`jackc/pgx/v5`), Supabase JWT verification, multi-tenant RBAC, OpenBao secrets routing, and asynchronous webhook processing.
+The service provides a Go HTTP control plane documented by the monorepo's canonical OpenAPI 3.1 contract (`packages/api_spec/openapi.yaml`) and current GitHub integration guide (`docs/integrations/github/FRONTEND_INTEGRATION.md`). It uses standard-library HTTP routing, structured logging (`log/slog`), PostgreSQL persistence with advisory-locked migrations (`jackc/pgx/v5`), Supabase JWT verification, personal-user ownership checks, OpenBao secrets routing, and asynchronous webhook processing.
 
 The service is also the `@summit/backend` pnpm workspace package. Its `package.json` exposes `dev`, `build`, `lint`, and `test` scripts to Turborepo; `go.mod` remains the only Go module definition.
 
@@ -126,18 +126,18 @@ TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5432/summit_test?sslmo
 ### 2. GitHub App Integration (`/v1/...`)
 | Method | Path | Auth / Role | Description |
 |---|---|---|---|
-| `POST` | `/v1/organizations/{organization_id}/github/installations` | Bearer (`owner`/`admin`) | Generate installation URL with single-use cryptographic state |
+| `POST` | `/v1/github/installations` | Bearer (authenticated user) | Generate installation URL with single-use cryptographic state |
 | `GET` | `/v1/integrations/github/callback` | Public redirect | Complete OAuth callback handshake and initiate repository sync |
-| `GET` | `/v1/organizations/{organization_id}/github/installations` | Bearer (Org member) | List active GitHub installations for organization |
-| `GET` | `/v1/organizations/{organization_id}/github/installations/{id}` | Bearer (Org member) | Get installation details |
-| `DELETE` | `/v1/organizations/{organization_id}/github/installations/{id}` | Bearer (`owner`/`admin`) | Disconnect installation and cascade disconnect service sources |
-| `GET` | `/v1/organizations/{organization_id}/github/installations/{id}/repositories` | Bearer (Org member) | List authorized repositories with pagination |
-| `POST` | `/v1/organizations/{organization_id}/github/installations/{id}/sync` | Bearer (`owner`/`admin`) | Trigger immediate repository re-synchronization |
-| `PUT` | `/v1/services/{service_id}/source` | Bearer (Org member) | Connect repository/branch to service (`web` or `worker`) |
-| `GET` | `/v1/services/{service_id}/source` | Bearer (Org member) | Get configured service source repository and branch |
-| `PATCH` | `/v1/services/{service_id}/source` | Bearer (Org member) | Update branch, build directory, or auto-deploy toggle |
-| `DELETE` | `/v1/services/{service_id}/source` | Bearer (Org member) | Disconnect source repository from service |
-| `POST` | `/v1/services/{service_id}/deployments` | Bearer (Org member) | Trigger manual deployment resolving ref to exact commit SHA |
+| `GET` | `/v1/github/installations` | Bearer (installation owner) | List the authenticated user's GitHub installations |
+| `GET` | `/v1/github/installations/{id}` | Bearer (installation owner) | Get installation details |
+| `DELETE` | `/v1/github/installations/{id}` | Bearer (installation owner) | Disconnect installation and cascade disconnect service sources |
+| `GET` | `/v1/github/installations/{id}/repositories` | Bearer (installation owner) | List authorized repositories with pagination |
+| `POST` | `/v1/github/installations/{id}/sync` | Bearer (installation owner) | Trigger immediate repository re-synchronization |
+| `PUT` | `/v1/services/{service_id}/source` | Bearer (service owner) | Connect repository/branch to service (`web` or `worker`) |
+| `GET` | `/v1/services/{service_id}/source` | Bearer (service owner) | Get configured service source repository and branch |
+| `PATCH` | `/v1/services/{service_id}/source` | Bearer (service owner) | Update branch, build directory, or auto-deploy toggle |
+| `DELETE` | `/v1/services/{service_id}/source` | Bearer (service owner) | Disconnect source repository from service |
+| `POST` | `/v1/services/{service_id}/deployments` | Bearer (service owner) | Trigger manual deployment resolving ref to exact commit SHA |
 
 ### 3. Webhooks & Internal Worker Broker
 | Method | Path | Auth / Role | Description |
