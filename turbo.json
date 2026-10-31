@@ -12,7 +12,8 @@
     "REGION",
     "EDGE_ROUTING",
     "DATABASE_URL",
-    "KUBECONFIG"
+    "KUBECONFIG",
+    "PLATFORM_PUBLIC_API_BASE_URL"
   ],
   "tasks": {
     "build": {

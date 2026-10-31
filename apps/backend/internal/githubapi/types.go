@@ -62,6 +62,21 @@ type ListInstallationsResponse struct {
 	NextCursor *string               `json:"next_cursor"`
 }
 
+// ServiceSummary contains a source-build-capable service owned by the authenticated user.
+type ServiceSummary struct {
+	ID              uuid.UUID `json:"id"`
+	Name            string    `json:"name"`
+	Type            string    `json:"type"`
+	ProjectID       uuid.UUID `json:"project_id"`
+	ProjectName     string    `json:"project_name"`
+	EnvironmentID   uuid.UUID `json:"environment_id"`
+	EnvironmentName string    `json:"environment_name"`
+}
+
+type ListServicesResponse struct {
+	Data []ServiceSummary `json:"data"`
+}
+
 // InstallationDetailResponse is returned by GET /v1/github/installations/{installation_id}.
 type InstallationDetailResponse struct {
 	ID                   uuid.UUID           `json:"id"`

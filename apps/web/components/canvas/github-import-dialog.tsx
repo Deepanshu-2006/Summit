@@ -1,17 +1,28 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   X,
   Search,
   GitBranch,
   Check,
-  ChevronDown,
   ArrowLeft,
   FolderGit2,
   Lock,
-  Globe,
+  RotateCw,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
+import { useAuth } from "@/components/auth/auth-context";
+import {
+  connectServiceRepository,
+  listGitHubInstallations,
+  listSourceBuildServices,
+  startGitHubInstallation,
+  syncInstallationRepositories,
+  type GitHubRepository,
+  type SourceBuildService,
+} from "@/lib/github-integration";
 
 /**
  * Authentic Minimal GitHub Logo
@@ -28,70 +39,6 @@ function GitHubIcon({ className }: { className?: string }) {
   );
 }
 
-export interface DemoRepository {
-  id: string;
-  name: string;
-  owner: string;
-  repoName: string;
-  description: string;
-  defaultBranch: string;
-  branches: string[];
-  isPrivate?: boolean;
-}
-
-export const DEMO_REPOSITORIES: DemoRepository[] = [
-  {
-    id: "repo-1",
-    name: "summit / web",
-    owner: "summit",
-    repoName: "web",
-    description: "Next.js · App Router",
-    defaultBranch: "main",
-    branches: ["main", "develop", "staging", "v2-canvas"],
-    isPrivate: false,
-  },
-  {
-    id: "repo-2",
-    name: "summit / backend",
-    owner: "summit",
-    repoName: "backend",
-    description: "Go · REST API",
-    defaultBranch: "main",
-    branches: ["main", "develop", "feat/grpc", "release/v1.2"],
-    isPrivate: true,
-  },
-  {
-    id: "repo-3",
-    name: "summit / api-gateway",
-    owner: "summit",
-    repoName: "api-gateway",
-    description: "Node.js · TypeScript",
-    defaultBranch: "develop",
-    branches: ["develop", "main", "feat/ratelimit"],
-    isPrivate: false,
-  },
-  {
-    id: "repo-4",
-    name: "summit / dashboard",
-    owner: "summit",
-    repoName: "dashboard",
-    description: "React · TypeScript",
-    defaultBranch: "main",
-    branches: ["main", "develop", "staging"],
-    isPrivate: true,
-  },
-  {
-    id: "repo-5",
-    name: "summit / worker",
-    owner: "summit",
-    repoName: "worker",
-    description: "Node.js · Background jobs",
-    defaultBranch: "main",
-    branches: ["main", "worker-queue", "develop"],
-    isPrivate: false,
-  },
-];
-
 export interface GitHubImportDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -105,6 +52,9 @@ export function GitHubImportDialog({
   onConfirm,
   onShowToast,
 }: GitHubImportDialogProps) {
+  const { session, isLoading: isAuthLoading, openAuthModal } = useAuth();
+  const accessToken = session?.access_token;
+
   // Navigation Steps: 1 = Repository Selection, 2 = Branch Selection
   const [step, setStep] = useState<1 | 2>(1);
 
@@ -113,50 +63,106 @@ export function GitHubImportDialog({
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Selected Repository & Branch
-  const [selectedRepoId, setSelectedRepoId] = useState<string>("repo-1");
-  const [selectedBranch, setSelectedBranch] = useState<string>("main");
-  const [isBranchDropdownOpen, setIsBranchDropdownOpen] = useState(false);
+  const [repositories, setRepositories] = useState<GitHubRepository[]>([]);
+  const [services, setServices] = useState<SourceBuildService[]>([]);
+  const [selectedRepoId, setSelectedRepoId] = useState("");
+  const [selectedServiceId, setSelectedServiceId] = useState("");
+  const [selectedBranch, setSelectedBranch] = useState("");
+  const [rootDirectory, setRootDirectory] = useState(".");
+  const [dockerfilePath, setDockerfilePath] = useState("");
+  const [buildCommand, setBuildCommand] = useState("");
+  const [autoDeploy, setAutoDeploy] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [needsInstallation, setNeedsInstallation] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Reset state on open
-  useEffect(() => {
-    if (isOpen) {
-      setStep(1);
-      setSearchQuery("");
-      setIsBranchDropdownOpen(false);
-      setTimeout(() => {
-        searchInputRef.current?.focus();
-      }, 80);
+  const selectedRepo = useMemo(
+    () => repositories.find((repo) => repo.id === selectedRepoId) ?? null,
+    [repositories, selectedRepoId],
+  );
+
+  const loadIntegration = useCallback(async () => {
+    if (!accessToken) {
+      if (isAuthLoading) {
+        setIsLoading(true);
+        return;
+      }
+      setRepositories([]);
+      setServices([]);
+      setNeedsInstallation(false);
+      setErrorMessage("Sign in to connect a GitHub repository.");
+      setIsLoading(false);
+      return;
     }
-  }, [isOpen]);
 
-  // Selected Repository Object
-  const selectedRepo = useMemo(() => {
-    return (
-      DEMO_REPOSITORIES.find((r) => r.id === selectedRepoId) ||
-      DEMO_REPOSITORIES[0]
-    );
-  }, [selectedRepoId]);
+    setIsLoading(true);
+    setErrorMessage(null);
+    try {
+      const [installationResult, serviceResult] = await Promise.all([
+        listGitHubInstallations(accessToken),
+        listSourceBuildServices(accessToken),
+      ]);
+      const activeInstallation = installationResult.data.find(
+        (item) => item.status === "active",
+      );
+      setServices(serviceResult.data);
+      setSelectedServiceId((current) =>
+        serviceResult.data.some((service) => service.id === current)
+          ? current
+          : serviceResult.data[0]?.id ?? "",
+      );
+      setNeedsInstallation(!activeInstallation);
 
-  // Synchronize branch whenever selected repo changes
-  useEffect(() => {
-    if (selectedRepo) {
-      setSelectedBranch(selectedRepo.defaultBranch);
+      if (!activeInstallation) {
+        setRepositories([]);
+        setSelectedRepoId("");
+        return;
+      }
+
+      // This is the existing backend sync path. It fetches all installation
+      // pages, upserts complete repository rows, then returns the DB records.
+      const synced = await syncInstallationRepositories(
+        accessToken,
+        activeInstallation.id,
+      );
+      setRepositories(synced.repositories);
+      setSelectedRepoId((current) =>
+        synced.repositories.some((repo) => repo.id === current)
+          ? current
+          : synced.repositories[0]?.id ?? "",
+      );
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Could not load GitHub repositories.",
+      );
+    } finally {
+      setIsLoading(false);
     }
-  }, [selectedRepo]);
+  }, [accessToken, isAuthLoading]);
+
+  // The dialog mounts only while its chooser is active, so its local state is
+  // fresh on each open. Load database-backed records and focus the search box.
+  useEffect(() => {
+    if (!isOpen) return;
+    const focusTimeout = window.setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 80);
+    const loadTimeout = window.setTimeout(() => {
+      void loadIntegration();
+    }, 0);
+    return () => {
+      window.clearTimeout(focusTimeout);
+      window.clearTimeout(loadTimeout);
+    };
+  }, [isOpen, loadIntegration]);
 
   // Filtered Repositories
   const filteredRepositories = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return DEMO_REPOSITORIES;
-    return DEMO_REPOSITORIES.filter(
-      (r) =>
-        r.name.toLowerCase().includes(q) ||
-        r.description.toLowerCase().includes(q) ||
-        r.repoName.toLowerCase().includes(q) ||
-        r.defaultBranch.toLowerCase().includes(q)
-    );
-  }, [searchQuery]);
+    if (!q) return repositories;
+    return repositories.filter((repo) => repo.full_name.toLowerCase().includes(q));
+  }, [repositories, searchQuery]);
 
   // Keyboard navigation: Escape key
   useEffect(() => {
@@ -164,9 +170,7 @@ export function GitHubImportDialog({
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (isBranchDropdownOpen) {
-          setIsBranchDropdownOpen(false);
-        } else if (step === 2) {
+        if (step === 2) {
           setStep(1);
         } else {
           onClose();
@@ -176,36 +180,77 @@ export function GitHubImportDialog({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, step, isBranchDropdownOpen, onClose]);
+  }, [isOpen, step, onClose]);
 
   if (!isOpen) return null;
 
-  // Handle final node addition to canvas
-  const handleAddToCanvas = () => {
-    if (!selectedRepo) return;
-
-    const repoNameClean = selectedRepo.repoName || "web-repo";
-    const repoUrl = `https://github.com/${selectedRepo.name.replace(/\s+/g, "")}`;
-
-    // Confirm node creation in canvas
-    onConfirm("github", {
-      label: repoNameClean,
-      repoUrl,
-      branch: selectedBranch,
-    });
-
-    // Notify user with subtle success toast
-    if (onShowToast) {
-      onShowToast(`Repository added to canvas`);
-    } else if (typeof window !== "undefined") {
-      window.dispatchEvent(
-        new CustomEvent("summit:toast", {
-          detail: { message: "Repository added to canvas", type: "success" },
-        })
-      );
+  const handleInstallGitHubApp = async () => {
+    if (!accessToken) {
+      openAuthModal({ mode: "signin" });
+      return;
     }
+    setIsConnecting(true);
+    setErrorMessage(null);
+    try {
+      const result = await startGitHubInstallation(accessToken);
+      window.location.assign(result.installation_url);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Could not start GitHub App installation.",
+      );
+      setIsConnecting(false);
+    }
+  };
 
-    onClose();
+  const handleAddToCanvas = async () => {
+    if (!accessToken) {
+      openAuthModal({ mode: "signin" });
+      return;
+    }
+    if (!selectedRepo || !selectedServiceId || !selectedBranch.trim()) return;
+
+    setIsConnecting(true);
+    setErrorMessage(null);
+    try {
+      await connectServiceRepository(accessToken, selectedServiceId, {
+        repositoryId: selectedRepo.id,
+        branch: selectedBranch.trim(),
+        rootDirectory,
+        dockerfilePath: dockerfilePath.trim() || null,
+        buildConfiguration: buildCommand.trim()
+          ? { build_command: buildCommand.trim() }
+          : {},
+        autoDeploy,
+      });
+
+      const repoUrl = selectedRepo.html_url || `https://github.com/${selectedRepo.full_name}`;
+      onConfirm("github", {
+        label: selectedRepo.name,
+        repoUrl,
+        branch: selectedBranch.trim(),
+        repositoryId: selectedRepo.id,
+        serviceId: selectedServiceId,
+        rootDir: rootDirectory,
+        buildCommand,
+      });
+
+      if (onShowToast) {
+        onShowToast(`Connected ${selectedRepo.full_name} to the selected service`);
+      } else if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("summit:toast", {
+            detail: { message: `Connected ${selectedRepo.full_name}`, type: "success" },
+          }),
+        );
+      }
+      onClose();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Could not connect this repository.",
+      );
+    } finally {
+      setIsConnecting(false);
+    }
   };
 
   return (
@@ -298,16 +343,57 @@ export function GitHubImportDialog({
                 />
               </div>
 
-              {/* Minimal Repository List (No Cards, No Heavy Boxes) */}
+              {errorMessage && (
+                <div className="mb-2 flex items-start gap-2 rounded-[5px] border border-[#4A2B24] bg-[#1A1412] px-3 py-2 text-[11px] text-[#E8B29C]">
+                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  <span>{errorMessage}</span>
+                </div>
+              )}
+
+              {needsInstallation && !isLoading && (
+                <div className="mb-2 flex items-center justify-between gap-3 rounded-[5px] border border-[#292825] bg-[#161615] px-3 py-2.5">
+                  <span className="text-[11.5px] text-[#A09E98]">
+                    Install the Summit GitHub App to load repositories.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleInstallGitHubApp}
+                    disabled={isConnecting}
+                    className="shrink-0 rounded-[5px] bg-[#E58B62] px-2.5 py-1.5 text-[11px] font-medium text-[#0B0B0A] disabled:opacity-50"
+                  >
+                    Install GitHub App
+                  </button>
+                </div>
+              )}
+
+              {!accessToken && !isAuthLoading && (
+                <button
+                  type="button"
+                  onClick={() => openAuthModal({ mode: "signin" })}
+                  className="mb-2 rounded-[5px] border border-[#3A302B] px-3 py-2 text-left text-[11.5px] text-[#E8B29C] hover:bg-[#1A1412]"
+                >
+                  Sign in with GitHub to load your connected repositories.
+                </button>
+              )}
+
+              {/* Repository rows are read from the backend after its GitHub App sync. */}
               <div className="flex-1 overflow-hidden flex flex-col min-h-[200px] mt-1">
-                {filteredRepositories.length > 0 ? (
+                {isLoading ? (
+                  <div className="flex flex-1 items-center justify-center gap-2 text-[11.5px] text-[#77756F]">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-[#E58B62]" />
+                    Syncing repositories from GitHub…
+                  </div>
+                ) : filteredRepositories.length > 0 ? (
                   <div className="max-h-[220px] overflow-y-auto space-y-0.5 custom-scrollbar pr-0.5">
                     {filteredRepositories.map((repo) => {
                       const isSelected = selectedRepoId === repo.id;
                       return (
                         <div
                           key={repo.id}
-                          onClick={() => setSelectedRepoId(repo.id)}
+                          onClick={() => {
+                            setSelectedRepoId(repo.id);
+                            setSelectedBranch(repo.default_branch || "main");
+                          }}
                           className={`group relative flex items-center justify-between px-3 py-2.5 rounded-[5px] transition-colors duration-150 cursor-pointer ${
                             isSelected
                               ? "bg-[#181817] text-[#F1F0ED]"
@@ -332,14 +418,14 @@ export function GitHubImportDialog({
                                       : "text-[#C9C7C2] group-hover:text-[#F1F0ED]"
                                   }`}
                                 >
-                                  {repo.name}
+                                  {repo.full_name}
                                 </span>
-                                {repo.isPrivate && (
+                                {repo.private && (
                                   <Lock className="w-2.5 h-2.5 text-[#77756F] shrink-0" />
                                 )}
                               </div>
                               <p className="font-sans text-[11px] text-[#77756F] group-hover:text-[#8E8C86] truncate">
-                                {repo.description}
+                                {repo.owner} · GitHub App repository
                               </p>
                             </div>
                           </div>
@@ -348,7 +434,7 @@ export function GitHubImportDialog({
                           <div className="flex items-center gap-2 shrink-0">
                             <span className="font-mono text-[10.5px] text-[#77756F] group-hover:text-[#A09E98] flex items-center gap-1">
                               <GitBranch className="w-2.5 h-2.5" />
-                              <span>{repo.defaultBranch}</span>
+                              <span>{repo.default_branch || "no default branch"}</span>
                             </span>
 
                             <div className="w-3.5 h-3.5 flex items-center justify-center">
@@ -365,10 +451,14 @@ export function GitHubImportDialog({
                   /* Empty state */
                   <div className="py-8 flex flex-col items-center justify-center text-center">
                     <p className="font-sans text-[12.5px] text-[#F1F0ED]">
-                      No repositories found
+                      {needsInstallation ? "Connect GitHub to continue" : "No repositories found"}
                     </p>
                     <p className="font-sans text-[11px] text-[#77756F] mt-0.5">
-                      No matching repo for &ldquo;{searchQuery}&rdquo;.
+                      {needsInstallation
+                        ? "Repositories available to the GitHub App will appear here."
+                        : searchQuery
+                          ? `No matching repository for “${searchQuery}”.`
+                          : "Refresh to sync repositories available to your GitHub App."}
                     </p>
                   </div>
                 )}
@@ -391,6 +481,16 @@ export function GitHubImportDialog({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
+                  onClick={() => void loadIntegration()}
+                  disabled={isLoading || !accessToken}
+                  className="inline-flex items-center gap-1.5 rounded-[5px] px-2 py-1 text-[11px] text-[#A09E98] hover:text-[#F1F0ED] disabled:opacity-40"
+                  title="Sync repositories"
+                >
+                  <RotateCw className={`h-3 w-3 ${isLoading ? "animate-spin" : ""}`} />
+                  Refresh
+                </button>
+                <button
+                  type="button"
                   onClick={onClose}
                   className="px-3 py-1 rounded-[5px] text-[#A09E98] hover:text-[#F1F0ED] text-[12px] font-sans transition-colors cursor-pointer"
                 >
@@ -398,7 +498,7 @@ export function GitHubImportDialog({
                 </button>
                 <button
                   type="button"
-                  disabled={!selectedRepoId}
+                  disabled={!selectedRepoId || isLoading}
                   onClick={() => setStep(2)}
                   className="px-3.5 py-1.5 rounded-[5px] bg-[#E58B62] hover:bg-[#F0A17B] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#E58B62] text-[#0B0B0A] font-sans font-medium text-[12px] transition-colors cursor-pointer"
                 >
@@ -438,93 +538,120 @@ export function GitHubImportDialog({
             </div>
 
             {/* Minimal Step 2 Content */}
-            <div className="px-5 py-4 space-y-4">
+            <div className="max-h-[70vh] overflow-y-auto px-5 py-4 space-y-4">
               {/* Selected Repo Line (No Heavy Box Card) */}
               <div className="flex items-center justify-between py-1">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <FolderGit2 className="w-4 h-4 text-[#E58B62] shrink-0" />
                   <div className="min-w-0">
                     <span className="font-sans text-[13px] font-medium text-[#F1F0ED] truncate block">
-                      {selectedRepo.name}
+                      {selectedRepo.full_name}
                     </span>
                     <span className="font-sans text-[11px] text-[#77756F] truncate block">
-                      {selectedRepo.description}
+                      {selectedRepo.private ? "Private repository" : "Public repository"}
                     </span>
                   </div>
                 </div>
-
-                <span className="font-mono text-[10.5px] text-[#77756F]">
-                  {selectedRepo.branches.length} branches
-                </span>
               </div>
 
-              {/* Branch Selector */}
+              {/* The backend owns the service and repository records. */}
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="summit-source-service"
+                  className="block font-mono text-[10.5px] text-[#77756F] uppercase tracking-wider"
+                >
+                  Summit Service
+                </label>
+                {services.length > 0 ? (
+                  <select
+                    id="summit-source-service"
+                    value={selectedServiceId}
+                    onChange={(event) => setSelectedServiceId(event.target.value)}
+                    className="w-full rounded-[5px] border border-[#242424] bg-[#181817] px-3 py-2 text-[12px] text-[#F1F0ED] outline-none focus:border-[#E58B62]"
+                  >
+                    {services.map((service) => (
+                      <option key={service.id} value={service.id}>
+                        {service.project_name} / {service.name} ({service.type})
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="rounded-[5px] border border-[#292825] bg-[#161615] px-3 py-2 text-[11px] text-[#A09E98]">
+                    No web or worker services are available for this account.
+                  </p>
+                )}
+              </div>
+
+              {/* Branch and supported source build settings */}
               <div className="space-y-1.5 pt-1">
-                <label className="block font-mono text-[10.5px] text-[#77756F] uppercase tracking-wider">
+                <label
+                  htmlFor="summit-source-branch"
+                  className="block font-mono text-[10.5px] text-[#77756F] uppercase tracking-wider"
+                >
                   Target Branch
                 </label>
-
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setIsBranchDropdownOpen((prev) => !prev)}
-                    className="w-full flex items-center justify-between px-3 py-2 rounded-[5px] bg-[#181817] hover:bg-[#1f1f1d] border border-[#242424] text-left transition-colors cursor-pointer"
-                    aria-expanded={isBranchDropdownOpen}
-                  >
-                    <div className="flex items-center gap-2 font-mono text-[12px] text-[#F1F0ED]">
-                      <GitBranch className="w-3 h-3 text-[#E58B62]" />
-                      <span>{selectedBranch}</span>
-                      {selectedBranch === selectedRepo.defaultBranch && (
-                        <span className="text-[10px] text-[#77756F] font-sans px-1 rounded bg-[#121211]">
-                          default
-                        </span>
-                      )}
-                    </div>
-                    <ChevronDown
-                      className={`w-3.5 h-3.5 text-[#77756F] transition-transform duration-150 ${
-                        isBranchDropdownOpen ? "rotate-180 text-[#F1F0ED]" : ""
-                      }`}
-                    />
-                  </button>
-
-                  {/* Dropdown Menu */}
-                  {isBranchDropdownOpen && (
-                    <div className="absolute left-0 right-0 top-full mt-1 z-10 bg-[#181817] border border-[#242424] rounded-[6px] shadow-2xl py-1 overflow-hidden animate-in fade-in duration-100">
-                      {selectedRepo.branches.map((b) => (
-                        <div
-                          key={b}
-                          onClick={() => {
-                            setSelectedBranch(b);
-                            setIsBranchDropdownOpen(false);
-                          }}
-                          className={`flex items-center justify-between px-3 py-1.5 text-[12px] font-mono cursor-pointer transition-colors ${
-                            selectedBranch === b
-                              ? "bg-[#201A17] text-[#E58B62]"
-                              : "text-[#DCDAD5] hover:bg-[#202020] hover:text-[#F1F0ED]"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <GitBranch className="w-3 h-3 text-[#77756F]" />
-                            <span>{b}</span>
-                            {b === selectedRepo.defaultBranch && (
-                              <span className="text-[10px] text-[#77756F] font-sans px-1 rounded bg-[#121211]">
-                                default
-                              </span>
-                            )}
-                          </div>
-                          {selectedBranch === b && (
-                            <Check className="w-3 h-3 text-[#E58B62]" />
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                <div className="relative flex items-center">
+                  <GitBranch className="absolute left-2.5 h-3.5 w-3.5 text-[#77756F]" />
+                  <input
+                    id="summit-source-branch"
+                    value={selectedBranch}
+                    onChange={(event) => setSelectedBranch(event.target.value)}
+                    placeholder={selectedRepo.default_branch || "main"}
+                    className="w-full rounded-[5px] border border-[#242424] bg-[#181817] py-2 pl-8 pr-3 font-mono text-[12px] text-[#F1F0ED] outline-none focus:border-[#E58B62]"
+                  />
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-3">
+                <label className="space-y-1.5 text-[10.5px] font-mono uppercase tracking-wider text-[#77756F]">
+                  Root directory
+                  <input
+                    value={rootDirectory}
+                    onChange={(event) => setRootDirectory(event.target.value)}
+                    className="w-full rounded-[5px] border border-[#242424] bg-[#181817] px-2.5 py-2 font-mono text-[11.5px] normal-case tracking-normal text-[#F1F0ED] outline-none focus:border-[#E58B62]"
+                  />
+                </label>
+                <label className="space-y-1.5 text-[10.5px] font-mono uppercase tracking-wider text-[#77756F]">
+                  Dockerfile
+                  <input
+                    value={dockerfilePath}
+                    onChange={(event) => setDockerfilePath(event.target.value)}
+                    placeholder="Dockerfile (optional)"
+                    className="w-full rounded-[5px] border border-[#242424] bg-[#181817] px-2.5 py-2 font-mono text-[11.5px] normal-case tracking-normal text-[#F1F0ED] outline-none focus:border-[#E58B62]"
+                  />
+                </label>
+              </div>
+
+              <label className="block space-y-1.5 text-[10.5px] font-mono uppercase tracking-wider text-[#77756F]">
+                Build command
+                <input
+                  value={buildCommand}
+                  onChange={(event) => setBuildCommand(event.target.value)}
+                  placeholder="pnpm build (optional)"
+                  className="w-full rounded-[5px] border border-[#242424] bg-[#181817] px-2.5 py-2 font-mono text-[11.5px] normal-case tracking-normal text-[#F1F0ED] outline-none focus:border-[#E58B62]"
+                />
+              </label>
+
+              <label className="flex items-center gap-2 text-[11.5px] text-[#A09E98]">
+                <input
+                  type="checkbox"
+                  checked={autoDeploy}
+                  onChange={(event) => setAutoDeploy(event.target.checked)}
+                  className="accent-[#E58B62]"
+                />
+                Deploy automatically when this branch changes
+              </label>
+
+              {errorMessage && (
+                <p className="flex items-start gap-2 rounded-[5px] border border-[#4A2B24] bg-[#1A1412] px-3 py-2 text-[11px] text-[#E8B29C]">
+                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  <span>{errorMessage}</span>
+                </p>
+              )}
+
               {/* Minimal Explanation Note */}
               <p className="font-sans text-[11.5px] text-[#77756F] leading-normal pt-1">
-                This branch will be deployed as the source for your application service. You can switch branches anytime in the node inspector.
+                This saves the repository in Summit and connects it to the selected service.
               </p>
             </div>
 
@@ -549,10 +676,12 @@ export function GitHubImportDialog({
                 </button>
                 <button
                   type="button"
+                  disabled={isConnecting || !selectedServiceId || !selectedBranch.trim()}
                   onClick={handleAddToCanvas}
-                  className="px-3.5 py-1.5 rounded-[5px] bg-[#E58B62] hover:bg-[#F0A17B] text-[#0B0B0A] font-sans font-medium text-[12px] transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-[5px] bg-[#E58B62] hover:bg-[#F0A17B] disabled:opacity-40 disabled:cursor-not-allowed text-[#0B0B0A] font-sans font-medium text-[12px] transition-colors cursor-pointer"
                 >
-                  Add to canvas
+                  {isConnecting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  Connect repository
                 </button>
               </div>
             </div>

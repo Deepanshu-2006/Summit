@@ -42,7 +42,7 @@ Go API redirects browser back to Next.js:
   GET https://app.summit.dev/settings/github/callback?status=success&installation_id={uuid}
   │
   ▼
-Next.js shows confirmation and refreshes installation list
+Next.js returns to the new-project flow and refreshes the installation and repository lists
 ```
 
 #### Step 1: Initiate Installation Request
@@ -61,14 +61,22 @@ Content-Type: application/json
 ```
 
 #### Step 2: Handle Frontend Return Callback
-Next.js handles the return path `/settings/github/callback`:
-- Inspect query parameter `status`:
-  - If `status=success`: Query `GET /v1/github/installations` to display the connected installation.
-  - If `status=error`: Inspect `error_code` (e.g., `state_invalid`, `state_expired`, `flow_cancelled`) and display a friendly message.
+Next.js handles `/settings/github/callback`, redirects back to the new-project page,
+and reopens the repository selector. The selector reloads the user's installations
+and repository records through the backend.
 
 ---
 
 ### 2.2 Selecting Repositories and Connecting to a Service
+
+The frontend transport and typed integration functions are in
+`apps/web/lib/github-integration.ts`. They call the Go API through the
+same-origin `/api/platform/*` proxy, which forwards the Supabase access token
+and reads `PLATFORM_PUBLIC_API_BASE_URL` on the server. The client functions
+list the authenticated user's web/worker services, list installations, load
+all repository cursor pages, start/refresh an installation, connect a repo,
+read back the saved source, and disconnect it. They do not call GitHub APIs.
+
 
 ```text
 Next.js
@@ -76,14 +84,31 @@ Next.js
   ├─► 1. GET /v1/github/installations
   │      Returns list of linked installations
   │
-  ├─► 2. GET /v1/github/installations/{inst_id}/repositories
-  │      Returns synchronized repositories available to connect
+  ├─► 2. POST /v1/github/installations/{inst_id}/sync
+  │      Upserts complete repository records through the existing paginated sync path
   │
-  └─► 3. PUT /v1/services/{service_id}/source
-         Connects repository and branch to the service
+  ├─► 3. GET /v1/github/installations/{inst_id}/repositories
+  │      Returns synchronized database rows and their Summit UUIDs
+  │
+  ├─► 4. GET /v1/services
+  │      Lists this user's web and worker services
+  │
+  └─► 5. PUT /v1/services/{service_id}/source
+         Connects the repository, branch, and build settings to the service
 ```
 
-#### Step 1: List Accessible Repositories
+#### Step 1: Sync and List Accessible Repositories
+The frontend calls the backend sync endpoint before listing repositories. The
+backend fetches every GitHub App installation page and upserts records by the
+stable GitHub repository ID. The list endpoint then returns database UUIDs; the
+browser never calls GitHub's REST API directly.
+
+```http
+POST /v1/github/installations/a01b2c3d-4e5f-6a7b-8c9d-0e1f2a3b4c5d/sync
+Authorization: Bearer <supabase_token>
+```
+
+```http
 ```http
 GET /v1/github/installations/a01b2c3d-4e5f-6a7b-8c9d-0e1f2a3b4c5d/repositories
 Authorization: Bearer <supabase_token>
@@ -107,7 +132,12 @@ Authorization: Bearer <supabase_token>
 }
 ```
 
-#### Step 2: Connect Repository to Service
+#### Step 2: Connect Repository to an Owned Service
+The frontend first loads `GET /v1/services` and requires the user to choose one
+of their web or worker services. The backend verifies both service ownership
+and that the selected repository belongs to an active GitHub App installation
+owned by that same user before it upserts `service_sources`.
+
 ```http
 PUT /v1/services/d290f1ee-6c54-4b01-90e6-d701748f0851/source
 Authorization: Bearer <supabase_token>

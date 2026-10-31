@@ -84,8 +84,6 @@ func (r *repositoryResponse) toRepository() Repository {
 type repositoryListResponse struct {
 	TotalCount   int                  `json:"total_count"`
 	Repositories []repositoryResponse `json:"repositories"`
-	// hasNext is set from the Link header after parsing, not from JSON.
-	hasNext bool
 }
 
 // commitResponse is the JSON shape returned by GET /repos/{owner}/{repo}/commits/{ref}.

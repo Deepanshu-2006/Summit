@@ -16,6 +16,7 @@ import (
 	"github.com/summit/backend/internal/audit"
 	"github.com/summit/backend/internal/authz"
 	"github.com/summit/backend/internal/config"
+	"github.com/summit/backend/internal/githubrepo"
 	"github.com/summit/backend/internal/httpx"
 	"github.com/summit/backend/internal/installstate"
 	"github.com/summit/backend/internal/sourcepath"
@@ -274,7 +275,9 @@ func (s *Service) HandleCallback(ctx context.Context, rawInstallationID, rawStat
 	}
 
 	// Synchronize repositories
-	s.syncRepositories(ctx, platformInstID, installationID)
+	if _, err := s.syncRepositories(ctx, platformInstID, installationID); err != nil {
+		s.logger.ErrorContext(ctx, "failed to synchronize repositories after GitHub installation", "user_id", stateRecord.UserID, "installation_id", installationID, "error", err)
+	}
 
 	// Record audit event
 	action := audit.ActionInstallationLinked
@@ -306,86 +309,101 @@ func (s *Service) HandleCallback(ctx context.Context, rawInstallationID, rawStat
 // syncRepositories fetches repositories from GitHub and upserts them.
 func (s *Service) syncRepositories(ctx context.Context, platformInstID uuid.UUID, ghInstID int64) (int, error) {
 	if s.ghClient == nil {
-		return 0, nil
+		return 0, fmt.Errorf("GitHub client is unavailable")
 	}
+	counts, err := githubrepo.SyncInstallation(ctx, s.pool, s.ghClient, platformInstID, ghInstID)
+	return counts.Fetched, err
+}
 
-	page := 1
-	totalSynced := 0
-	var returnedRepoIDs []int64
+type AllUsersSyncResult struct {
+	UsersProcessed      int
+	RepositoriesFetched int
+	RepositoriesCreated int
+	RepositoriesUpdated int
+	FailedUsers         int
+}
 
-	for {
-		repoPage, err := s.ghClient.ListInstallationRepositories(ctx, ghInstID, page, 100)
+// SyncAllUserRepositories synchronizes active GitHub installations for every database user.
+// A user's failure is recorded and does not prevent processing subsequent users.
+func (s *Service) SyncAllUserRepositories(ctx context.Context) (AllUsersSyncResult, error) {
+	var result AllUsersSyncResult
+	if s.pool == nil || s.ghClient == nil {
+		return result, fmt.Errorf("repository sync requires database and GitHub clients")
+	}
+	users, err := s.pool.Query(ctx, "SELECT id FROM users ORDER BY id")
+	if err != nil {
+		return result, fmt.Errorf("querying users for repository sync: %w", err)
+	}
+	var userIDs []uuid.UUID
+	for users.Next() {
+		var userID uuid.UUID
+		if err := users.Scan(&userID); err != nil {
+			users.Close()
+			return result, fmt.Errorf("reading users for repository sync: %w", err)
+		}
+		userIDs = append(userIDs, userID)
+	}
+	if err := users.Err(); err != nil {
+		users.Close()
+		return result, fmt.Errorf("iterating users for repository sync: %w", err)
+	}
+	users.Close()
+
+	for _, userID := range userIDs {
+		result.UsersProcessed++
+		rows, err := s.pool.Query(ctx, `SELECT id, github_installation_id FROM github_installations WHERE user_id=$1 AND status='active' ORDER BY id`, userID)
 		if err != nil {
-			s.logger.WarnContext(ctx, "failed to list repositories from github during sync",
-				"installation_id", ghInstID, "page", page, "error", err)
-			break
+			result.FailedUsers++
+			s.logger.ErrorContext(ctx, "failed to list user's GitHub installations during repository sync", "user_id", userID, "error", err)
+			continue
 		}
-
-		for _, r := range repoPage.Repositories {
-			returnedRepoIDs = append(returnedRepoIDs, r.ID)
-			upsertRepoQuery := `
-				INSERT INTO github_repositories (
-					installation_id, github_repository_id, owner_login, name, full_name,
-					default_branch, private, archived, disabled, html_url, last_synced_at
-				) VALUES (
-					$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now()
-				)
-				ON CONFLICT (github_repository_id) DO UPDATE SET
-					installation_id = EXCLUDED.installation_id,
-					owner_login = EXCLUDED.owner_login,
-					name = EXCLUDED.name,
-					full_name = EXCLUDED.full_name,
-					default_branch = EXCLUDED.default_branch,
-					private = EXCLUDED.private,
-					archived = EXCLUDED.archived,
-					disabled = EXCLUDED.disabled,
-					html_url = EXCLUDED.html_url,
-					removed_at = NULL,
-					last_synced_at = now(),
-					updated_at = now()
-			`
-			_, err := s.pool.Exec(ctx, upsertRepoQuery,
-				platformInstID,
-				r.ID,
-				r.OwnerLogin,
-				r.Name,
-				r.FullName,
-				r.DefaultBranch,
-				r.Private,
-				r.Archived,
-				r.Disabled,
-				r.HTMLURL,
-			)
-			if err != nil {
-				s.logger.WarnContext(ctx, "failed to upsert repo during sync", "repo", r.FullName, "error", err)
-			} else {
-				totalSynced++
+		type installation struct {
+			id       uuid.UUID
+			githubID int64
+		}
+		var installations []installation
+		for rows.Next() {
+			var inst installation
+			if err := rows.Scan(&inst.id, &inst.githubID); err != nil {
+				rows.Close()
+				result.FailedUsers++
+				s.logger.ErrorContext(ctx, "failed to read user's GitHub installations during repository sync", "user_id", userID, "error", err)
+				installations = nil
+				break
 			}
+			installations = append(installations, inst)
 		}
-
-		if !repoPage.HasNext || len(repoPage.Repositories) == 0 {
-			break
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			result.FailedUsers++
+			s.logger.ErrorContext(ctx, "failed to iterate user's GitHub installations during repository sync", "user_id", userID, "error", err)
+			continue
 		}
-		page++
-		if page > 100 { // safety bound
-			break
+		rows.Close()
+		failed := false
+		for _, inst := range installations {
+			counts, err := githubrepo.SyncInstallation(ctx, s.pool, s.ghClient, inst.id, inst.githubID)
+			if err != nil {
+				failed = true
+				s.logger.ErrorContext(ctx, "failed to sync user's GitHub repositories", "user_id", userID, "installation_id", inst.githubID, "error", err)
+				continue
+			}
+			result.RepositoriesFetched += counts.Fetched
+			result.RepositoriesCreated += counts.Created
+			result.RepositoriesUpdated += counts.Updated
+		}
+		if failed {
+			result.FailedUsers++
 		}
 	}
-
-	// Mark repositories not returned as removed
-	if len(returnedRepoIDs) > 0 {
-		markRemovedQuery := `
-			UPDATE github_repositories
-			SET removed_at = now(), updated_at = now()
-			WHERE installation_id = $1 AND NOT (github_repository_id = ANY($2)) AND removed_at IS NULL
-		`
-		_, _ = s.pool.Exec(ctx, markRemovedQuery, platformInstID, returnedRepoIDs)
-	}
-
-	// Update last_synced_at on installation
-	_, _ = s.pool.Exec(ctx, `UPDATE github_installations SET last_synced_at = now(), updated_at = now() WHERE id = $1`, platformInstID)
-
-	return totalSynced, nil
+	s.logger.InfoContext(ctx, "completed all-user GitHub repository sync",
+		"users_processed", result.UsersProcessed,
+		"repositories_fetched", result.RepositoriesFetched,
+		"repositories_created", result.RepositoriesCreated,
+		"repositories_updated", result.RepositoriesUpdated,
+		"failed_users", result.FailedUsers,
+	)
+	return result, nil
 }
 
 // ListInstallations lists installations owned by a personal user.
@@ -442,6 +460,41 @@ func (s *Service) ListInstallations(ctx context.Context, userID uuid.UUID) (*Lis
 		Data:       items,
 		NextCursor: nil,
 	}, nil
+}
+
+// ListServices returns the authenticated user's web and worker services that can use a GitHub source.
+func (s *Service) ListServices(ctx context.Context, userID uuid.UUID) (*ListServicesResponse, error) {
+	if s.pool == nil {
+		return nil, httpx.NewAPIError(500, httpx.CodeInternalError, "database pool unavailable", nil)
+	}
+	rows, err := s.pool.Query(ctx, `
+		SELECT s.id, s.name, s.type, p.id, p.name, e.id, e.name
+		FROM services s
+		JOIN environments e ON e.id = s.environment_id
+		JOIN projects p ON p.id = e.project_id
+		WHERE p.user_id = $1
+		  AND s.type IN ('web', 'worker')
+		  AND s.deleted_at IS NULL
+		  AND e.deleted_at IS NULL
+		  AND p.deleted_at IS NULL
+		ORDER BY p.name, e.name, s.name`, userID)
+	if err != nil {
+		return nil, httpx.NewAPIError(500, httpx.CodeInternalError, "failed to query services", err)
+	}
+	defer rows.Close()
+
+	response := &ListServicesResponse{Data: make([]ServiceSummary, 0)}
+	for rows.Next() {
+		var service ServiceSummary
+		if err := rows.Scan(&service.ID, &service.Name, &service.Type, &service.ProjectID, &service.ProjectName, &service.EnvironmentID, &service.EnvironmentName); err != nil {
+			return nil, httpx.NewAPIError(500, httpx.CodeInternalError, "failed to scan service row", err)
+		}
+		response.Data = append(response.Data, service)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, httpx.NewAPIError(500, httpx.CodeInternalError, "failed to iterate service rows", err)
+	}
+	return response, nil
 }
 
 // GetInstallation returns detailed metadata for an installation.
