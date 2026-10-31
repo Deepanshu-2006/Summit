@@ -1,3 +1,6 @@
+# Variant of builder/gvisor/runtimeclass.yaml for a DEDICATED sandbox node pool: it adds pod
+# overhead accounting and pins builder pods to labelled/tainted nodes. For the MVP Kind/test
+# cluster use builder/gvisor/runtimeclass.yaml (no scheduling constraints) instead.
 apiVersion: node.k8s.io/v1
 kind: RuntimeClass
 metadata:

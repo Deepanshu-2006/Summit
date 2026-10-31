@@ -32,7 +32,7 @@ func TestBuildExecutionSpec_Unmarshal(t *testing.T) {
 			"registry_credential_ref": "secret-registry"
 		},
 		"output": {
-			"registry": "registry.internal:5000",
+			"registry": "ghcr.io",
 			"repository": "tenant/app",
 			"tag": "build-1",
 			"platforms": ["linux/amd64"]
@@ -66,10 +66,10 @@ func TestBuildExecutionSpec_Unmarshal(t *testing.T) {
 	if spec.BuildConfig.Builder != "railpack" {
 		t.Errorf("unexpected builder: %s", spec.BuildConfig.Builder)
 	}
-	if spec.Output.FullTargetImage() != "registry.internal:5000/tenant/app" {
+	if spec.Output.FullTargetImage() != "ghcr.io/tenant/app" {
 		t.Errorf("unexpected full image: %s", spec.Output.FullTargetImage())
 	}
-	if spec.Output.FullTargetRef() != "registry.internal:5000/tenant/app:build-1" {
+	if spec.Output.FullTargetRef() != "ghcr.io/tenant/app:build-1" {
 		t.Errorf("unexpected full ref: %s", spec.Output.FullTargetRef())
 	}
 }
@@ -82,7 +82,7 @@ func TestBuildExecutionResult_Marshal(t *testing.T) {
 		AttemptID:     "22222222-2222-2222-2222-222222222222",
 		Status:        StatusSucceeded,
 		Artifact: &ArtifactDetails{
-			Repository: "registry.internal:5000/tenant/app",
+			Repository: "ghcr.io/tenant/app",
 			Digest:     "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 			Tag:        "build-1",
 			Platforms:  []string{"linux/amd64"},

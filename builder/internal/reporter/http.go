@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	neturl "net/url"
 	"strings"
 	"sync"
 	"time"
@@ -107,19 +109,19 @@ func (h *HTTPReporter) postJSON(ctx context.Context, url string, payload any) er
 		return fmt.Errorf("marshaling reporter payload: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(bodyBytes))
-	if err != nil {
-		return fmt.Errorf("creating reporter request: %w", err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	if h.token != "" {
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", h.token))
-	}
-
-	// Retry once on network failure to tolerate transient control plane lag
+	// Retry once on network failure or 5xx to tolerate transient control plane lag.
+	// A fresh request is built per attempt because the body reader is consumed by Do.
 	var lastErr error
 	for attempt := 0; attempt < 2; attempt++ {
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(bodyBytes))
+		if err != nil {
+			return fmt.Errorf("creating reporter request: %w", err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		if h.token != "" {
+			req.Header.Set("Authorization", "Bearer "+h.token)
+		}
+
 		resp, err := h.httpClient.Do(req)
 		if err == nil {
 			_ = resp.Body.Close()
@@ -127,8 +129,11 @@ func (h *HTTPReporter) postJSON(ctx context.Context, url string, payload any) er
 				return nil
 			}
 			lastErr = fmt.Errorf("reporter endpoint %s returned status %d", url, resp.StatusCode)
+			if resp.StatusCode < 500 {
+				return lastErr // client errors (e.g. 401/409) will not improve on retry
+			}
 		} else {
-			lastErr = err
+			lastErr = fmt.Errorf("reporter request to %s failed: %w", url, unwrapURLError(err))
 		}
 		select {
 		case <-ctx.Done():
@@ -137,4 +142,12 @@ func (h *HTTPReporter) postJSON(ctx context.Context, url string, payload any) er
 		}
 	}
 	return lastErr
+}
+
+func unwrapURLError(err error) error {
+	var ue *neturl.Error
+	if errors.As(err, &ue) {
+		return ue.Err
+	}
+	return err
 }

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -31,6 +30,29 @@ type Coordinator struct {
 	reporter   reporter.Reporter
 	supervisor *process.Supervisor
 	seqCounter atomic.Int64
+
+	// registryDockerConfigDir is exported as DOCKER_CONFIG to buildctl only.
+	registryDockerConfigDir string
+}
+
+// Default tool versions recorded in the result metadata. The builder image sets
+// SUMMIT_RAILPACK_VERSION / SUMMIT_BUILDKIT_VERSION to the versions it actually ships.
+const (
+	defaultRailpackVersion = "v0.43.0"
+	defaultBuildkitVersion = "v0.34.1"
+)
+
+func envOrDefault(key, def string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return def
+}
+
+// SetRegistryDockerConfigDir sets the directory containing the registry config.json that
+// buildctl uses to authenticate the image push (exported as DOCKER_CONFIG for buildctl only).
+func (c *Coordinator) SetRegistryDockerConfigDir(dir string) {
+	c.registryDockerConfigDir = dir
 }
 
 // NewCoordinator constructs a new execution Coordinator.
@@ -166,9 +188,12 @@ func (c *Coordinator) Run(ctx context.Context, spec *protocol.BuildExecutionSpec
 			defer stopCancel()
 			_ = c.buildkit.Stop(stopCtx)
 		}()
-		waitCtx, waitCancel := context.WithTimeout(ctx, 15*time.Second)
-		_ = c.buildkit.WaitReady(waitCtx)
+		waitCtx, waitCancel := context.WithTimeout(ctx, 30*time.Second)
+		readyErr := c.buildkit.WaitReady(waitCtx)
 		waitCancel()
+		if readyErr != nil {
+			return failResult(protocol.ErrCodeBuildFailed, protocol.StageImageBuild, "BuildKit daemon did not start", source.SanitizeGitOutput(readyErr.Error()))
+		}
 	}
 
 	// 3. Source Checkout & Verification
@@ -220,9 +245,9 @@ func (c *Coordinator) Run(ctx context.Context, spec *protocol.BuildExecutionSpec
 		dfPath = *spec.BuildConfig.DockerfilePath
 	}
 
-	insecure := strings.HasPrefix(spec.Output.Registry, "localhost:") ||
-		strings.HasPrefix(spec.Output.Registry, "127.0.0.1:") ||
-		os.Getenv("SUMMIT_INSECURE_REGISTRY") == "true"
+	// Plain HTTP only for loopback or explicitly configured registries; the registry
+	// client is the single source of truth for that decision.
+	insecure := c.registry.IsInsecure(spec.Output.Registry)
 
 	_, err = c.buildkit.Build(ctx, buildkit.BuildKitBuildSpec{
 		AppDir:         checkoutRes.AppDir,
@@ -233,6 +258,8 @@ func (c *Coordinator) Run(ctx context.Context, spec *protocol.BuildExecutionSpec
 		EnvVars:        spec.BuildConfig.EnvVars,
 		PushToRegistry: true,
 		Insecure:       insecure,
+
+		DockerConfigDir: c.registryDockerConfigDir,
 	}, streamLog)
 	if err != nil {
 		return failResult(protocol.ErrCodeBuildFailed, protocol.StageImageBuild, "BuildKit compilation or push failed", err.Error())
@@ -241,8 +268,7 @@ func (c *Coordinator) Run(ctx context.Context, spec *protocol.BuildExecutionSpec
 
 	// 6. Image Verification
 	report(protocol.StageImageVerification, protocol.StageStatusRunning, "Verifying OCI manifest digest from registry")
-	token := ""
-	artMetadata, err := c.registry.VerifyDigest(ctx, spec.Output.Registry, spec.Output.Repository, spec.Output.Tag, token)
+	artMetadata, err := c.registry.VerifyDigest(ctx, spec.Output.Registry, spec.Output.Repository, spec.Output.Tag)
 	if err != nil {
 		return failResult(protocol.ErrCodeDigestVerifyFailed, protocol.StageImageVerification, "Registry digest verification failed", err.Error())
 	}
@@ -265,8 +291,8 @@ func (c *Coordinator) Run(ctx context.Context, spec *protocol.BuildExecutionSpec
 		},
 		Metadata: protocol.ResultMetadata{
 			Builder:         spec.BuildConfig.Builder,
-			RailpackVersion: "v0.3.2",
-			BuildkitVersion: "v0.19.0",
+			RailpackVersion: envOrDefault("SUMMIT_RAILPACK_VERSION", defaultRailpackVersion),
+			BuildkitVersion: envOrDefault("SUMMIT_BUILDKIT_VERSION", defaultBuildkitVersion),
 			CommitSHA:       checkoutRes.CommitSHA,
 			DetectedRuntime: detectedRuntime,
 		},

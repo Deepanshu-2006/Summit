@@ -1,22 +1,30 @@
-# BuildKit daemon rootless configuration
-# Compatible with unprivileged gVisor sandbox / UID 1000
-
-root = "/run/buildkit"
-
-[grpc]
-  address = ["unix:///run/buildkit/buildkitd.sock"]
-  uid = 1000
-  gid = 1000
+# buildkitd configuration for the Summit builder image (rootless, UID 1000).
+#
+# The worker starts the daemon as `rootlesskit buildkitd --addr <socket> --oci-worker=true
+# --config /etc/buildkit/buildkitd.toml`; the socket address and extra flags come from the
+# worker environment (SUMMIT_BUILDKIT_SOCKET, BUILDKITD_FLAGS), not from this file.
+#
+# The state root is intentionally left at the rootless default
+# ($HOME/.local/share/buildkit = /home/user/.local/share/buildkit), which the orchestrator
+# mounts as a per-build emptyDir.
 
 [worker.oci]
   enabled = true
-  rootless = true
   platforms = ["linux/amd64"]
-  snapshotter = "native"
+  # "auto" lets buildkitd use rootless overlayfs when the sandbox supports it and fall back to
+  # the (much slower, copy-based) native snapshotter otherwise. Measured on a Docker host:
+  # extracting the railpack builder image took >7 min with native vs. seconds with overlayfs.
+  # Force one with BUILDKITD_FLAGS=--oci-worker-snapshotter=native|overlayfs if auto picks
+  # wrongly inside gVisor.
+  snapshotter = "auto"
+  # Per-build pods are single use; keep BuildKit's cache from growing past the emptyDir.
+  gc = true
+  gckeepstorage = 4000 # MB
 
 [worker.containerd]
   enabled = false
 
-[registry."registry.jetway.internal:5000"]
-  http = true
-  insecure = true
+# No [registry."..."] http/insecure blocks. Application images are pushed to ghcr.io over
+# HTTPS with credentials supplied through DOCKER_CONFIG (buildctl only). A plain-HTTP
+# registry for local tests is enabled per build with registry.insecure=true on the image
+# exporter, only for hosts listed in SUMMIT_INSECURE_REGISTRIES (or loopback).

@@ -1,6 +1,8 @@
 package validation
 
 import (
+	"encoding/json"
+	"os"
 	"testing"
 
 	"github.com/summit/builder/internal/protocol"
@@ -30,7 +32,7 @@ func validSpec() *protocol.BuildExecutionSpec {
 			RegistryCredentialRef: "secret-registry",
 		},
 		Output: protocol.OutputSpec{
-			Registry:   "registry.internal:5000",
+			Registry:   "ghcr.io",
 			Repository: "tenant/app",
 			Tag:        "build-1",
 			Platforms:  []string{"linux/amd64"},
@@ -100,5 +102,20 @@ func TestValidator_NilSpec(t *testing.T) {
 	v := NewValidator()
 	if err := v.Validate(nil); err == nil {
 		t.Fatal("expected error for nil spec, got nil")
+	}
+}
+
+// The shipped example spec must stay valid against the validator.
+func TestSampleExecutionSpecIsValid(t *testing.T) {
+	data, err := os.ReadFile("../../deployments/examples/sample-execution-spec.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var spec protocol.BuildExecutionSpec
+	if err := json.Unmarshal(data, &spec); err != nil {
+		t.Fatal(err)
+	}
+	if err := NewValidator().Validate(&spec); err != nil {
+		t.Fatalf("sample-execution-spec.json is invalid: %v", err)
 	}
 }

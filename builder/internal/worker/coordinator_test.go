@@ -26,6 +26,7 @@ import (
 type mockBuildKitManager struct {
 	started bool
 	stopped bool
+	last    buildkit.BuildKitBuildSpec
 }
 
 func (m *mockBuildKitManager) Start(_ context.Context) error {
@@ -37,7 +38,8 @@ func (m *mockBuildKitManager) WaitReady(_ context.Context) error {
 	return nil
 }
 
-func (m *mockBuildKitManager) Build(_ context.Context, _ buildkit.BuildKitBuildSpec, callback process.StreamCallback) (*buildkit.BuildKitResult, error) {
+func (m *mockBuildKitManager) Build(_ context.Context, spec buildkit.BuildKitBuildSpec, callback process.StreamCallback) (*buildkit.BuildKitResult, error) {
+	m.last = spec
 	if callback != nil {
 		callback("stdout", "=> mock build finished")
 	}
@@ -142,6 +144,7 @@ exit 0
 	memReporter := reporter.NewMemoryReporter()
 
 	coord := NewCoordinator(val, wsMgr, sourceMgr, rpAdapter, mockBk, regClient, memReporter, sup)
+	coord.SetRegistryDockerConfigDir("/var/run/secrets/summit/registry")
 
 	spec := &protocol.BuildExecutionSpec{
 		SchemaVersion: 1,
@@ -195,6 +198,14 @@ exit 0
 	}
 	if result.Metadata.CommitSHA != commitSHA {
 		t.Errorf("expected commit SHA %s, got %s", commitSHA, result.Metadata.CommitSHA)
+	}
+
+	// buildctl gets the credential dir; the loopback test registry is the only reason for insecure.
+	if mockBk.last.DockerConfigDir != "/var/run/secrets/summit/registry" {
+		t.Errorf("DockerConfigDir not propagated to BuildKit: %q", mockBk.last.DockerConfigDir)
+	}
+	if !mockBk.last.Insecure {
+		t.Error("loopback registry should be built with insecure=true")
 	}
 
 	// Verify reporter captured updates and final result

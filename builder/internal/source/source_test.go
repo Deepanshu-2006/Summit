@@ -2,6 +2,7 @@ package source
 
 import (
 	"context"
+	"encoding/base64"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -27,23 +28,39 @@ func TestVerifyCommitSHA(t *testing.T) {
 	}
 }
 
-func TestCredentialsAndRedaction(t *testing.T) {
-	rawURL := "https://github.com/summit/test-repo.git"
-	injected, err := InjectGitCredentials(rawURL, "secret-token")
-	if err != nil {
-		t.Fatalf("unexpected error injecting creds: %v", err)
+func TestGitAuthEnvDoesNotUseURLUserinfo(t *testing.T) {
+	env := GitAuthEnv("https://github.com/summit/test-repo.git", "secret-token")
+	if len(env) != 3 {
+		t.Fatalf("expected 3 GIT_CONFIG_* entries, got %v", env)
+	}
+	if env[0] != "GIT_CONFIG_COUNT=1" || env[1] != "GIT_CONFIG_KEY_0=http.https://github.com/.extraHeader" {
+		t.Errorf("unexpected scope entries: %v", env[:2])
+	}
+	wantB64 := base64.StdEncoding.EncodeToString([]byte("x-access-token:secret-token"))
+	if env[2] != "GIT_CONFIG_VALUE_0=Authorization: Basic "+wantB64 {
+		t.Errorf("unexpected header entry: %s", env[2])
 	}
 
-	if !strings.Contains(injected, "x-access-token:secret-token@github.com") {
-		t.Errorf("unexpected injected URL: %s", injected)
+	if GitAuthEnv("https://github.com/o/r.git", "") != nil {
+		t.Error("no token must yield no auth env")
+	}
+	if GitAuthEnv("/tmp/local/repo", "tok") != nil {
+		t.Error("non-http clone URL must yield no auth env")
+	}
+}
+
+func TestRedaction(t *testing.T) {
+	redacted := RedactGitURL("https://x-access-token:secret-token@github.com/summit/test-repo.git")
+	if strings.Contains(redacted, "secret-token") || !strings.Contains(redacted, "redacted@github.com") {
+		t.Errorf("unexpected redacted URL: %s", redacted)
 	}
 
-	redacted := RedactGitURL(injected)
-	if strings.Contains(redacted, "secret-token") {
-		t.Errorf("secret token leaked in redacted URL: %s", redacted)
-	}
-	if !strings.Contains(redacted, "redacted@github.com") {
-		t.Errorf("expected redacted userinfo: %s", redacted)
+	out := SanitizeGitOutput("fatal: unable to access 'https://x-access-token:abc@github.com/o/r.git/'\n" +
+		"> Authorization: Basic eC1hY2Nlc3MtdG9rZW46YWJj\nAuthorization: Bearer zzz")
+	for _, leak := range []string{"abc@", "eC1hY2Nlc3MtdG9rZW46YWJj", "zzz"} {
+		if strings.Contains(out, leak) {
+			t.Errorf("sanitised output still contains %q: %s", leak, out)
+		}
 	}
 }
 
