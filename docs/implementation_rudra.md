@@ -350,7 +350,7 @@ The GitHub worker emits `deployment.build.requested` events into `outbox_events`
 > 3. Registry credential reference and destination coordinates (`credentials.registry_credential_ref` and `output.registry`/repository/tag),
 > 4. Resource limits (`resources.cpu`, `resources.memory`, `resources.ephemeral_storage`),
 > 5. Build execution timeout (`timeout_seconds`),
-> 6. Reporting inputs (`reporting.status_webhook_url`, log stream coordinates).
+> 6. Reporting inputs (`reporting.endpoint`, `reporting.token_ref`); log stream events use the reporting endpoint.
 > Resolving how these inputs are supplied (e.g., via payload enrichment by the API/worker or resolution in the orchestrator) is an explicit **Priyanshu / Arpit / Rudra handoff and joint decision (Team of Three Required)**, not a unilateral orchestrator mapping.
 
 ### 7.2 Lease Acquisition, Heartbeat, & Concurrency
@@ -885,3 +885,277 @@ Before opening the initial orchestrator pull request, verify each of the followi
 | **RSK-04** | Cross-tenant network snooping | Critical | Low | Cilium L3/L4 NetworkPolicies block all inter-namespace traffic; DNS resolution restricted to cluster DNS; link-local metadata addresses blocked. | Rudra |
 | **RSK-05** | Plaintext secret exposure in logs or platform database | High | Low | ESO injects secrets directly from OpenBao into K8s Secrets; orchestrator handles only secret references, never plaintext payloads. | Rudra & Priyanshu |
 | **RSK-06** | UI desynchronization during long-running builds | Medium | Medium | Orchestrator writes incremental milestone events to Postgres and Loki; UI Developer reviews event schemas for real-time frontend streaming. | Rudra & UI Dev |
+---
+
+## 18. Appendix: Post-Review Future Work & Runtime Integration Roadmap (Dated: 2026-11-01)
+
+> [!NOTE]
+> **Companion Document Reference:**
+> For global platform architecture, cross-agent dependency sequencing, and platform-wide roadmap alignment, refer to [`docs/future_implementation.md`](./future_implementation.md) (created and maintained by the platform architecture sub-agent).
+>
+> This appendix records post-review future implementation deliverables for the **Go Orchestrator & Kubernetes Reconciler** (`cmd/orchestrator`), authored from the perspective of **Rudra**. It details how the existing library packages and tested components in `apps/backend` transition into live runtime execution, preserves settled team ownership boundaries, and scopes near-term MVP delivery versus subsequent platform capabilities.
+
+### 18.1 Core Principles & Team Ownership Preservation
+
+All architectural boundaries established during initial MVP design and Gate 1–4 reviews remain strictly preserved:
+- **Rudra (Orchestrator, Cluster Reconciler, & Ephemeral Build Pod Lifecycle):** Owns orchestrator daemon execution (`cmd/orchestrator`), background outbox polling and lease heartbeating, state machine transitions, scheduling, launching, monitoring, and cleaning up ephemeral build pods in `summit-builds`, `SummitService` CRD reconciliation into native Kubernetes workloads, and immutable image digest pinning. Rudra does **NOT** install, configure, or manage host-level gVisor (`runsc`), host `RuntimeClass` setup, or builder container construction.
+- **Priyanshu (API, Ingress, & Entire Isolated Builder):** Owns the REST API (`cmd/api`), GitHub webhook ingestion, worker token broker (`/internal/v1/build-requests/{id}/source-token`), control-plane ingress, and the **entire isolated builder subsystem** (installing and configuring gVisor `runsc` on Kubernetes host nodes, registering the `gvisor` `RuntimeClass`, and packaging/publishing the rootless BuildKit + Railpack builder container image).
+- **Arpit (Platform Database & State Management — DB Only):** Owns the single shared control-plane Supabase Postgres database, schemas, DDL migrations, connection pools (`pgxpool`), and query indexing. Arpit owns DB only; no daemon or queue runtime code.
+- **UI Developer (Frontend Partner):** Owns the Next.js web console (`apps/web`), real-time build log streaming UI, and deployment progress visualization.
+
+---
+
+### 18.2 Single Shared Control-Plane Database Architecture
+
+A fundamental architectural premise of Summit PaaS is the **single shared control-plane PostgreSQL database** (`DATABASE_URL`, managed by Arpit — DB only), consumed concurrently by both `cmd/api` (Priyanshu) and `cmd/orchestrator` (Rudra):
+
+```
++--------------------------------------------------------------------------------------------------+
+|                                    CONTROL PLANE STORAGE TOPOLOGY                                |
+|                                                                                                  |
+|   +------------------------------------+             +---------------------------------------+   |
+|   |   apps/backend (cmd/api)           |             |   apps/backend (cmd/orchestrator)     |   |
+|   |   - Validates user requests/webhooks|             |   - Polls & leases outbox jobs        |   |
+|   |   - Writes state & outbox rows     |             |   - Drives deployment state machine   |   |
+|   |   - Reads tenant/project metadata  |             |   - Updates build_jobs & releases     |   |
+|   +-----------------+------------------+             +-------------------+-------------------+   |
+|                     |                                                    |                       |
+|                     | pgxpool Connection Pool                            | pgxpool Connection    |
+|                     | (Port 5432 / Direct or 6543 / Pooler)              | (Direct Session)      |
+|                     v                                                    v                       |
+|   +------------------------------------------------------------------------------------------+   |
+|   |                   ONE SHARED CONTROL-PLANE POSTGRES DATABASE (Arpit — DB Only)           |   |
+|   |                                                                                          |   |
+|   |   - Source-of-Truth Tables: users, projects, services, deployments, releases, build_jobs |   |
+|   |   - Asynchronous Outbox:    outbox_events (Status: pending, claimed, completed, failed)  |   |
+|   |   - Concurrency Control:    FOR UPDATE SKIP LOCKED, locked_until lease heartbeats        |   |
+|   +------------------------------------------------------------------------------------------+   |
++--------------------------------------------------------------------------------------------------+
+                                                 |
+         +---------------------------------------+---------------------------------------+
+         | Explicit Architectural Anti-Patterns (WHAT THE CONTROL-PLANE DATABASE IS NOT) |
+         +-------------------------------------------------------------------------------+
+         | 1. NOT a Separate Message Queue or Broker: No external Redis, Dragonfly,      |
+         |    Kafka, or NATS cluster. Transactional outbox pattern guarantees atomic     |
+         |    domain state + job persistence without dual-write distributed commit gaps. |
+         |                                                                               |
+         | 2. NOT an Application Tenant Database: Control-plane Postgres NEVER stores    |
+         |    customer application data. Tenant databases are isolated stateful workloads|
+         |    provisioned inside tenant namespaces (tenant-<tenant_id>) on dedicated PVCs|
+         +-------------------------------------------------------------------------------+
+```
+
+1. **Unified Source of Truth & Outbox Engine:** When an API request or GitHub webhook triggers a deployment, Priyanshu's API atomically writes domain entities (`deployments`, `releases`, `build_jobs`) and inserts an outbox dispatch record into `outbox_events` (`deployment.build.requested`) within a single ACID transaction. The orchestrator polls and claims these events directly via `FOR UPDATE SKIP LOCKED`.
+2. **Elimination of External Queue Infrastructure:** The platform explicitly avoids introducing external message brokers (Redis, RabbitMQ, NATS JetStream, Kafka) for control-plane dispatch. PostgreSQL ACID guarantees eliminate two-phase commit risks, dual-write drift, and extra operational complexity on local Kind test clusters and target hosts.
+3. **Strict Separation from Tenant Databases:** The control-plane database is strictly dedicated to Summit platform management. Customer application databases (e.g. tenant PostgreSQL databases) are provisioned inside tenant namespaces (`tenant-<tenant_id>`) with isolated storage volumes, network policies, and credentials. Tenant workloads have zero network connectivity or database access to the control-plane PostgreSQL instance.
+
+---
+
+### 18.3 Library Code vs. Runtime Integration: Monorepo Implementation Status
+
+Several foundational components have already been implemented as tested library packages in `apps/backend/internal/`. However, `cmd/orchestrator/main.go` currently executes only a Phase 0 read-only Kubernetes discovery probe. The table below delineates existing library packages from the remaining runtime integration deliverables:
+
+| Component Subsystem | Implemented Library Package (`apps/backend`) | Current Library State | Required Runtime Integration in `cmd/orchestrator` |
+|---|---|---|---|
+| **Database Pool** | `internal/db/pool.go` | `db.Open(ctx, databaseURL)` creates a `pgxpool.Pool` and checks connectivity. | Wire `db.Open` into `cmd/orchestrator` using `DATABASE_URL`. |
+| **Outbox Queue Engine** | `internal/orchestrator/queue/` (`claim.go`, `lease.go`, `retry.go`, `completion.go`, `queue.go`) | Claim, lease, retry, exhaustion, and completion operations plus a `Queue` coordinator are implemented as a package. | Instantiate `queue.Queue` with the database pool and build handler, then start its `Run` loop from the orchestrator runtime. |
+| **Build Dispatcher & Worker** | `internal/orchestrator/worker/build_handler.go` | `BuildHandler` validates events/specs, calls the injected `BuildSpecResolver`, creates Pods, and records dispatch. The resolver is only an interface; production enrichment is not implemented. | Register `BuildHandler` with the queue; provide a production `BuildSpecResolver` and Kubernetes adapter. |
+| **Builder Pod Adapter** | `internal/orchestrator/build/` (`adapter.go`, `pod.go`, `spec.go`, `secrets.go`) | Constructs Kubernetes Pod manifests targeting `runtimeClassName: gvisor`, drops capabilities, and manages ephemeral lifecycle. | Inject live `kubernetes.Interface` client and link to live `summit-builds` namespace execution. |
+| **Workload Controller (CRD)** | `internal/cluster/workloads/` (`controller.go`, `reconciler.go`, `builder.go`, `types.go`) | Polling controller and reconciler for `SummitService` (`summit.dev/v1alpha1`); reconciles Deployments and ClusterIP Services with digest checking. | Instantiate `workloads.NewController` in `orchestrator.Run` using client-go dynamic interface; apply CRD manifest to cluster. |
+
+---
+
+### 18.4 Production `BuildSpecResolver` & Event Enrichment
+
+In the live system, the outbox event payload emitted by the GitHub integration (`deployment.build.requested`) contains source revision pointers (`commit_sha`, `branch`, `ref`, `root_directory`, `dockerfile_path`), but omits runtime execution inputs required by `builder/contracts/build-execution-spec.schema.json`.
+
+Rudra's implementation will provide a production `BuildSpecResolver` satisfying `worker.BuildSpecResolver`:
+```go
+type BuildSpecResolver interface {
+    ResolveBuildSpec(ctx context.Context, event *orchestrator.BuildRequestedPayload, record *queue.EventRecord) (build.BuildExecutionSpec, error)
+}
+```
+
+#### Enrichment Responsibilities:
+1. **Source Clone Credentials (handoff to confirm):** Use Priyanshu's worker token broker (`POST /internal/v1/build-requests/{build_request_id}/source-token`) with the agreed worker authentication. Confirm whether the resolver receives a short-lived token or a secret reference; never put raw credentials in the execution spec or logs.
+2. **Database Context Enrichment:** Query platform database tables (`services`, `service_sources`, `projects`, `environments`) to resolve service build parameters, target branch settings, and non-secret environment variables. Coordinate the access interface with Arpit; the shared `platformdb` repository layer is not implemented yet.
+3. **OCI Destination Determination:** After GHCR owner and push-credential details are confirmed, construct the destination coordinates:
+   - Target: `ghcr.io/<resolved-github-owner>/summit-app-<service-id>:sha-<git-commit>`
+   - Resolves `<resolved-github-owner>` as the source repository owner (organization login or user account).
+4. **Resource Ceilings & Execution Timeouts:** Injects tenant-specific resource constraints into `BuildExecutionSpec.Resources` (e.g., CPU request/limit: `500m`/`2000m`, Memory request/limit: `1Gi`/`4Gi`, Ephemeral storage: `10Gi`) and sets deterministic timeouts (`timeout_seconds: 1800`).
+5. **Callback & Log Stream Coordinates:** Populate the versioned spec's `reporting.endpoint` and `reporting.token_ref` after Priyanshu's callback receiver contract is agreed. Loki streaming and labels are a separate integration, not fields in the current execution-spec contract.
+
+> **Status:** These are resolver requirements, not implemented behavior. No production `BuildSpecResolver` currently exists.
+
+---
+
+### 18.5 End-to-End Builder Lifecycle & Callback Integration Flow
+
+The complete execution flow coordinating Rudra's orchestrator, Priyanshu's builder subsystem, and Arpit's database is structured as follows:
+
+```
+[Arpit's control-plane Postgres: outbox_events]
+             |
+             | 1. Poll & Acquire Lease (FOR UPDATE SKIP LOCKED)
+             v
+[Rudra: cmd/orchestrator (queue.Queue)]
+             |
+             | 2. Resolve BuildSpec (worker.BuildSpecResolver)
+             |    - Query DB for Service & Env context
+             |    - Fetch Clone Token from Priyanshu Broker (POST /source-token)
+             |    - Derive GHCR Image Tag (ghcr.io/<owner>/summit-app-<id>:sha-<sha>)
+             v
+[Rudra: Ephemeral Pod Launcher (build.Adapter)]
+             |
+             | 3. Create Pod in namespace: summit-builds
+             |    - runtimeClassName: gvisor (Priyanshu host runtime)
+             |    - image: summit-builder:<digest> (Priyanshu rootless builder image)
+             |    - SecurityContext: runAsUser 1000, drop ALL capabilities
+             v
+[Priyanshu: Ephemeral Build Pod in gVisor Sandbox]
+             |
+             | 4. Pod executes: rootless BuildKit + Railpack compiles source
+             | 5. Logs streamed to stdout/stderr -> Loki
+             | 6. Image pushed to GHCR: ghcr.io/<owner>/summit-app-<id>@sha256:<digest>
+             v
+[Priyanshu Builder / API callback receiver]
+             |
+             | 7. POST status/log/result callbacks to Priyanshu's API receiver
+             v
+[Priyanshu API persists callback; Rudra observes build result]
+             |
+             | 8. API validates and persists callback data (pending)
+             | 9. Rudra observes persisted success and records queue completion
+             v
+[Rudra: SummitService Reconciler]
+             |
+             | 10. Reconcile SummitService CRD with immutable image digest
+             | 11. Rolling update Deployment in tenant-<tenant_id>
+             v
+[Workload Running & Serving Live Traffic]
+```
+
+---
+
+### 18.6 Consuming Verified Builder Image & gVisor RuntimeClass after Environment Handoff
+
+Untrusted customer code must never execute on unconstrained host kernels. Integration of the build sandbox is contingent upon the formal environment handoff from Priyanshu:
+
+1. **Host-Level gVisor Installation & RuntimeClass (Priyanshu Handoff):**
+   - Priyanshu installs and configures `runsc` on the Kubernetes host machines (local Kind test cluster first; DigitalOcean Linux hosts if time permits later).
+   - Priyanshu registers the cluster-wide `RuntimeClass`:
+     ```yaml
+     apiVersion: node.k8s.io/v1
+     kind: RuntimeClass
+     metadata:
+       name: gvisor
+     handler: runsc
+     ```
+2. **Verified Builder Container Image (Priyanshu Handoff):**
+   - Priyanshu builds, packages, and verifies the rootless BuildKit + Railpack builder container image (`summit-builder`).
+   - Priyanshu publishes the image to GHCR and supplies the verified cryptographic digest (`ghcr.io/<platform-owner>/summit-builder@sha256:...`).
+3. **Orchestrator Consumption (Rudra Implementation):**
+   - Upon receiving the verified environment handoff, Rudra updates the pod constructor (`internal/orchestrator/build/pod.go`) to reference `spec.runtimeClassName: "gvisor"` and pins the builder container to the verified digest.
+   - Rudra validates the sandbox against the local Kind cluster by scheduling a canary build pod, ensuring syscall virtualization is active and all Linux capabilities are dropped.
+
+---
+
+### 18.7 `SummitService` Controller / CRD Workflow & Immutable Digest Deployment
+
+Application workload management follows a declarative Kubernetes Operator pattern using the `SummitService` Custom Resource Definition (`summit.dev/v1alpha1`):
+
+1. **Declarative Custom Resource:**
+   The `SummitService` CRD declared in `apps/backend/config/crd/summit.dev_summitservices.yaml` defines the desired state for a tenant application:
+   ```yaml
+   apiVersion: summit.dev/v1alpha1
+   kind: SummitService
+   metadata:
+     name: backend-api
+     namespace: tenant-a1b2c3d4
+     labels:
+       summit.dev/tenant: "a1b2c3d4"
+       summit.dev/project: "prod-proj"
+       summit.dev/service: "svc-xyz"
+       summit.dev/release: "rel-001"
+   spec:
+     image: ghcr.io/acme/summit-app-svc-xyz@sha256:7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069
+     replicas: 2
+     port: 8080
+     pullSecretName: ghcr-pull
+     env:
+       - name: NODE_ENV
+         value: "production"
+   ```
+2. **Reconciliation Loop (`workloads.Controller` & `workloads.Reconciler`):**
+   - The polling controller lists `SummitService` custom resources across tenant namespaces.
+   - For each custom resource, the reconciler generates and idempotently applies:
+     - **Kubernetes Deployment:** Configured with `RollingUpdate` strategy, `runAsNonRoot: true`, non-root UID 1000, and HTTP `/health` readiness/liveness probes.
+     - **Kubernetes Service:** ClusterIP service exposing port 8080.
+3. **Mandatory Immutable Digest Enforcement:**
+   - Workload manifests **strictly require** immutable image references pinned by an exact 64-hex SHA-256 digest (`image: ...@sha256:<64-hex>`).
+   - Pinned references are validated using regex `^[a-zA-Z0-9_.\-/:~]+@sha256:[a-fA-F0-9]{64}$`. Tagged images (`:latest`, `:main`, `:v1.0.0`) are rejected at reconciliation time to guarantee that deployed containers cannot be mutated or spoofed in the registry post-build.
+4. **Status Reflection:**
+   - The reconciler monitors deployment rollout status, available replicas, and generation matches, persisting current status back into `SummitService.Status`.
+
+---
+
+### 18.8 Staged Roadmap: MVP First Backend vs. Subsequent Scopes
+
+To ensure rapid, reliable delivery on the local Kind test environment, platform features are sequenced into an immediate MVP scope followed by modular platform expansions:
+
+```
++--------------------------------------------------------------------------------------------------+
+|                                    PLATFORM CAPABILITY SEQUENCING                                |
+|                                                                                                  |
+|   ============================================================================================   |
+|   PHASE 1: MVP FIRST BACKEND (IMMEDIATE TESTING ON LOCAL KIND CLUSTER)                           |
+|   ============================================================================================   |
+|   [x] Queue/outbox operations implemented as Go library packages                                 |
+|   [ ] Wire database pool and queue worker into cmd/orchestrator                                  |
+|   [ ] Implement production BuildSpecResolver and agree on enrichment inputs                      |
+|   [ ] Verify host gVisor RuntimeClass and builder image before scheduling a real build            |
+|   [ ] Complete callback persistence, then deploy the verified application digest                 |
+|   [x] SummitService CRD/reconciler code exists for stateless Deployment + ClusterIP Service        |
+|   [ ] Run the controller against an installed CRD and test cluster                               |
+|   [ ] Confirm namespace ownership/provisioning and add quotas if required for MVP                  |
+|                                                                                                  |
+|   ============================================================================================   |
+|   PHASE 2: SUBSEQUENT SCOPES (POST-MVP PLATFORM EXPANSIONS)                                      |
+|   ============================================================================================   |
+|   [ ] Stateful Postgres Service: Dedicated tenant PostgreSQL instances provisioned as           |
+|       Kubernetes StatefulSets with PersistentVolumeClaims (PVCs) for stateful user workloads     |
+|   [ ] Edge Ingress Routing: Automated Traefik IngressRoute generation with wildcard TLS certs   |
+|   [ ] Zero-Trust Network Lockdown: CiliumNetworkPolicy L3/L4 egress lockdown & tenant isolation  |
+|   [ ] Secrets Operator Integration: External Secrets Operator (ESO) bridging OpenBao / AWS SM    |
+|   [ ] Automated Sweepers & GC: Background pruning of build pods (>30m) & tombstoned namespaces   |
+|   [ ] Production Telemetry: Fluent Bit daemonset piping logs to Loki; Prometheus /metrics scrape |
++--------------------------------------------------------------------------------------------------+
+```
+
+1. **Immediate MVP Scope (Stateless First):** Focuses exclusively on stateless HTTP applications deployed via `SummitService`. The control loop takes a Git push event from `outbox_events`, executes the build in `summit-builds` inside gVisor, pushes an immutable image to GHCR, and deploys it as a Kubernetes Deployment + Service.
+2. **Stateful Postgres Service Later:** Multi-tenant stateful services (e.g. provisioning dedicated PostgreSQL databases for tenant applications via `StatefulSet` and PVCs) are scheduled as the first backend expansion immediately after the stateless pipeline is validated.
+3. **Subsequent Infrastructure Scopes:**
+   - **Ingress Layer:** Automating Traefik `IngressRoute` configuration for custom domains (`<slug>.<tenant>.jetway.app`).
+   - **Cilium Network Security:** Enforcing strict L3/L4 zero-trust network policies that isolate tenant namespaces from each other, from the control-plane database, and from cloud metadata IPs (`169.254.169.254`).
+   - **Secrets Management via ESO:** Automating `ExternalSecret` custom resources to synchronize credentials from OpenBao directly into tenant Kubernetes `Secrets`.
+   - **Cluster Cleanup & Garbage Collection:** Autonomous background sweepers to remove completed/failed build pods older than 30 minutes and clean up ephemeral secrets.
+   - **Observability Stack:** Comprehensive Loki log forwarding and Prometheus metric instrumentation.
+
+---
+
+### 18.9 Cross-Team Dependency & Handoff Matrix
+
+| Collaborator | Deliverable / Handoff Contract | Flow Direction | Contract / Artifact Specification | Status / Prerequisite |
+|---|---|---|---|---|
+| **Arpit** (DB Only) | Control-plane Postgres migrations & schema | Arpit &rarr; Rudra | `0001_baseline.up.sql` and `0002_github_integration.up.sql` (`outbox_events`, `build_jobs`, `services`) | Active in monorepo; ready for query integration. |
+| **Arpit** (DB Only) | Database connection pool configuration | Arpit &rarr; Rudra | `internal/db/pool.go` (`db.Open(ctx, databaseURL)`) | Implemented; needs runtime wiring in `cmd/orchestrator`. |
+| **Priyanshu** (API & Builder) | Worker Credential Broker API | Priyanshu &rarr; Rudra | `POST /internal/v1/build-requests/{id}/source-token` authenticated via `WORKER_JWT_SECRET` | Endpoint exists; resolver consumption and secret handoff remain pending. |
+| **Priyanshu** (API & Builder) | Host gVisor (`runsc`) & `RuntimeClass` | Priyanshu &rarr; Rudra | Host-level installation of `runsc` + `RuntimeClass` (`name: gvisor`) on test Kubernetes cluster | Prerequisite for executing build pods in `summit-builds`. |
+| **Priyanshu** (API & Builder) | Rootless Builder Container Image | Priyanshu &rarr; Rudra | Published GHCR image (`summit-builder`) running rootless BuildKit + Railpack (UID 1000) | Prerequisite for ephemeral pod launcher. |
+| **Priyanshu** (API & Builder) | Build Result Callback API | Priyanshu &harr; Rudra | Builder status/log/result callbacks into API; Rudra consumes persisted build result | Callback routes and persistence are pending; shared contract required. |
+| **UI Developer** (Frontend) | State Machine & Milestone Events | Rudra &rarr; UI Dev | Deployment state progression (`queued` &rarr; `building` &rarr; `image_ready` &rarr; `deploying` &rarr; `running`) | Proposed vocabulary; aligns dashboard view. |
+| **UI Developer** (Frontend) | Live Build Log Streaming | Rudra &rarr; UI Dev | Loki log query labels (`tenant`, `project`, `release`, `component="builder"`) | Schema established; UI queries via API gateway. |
+
+---
+
+*End of Appendix — Implementation ready for Phase 1 runtime integration upon teammate handoffs.*

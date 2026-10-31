@@ -924,3 +924,58 @@ The foundational Go API control plane and GitHub integration backend are fully i
 2. Coordinate with **Arpit** (who owns DB only) on `internal/platformdb` persistence contracts and outbox schema, avoiding duplicate repository abstractions.
 3. Coordinate with the **UI Developer** on replacing demo mock routes in `apps/web` with live `/v1/...` API endpoints documented in [`docs/integrations/github/FRONTEND_INTEGRATION.md`](./integrations/github/FRONTEND_INTEGRATION.md).
 4. Implement `POST /api/v1/projects` and project lifecycle CRUD handlers.
+
+---
+
+## 20. Appendix: Verified Audit Gaps & Future Work (November 2026)
+
+This appendix records verified audit gaps and pending engineering tasks following the post-PR #3 repository audit. For broader cross-team architectural sequencing and multi-agent milestones, see [docs/future_implementation.md](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/docs/future_implementation.md) (tracked as a collaborative roadmap).
+
+### 20.1 Settled Team Boundaries & MVP Scope Safeguards
+- **Priyanshu (API & Builder Engineer):** Owns `apps/backend` (Go API service) and the **entire isolated builder**: host gVisor (`runsc`) installation and configuration, containerd runtime handler setup, Kubernetes `gvisor` `RuntimeClass` registration, and packaging/configuration of the rootless BuildKit + Railpack builder container image (`builder/Dockerfile`, rootless daemon config, unprivileged entrypoint script).
+- **Rudra (Orchestrator Engineer):** Owns the orchestrator engine, custom resources (CRDs), and Kubernetes pod lifecycle management (scheduling, launching, monitoring, log streaming, and teardown/cleanup of ephemeral build pods in `summit-builds` using Priyanshu's configured builder). Rudra does **NOT** install, configure, or own gVisor.
+- **Arpit (Database Engineer):** Owns database persistence exclusively (Supabase PostgreSQL schemas, DDL migrations, connection pooling, indexing, and outbox tables).
+- **MVP No-Backup Scope:** Custom database backup and recovery automation remains strictly **out of scope** for the MVP.
+
+### 20.2 Separation of Host Runtime vs. Builder Image
+- **Architectural Boundary:** gVisor is strictly a **host-level Kubernetes runtime setup** (`runsc` binary installed on host nodes, containerd `/etc/containerd/config.toml` runtime handler, and cluster-wide `RuntimeClass` resource).
+- In contrast, `buildkitd`, `buildctl`, and `railpack` binaries belong strictly **inside the containerized builder/worker image** (`builder/Dockerfile`).
+- These two layers are decoupled and separate: gVisor provides node-level sandbox virtualization, while the builder image contains the user-space compilation toolchains running under UID 1000 with dropped capabilities.
+
+### 20.3 Verified Audit Gaps (Pending Implementation)
+The following verified gaps represent pending work and must **not** be claimed as currently implemented or existing in the repository:
+
+1. **Package Worker Image with BuildKit and Railpack Binaries:**
+   - Package the production builder container image (`builder/Dockerfile`) containing `buildkitd`, `buildctl`, and `railpack`.
+   - Ensure daemon and buildctl execute unprivileged (UID 1000) with complete capability drops (`drop: ["ALL"]`) and test user-space compilation inside gVisor.
+
+2. **Mounted Source Credential File & Worker Credential Broker Usage:**
+   - Implement builder pod source credential integration: worker pods mount temporary source credentials or query the internal credential broker (`internal/githubworker/broker_handler.go`) using job-scoped JWTs to clone repositories without exposing persistent secrets or tokens in process arguments or logs.
+
+3. **GHCR Authentication for BuildKit Push & Authenticated Digest Verification:**
+   - Formally retire legacy `registry.jetway.internal:5000` sample references across `builder/` configs and documentation.
+   - Implement GHCR (`ghcr.io`) push authentication contract for BuildKit OCI export following the agreed pattern in [docs/ghcr_mvp_setup.md](file:///home/rudra-unix/.t3/worktrees/summit/t3-e4313bb7/docs/ghcr_mvp_setup.md):
+     `ghcr.io/<resolved-github-owner>/summit-app-<service-id>:sha-<git-commit>`
+     (supporting both organization logins and personal user accounts as owner).
+   - Implement authenticated post-push digest extraction and verification so Kubernetes deployments roll out immutable digests (`@sha256:<digest>`).
+   - Maintain the security boundary: untrusted customer code must never access write-scoped GHCR tokens.
+
+4. **Build Status, Log, and Result Callback API & Persistence:**
+   - Coordinate with Rudra to implement API callback endpoints and database persistence for build job lifecycle transitions (`queued` → `cloning` → `building` → `pushing` → `deploying` → `verified` / `failed`), step timing metrics, structured build log streaming, and final artifact digest recording.
+
+5. **OpenAPI Specification Alignment & Route Prefix Selection:**
+   - Reconcile discrepancies between actual backend route implementations (e.g., GitHub integration endpoints currently mounted under `/v1/...`) and `packages/api_spec/openapi.yaml` (which specifies `/api/v1/...`).
+   - Formally decide and standardize on uniform path prefixes (`/v1` vs. `/api/v1`) across GitHub, service, deployment, and lifecycle routes in coordination with the UI developer.
+
+6. **Webhook Environment URL Mismatch:**
+   - Resolve discrepancies between configured webhook target URLs in environment/deployment specifications and the actual Go backend ingress routes to prevent webhook delivery failures.
+
+7. **Implement Missing Real Project, Resource, Release & Observability Endpoints:**
+   - Implement real Go API handlers and persistence backing currently missing or mocked endpoints as later scope:
+     - Project CRUD operations (`POST /api/v1/projects`, `PATCH /api/v1/projects/{slug}`, `DELETE /api/v1/projects/{slug}`).
+     - Resource provisioning endpoints (`POST /api/v1/resources`, `DELETE /api/v1/resources/{id}`).
+     - Asynchronous deployment and release tracking (`GET /api/v1/deployments/{id}`).
+     - Real Prometheus and Loki observability proxy handlers (`/api/v1/observability/{metrics,logs}`).
+
+8. **Implement & Verify Host runsc, containerd, and RuntimeClass Setup:**
+   - Install `runsc` on Kubernetes host nodes, configure containerd runtime handlers, apply the `gvisor` `RuntimeClass` resource, and verify sandbox syscall interception on the test machines prior to orchestrator pod scheduling.
