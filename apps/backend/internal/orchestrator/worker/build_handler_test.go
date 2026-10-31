@@ -9,8 +9,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	orchestrator "github.com/summit/backend/internal/orchestrator"
 	"github.com/summit/backend/internal/orchestrator/build"
+	"github.com/summit/backend/internal/orchestrator/events"
 	"github.com/summit/backend/internal/orchestrator/queue"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -24,24 +24,29 @@ type handlerDB struct {
 func (db *handlerDB) Exec(context.Context, string, ...any) (pgconn.CommandTag, error) {
 	return pgconn.NewCommandTag("UPDATE 0"), nil
 }
-func (db *handlerDB) Query(context.Context, string, ...any) (pgx.Rows, error) { return nil, nil }
-func (db *handlerDB) QueryRow(_ context.Context, query string, args ...any) pgx.Row {
-	db.query, db.args = query, args
-	return handlerRow{id: db.id}
+
+func (db *handlerDB) Query(context.Context, string, ...any) (pgx.Rows, error) {
+	return nil, errors.New("unexpected query")
 }
 
-type handlerRow struct{ id uuid.UUID }
+func (db *handlerDB) QueryRow(_ context.Context, query string, args ...any) pgx.Row {
+	db.query = query
+	db.args = args
+	return &handlerRow{id: db.id}
+}
 
-func (r handlerRow) Scan(dest ...any) error {
-	if len(dest) != 1 {
-		return errors.New("unexpected scan shape")
+type handlerRow struct {
+	id uuid.UUID
+}
+
+func (r *handlerRow) Scan(dest ...any) error {
+	if len(dest) > 0 {
+		if idPtr, ok := dest[0].(*uuid.UUID); ok {
+			*idPtr = r.id
+			return nil
+		}
 	}
-	value, ok := dest[0].(*uuid.UUID)
-	if !ok {
-		return errors.New("unexpected scan target")
-	}
-	*value = r.id
-	return nil
+	return pgx.ErrNoRows
 }
 
 type handlerAdapter struct {
@@ -50,23 +55,28 @@ type handlerAdapter struct {
 }
 
 func (a *handlerAdapter) CreateBuildPod(_ context.Context, spec build.BuildExecutionSpec) (*corev1.Pod, error) {
-	a.called, a.spec = true, spec
+	a.called = true
+	a.spec = spec
 	return &corev1.Pod{}, nil
 }
 
 func TestBuildHandlerDispatchesValidatedSpec(t *testing.T) {
 	ctx := context.Background()
-	outboxID, deploymentID, buildID := uuid.New(), uuid.New(), uuid.New()
+	deploymentID, buildID := uuid.New(), uuid.New()
 	workerID := "worker-1"
-	payload := []byte(`{"event_id":"webhook-event","deployment_id":"` + deploymentID.String() + `","build_run_id":"` + buildID.String() + `","service_id":"service","service_source_id":"source","user_id":"user","project_id":"project","environment_id":"environment","repository":{"platform_repository_id":"repo","github_repository_id":123,"full_name":"owner/repo"},"source":{"branch":"main","ref":"refs/heads/main","commit_sha":"0123456789abcdef0123456789abcdef01234567","root_directory":"/"},"trigger":{"type":"push","webhook_event_id":"delivery"}}`)
-	record := &queue.EventRecord{ID: outboxID, AggregateType: orchestrator.AggregateTypeDeployment, AggregateID: deploymentID, EventType: orchestrator.EventTypeDeploymentBuildRequested, Payload: payload, Status: queue.StatusClaimed, LockedBy: &workerID}
+	record := &queue.EventRecord{
+		ID: uuid.New(), AggregateType: events.AggregateTypeDeployment,
+		AggregateID: deploymentID, EventType: events.EventTypeDeploymentBuildRequested,
+		Payload: []byte(`{"event_id":"webhook-event","deployment_id":"` + deploymentID.String() + `","build_run_id":"` + buildID.String() + `","service_id":"service","service_source_id":"source","user_id":"user","project_id":"project","environment_id":"environment","repository":{"platform_repository_id":"repo","github_repository_id":123,"full_name":"owner/repo"},"source":{"branch":"main","ref":"refs/heads/main","commit_sha":"0123456789abcdef0123456789abcdef01234567","root_directory":"/"},"trigger":{"type":"push","webhook_event_id":"delivery"}}`),
+		Status:  queue.StatusClaimed, LockedBy: &workerID,
+	}
 	spec := validBuildSpec(buildID.String())
-	db := &handlerDB{id: outboxID}
+	db := &handlerDB{id: record.ID}
 	adapter := &handlerAdapter{}
 	handler := BuildHandler{
 		DB:      db,
 		Adapter: adapter,
-		Resolver: BuildSpecResolverFunc(func(context.Context, *orchestrator.BuildRequestedPayload, *queue.EventRecord) (build.BuildExecutionSpec, error) {
+		Resolver: BuildSpecResolverFunc(func(context.Context, *events.BuildRequestedPayload, *queue.EventRecord) (build.BuildExecutionSpec, error) {
 			return spec, nil
 		}),
 	}
@@ -85,8 +95,8 @@ func TestBuildHandlerRejectsResolverSourceMismatch(t *testing.T) {
 	deploymentID, buildID := uuid.New(), uuid.New()
 	workerID := "worker-1"
 	record := &queue.EventRecord{
-		ID: uuid.New(), AggregateType: orchestrator.AggregateTypeDeployment,
-		AggregateID: deploymentID, EventType: orchestrator.EventTypeDeploymentBuildRequested,
+		ID: uuid.New(), AggregateType: events.AggregateTypeDeployment,
+		AggregateID: deploymentID, EventType: events.EventTypeDeploymentBuildRequested,
 		Payload: []byte(`{"event_id":"webhook-event","deployment_id":"` + deploymentID.String() + `","build_run_id":"` + buildID.String() + `","service_id":"service","service_source_id":"source","user_id":"user","project_id":"project","environment_id":"environment","repository":{"platform_repository_id":"repo","github_repository_id":123,"full_name":"owner/repo"},"source":{"branch":"main","ref":"refs/heads/main","commit_sha":"0123456789abcdef0123456789abcdef01234567","root_directory":"/"},"trigger":{"type":"push","webhook_event_id":"delivery"}}`),
 		Status:  queue.StatusClaimed, LockedBy: &workerID,
 	}
@@ -94,7 +104,7 @@ func TestBuildHandlerRejectsResolverSourceMismatch(t *testing.T) {
 	spec.Source.Repository = "attacker/other-repo"
 	adapter := &handlerAdapter{}
 	db := &handlerDB{id: record.ID}
-	handler := BuildHandler{DB: db, Adapter: adapter, Resolver: BuildSpecResolverFunc(func(context.Context, *orchestrator.BuildRequestedPayload, *queue.EventRecord) (build.BuildExecutionSpec, error) {
+	handler := BuildHandler{DB: db, Adapter: adapter, Resolver: BuildSpecResolverFunc(func(context.Context, *events.BuildRequestedPayload, *queue.EventRecord) (build.BuildExecutionSpec, error) {
 		return spec, nil
 	})}
 	if err := handler.Handle(context.Background(), record); err == nil {
@@ -111,10 +121,10 @@ func validBuildSpec(buildID string) build.BuildExecutionSpec {
 		Build:          build.BuildMetadata{ID: buildID, AttemptID: buildID, AttemptNumber: 1},
 		Source:         build.SourceSpec{Provider: "github", Repository: "owner/repo", CloneURL: "https://github.com/owner/repo.git", Branch: "main", CommitSHA: "0123456789abcdef0123456789abcdef01234567", RootDirectory: "/"},
 		BuildConfig:    build.BuildConfig{Builder: "railpack"},
-		Credentials:    build.CredentialsSpec{SourceCredentialRef: "k8s:source-token", RegistryCredentialRef: "k8s:registry-secret"},
+		Credentials:    build.CredentialsSpec{SourceCredentialRef: "secret:summit-build-" + buildID, RegistryCredentialRef: "secret:ghcr-push"},
 		Output:         build.OutputSpec{Registry: "ghcr.io", Repository: "owner/summit-app-service", Tag: "sha-0123456789abcdef0123456789abcdef01234567", Platforms: []string{"linux/amd64"}},
 		Resources:      build.ResourceLimits{CPUMillicores: 1000, MemoryMiB: 1024, EphemeralStorageMiB: 2048},
 		TimeoutSeconds: 600,
-		Reporting:      build.ReportingSpec{Endpoint: "https://api.example.com/builds", TokenRef: "k8s:reporting-token"},
+		Reporting:      build.ReportingSpec{Endpoint: "http://api.internal/internal/v1/builds", TokenRef: "secret:summit-build-" + buildID},
 	}
 }

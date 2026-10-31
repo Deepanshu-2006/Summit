@@ -1,0 +1,108 @@
+# Summit orchestrator. A single replica: the pruner has no leader election yet
+# (contract C7) so two replicas would run duplicate sweeps. The process serves no
+# HTTP port today, so there are no probes.
+#
+# The image is a placeholder: no backend Dockerfile exists in the repo yet. For
+# Kind, build and load it: `kind load docker-image summit-orchestrator:dev`.
+#
+# Create Secret summit-orchestrator-env by hand (see config/README.md):
+#   DATABASE_URL, WORKER_JWT_SECRET (>= 32 bytes)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: summit-orchestrator
+  namespace: summit-system
+  labels:
+    app.kubernetes.io/name: summit-orchestrator
+    app.kubernetes.io/part-of: summit
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: summit-orchestrator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: summit-orchestrator
+        app.kubernetes.io/part-of: summit
+    spec:
+      serviceAccountName: summit-orchestrator
+      automountServiceAccountToken: true
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: orchestrator
+          image: summit-orchestrator:dev
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          env:
+            - name: ORCHESTRATOR_ENV
+              value: development
+            - name: ORCHESTRATOR_LOG_LEVEL
+              value: info
+            - name: ORCHESTRATOR_CLUSTER_TARGET
+              value: in-cluster
+            # Used by build Pods to reach the API (contract C4/C6).
+            - name: ORCHESTRATOR_API_INTERNAL_URL
+              value: http://summit-api.summit-system.svc.cluster.local:4000
+            - name: SUMMIT_BUILD_NAMESPACE
+              value: summit-builds
+            - name: SUMMIT_BUILDER_IMAGE
+              value: summit-builder:dev
+            - name: SUMMIT_BUILDER_RUNTIME_CLASS
+              value: gvisor
+            - name: ORCHESTRATOR_GHCR_PUSH_SECRET
+              value: ghcr-push
+            # Optional add-ons (contract C8). Off by default; flip after the CRDs exist.
+            - name: ORCHESTRATOR_ENABLE_TENANT_QUOTAS
+              value: "true"
+            - name: ORCHESTRATOR_ENABLE_NETWORK_POLICY
+              value: "false"
+            - name: ORCHESTRATOR_NETWORK_POLICY_MODE
+              value: native
+            - name: ORCHESTRATOR_ENABLE_INGRESS
+              value: "false"
+            - name: ORCHESTRATOR_ENABLE_ESO
+              value: "false"
+            - name: ORCHESTRATOR_APPS_DOMAIN
+              value: localtest.me
+            - name: ORCHESTRATOR_API_NAMESPACE
+              value: summit-system
+            - name: ORCHESTRATOR_API_PORT
+              value: "4000"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: summit-orchestrator-env
+                  key: DATABASE_URL
+            - name: WORKER_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: summit-orchestrator-env
+                  key: WORKER_JWT_SECRET
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi

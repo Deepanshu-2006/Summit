@@ -8,7 +8,13 @@ import (
 	"path/filepath"
 	"strings"
 
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/dynamic"
+	dynfake "k8s.io/client-go/dynamic/fake"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -109,6 +115,39 @@ func NewClient(cfg Config) (Client, error) {
 		target:    cfg.Target,
 		discovery: discClient,
 	}, nil
+}
+
+// RESTConfig constructs a Kubernetes *rest.Config from kubeconfig or in-cluster credentials.
+func RESTConfig(cfg Config) (*rest.Config, error) {
+	return buildRESTConfig(cfg)
+}
+
+// NewKubernetesClient constructs a client-go kubernetes.Interface.
+func NewKubernetesClient(cfg Config) (kubernetes.Interface, error) {
+	if cfg.Target == TargetMock {
+		return fake.NewClientset(), nil
+	}
+	restCfg, err := buildRESTConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return kubernetes.NewForConfig(restCfg)
+}
+
+// NewDynamicClient constructs a dynamic.Interface.
+func NewDynamicClient(cfg Config) (dynamic.Interface, error) {
+	if cfg.Target == TargetMock {
+		scheme := runtime.NewScheme()
+		gvr := schema.GroupVersionResource{Group: "summit.dev", Version: "v1alpha1", Resource: "summitservices"}
+		return dynfake.NewSimpleDynamicClientWithCustomListKinds(scheme, map[schema.GroupVersionResource]string{
+			gvr: "SummitServiceList",
+		}), nil
+	}
+	restCfg, err := buildRESTConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return dynamic.NewForConfig(restCfg)
 }
 
 // NewClientWithDiscovery creates a Client wrapping an explicit discovery.DiscoveryInterface.

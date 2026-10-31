@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"reflect"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -119,6 +120,7 @@ func (a *Adapter) CreateBuildPod(ctx context.Context, spec BuildExecutionSpec) (
 			return nil, fmt.Errorf("builder pod %q already exists for a different build attempt", pod.Name)
 		}
 		if err == nil {
+			a.attachSecretOwnerReference(ctx, spec.Build.AttemptID, createdPod)
 			return createdPod, nil
 		}
 	}
@@ -134,7 +136,34 @@ func (a *Adapter) CreateBuildPod(ctx context.Context, spec BuildExecutionSpec) (
 		return nil, fmt.Errorf("failed to create builder pod: %w", err)
 	}
 
+	a.attachSecretOwnerReference(ctx, spec.Build.AttemptID, createdPod)
 	return createdPod, nil
+}
+
+// attachSecretOwnerReference links the per-build Secret to the created Pod so
+// Kubernetes garbage collects it with the Pod (contract C4).
+func (a *Adapter) attachSecretOwnerReference(ctx context.Context, attemptID string, pod *corev1.Pod) {
+	if pod == nil || pod.UID == "" {
+		return
+	}
+	secretName := fmt.Sprintf("summit-build-%s", strings.ToLower(attemptID))
+	sec, err := a.client.CoreV1().Secrets(a.cfg.Namespace).Get(ctx, secretName, metav1.GetOptions{})
+	if err != nil {
+		return
+	}
+	isCtrl := true
+	blockOwnerDel := true
+	sec.OwnerReferences = []metav1.OwnerReference{
+		{
+			APIVersion:         "v1",
+			Kind:               "Pod",
+			Name:               pod.Name,
+			UID:                pod.UID,
+			Controller:         &isCtrl,
+			BlockOwnerDeletion: &blockOwnerDel,
+		},
+	}
+	_, _ = a.client.CoreV1().Secrets(a.cfg.Namespace).Update(ctx, sec, metav1.UpdateOptions{})
 }
 
 // GetBuildPod retrieves the build pod by attemptID or fallback buildID search.
