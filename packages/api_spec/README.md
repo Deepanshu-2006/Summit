@@ -54,21 +54,26 @@ The Go backend uses `packages/api_spec/openapi.yaml` as the authoritative specif
 
 ## Available Endpoints Summary
 
-All endpoints follow the `/api/v1` prefix:
+Paths are the Go backend's own (the Next.js proxy maps `/api/platform/v1/*` to `/v1/*`). Every `/v1` route needs a Supabase Bearer token and is scoped to the authenticated user.
 
 | Tag | Method | Path | Operation ID | Description |
 | :--- | :--- | :--- | :--- | :--- |
 | **System** | `GET` | `/api/v1/health` | `getHealth` | Service heartbeat, routing region, uptime |
-| **Projects** | `GET` | `/api/v1/projects` | `listProjects` | List provisioned tenant projects |
-| **Projects** | `GET` | `/api/v1/projects/{slug}` | `getProjectBySlug` | Real-time project topology & service health |
-| **Resources** | `GET` | `/api/v1/resources` | `listResources` | Inventory of provisioned infrastructure resources |
-| **Resources** | `POST` | `/api/v1/resources` | `createResource` | Provision databases, caches, buckets, SSL certificates |
-| **Resources** | `GET` | `/api/v1/resources/{id}` | `getResourceById` | Retrieve single infrastructure resource details |
-| **Resources** | `DELETE` | `/api/v1/resources/{id}` | `deleteResource` | Queue resource for deprovisioning |
-| **Releases** | `GET` | `/api/v1/releases` | `listReleases` | Historical deployment releases & pipeline states |
-| **Releases** | `POST` | `/api/v1/releases` | `createRelease` | Trigger release deployment to edge mesh |
-| **Observability** | `GET` | `/api/v1/observability/metrics` | `getMetrics` | Prometheus cluster telemetry (CPU, memory, RPS) |
-| **Observability** | `GET` | `/api/v1/observability/logs` | `getLogs` | Stream structured logs from pods and edge routers |
+| **Authentication** | `POST` | `/v1/auth/profile` | `syncAuthenticatedUserProfile` | Upsert the caller's profile |
+| **Projects** | `GET` | `/v1/projects` | `listProjects` | Paginated projects with service count and latest deployment |
+| **Projects** | `POST` | `/v1/projects` | `createProject` | Create a project (slug derived from name if omitted) |
+| **Projects** | `GET` | `/v1/projects/{project_id}` | `getProject` | Project with environments and services |
+| **Projects** | `PATCH` | `/v1/projects/{project_id}` | `updateProject` | Rename a project |
+| **Projects** | `DELETE` | `/v1/projects/{project_id}` | `deleteProject` | Soft-delete a project |
+| **Projects** | `POST` | `/v1/projects/{project_id}/services` | `createProjectService` | Create a web or worker service |
+| **Deployments** | `GET` | `/v1/projects/{project_id}/deployments` | `listProjectDeployments` | Paginated deployment history, newest first |
+| **Deployments** | `GET` | `/v1/deployments/{deployment_id}` | `getDeployment` | Deployment with build job and events |
+| **Deployments** | `POST` | `/v1/deployments/{deployment_id}/cancel` | `cancelDeployment` | Request cancellation of an in-flight deployment |
+| **Deployments** | `GET` | `/v1/deployments/{deployment_id}/logs` | `listDeploymentLogs` | Build log lines, cursor-paginated by `after` |
+| **Services** | `GET` | `/v1/services` | `listServices` | Flat list of deployable services |
+| **Services** | `POST` | `/v1/services/{service_id}/deployments` | `createManualDeployment` | Trigger a manual deploy |
+
+GitHub installation and service-source routes (`/v1/github/*`, `/v1/services/{service_id}/source`) are served by the backend but not yet described here.
 
 ## Scripts
 

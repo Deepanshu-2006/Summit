@@ -23,6 +23,7 @@ import {
   Maximize2,
   Check,
   X,
+  AlertCircle,
 } from "lucide-react";
 
 import { SummitNodeComponent } from "./nodes/summit-node";
@@ -32,6 +33,7 @@ import { CanvasTopBar } from "./top-bar";
 import { BottomNodeSelector } from "./bottom-node-selector";
 import { DeployPaletteModal } from "./deploy-palette";
 import { NodeChooserDialogs } from "./node-chooser-dialogs";
+import type { EnsureServiceTarget } from "./github-import-dialog";
 import { ConfigInspector } from "./config-inspector";
 import { DeploymentDialog } from "./deployment-dialog";
 import { useAuth } from "@/components/auth/auth-context";
@@ -40,6 +42,14 @@ import {
   saveProjectArchitecture,
   createNodeByOptionId,
 } from "@/lib/canvas/initial-graph";
+import { mergeServiceNodes, refreshServiceNodes } from "@/lib/canvas/service-nodes";
+import {
+  createService,
+  describeApiError,
+  getProject,
+  renameProject,
+  type ProjectDetail,
+} from "@/lib/platform-api";
 import type {
   SummitNode,
   SummitNodeData,
@@ -66,7 +76,7 @@ function findNonOverlappingPosition(
   stepY: number = 130,
   stepX: number = 360
 ): { x: number; y: number } {
-  let pos = { ...candidate };
+  const pos = { ...candidate };
   const NODE_WIDTH = 280;
   const NODE_HEIGHT = 115;
   const PADDING = 24;
@@ -132,10 +142,14 @@ function calculateNewNodePosition(
   return findNonOverlappingPosition(candidate, existingNodes);
 }
 
+type ProjectLoadState = "loading" | "ready" | "error";
+
 function CanvasContent({
   projectId: initialProjectId = "default",
+  autoOpenDeploy = false,
 }: {
   projectId?: string;
+  autoOpenDeploy?: boolean;
 }) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition, fitView, zoomIn, zoomOut } = useReactFlow();
@@ -146,7 +160,17 @@ function CanvasContent({
   const [isSaving, setIsSaving] = useState(false);
 
   // Authentication context
-  const { user, isLoading: isAuthLoading, openAuthModal } = useAuth();
+  const { session, isLoading: isAuthLoading, openAuthModal } = useAuth();
+  const accessToken = session?.access_token;
+
+  // Backend project (real services). Loaded after auth resolves.
+  const [project, setProject] = useState<ProjectDetail | null>(null);
+  const [loadState, setLoadState] = useState<ProjectLoadState>("loading");
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const openDeployOnReadyRef = useRef(autoOpenDeploy);
+  // Service the GitHub dialog should connect to; null = pick/create one.
+  const [githubTargetServiceId, setGithubTargetServiceId] = useState<string | null>(null);
 
   // Core Graph State (starts empty by default!)
   const [nodes, setNodes, onNodesChange] = useNodesState<SummitNode>([]);
@@ -162,7 +186,6 @@ function CanvasContent({
   const [activeChooser, setActiveChooser] = useState<
     "none" | "github" | "application" | "database" | "docker"
   >("none");
-  const [lastSavedAt, setLastSavedAt] = useState<string>("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -191,7 +214,8 @@ function CanvasContent({
     };
   }, [showToast]);
 
-  // Initial load from LocalStorage with sensible initial framing
+  // Stored layout: positions and UI-only nodes. Real services are merged in
+  // below once the backend project has loaded.
   useEffect(() => {
     const arch = loadProjectArchitecture(projectId);
     setProjectName(arch.name);
@@ -199,7 +223,6 @@ function CanvasContent({
     setNodes(arch.nodes);
     setEdges(arch.edges);
 
-    // Initial framing only on first open when nodes exist outside standard view
     if (arch.nodes && arch.nodes.length > 0) {
       const timer = setTimeout(() => {
         fitView({ padding: 0.25, maxZoom: 1 });
@@ -208,13 +231,83 @@ function CanvasContent({
     }
   }, [projectId, setNodes, setEdges, fitView]);
 
-  // Debounced autosave
+  // Backend project: real services are the source of truth for service nodes.
+  useEffect(() => {
+    if (isAuthLoading || !accessToken) return;
+    let cancelled = false;
+    getProject(accessToken, projectId)
+      .then((detail) => {
+        if (cancelled) return;
+        setProject(detail);
+        setProjectName(detail.name);
+        setNodes((current) => mergeServiceNodes(current, detail.services));
+        setLoadError(null);
+        setLoadState("ready");
+        if (openDeployOnReadyRef.current) {
+          openDeployOnReadyRef.current = false;
+          setIsDeployModalOpen(true);
+        }
+        window.setTimeout(() => fitView({ padding: 0.25, maxZoom: 1, duration: 250 }), 80);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setLoadError(describeApiError(error, "Could not load this project."));
+        setLoadState("error");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, isAuthLoading, projectId, reloadKey, setNodes, fitView]);
+
+  const viewState: ProjectLoadState | "signed-out" = isAuthLoading
+    ? "loading"
+    : !accessToken
+    ? "signed-out"
+    : loadState;
+
+  const handleRetryLoad = useCallback(() => {
+    setLoadState("loading");
+    setReloadKey((key) => key + 1);
+  }, []);
+
+  // Re-read services (after connecting a repo or finishing a deployment).
+  const refreshProject = useCallback(async () => {
+    if (!accessToken) return;
+    try {
+      const detail = await getProject(accessToken, projectId);
+      setProject(detail);
+      setNodes((current) => refreshServiceNodes(current, detail.services));
+    } catch (error) {
+      showToast(describeApiError(error, "Could not refresh the project."));
+    }
+  }, [accessToken, projectId, setNodes, showToast]);
+
+  const handleRenameProject = useCallback(
+    async (name: string) => {
+      const previous = projectName;
+      setProjectName(name);
+      if (!accessToken || loadState !== "ready") return;
+      try {
+        const updated = await renameProject(accessToken, projectId, name);
+        setProjectName(updated.name);
+      } catch (error) {
+        setProjectName(previous);
+        showToast(describeApiError(error, "Could not rename the project."));
+      }
+    },
+    [accessToken, loadState, projectId, projectName, showToast],
+  );
+
+  // Debounced autosave of layout + UI-only nodes. Never runs before the
+  // backend project has loaded, so a failed load can't overwrite stored positions.
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const isInitialMount = useRef(true);
+  const hasLoadedLayoutRef = useRef(false);
 
   useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
+    if (loadState !== "ready") return;
+    // The first ready render only reflects the merge of stored + backend data.
+    if (!hasLoadedLayoutRef.current) {
+      hasLoadedLayoutRef.current = true;
       return;
     }
 
@@ -234,14 +327,13 @@ function CanvasContent({
         updatedAt: nowStr,
       };
       saveProjectArchitecture(arch);
-      setLastSavedAt(nowStr);
       setIsSaving(false);
     }, 800);
 
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
-  }, [projectId, projectName, environment, nodes, edges]);
+  }, [loadState, projectId, projectName, environment, nodes, edges]);
 
   // Validate connections: strictly enforce one single edge between any two nodes
   const isValidConnection = useCallback(
@@ -394,13 +486,17 @@ function CanvasContent({
   // Delete node and its attached edges
   const handleDeleteNode = useCallback(
     (nodeId: string) => {
+      if (nodes.find((n) => n.id === nodeId)?.data.serviceId) {
+        showToast("Services are managed by Summit and can't be deleted from the canvas yet.");
+        return;
+      }
       setNodes((nds) => nds.filter((n) => n.id !== nodeId));
       setEdges((eds) =>
         eds.filter((e) => e.source !== nodeId && e.target !== nodeId)
       );
       setSelectedNodeId((current) => (current === nodeId ? null : current));
     },
-    [setNodes, setEdges]
+    [nodes, setNodes, setEdges, showToast]
   );
 
   // Add node from Bottom Floating Selector (Strictly Manual Connections)
@@ -427,6 +523,44 @@ function CanvasContent({
     [nodes, selectedNodeId, screenToFlowPosition, setNodes]
   );
 
+  const openGitHubChooser = useCallback((serviceId: string | null) => {
+    setGithubTargetServiceId(serviceId);
+    setIsDeployModalOpen(false);
+    setActiveChooser("github");
+  }, []);
+
+  const closeChooser = useCallback(() => {
+    setActiveChooser("none");
+    setGithubTargetServiceId(null);
+  }, []);
+
+  // Connect a repository to THIS project: reuse the chosen service, else the
+  // first web service without a source, else create a web service named after
+  // the repository.
+  const ensureProjectService: EnsureServiceTarget = async (repository) => {
+    if (!accessToken) throw new Error("Sign in to connect a repository.");
+    if (githubTargetServiceId) return { serviceId: githubTargetServiceId };
+    const fresh = await getProject(accessToken, projectId);
+    const unconnected = fresh.services.find((service) => service.type === "web" && !service.source);
+    if (unconnected) return { serviceId: unconnected.id };
+    const created = await createService(accessToken, projectId, {
+      name: repository.name,
+      type: "web",
+    });
+    return { serviceId: created.id };
+  };
+
+  const handleChooserConfirm = (optionId: string, customData?: Record<string, unknown>) => {
+    if (optionId === "github") {
+      // The service node comes from the API, not from the dialog payload.
+      void refreshProject().then(() => {
+        window.setTimeout(() => fitView({ padding: 0.25, maxZoom: 1, duration: 250 }), 80);
+      });
+      return;
+    }
+    handleSelectBottomOption(optionId, customData);
+  };
+
   // Bottom selector item click: opens choosing dialogs matching the first screen
   const handleBottomBarClick = useCallback(
     (optionId: string) => {
@@ -436,6 +570,7 @@ function CanvasContent({
         optionId === "database" ||
         optionId === "docker"
       ) {
+        if (optionId === "github") setGithubTargetServiceId(null);
         setActiveChooser(optionId);
       } else {
         handleSelectBottomOption(optionId);
@@ -473,7 +608,6 @@ function CanvasContent({
       // Escape deselects and closes panels
       if (e.key === "Escape") {
         setSelectedNodeId(null);
-        setIsDeployModalOpen(false);
         setIsDeployPaletteOpen(false);
         setActiveChooser("none");
       }
@@ -516,7 +650,7 @@ function CanvasContent({
       {/* Slim Top Bar */}
       <CanvasTopBar
         projectName={projectName}
-        onRenameProject={setProjectName}
+        onRenameProject={handleRenameProject}
         environment={environment}
         onChangeEnvironment={setEnvironment}
         isSaving={isSaving}
@@ -565,7 +699,7 @@ function CanvasContent({
         </ReactFlow>
 
         {/* Empty Canvas Railway Hero Prompt */}
-        {nodes.length === 0 && (
+        {nodes.length === 0 && viewState === "ready" && (
           <div className="absolute inset-0 flex items-center justify-center z-10 p-4 pointer-events-none select-none animate-in fade-in duration-300">
             <div className="w-full max-w-[420px] bg-[#111110] border border-[#222220] rounded-[14px] p-6 text-center pointer-events-auto shadow-[0_20px_50px_rgba(0,0,0,0.85)]">
               <div className="w-9 h-9 rounded-[8px] bg-[#181817] border border-[#262522] flex items-center justify-center text-[#E58B62] mx-auto mb-3 shadow-inner">
@@ -600,6 +734,38 @@ function CanvasContent({
                 Press <span className="text-[#A09E98]">C</span> or <span className="text-[#A09E98]">⌘K</span>, or choose from the dock below
               </p>
             </div>
+          </div>
+        )}
+
+        {/* Backend status banner */}
+        {viewState !== "ready" && (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2.5 px-3.5 py-2 rounded-[8px] bg-[#141413]/95 border border-[#2A2A2A] text-[12px] font-sans text-[#C9C7C2] shadow-[0_8px_24px_rgba(0,0,0,0.6)] max-w-[min(560px,calc(100vw-32px))]">
+            {viewState === "loading" && <span role="status">Loading project…</span>}
+            {viewState === "signed-out" && (
+              <>
+                <span>Sign in to load this project&apos;s services.</span>
+                <button
+                  type="button"
+                  onClick={() => openAuthModal({ mode: "signin" })}
+                  className="shrink-0 px-2.5 py-1 rounded-[5px] bg-[#E58B62] hover:bg-[#EA9670] text-[#0B0B0A] text-[11.5px] font-semibold cursor-pointer"
+                >
+                  Sign in
+                </button>
+              </>
+            )}
+            {viewState === "error" && (
+              <>
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 text-[#D77D7D]" />
+                <span role="alert" className="text-[#E8B29C]">{loadError}</span>
+                <button
+                  type="button"
+                  onClick={handleRetryLoad}
+                  className="shrink-0 px-2.5 py-1 rounded-[5px] border border-[#2C2B28] hover:bg-[#1A1A19] text-[11.5px] cursor-pointer"
+                >
+                  Retry
+                </button>
+              </>
+            )}
           </div>
         )}
 
@@ -676,34 +842,42 @@ function CanvasContent({
       {/* Node Choosing Modals matching the First Screen */}
       <NodeChooserDialogs
         activeChooser={activeChooser}
-        onClose={() => setActiveChooser("none")}
-        onConfirm={(optionId, customData) => {
-          handleSelectBottomOption(optionId, customData);
-        }}
+        onClose={closeChooser}
+        onConfirm={handleChooserConfirm}
         onShowToast={showToast}
+        ensureGitHubService={ensureProjectService}
+        githubTargetDescription={
+          githubTargetServiceId
+            ? "Connects this repository to the selected service."
+            : "Connects this repository to a web service in this project (one is created if needed)."
+        }
       />
 
       {/* Railway-style Deploy Palette Modal */}
+      {isDeployPaletteOpen && (
       <DeployPaletteModal
         isOpen={isDeployPaletteOpen}
         onClose={() => setIsDeployPaletteOpen(false)}
         onSelectOption={(optionId, customData) => {
-          handleSelectBottomOption(optionId, customData);
+          if (optionId === "github") openGitHubChooser(null);
+          else handleSelectBottomOption(optionId, customData);
         }}
       />
+      )}
 
-      {/* Honest Deployment Dialog */}
+      {/* Real deployment dialog: deploys connected services and streams logs */}
       <DeploymentDialog
         isOpen={isDeployModalOpen}
-        onClose={() => setIsDeployModalOpen(false)}
-        architecture={{
-          id: projectId,
-          name: projectName,
-          environment,
-          nodes,
-          edges,
-          updatedAt: lastSavedAt,
+        onClose={() => {
+          setIsDeployModalOpen(false);
+          void refreshProject();
         }}
+        projectName={projectName}
+        services={project?.services ?? []}
+        accessToken={accessToken}
+        onSignIn={() => openAuthModal({ mode: "signin" })}
+        onConnectRepository={openGitHubChooser}
+        onDeploymentSettled={refreshProject}
       />
     </div>
   );
@@ -711,12 +885,14 @@ function CanvasContent({
 
 export function InfrastructureCanvas({
   projectId = "default",
+  autoOpenDeploy = false,
 }: {
   projectId?: string;
+  autoOpenDeploy?: boolean;
 }) {
   return (
     <ReactFlowProvider>
-      <CanvasContent projectId={projectId} />
+      <CanvasContent projectId={projectId} autoOpenDeploy={autoOpenDeploy} />
     </ReactFlowProvider>
   );
 }

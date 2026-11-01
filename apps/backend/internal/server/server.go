@@ -13,6 +13,8 @@ import (
 	"github.com/summit/backend/internal/githubapi"
 	"github.com/summit/backend/internal/githubworker"
 	"github.com/summit/backend/internal/health"
+	"github.com/summit/backend/internal/platformdb"
+	"github.com/summit/backend/internal/projectsapi"
 	"github.com/summit/backend/internal/secrets"
 )
 
@@ -67,6 +69,8 @@ func New(deps Dependencies) *Server {
 		})
 		ghHandler := githubapi.NewHandler(ghSvc, deps.Verifier, deps.Pool)
 		ghHandler.RegisterRoutes(mux)
+
+		projectsapi.NewHandler(projectsapi.NewService(platformdb.New(deps.Pool)), deps.Verifier, deps.Pool, deps.Logger).RegisterRoutes(mux)
 
 		githubworker.RegisterRoutes(mux, githubworker.Dependencies{
 			Config:   deps.Config,

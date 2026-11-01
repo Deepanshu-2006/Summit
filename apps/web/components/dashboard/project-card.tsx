@@ -15,10 +15,17 @@ import {
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import type { DashboardProject } from "@/lib/dashboard/types";
 
+const STATUS_DOT: Record<DashboardProject["status"], string> = {
+  running: "bg-emerald-400",
+  building: "bg-amber-400 animate-pulse",
+  failed: "bg-[#D77D7D]",
+  stopped: "bg-[#5A5954]",
+  idle: "bg-[#3E3D39]",
+};
+
 interface ProjectCardProps {
   project: DashboardProject;
   onRename: (project: DashboardProject) => void;
-  onDuplicate: (project: DashboardProject) => void;
   onDelete: (project: DashboardProject) => void;
   onToast: (msg: string) => void;
   index: number;
@@ -27,7 +34,6 @@ interface ProjectCardProps {
 export function ProjectCard({
   project,
   onRename,
-  onDuplicate,
   onDelete,
   onToast,
   index,
@@ -99,16 +105,8 @@ export function ProjectCard({
 
           <div className="flex items-center gap-1.5 shrink-0">
             <span className="inline-flex items-center gap-1.5 text-[11px] font-mono text-[#8E8C86] px-1 py-0.5 rounded">
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${
-                  project.status === "building"
-                    ? "bg-amber-400 animate-pulse"
-                    : "bg-emerald-400"
-                }`}
-              />
-              <span className="capitalize text-[#75736D]">
-                {project.status === "building" ? "building" : "active"}
-              </span>
+              <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[project.status]}`} />
+              <span className="capitalize text-[#75736D]">{project.statusLabel}</span>
             </span>
 
             {/* Overflow Menu Button */}
@@ -162,19 +160,6 @@ export function ProjectCard({
 
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsMenuOpen(false);
-                        onDuplicate(project);
-                      }}
-                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded-[4px] text-[#FAF8F5] hover:bg-[#1C1C1A] transition-colors text-left cursor-pointer"
-                    >
-                      <Copy className="w-3.5 h-3.5 text-[#8E8C86]" />
-                      <span>Duplicate</span>
-                    </button>
-
-                    <button
-                      type="button"
                       onClick={handleCopyId}
                       className="w-full flex items-center gap-2 px-2 py-1.5 rounded-[4px] text-[#FAF8F5] hover:bg-[#1C1C1A] transition-colors text-left cursor-pointer"
                     >
@@ -209,24 +194,38 @@ export function ProjectCard({
 
         {/* Row 2: Repository Name and Branch */}
         <div className="flex items-center gap-1.5 text-[11.5px] font-mono text-[#75736D] mt-1.5 truncate">
-          <span className="truncate">{project.owner}</span>
-          <span className="text-[#3E3D39]">·</span>
-          <GitBranch className="w-3 h-3 text-[#5A5954] shrink-0" />
-          <span className="truncate">{project.branch}</span>
+          <span className="truncate">{project.repository ?? "No repository connected"}</span>
+          {project.branch && (
+            <>
+              <span className="text-[#3E3D39]">·</span>
+              <GitBranch className="w-3 h-3 text-[#5A5954] shrink-0" />
+              <span className="truncate">{project.branch}</span>
+            </>
+          )}
         </div>
 
-        {/* Row 3: Project Description */}
+        {/* Row 3: Latest deployment */}
         <p className="text-[12px] text-[#8E8C86] truncate mt-2 font-sans leading-relaxed">
-          {project.description}
+          {project.commitSha || project.lastDeployedLabel ? (
+            <>
+              {project.commitSha && <span className="font-mono text-[#75736D]">{project.commitSha}</span>}
+              {project.commitSha && project.lastDeployedLabel && " · "}
+              {project.lastDeployedLabel && `deployed ${project.lastDeployedLabel}`}
+            </>
+          ) : (
+            "No deployments yet"
+          )}
         </p>
       </div>
 
       {/* Bottom Row: Region & Relative Time (Left) + Open Action (Right) */}
       <div className="mt-3.5 pt-2.5 border-t border-[#181817] flex items-center justify-between text-[11px] font-mono text-[#5A5954]">
         <div className="flex items-center gap-1.5">
-          <span className="text-[#666560]">{project.region}</span>
+          <span className="text-[#666560]">
+            {project.servicesCount} {project.servicesCount === 1 ? "service" : "services"}
+          </span>
           <span className="text-[#3E3D39]">·</span>
-          <span>{project.updatedAt}</span>
+          <span>updated {project.updatedLabel}</span>
         </div>
 
         <div className="flex items-center gap-1 text-[#666560] group-hover:text-[#E58B62] transition-colors">

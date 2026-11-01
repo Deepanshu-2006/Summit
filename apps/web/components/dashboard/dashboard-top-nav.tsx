@@ -8,12 +8,11 @@ import {
   User as UserIcon,
   Settings,
   LogOut,
-  Plus,
 } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { SummitLogo } from "@/components/layout/navbar";
-import { DEMO_WORKSPACES } from "@/lib/dashboard/mock-data";
-import type { WorkspaceItem } from "@/lib/dashboard/types";
+import { useAuth } from "@/components/auth/auth-context";
+import { getPersonalWorkspace, getUserDisplay } from "@/lib/dashboard/workspace";
 
 interface DashboardTopNavProps {
   isCreatingProject?: boolean;
@@ -25,10 +24,9 @@ export function DashboardTopNav({
   onBackToProjects,
 }: DashboardTopNavProps = {}) {
   const shouldReduceMotion = useReducedMotion();
-  const [workspaces, setWorkspaces] = useState<WorkspaceItem[]>(DEMO_WORKSPACES);
-  const [currentWorkspace, setCurrentWorkspace] = useState<WorkspaceItem>(
-    DEMO_WORKSPACES[0]
-  );
+  const { user, signOut, openAuthModal } = useAuth();
+  const workspace = getPersonalWorkspace(user);
+  const userDisplay = getUserDisplay(user);
   const [isWorkspaceMenuOpen, setIsWorkspaceMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
@@ -53,14 +51,6 @@ export function DashboardTopNav({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  const handleSelectWorkspace = (ws: WorkspaceItem) => {
-    setCurrentWorkspace(ws);
-    setWorkspaces((prev) =>
-      prev.map((item) => ({ ...item, isCurrent: item.id === ws.id }))
-    );
-    setIsWorkspaceMenuOpen(false);
-  };
 
   return (
     <motion.header
@@ -127,7 +117,7 @@ export function DashboardTopNav({
                 onClick={() => setIsWorkspaceMenuOpen(!isWorkspaceMenuOpen)}
                 className="flex items-center gap-1.5 px-2 py-1 rounded-[5px] text-[#A6A4A0] hover:text-[#FAF8F5] hover:bg-[#161615] text-[12.5px] font-mono transition-colors cursor-pointer"
               >
-                <span>{currentWorkspace.name}</span>
+                <span>{workspace.name}</span>
                 <ChevronDown
                   className={`w-3 h-3 text-[#75736D] transition-transform duration-150 ${
                     isWorkspaceMenuOpen ? "rotate-180 text-[#FAF8F5]" : ""
@@ -147,29 +137,20 @@ export function DashboardTopNav({
                     <div className="px-2.5 py-1.5 text-[10.5px] font-mono uppercase tracking-wider text-[#666560]">
                       Workspaces
                     </div>
-                    <div className="space-y-0.5">
-                      {workspaces.map((ws) => (
-                        <button
-                          key={ws.id}
-                          type="button"
-                          onClick={() => handleSelectWorkspace(ws)}
-                          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[5px] text-left hover:bg-[#1C1C1A] transition-colors cursor-pointer"
-                        >
-                          <span className="text-[#FAF8F5] font-medium">{ws.name}</span>
-                          {ws.isCurrent && (
-                            <Check className="w-3.5 h-3.5 text-[#E58B62]" />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="h-px bg-[#20201E] my-1" />
                     <button
                       type="button"
                       onClick={() => setIsWorkspaceMenuOpen(false)}
-                      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-[5px] text-left text-[#8E8C86] hover:text-[#FAF8F5] hover:bg-[#1C1C1A] transition-colors cursor-pointer text-[12px]"
+                      className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[5px] text-left hover:bg-[#1C1C1A] transition-colors cursor-pointer"
                     >
-                      <Plus className="w-3 h-3" />
-                      <span>Create workspace</span>
+                      <span className="min-w-0">
+                        <span className="block text-[#FAF8F5] font-medium truncate">
+                          {workspace.name}
+                        </span>
+                        <span className="block text-[10.5px] font-mono text-[#666560]">
+                          {workspace.plan}
+                        </span>
+                      </span>
+                      <Check className="w-3.5 h-3.5 text-[#E58B62] shrink-0" />
                     </button>
                   </motion.div>
                 )}
@@ -192,11 +173,14 @@ export function DashboardTopNav({
         <div className="relative" ref={userDropdownRef}>
           <button
             type="button"
-            onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+            onClick={() => {
+              if (user) setIsUserMenuOpen(!isUserMenuOpen);
+              else openAuthModal({ mode: "signin" });
+            }}
             className="w-6 h-6 rounded-full bg-[#181817] hover:bg-[#20201E] border border-[#2A2A28] flex items-center justify-center text-[10px] font-mono text-[#E58B62] transition-colors cursor-pointer"
-            title="User menu"
+            title={user ? "User menu" : "Sign in"}
           >
-            D
+            {user ? userDisplay.initial : <UserIcon className="w-3 h-3" />}
           </button>
 
           <AnimatePresence>
@@ -210,10 +194,10 @@ export function DashboardTopNav({
               >
                 <div className="px-2.5 py-1.5">
                   <div className="text-[#FAF8F5] font-medium text-[12.5px]">
-                    Deepanshu Khatri
+                    {userDisplay.name}
                   </div>
                   <div className="text-[11px] font-mono text-[#75736D] truncate">
-                    deepanshu@summit.dev
+                    {userDisplay.email}
                   </div>
                 </div>
                 <div className="h-px bg-[#20201E] my-1" />
@@ -236,7 +220,10 @@ export function DashboardTopNav({
                 <div className="h-px bg-[#20201E] my-1" />
                 <button
                   type="button"
-                  onClick={() => setIsUserMenuOpen(false)}
+                  onClick={async () => {
+                    setIsUserMenuOpen(false);
+                    await signOut();
+                  }}
                   className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-[5px] text-[#D77D7D] hover:bg-[#1C1C1A] transition-colors text-left cursor-pointer"
                 >
                   <LogOut className="w-3.5 h-3.5" />

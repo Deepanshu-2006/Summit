@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { Plus, Search, X } from "lucide-react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { Plus, Search, X, AlertCircle, RotateCw } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { DashboardTopNav } from "./dashboard-top-nav";
 import { DashboardSidebar } from "./dashboard-sidebar";
@@ -12,27 +11,38 @@ import { EmptyState } from "./empty-state";
 import { NewProjectCard } from "./new-project-card";
 import { RenameProjectDialog } from "./rename-project-dialog";
 import { DeleteConfirmDialog } from "./delete-confirm-dialog";
+import { useAuth } from "@/components/auth/auth-context";
+import { clearProjectArchitecture } from "@/lib/canvas/initial-graph";
 import {
-  getStoredProjects,
-  saveStoredProjects,
-  seedProjectCanvasArchitecture,
-  INITIAL_DEMO_PROJECTS,
-} from "@/lib/dashboard/mock-data";
+  deleteProject,
+  describeApiError,
+  listAllProjects,
+  renameProject,
+  toDashboardProject,
+} from "@/lib/platform-api";
 import type { DashboardProject } from "@/lib/dashboard/types";
+
+type LoadState = "loading" | "ready" | "error";
 
 interface DashboardScreenProps {
   initialNewProject?: boolean;
 }
 
 export function DashboardScreen({ initialNewProject = false }: DashboardScreenProps = {}) {
-  const router = useRouter();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const shouldReduceMotion = useReducedMotion();
 
   const [activeTab, setActiveTab] = useState<"projects" | "deployments">("projects");
+  const { user, session, isLoading: isAuthLoading, openAuthModal } = useAuth();
+  const accessToken = session?.access_token;
+  const userId = user?.id;
+
   const [projects, setProjects] = useState<DashboardProject[]>([]);
+  const [fetchState, setFetchState] = useState<LoadState>("loading");
+  const [loadedUserId, setLoadedUserId] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
-  const [isEmptyDemo, setIsEmptyDemo] = useState(false);
   const [isCreatingProject, setIsCreatingProject] = useState(initialNewProject);
 
   // Rename and Delete Dialogs
@@ -43,9 +53,47 @@ export function DashboardScreen({ initialNewProject = false }: DashboardScreenPr
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Load the signed-in user's projects from the backend. State is only set
+  // after the request settles; stale responses (token change / unmount) are dropped.
   useEffect(() => {
-    const loaded = getStoredProjects();
-    setProjects(loaded);
+    if (!accessToken) return;
+    let cancelled = false;
+    listAllProjects(accessToken)
+      .then((loaded) => {
+        if (cancelled) return;
+        const now = Date.now();
+        setProjects(
+          loaded
+            .map((project) => toDashboardProject(project, now))
+            .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
+        );
+        setFetchError(null);
+        setLoadedUserId(userId ?? null);
+        setFetchState("ready");
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setFetchError(describeApiError(error, "Could not load your projects."));
+        setLoadedUserId(userId ?? null);
+        setFetchState("error");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, userId, reloadKey]);
+
+  const viewState: LoadState | "signed-out" = isAuthLoading
+    ? "loading"
+    : !accessToken
+    ? "signed-out"
+    : loadedUserId !== (userId ?? null)
+    ? "loading"
+    : fetchState;
+
+  const handleRetry = useCallback(() => {
+    setFetchState("loading");
+    setLoadedUserId(null);
+    setReloadKey((key) => key + 1);
   }, []);
 
   // Keyboard shortcut listener for / to focus search
@@ -106,58 +154,27 @@ export function DashboardScreen({ initialNewProject = false }: DashboardScreenPr
     };
   }, [isCreatingProject]);
 
-  const handleToggleEmptyDemo = () => {
-    if (isEmptyDemo) {
-      setProjects(INITIAL_DEMO_PROJECTS);
-      saveStoredProjects(INITIAL_DEMO_PROJECTS);
-      setIsEmptyDemo(false);
-    } else {
-      setProjects([]);
-      setIsEmptyDemo(true);
-    }
-  };
-
-  useEffect(() => {
-    (window as unknown as { __toggleEmptyDemo?: () => void }).__toggleEmptyDemo = handleToggleEmptyDemo;
-    return () => {
-      delete (window as unknown as { __toggleEmptyDemo?: () => void }).__toggleEmptyDemo;
-    };
-  }, [isEmptyDemo]);
-
-  const handleRenameProject = (projectId: string, newName: string) => {
-    const updated = projects.map((p) =>
-      p.id === projectId ? { ...p, name: newName, updatedAt: "just now" } : p
+  const handleRenameProject = async (projectId: string, newName: string) => {
+    if (!accessToken) throw new Error("Sign in to rename projects.");
+    const updated = await renameProject(accessToken, projectId, newName);
+    const mapped = toDashboardProject(updated);
+    setProjects((current) =>
+      current.map((project) =>
+        project.id === projectId
+          ? { ...project, name: mapped.name, slug: mapped.slug, updatedAt: mapped.updatedAt, updatedLabel: mapped.updatedLabel }
+          : project,
+      ),
     );
-    setProjects(updated);
-    saveStoredProjects(updated);
-    showToast(`Renamed to ${newName}`);
+    showToast(`Renamed to ${updated.name}`);
   };
 
-  const handleDuplicateProject = (project: DashboardProject) => {
-    const id = `proj_${Math.random().toString(36).substring(2, 9)}`;
-    const duplicated: DashboardProject = {
-      ...project,
-      id,
-      name: `${project.name}-copy`,
-      owner: `summit-platform/${project.name}-copy`,
-      updatedAt: "just now",
-      createdAt: new Date().toISOString(),
-    };
-
-    seedProjectCanvasArchitecture(duplicated);
-
-    const updated = [duplicated, ...projects];
-    setProjects(updated);
-    saveStoredProjects(updated);
-    showToast(`Duplicated ${project.name}`);
-  };
-
-  const handleDeleteProject = (projectId: string) => {
+  const handleDeleteProject = async (projectId: string) => {
+    if (!accessToken) throw new Error("Sign in to delete projects.");
     const target = projects.find((p) => p.id === projectId);
-    const updated = projects.filter((p) => p.id !== projectId);
-    setProjects(updated);
-    saveStoredProjects(updated);
-    showToast(`Deleted ${target?.name || ""}`);
+    await deleteProject(accessToken, projectId);
+    clearProjectArchitecture(projectId);
+    setProjects((current) => current.filter((project) => project.id !== projectId));
+    showToast(`Deleted ${target?.name || "project"}`);
   };
 
   const displayedProjects = useMemo(() => {
@@ -168,16 +185,18 @@ export function DashboardScreen({ initialNewProject = false }: DashboardScreenPr
       result = result.filter(
         (p) =>
           p.name.toLowerCase().includes(q) ||
-          p.owner.toLowerCase().includes(q) ||
-          p.description.toLowerCase().includes(q) ||
-          p.branch.toLowerCase().includes(q)
+          p.slug.toLowerCase().includes(q) ||
+          (p.repository ?? "").toLowerCase().includes(q) ||
+          (p.branch ?? "").toLowerCase().includes(q)
       );
     }
 
     return result;
   }, [projects, searchQuery]);
 
-  const isProjectsEmpty = projects.length === 0 || isEmptyDemo;
+  const hasProjects = viewState === "ready" && projects.length > 0;
+  // Everything except a populated list uses the full-bleed hero layout.
+  const isProjectsEmpty = !hasProjects;
 
   return (
     <div className="min-h-screen flex flex-col bg-[#0A0A09] text-[#FAF8F5] selection:bg-[#E58B62]/25 selection:text-[#FAF8F5]">
@@ -256,7 +275,13 @@ export function DashboardScreen({ initialNewProject = false }: DashboardScreenPr
                 transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
                 className="w-full flex-1 flex flex-col"
               >
-                <DeploymentsView projects={projects} />
+                <DeploymentsView
+                  projects={projects}
+                  accessToken={accessToken}
+                  isAuthLoading={isAuthLoading}
+                  projectsState={viewState}
+                  onSignIn={() => openAuthModal({ mode: "signin" })}
+                />
               </motion.div>
             ) : (
               /* Projects View */
@@ -298,15 +323,15 @@ export function DashboardScreen({ initialNewProject = false }: DashboardScreenPr
                     <h1 className="font-sans text-[20px] font-medium text-[#FAF8F5] tracking-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
                       Projects
                     </h1>
-                    {projects.length > 0 && !isEmptyDemo && (
+                    {hasProjects && (
                       <span className="text-[11px] font-mono text-[#75736D] bg-[#141413] border border-[#1E1E1C] px-2 py-0.5 rounded-full">
-                        {projects.length} active
+                        {projects.length} {projects.length === 1 ? "project" : "projects"}
                       </span>
                     )}
                   </motion.div>
 
                   {/* Right: Search & New Project Button (Only shown when projects exist) */}
-                  {!isProjectsEmpty && (
+                  {hasProjects && (
                     <motion.div
                       initial={shouldReduceMotion ? false : { opacity: 0, x: 6 }}
                       animate={{ opacity: 1, x: 0 }}
@@ -356,7 +381,36 @@ export function DashboardScreen({ initialNewProject = false }: DashboardScreenPr
                 {/* Projects Grid or Clean Empty State */}
                 <div className={`flex-1 flex flex-col ${isProjectsEmpty ? "relative z-10" : ""}`}>
                   <AnimatePresence mode="wait">
-                    {isProjectsEmpty ? (
+                    {viewState === "loading" ? (
+                      <motion.div
+                        key="loading-state-view"
+                        initial={shouldReduceMotion ? false : { opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={shouldReduceMotion ? undefined : { opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="flex-1 flex items-center justify-center text-[#75736D] font-mono text-[12.5px] select-none"
+                        role="status"
+                      >
+                        Loading projects…
+                      </motion.div>
+                    ) : viewState === "signed-out" ? (
+                      <StatePanel
+                        key="signed-out-view"
+                        title="Sign in to see your projects"
+                        description="Your projects, services and deployments live in your Summit account."
+                        actionLabel="Sign in"
+                        onAction={() => openAuthModal({ mode: "signin" })}
+                      />
+                    ) : viewState === "error" ? (
+                      <StatePanel
+                        key="error-view"
+                        tone="error"
+                        title="Could not load projects"
+                        description={fetchError ?? "The Summit backend returned an error."}
+                        actionLabel="Try again"
+                        onAction={handleRetry}
+                      />
+                    ) : isProjectsEmpty ? (
                       <motion.div
                         key="empty-state-view"
                         initial={shouldReduceMotion ? false : { opacity: 0 }}
@@ -405,7 +459,6 @@ export function DashboardScreen({ initialNewProject = false }: DashboardScreenPr
                             key={project.id}
                             project={project}
                             onRename={(p) => setRenameTarget(p)}
-                            onDuplicate={handleDuplicateProject}
                             onDelete={(p) => setDeleteTarget(p)}
                             onToast={showToast}
                             index={idx}
@@ -416,8 +469,8 @@ export function DashboardScreen({ initialNewProject = false }: DashboardScreenPr
                   </AnimatePresence>
                 </div>
 
-                {/* Minimal Quiet Switcher in Footer - hidden on empty state as requested */}
-                {!isProjectsEmpty && (
+                {/* Minimal footer - hidden unless projects are listed */}
+                {hasProjects && (
                   <motion.div
                     initial={shouldReduceMotion ? false : { opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -425,13 +478,6 @@ export function DashboardScreen({ initialNewProject = false }: DashboardScreenPr
                     className="mt-12 pt-4 border-t border-[#141413] flex items-center justify-between text-[11px] font-mono text-[#4A4944] select-none"
                   >
                     <span>Summit Console</span>
-                    <button
-                      type="button"
-                      onClick={handleToggleEmptyDemo}
-                      className="hover:text-[#75736D] transition-colors cursor-pointer"
-                    >
-                      Toggle empty state preview →
-                    </button>
                   </motion.div>
                 )}
               </motion.div>
@@ -471,6 +517,36 @@ export function DashboardScreen({ initialNewProject = false }: DashboardScreenPr
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+function StatePanel({
+  title,
+  description,
+  actionLabel,
+  onAction,
+  tone = "neutral",
+}: {
+  title: string;
+  description: string;
+  actionLabel: string;
+  onAction: () => void;
+  tone?: "neutral" | "error";
+}) {
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center text-center px-4 py-20 select-none" role={tone === "error" ? "alert" : undefined}>
+      {tone === "error" && <AlertCircle className="w-5 h-5 text-[#D77D7D] mb-3" />}
+      <h3 className="font-sans text-[16px] font-medium text-[#FAF8F5]">{title}</h3>
+      <p className="text-[12.5px] text-[#8E8C86] mt-1.5 max-w-[420px] leading-relaxed">{description}</p>
+      <button
+        type="button"
+        onClick={onAction}
+        className="mt-4 inline-flex items-center gap-1.5 h-8 px-3.5 rounded-[5px] bg-[#E58B62] hover:bg-[#F29C75] text-[#0C0B0A] font-sans font-medium text-[12px] transition-colors cursor-pointer"
+      >
+        {tone === "error" && <RotateCw className="w-3 h-3" />}
+        <span>{actionLabel}</span>
+      </button>
     </div>
   );
 }

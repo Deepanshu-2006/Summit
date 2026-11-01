@@ -11,7 +11,7 @@ import {
   Check,
   AlertCircle,
 } from "lucide-react";
-import { GitHubImportDialog } from "./github-import-dialog";
+import { GitHubImportDialog, type EnsureServiceTarget } from "./github-import-dialog";
 import { DatabaseChooserDialog } from "./database-chooser-dialog";
 
 // Authentic Docker Container Whale Icon
@@ -29,6 +29,9 @@ export interface NodeChooserDialogsProps {
   onClose: () => void;
   onConfirm: (optionId: string, customData?: Record<string, unknown>) => void;
   onShowToast?: (message: string) => void;
+  /** Resolves the backend service for the GitHub repository flow. */
+  ensureGitHubService?: EnsureServiceTarget;
+  githubTargetDescription?: string;
 }
 
 export function NodeChooserDialogs({
@@ -36,6 +39,8 @@ export function NodeChooserDialogs({
   onClose,
   onConfirm,
   onShowToast,
+  ensureGitHubService,
+  githubTargetDescription,
 }: NodeChooserDialogsProps) {
   // Docker state
   const [dockerImage, setDockerImage] = useState("");
@@ -73,6 +78,8 @@ export function NodeChooserDialogs({
         onClose={onClose}
         onConfirm={onConfirm}
         onShowToast={onShowToast}
+        ensureService={ensureGitHubService}
+        targetDescription={githubTargetDescription}
       />
     );
   }

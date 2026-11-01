@@ -33,9 +33,13 @@ export function CanvasTopBar({
   const envDropdownRef = useRef<HTMLDivElement>(null);
   const userDropdownRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  // Keep the draft in sync when the project name changes from outside
+  // (adjusting state during render instead of in an effect).
+  const [syncedName, setSyncedName] = useState(projectName);
+  if (syncedName !== projectName) {
+    setSyncedName(projectName);
     setTempName(projectName);
-  }, [projectName]);
+  }
 
   useEffect(() => {
     if (isEditingName && nameInputRef.current) {

@@ -43,7 +43,26 @@ function DockerWhaleIcon({ className }: { className?: string }) {
 /**
  * Resolves exact Railway-style icon, status description, and volume tag
  */
+const TONE_COLOR = {
+  ok: "text-[#72B69A]",
+  progress: "text-[#E5B462] animate-pulse",
+  error: "text-[#D77D7D]",
+  idle: "text-[#77746F]",
+} as const;
+
 function getRailwayNodeDetails(data: SummitNode["data"]) {
+  // Real platform services: status and source come from the backend.
+  if (data.serviceId) {
+    return {
+      Icon: data.serviceType === "worker" ? Cpu : Layout,
+      iconColor: data.serviceType === "worker" ? "text-[#CCA7E8]" : "text-[#93DDA7]",
+      statusText: data.statusText ?? "Service",
+      volumeTag: data.repositoryFullName
+        ? `${data.repositoryFullName}${data.branch ? `@${data.branch}` : ""}`
+        : "no repository",
+      isDatabase: false,
+    };
+  }
   if (data.subType === "Docker Image") {
     return {
       Icon: DockerWhaleIcon,
@@ -264,8 +283,12 @@ export const SummitNodeComponent = memo(function SummitNodeComponent({
             </span>
           ) : (
             <span
-              className="w-1.5 h-1.5 rounded-full bg-[#72B69A] shrink-0 mr-1"
-              title="Configured"
+              className={`w-1.5 h-1.5 rounded-full shrink-0 mr-1 ${
+                data.serviceId
+                  ? "bg-current " + TONE_COLOR[data.statusTone ?? "idle"]
+                  : "bg-[#72B69A]"
+              }`}
+              title={data.serviceId ? data.statusText : "Configured"}
             />
           )}
         </div>
@@ -273,7 +296,9 @@ export const SummitNodeComponent = memo(function SummitNodeComponent({
         {/* Middle Row: Green Checkmark Circle + Deployment Status */}
         <div className="flex items-center gap-1.5 mt-2.5 text-[12px] text-[#8F8C86] font-sans">
           <svg
-            className="w-3.5 h-3.5 text-[#72B69A] shrink-0"
+            className={`w-3.5 h-3.5 shrink-0 ${
+              data.serviceId ? TONE_COLOR[data.statusTone ?? "idle"] : "text-[#72B69A]"
+            }`}
             viewBox="0 0 16 16"
             fill="currentColor"
           >
