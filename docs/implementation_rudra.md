@@ -9,7 +9,7 @@
 - **Frontend Partner:** UI Developer (Design System, Console Dashboard, Real-time Stream Viewer)
 - **Target Go Module:** `apps/backend` (Single Go 1.26.0 Module Monolith; workspace runtime: Go 1.26.4; client-go v0.36.0 aligned with Kind v1.37.0)
 - **Target Test Environment:** User's laptop Kind cluster (immediate local test environment); real DigitalOcean Kubernetes hosts if time permits later
-- **Status:** COMPLETED & VERIFIED / RUNTIME LOOPS, RESOLVER & WORKLOAD CONTROLLERS FULLY WIRED
+- **Status:** Core outbox, build-worker, and workload-controller paths are wired; host runtime setup and end-to-end cluster validation remain
 
 ---
 
@@ -82,14 +82,16 @@ This document serves as the standalone, ticket-ready technical implementation pl
 
 ## 2. Ground Truth & Architectural Baseline
 
+**Ownership model:** Summit projects are owned by individual users through `projects.user_id`. In this document, legacy `tenant_id` and `tenant-<tenant_id>` placeholders refer to that owning user ID and its isolated Kubernetes namespace; they do not describe a separate Summit organization or account model.
+
 ### 2.1 Monorepo Reality Check (Verified on Disk - Post-PR #3)
 1. **Frontend (`apps/web`):** Next.js 16 workspace package. Contains prototype mock handlers and an in-memory Meridian store. These are temporary mocks and do not reflect platform persistence.
 2. **Backend (`apps/backend`):** Go 1.26.0 module (`github.com/summit/backend`, running on local Go 1.26.4 runtime with client-go v0.36.0 aligned to Kind v1.37.0 server) managed via Turborepo 2.11+. The foundational platform infrastructure has landed:
-   - **Database & Outbox Engine:** Migrations `0001_baseline.up.sql` and `0002_github_integration.up.sql` are active via `pgxpool`. The `outbox_events` table is implemented and receives asynchronous dispatch jobs (`deployment.build.requested`), while `build_jobs` tracks build execution lifecycle records.
+   - **Database & Outbox Engine:** Migrations `0001`–`0004` define the platform, GitHub, deployment lifecycle, and runtime lifecycle records. The `outbox_events` table receives asynchronous `deployment.build.requested` jobs; `build_jobs` tracks build execution.
    - **Build Worker Credential Broker:** `POST /internal/v1/build-requests/{build_request_id}/source-token` is implemented in `apps/backend/internal/githubworker/broker_handler.go`. The orchestrator's ephemeral build pods authenticate using job-scoped JWTs (`WORKER_JWT_SECRET`) to receive repository clone credentials.
-   - **Builder Protocol & Outbox Interface Gap:** Builder protocols exist under `builder/contracts` and `builder/internal/protocol` (declaring `BuildExecutionSpec`). However, the live `outbox_events` payload emitted for `deployment.build.requested` currently provides source metadata (`commit_sha`, `ref`, `branch`, `root_directory`, `dockerfile_path`) but lacks the resolved clone URL, source credential reference, registry credential reference/output destination coordinates, resource limits, timeout, and reporting inputs required by `BuildExecutionSpec`. Resolving this mapping is an explicit Priyanshu/Arpit/Rudra shared handoff and architectural decision, not a unilateral orchestrator mapping.
-   - **Phase 0 Command Boundary:** `cmd/orchestrator` loads KUBECONFIG (defaulting to `~/.kube/config`), uses `client-go v0.36.0`, runs a read-only `discovery.ServerVersion` check, logs with JSON `slog`, and shuts down on `os.Interrupt`/`SIGTERM`. The command still stops before starting workers or mutating cluster resources.
-   - **MVP Component Slices Added After Phase 0:** Testable packages now implement the existing outbox queue adapter, an injectable build-event-to-spec dispatcher, the builder Pod lifecycle adapter, and a polling `SummitService` controller that persists status and reconciles backend Deployments/ClusterIP Services. These packages are not yet wired into `cmd/orchestrator`; the outbox enrichment resolver, builder/API callback integration, and Priyanshu-owned builder image/runtime setup remain external handoffs.
+   - **Builder Protocol and Enrichment Boundary:** Builder protocols exist under `builder/contracts` and `builder/internal/protocol` (`BuildExecutionSpec`). The outbox payload carries source metadata; the wired `ProductionResolver` joins it with user-scoped platform build context and fills the clone URL, credential references, GHCR destination, resource limits, timeout, and reporting coordinates. Remaining work is end-to-end validation of repository access, GHCR credentials/visibility, and callback delivery, with ownership shared across API, database, and orchestrator boundaries.
+   - **Current Orchestrator Runtime:** When database and Kubernetes configuration are available, `cmd/orchestrator` wires the platform store, production build resolver, build handler, Kubernetes adapter, and `internal/orchestrator.App`. The app starts the outbox queue worker, deployment monitor, `SummitService` controller, and pruner. The binary is no longer limited to the original read-only Phase 0 discovery probe.
+   - **Current Build Path and Remaining Validation:** The queue worker handles `deployment.build.requested`; the resolver joins the event with platform build context, creates the build execution spec and per-build worker Secret, and the adapter creates the isolated builder Pod. Host gVisor installation, builder image availability, GHCR credentials/visibility, and a live end-to-end build/callback remain environment and integration validation items. These build components do not implement managed-agent dispatch or per-run agent sandboxes.
 3. **API Contract (`packages/api_spec/openapi.yaml` & `docs/integrations/github/`):**
    - OpenAPI 3.1 specification declaring target schemas for `/projects`, `/resources`, `/releases`, `/observability/metrics`, and `/observability/logs`.
    - Comprehensive GitHub integration contracts established in [`docs/integrations/github/GITHUB_INTEGRATION_BACKEND_SPEC.md`](./integrations/github/GITHUB_INTEGRATION_BACKEND_SPEC.md) and [`FRONTEND_INTEGRATION.md`](./integrations/github/FRONTEND_INTEGRATION.md).
@@ -180,7 +182,7 @@ These proposals align this plan with the API and database plans. Detailed exampl
 
 - **Deployment request:** propose `POST /api/v1/projects/{slug}/deployments` with `202 Accepted`, a deployment ID, and `Location: /api/v1/deployments/{id}` after durable atomic persistence. Add `GET /api/v1/deployments/{id}` to OpenAPI after sign-off; retain `/releases` for release history/artifacts unless the UI and team decide otherwise.
 - **Lifecycle vocabulary:** propose `queued → building → image_ready → deploying → health_checking → running`, with terminal `failed` and `cancelled`; keep retries in attempt metadata unless the team approves a distinct retry state. Gate 2 approves transitions and state ownership.
-- **Queue/database:** Live migrations `0001_baseline.up.sql` and `0002_github_integration.up.sql` establish `outbox_events` and `build_jobs`, with the GitHub worker actively emitting `deployment.build.requested`. Outbox consumption with `FOR UPDATE SKIP LOCKED` operates directly against `outbox_events`. Bridging `outbox_events` payloads to the builder's `BuildExecutionSpec` is an active shared checkpoint requiring the team of three.
+- **Queue/database:** Migrations `0001`–`0004` establish platform, GitHub, deployment, build-job, and runtime lifecycle state. The GitHub worker emits `deployment.build.requested`; the Go orchestrator claims these rows with `FOR UPDATE SKIP LOCKED` and wires the event to `ProductionResolver` and the builder handler. Live cluster and callback validation remain shared checkpoints.
 - **Auth, leases, exact timeouts, and cluster-specific choices** remain open until agreed and verified against the laptop Kind cluster (and real DigitalOcean servers if time permits later). The diagram establishes the components, not these operational values.
 
 To ensure engineering clarity, architectural boundaries are categorized as either **Settled Facts** (non-negotiable requirements derived from architecture diagrams and monorepo constraints) or **Proposed Decisions** (engineering choices submitted by Rudra for backend team sign-off).
@@ -188,7 +190,7 @@ To ensure engineering clarity, architectural boundaries are categorized as eithe
 ### 5.1 Settled Architecture Facts
 1. **Single Monorepo Go Module & Toolchain:** All Go backend code remains in `apps/backend` under `github.com/summit/backend` using Go 1.26.0 (local workspace runtime: Go 1.26.4). Kubernetes API client alignment targets `client-go v0.36.0` to match the local Kind server `v1.37.0`. No `go.work` or repository split is permitted.
 2. **Untrusted Code Sandbox & Builder Ownership Split:** Application compilation executes inside an ephemeral pod under **gVisor (`runsc`)** runtime. Priyanshu owns the ENTIRE isolated builder, including gVisor (`runsc`) installation/configuration and `RuntimeClass` setup on the Kubernetes host nodes, plus the rootless BuildKit + Railpack builder container image, configuration, and engine integration. Rudra does NOT own, install, or configure gVisor; Rudra owns orchestrator and Kubernetes scheduling, launching, monitoring, and cleanup of pods using Priyanshu's configured builder.
-3. **Platform Database (Arpit — DB Only):** Supabase Postgres is the platform metadata database, owned and managed exclusively by Arpit (DB only). Migrations `0001_baseline.up.sql` and `0002_github_integration.up.sql` provide the live schema for `outbox_events` and `build_jobs`.
+3. **Platform Database (Arpit — DB Only):** Supabase Postgres is the platform metadata database, owned and managed exclusively by Arpit (DB only). Migrations `0001`–`0004` provide the schema for user-owned projects, `outbox_events`, deployments, and build/runtime lifecycle records.
 4. **Network & Ingress Stack:** **Cilium CNI** is the network security layer; **Traefik** is the ingress controller.
 5. **Secrets Governance:** In-cluster secrets are managed via **External Secrets Operator (ESO)** synchronized with OpenBao / AWS Secrets Manager. Plaintext secrets are never held in the platform database or logged by the orchestrator.
 6. **Telemetry Infrastructure:** Logs are shipped via Fluent Bit to Loki; metrics are scraped via Prometheus.
@@ -210,7 +212,7 @@ To ensure engineering clarity, architectural boundaries are categorized as eithe
 
 To maintain high cohesion and separation of concerns within a single Go module (`apps/backend`), the orchestrator is architected as an independent binary entrypoint (`cmd/orchestrator`) that shares domain contracts and database clients with the API (`cmd/api`) without circular dependencies.
 
-In Phase 0, the architecture initializes `cmd/orchestrator` and internal package foundations (`internal/orchestrator`, `internal/cluster`). It loads KUBECONFIG (targeting the local Kind cluster, with a path to in-cluster credentials later) and executes a read-only discovery reachability check via `client-go v0.36.0` (`DiscoveryInterface.ServerVersion`), while controller-runtime remains deferred until a reconciler needs it.
+The initial Phase 0 bootstrap loaded KUBECONFIG and checked API-server reachability. The current command has moved beyond that probe: it constructs the database and Kubernetes dependencies and starts the queue, monitor, workload-controller, and cleanup loops described in Section 2.1. The package tree below records the original target layout and is not an exact map of the current repository.
 
 ```text
 apps/backend/
@@ -953,39 +955,41 @@ A fundamental architectural premise of Summit PaaS is the **single shared contro
 
 ### 18.3 Library Code vs. Runtime Integration: Monorepo Implementation Status
 
-Several foundational components have already been implemented as tested library packages in `apps/backend/internal/`. However, `cmd/orchestrator/main.go` currently executes only a Phase 0 read-only Kubernetes discovery probe. The table below delineates existing library packages from the remaining runtime integration deliverables:
+The current `cmd/orchestrator` wires the outbox queue and build/workload controllers into `internal/orchestrator.App`. The code path is present, but source files and unit tests do not establish that the full flow has been validated against a configured cluster and builder image. The remaining environment and integration checks are listed below.
 
-| Component Subsystem | Implemented Library Package (`apps/backend`) | Current Library State | Required Runtime Integration in `cmd/orchestrator` |
+| Component Subsystem | Current implementation | Remaining validation |
 |---|---|---|---|
-| **Database Pool** | `internal/db/pool.go` | `db.Open(ctx, databaseURL)` creates a `pgxpool.Pool` and checks connectivity. | Wire `db.Open` into `cmd/orchestrator` using `DATABASE_URL`. |
-| **Outbox Queue Engine** | `internal/orchestrator/queue/` (`claim.go`, `lease.go`, `retry.go`, `completion.go`, `queue.go`) | Claim, lease, retry, exhaustion, and completion operations plus a `Queue` coordinator are implemented as a package. | Instantiate `queue.Queue` with the database pool and build handler, then start its `Run` loop from the orchestrator runtime. |
-| **Build Dispatcher & Worker** | `internal/orchestrator/worker/build_handler.go` | `BuildHandler` validates events/specs, calls the injected `BuildSpecResolver`, creates Pods, and records dispatch. The resolver is only an interface; production enrichment is not implemented. | Register `BuildHandler` with the queue; provide a production `BuildSpecResolver` and Kubernetes adapter. |
-| **Builder Pod Adapter** | `internal/orchestrator/build/` (`adapter.go`, `pod.go`, `spec.go`, `secrets.go`) | Constructs Kubernetes Pod manifests targeting `runtimeClassName: gvisor`, drops capabilities, and manages ephemeral lifecycle. | Inject live `kubernetes.Interface` client and link to live `summit-builds` namespace execution. |
-| **Workload Controller (CRD)** | `internal/cluster/workloads/` (`controller.go`, `reconciler.go`, `builder.go`, `types.go`) | Polling controller and reconciler for `SummitService` (`summit.dev/v1alpha1`); reconciles Deployments and ClusterIP Services with digest checking. | Instantiate `workloads.NewController` in `orchestrator.Run` using client-go dynamic interface; apply CRD manifest to cluster. |
+| **Database and platform store** | `internal/db` and `internal/platformdb`; initialized by `cmd/orchestrator` | Verify startup with the target database and the migrations required by the deployment. |
+| **Outbox queue** | `internal/orchestrator/queue`; constructed and run by `internal/orchestrator.App` | Exercise lease expiry, retry exhaustion, duplicate delivery, and restart recovery against the configured database. |
+| **Build handler and resolver** | `internal/orchestrator/worker`; `cmd/orchestrator` constructs `BuildHandler` with `ProductionResolver` | Verify repository access, GHCR destination and credentials, resource limits, and callback reporting in an end-to-end build. |
+| **Builder Pod adapter** | `internal/orchestrator/build`; wired when the Kubernetes client is configured | Validate host `runsc`/RuntimeClass, namespace policies, builder image, pod lifecycle, and cleanup on the target cluster. |
+| **SummitService controller and monitor** | `internal/cluster/workloads` and `internal/orchestrator/monitor`; started by the app | Apply the CRD and cluster configuration, then verify reconciliation and status reporting on a live cluster. |
+
+Managed-agent events, the TypeScript Rivet adapter, Pi Durable actors, and per-attempt agent sandboxes are not part of this implementation. See [`managed-agents-spec.md`](./managed-agents-spec.md) for that separate subsystem proposal.
 
 ---
 
 ### 18.4 Production `BuildSpecResolver` & Event Enrichment
 
-In the live system, the outbox event payload emitted by the GitHub integration (`deployment.build.requested`) contains source revision pointers (`commit_sha`, `branch`, `ref`, `root_directory`, `dockerfile_path`), but omits runtime execution inputs required by `builder/contracts/build-execution-spec.schema.json`.
+The production resolver is implemented in `internal/orchestrator/worker/resolver.go` and wired by `cmd/orchestrator`. It combines the `deployment.build.requested` event with `platformdb` build context, constructs a `BuildExecutionSpec`, creates a per-build worker Secret, and supplies GHCR and callback references to the build handler.
 
-Rudra's implementation will provide a production `BuildSpecResolver` satisfying `worker.BuildSpecResolver`:
+The resolver implements this interface:
 ```go
 type BuildSpecResolver interface {
     ResolveBuildSpec(ctx context.Context, event *orchestrator.BuildRequestedPayload, record *queue.EventRecord) (build.BuildExecutionSpec, error)
 }
 ```
 
-#### Enrichment Responsibilities:
-1. **Source Clone Credentials (handoff to confirm):** Use Priyanshu's worker token broker (`POST /internal/v1/build-requests/{build_request_id}/source-token`) with the agreed worker authentication. Confirm whether the resolver receives a short-lived token or a secret reference; never put raw credentials in the execution spec or logs.
-2. **Database Context Enrichment:** Query platform database tables (`services`, `service_sources`, `projects`, `environments`) to resolve service build parameters, target branch settings, and non-secret environment variables. Coordinate the access interface with Arpit; the shared `platformdb` repository layer is not implemented yet.
-3. **OCI Destination Determination:** After GHCR owner and push-credential details are confirmed, construct the destination coordinates:
+#### Implemented mapping and remaining checks:
+1. **Source access:** The resolver creates a short-lived build worker token and references its per-build Kubernetes Secret. Verify the broker request and repository clone flow end to end; raw credentials must not enter the execution spec or logs.
+2. **Database context:** `platformdb` resolves service, repository, build, resource, and timeout context for the build job. Verify ownership scoping and configured values against a live deployment.
+3. **OCI destination:** The resolver builds the GHCR destination from the source repository owner and service ID:
    - Target: `ghcr.io/<resolved-github-owner>/summit-app-<service-id>:sha-<git-commit>`
-   - Resolves `<resolved-github-owner>` as the source repository owner (organization login or user account).
-4. **Resource Ceilings & Execution Timeouts:** Injects tenant-specific resource constraints into `BuildExecutionSpec.Resources` (e.g., CPU request/limit: `500m`/`2000m`, Memory request/limit: `1Gi`/`4Gi`, Ephemeral storage: `10Gi`) and sets deterministic timeouts (`timeout_seconds: 1800`).
-5. **Callback & Log Stream Coordinates:** Populate the versioned spec's `reporting.endpoint` and `reporting.token_ref` after Priyanshu's callback receiver contract is agreed. Loki streaming and labels are a separate integration, not fields in the current execution-spec contract.
+   - The repository owner is a registry namespace input; Summit project ownership remains `projects.user_id`.
+4. **Resource ceilings and timeouts:** The resolver fills `BuildExecutionSpec.Resources` and timeout values from the resolved build context with defaults. Validate those values against cluster quotas and policy.
+5. **Callback coordinates:** The resolver fills `reporting.endpoint` and `reporting.token_ref`. Verify callbacks against the deployed API and ensure Loki does not receive secrets or high-cardinality metric labels.
 
-> **Status:** These are resolver requirements, not implemented behavior. No production `BuildSpecResolver` currently exists.
+> **Status:** Resolver and handler code are present and wired. Live cluster, credentials, GHCR, gVisor, and callback validation remain. This status covers the build path only, not managed agents.
 
 ---
 
