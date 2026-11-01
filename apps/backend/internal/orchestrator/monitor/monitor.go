@@ -234,7 +234,7 @@ func (m *Monitor) reconcileDeployment(ctx context.Context, active *platformdb.Ac
 
 		default:
 			// In-flight: check timeout
-			timeoutSec := 600
+			timeoutSec := build.DefaultTimeoutSeconds
 			if active.BuildJob.TimeoutSeconds != nil && *active.BuildJob.TimeoutSeconds >= 10 {
 				timeoutSec = *active.BuildJob.TimeoutSeconds
 			}

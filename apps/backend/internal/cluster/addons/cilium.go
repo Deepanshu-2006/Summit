@@ -63,8 +63,8 @@ func CiliumTenantPolicy(namespace string, cfg Config, appPort int32, owner Owner
 }
 
 // CiliumBuilderPolicy is the CiliumNetworkPolicy for builder pods (plan section 9.3): no ingress
-// (an empty ingress rule is Cilium's explicit deny-all), egress only to DNS, the allowed registry
-// and package FQDNs on 443, and the control-plane API pods.
+// (an empty ingress rule is Cilium's explicit deny-all), egress only to DNS, allowed registry and
+// package FQDNs on 443, Debian mirrors on 80, and the control-plane API pods.
 func CiliumBuilderPolicy(n NetworkConfig) *unstructured.Unstructured {
 	u := newUnstructured(CiliumAPIVersion, CiliumKind, n.BuildNamespace, PolicyBuilderEgress)
 	fqdns := make([]any, 0, len(n.BuildAllowedFQDNs))
@@ -84,6 +84,10 @@ func CiliumBuilderPolicy(n NetworkConfig) *unstructured.Unstructured {
 			"toPorts": []any{map[string]any{"ports": []any{portEntry(443, "TCP")}}},
 		})
 	}
+	egress = append(egress, map[string]any{
+		"toFQDNs": []any{map[string]any{"matchName": "deb.debian.org"}, map[string]any{"matchName": "security.debian.org"}},
+		"toPorts": []any{map[string]any{"ports": []any{portEntry(80, "TCP")}}},
+	})
 	u.Object["spec"] = map[string]any{
 		"endpointSelector": map[string]any{"matchLabels": strMap(n.BuilderPodLabels)},
 		"ingress":          []any{map[string]any{}},

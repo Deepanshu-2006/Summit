@@ -186,6 +186,14 @@ func (m *Monitor) reconcileWorkloadReady(ctx context.Context, active *platformdb
 	}
 	summitSvc.SetDefaults()
 
+	// The tenant namespace must exist before the SummitService is applied into it. It may be
+	// missing on a user's first deploy or after their last service was deleted.
+	if m.provisioner != nil {
+		if _, err := m.provisioner.EnsureTenant(ctx, active.UserID.String()); err != nil {
+			return fmt.Errorf("ensure tenant namespace: %w", err)
+		}
+	}
+
 	if m.dynClient != nil {
 		if err := m.applySummitService(ctx, summitSvc); err != nil {
 			return err
@@ -194,9 +202,6 @@ func (m *Monitor) reconcileWorkloadReady(ctx context.Context, active *platformdb
 
 	var publicURL string
 	if m.provisioner != nil {
-		if _, err := m.provisioner.EnsureTenant(ctx, active.UserID.String()); err != nil {
-			return fmt.Errorf("ensure tenant namespace: %w", err)
-		}
 		expRes, err := m.provisioner.EnsureServiceExposure(ctx, addons.ExposureParams{
 			UserID:      active.UserID.String(),
 			ProjectID:   active.ProjectID.String(),

@@ -20,6 +20,15 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+// Builder pod limits, matching the build adapter defaults (build.DefaultCPULimit etc.). The
+// BuildKit cache emptyDir counts toward ephemeral storage, so storage must cover base images,
+// toolchains and node_modules; 2Gi gets the pod evicted while unpacking Railpack's builder image.
+const (
+	builderCPUMillicores       = 2000
+	builderMemoryMiB           = 4096
+	builderEphemeralStorageMiB = 10240
+)
+
 // BuildContextStore retrieves the platform database build context.
 type BuildContextStore interface {
 	GetBuildContext(ctx context.Context, buildJobID uuid.UUID) (*platformdb.BuildContext, error)
@@ -79,7 +88,7 @@ func (r *ProductionResolver) ResolveBuildSpec(ctx context.Context, event *events
 		return build.BuildExecutionSpec{}, fmt.Errorf("resolver: querying build context: %w", err)
 	}
 
-	timeoutSec := 600
+	timeoutSec := build.DefaultTimeoutSeconds
 	if bCtx.TimeoutSeconds != nil && *bCtx.TimeoutSeconds >= 10 {
 		timeoutSec = *bCtx.TimeoutSeconds
 	}
@@ -145,15 +154,6 @@ func (r *ProductionResolver) ResolveBuildSpec(ctx context.Context, event *events
 		}
 	}
 
-	cpuReq := bCtx.Resources.CPULimitMillicores
-	if cpuReq < 100 {
-		cpuReq = 1000
-	}
-	memReq := bCtx.Resources.MemoryLimitMB
-	if memReq < 128 {
-		memReq = 1024
-	}
-
 	rootDir := bCtx.RootDirectory
 	if strings.TrimSpace(rootDir) == "" {
 		rootDir = "/"
@@ -193,10 +193,12 @@ func (r *ProductionResolver) ResolveBuildSpec(ctx context.Context, event *events
 			Tag:        fmt.Sprintf("sha-%s", strings.ToLower(event.Source.CommitSHA)),
 			Platforms:  []string{"linux/amd64"},
 		},
+		// Builds get fixed builder-sized limits. The service's runtime limits (often 0.5 CPU /
+		// 512Mi) are far too small for buildkitd plus a Node/Python toolchain and dependency install.
 		Resources: build.ResourceLimits{
-			CPUMillicores:       cpuReq,
-			MemoryMiB:           memReq,
-			EphemeralStorageMiB: 2048,
+			CPUMillicores:       builderCPUMillicores,
+			MemoryMiB:           builderMemoryMiB,
+			EphemeralStorageMiB: builderEphemeralStorageMiB,
 		},
 		TimeoutSeconds: timeoutSec,
 		Reporting: build.ReportingSpec{

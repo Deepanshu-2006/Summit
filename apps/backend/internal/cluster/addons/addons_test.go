@@ -286,7 +286,7 @@ func TestBuilderNativePolicy(t *testing.T) {
 		t.Fatalf("want 3 egress rules, got %d", len(np.Spec.Egress))
 	}
 	inet := np.Spec.Egress[1]
-	if len(inet.Ports) != 1 || inet.Ports[0].Port.IntValue() != 443 || !contains(inet.To[0].IPBlock.Except, "169.254.0.0/16") {
+	if len(inet.Ports) != 2 || inet.Ports[0].Port.IntValue() != 80 || inet.Ports[1].Port.IntValue() != 443 || !contains(inet.To[0].IPBlock.Except, "169.254.0.0/16") {
 		t.Errorf("internet rule wrong: %+v", inet)
 	}
 	api := np.Spec.Egress[2]
@@ -328,7 +328,7 @@ func TestCiliumPolicies(t *testing.T) {
 			}
 		}
 	}
-	for _, want := range []string{"ghcr.io", "registry.npmjs.org", "pypi.org", "proxy.golang.org", "crates.io", "github.com"} {
+	for _, want := range []string{"ghcr.io", "registry.npmjs.org", "pypi.org", "proxy.golang.org", "crates.io", "github.com", "deb.debian.org", "security.debian.org"} {
 		if !contains(fqdns, want) {
 			t.Errorf("fqdn %s missing from %v", want, fqdns)
 		}
