@@ -243,6 +243,10 @@ func BuildPodManifest(spec BuildExecutionSpec, cfg Config, secretMounts []Secret
 			Value: "true",
 		},
 		{
+			Name:  "SUMMIT_SOURCE_BROKER_URL",
+			Value: cfg.SourceBrokerURL,
+		},
+		{
 			Name:  "SUMMIT_SOURCE_CREDENTIAL_FILE",
 			Value: SourceCredentialFile,
 		},
@@ -275,12 +279,13 @@ func BuildPodManifest(spec BuildExecutionSpec, cfg Config, secretMounts []Secret
 		}
 	}
 
-	// Security contexts (UID/GID 1000, drop all capabilities, non-root)
+	// Security contexts for rootless BuildKit under the gVisor sandbox. Its base image
+	// relies on newuidmap/newgidmap file capabilities to establish nested user mappings.
 	runAsUser := int64(1000)
 	runAsGroup := int64(1000)
 	fsGroup := int64(1000)
 	runAsNonRoot := true
-	allowPrivilegeEscalation := false
+	allowPrivilegeEscalation := true
 	readOnlyRootFilesystem := false // Rootless buildkit requires cache layer writes in user space
 
 	podSecurityContext := &corev1.PodSecurityContext{
@@ -301,6 +306,7 @@ func BuildPodManifest(spec BuildExecutionSpec, cfg Config, secretMounts []Secret
 		ReadOnlyRootFilesystem:   &readOnlyRootFilesystem,
 		Capabilities: &corev1.Capabilities{
 			Drop: []corev1.Capability{"ALL"},
+			Add:  []corev1.Capability{"SETUID", "SETGID"},
 		},
 	}
 

@@ -36,6 +36,10 @@ type Config struct {
 	// BuilderImage is the configurable Priyanshu-owned container image.
 	BuilderImage string
 
+	// SourceBrokerURL is the API's internal endpoint used by the builder to obtain a
+	// short-lived GitHub installation token for this build.
+	SourceBrokerURL string
+
 	// BuilderImagePullSecret is an optional imagePullSecret already present in the build namespace.
 	BuilderImagePullSecret string
 
@@ -68,6 +72,7 @@ type Config struct {
 func DefaultConfig() Config {
 	return Config{
 		BuilderImage:           DefaultBuilderImage,
+		SourceBrokerURL:        "http://summit-api.summit-system.svc.cluster.local:4000/internal/v1/build-requests",
 		BuilderImagePullSecret: "",
 		RuntimeClassName:       DefaultRuntimeClassName,
 		Namespace:              DefaultNamespace,
@@ -89,6 +94,9 @@ func LoadConfigFromEnv() Config {
 
 	if val := os.Getenv("SUMMIT_BUILDER_IMAGE"); strings.TrimSpace(val) != "" {
 		cfg.BuilderImage = strings.TrimSpace(val)
+	}
+	if val := os.Getenv("SUMMIT_SOURCE_BROKER_URL"); strings.TrimSpace(val) != "" {
+		cfg.SourceBrokerURL = strings.TrimRight(strings.TrimSpace(val), "/")
 	}
 	if val := os.Getenv("SUMMIT_BUILDER_IMAGE_PULL_SECRET"); strings.TrimSpace(val) != "" {
 		cfg.BuilderImagePullSecret = strings.TrimSpace(val)

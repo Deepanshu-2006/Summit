@@ -126,14 +126,14 @@ func TestBuildPodManifest_Success(t *testing.T) {
 	if csc == nil {
 		t.Fatalf("expected non-nil container security context")
 	}
-	if csc.AllowPrivilegeEscalation == nil || *csc.AllowPrivilegeEscalation {
-		t.Errorf("expected AllowPrivilegeEscalation false")
+	if csc.AllowPrivilegeEscalation == nil || !*csc.AllowPrivilegeEscalation {
+		t.Errorf("expected AllowPrivilegeEscalation true for rootlesskit file capabilities")
 	}
 	if csc.ReadOnlyRootFilesystem == nil || *csc.ReadOnlyRootFilesystem {
 		t.Errorf("expected ReadOnlyRootFilesystem false for rootless buildkit cache layer")
 	}
-	if csc.Capabilities == nil || len(csc.Capabilities.Drop) != 1 || csc.Capabilities.Drop[0] != "ALL" {
-		t.Errorf("expected drop ALL capabilities, got %v", csc.Capabilities)
+	if csc.Capabilities == nil || len(csc.Capabilities.Drop) != 1 || csc.Capabilities.Drop[0] != "ALL" || len(csc.Capabilities.Add) != 2 || csc.Capabilities.Add[0] != "SETUID" || csc.Capabilities.Add[1] != "SETGID" {
+		t.Errorf("expected drop ALL and add only SETUID/SETGID for rootlesskit, got %v", csc.Capabilities)
 	}
 
 	// 8. Verify Finite Requests and Limits
@@ -151,7 +151,7 @@ func TestBuildPodManifest_Success(t *testing.T) {
 	}
 
 	// 9. Verify Env Vars
-	var foundSpecPath, foundRootless, foundNodeEnv bool
+	var foundSpecPath, foundRootless, foundBrokerURL, foundNodeEnv bool
 	for _, env := range c.Env {
 		switch env.Name {
 		case ExecutionSpecEnvVar:
@@ -163,6 +163,11 @@ func TestBuildPodManifest_Success(t *testing.T) {
 			foundRootless = true
 			if env.Value != "true" {
 				t.Errorf("expected BUILDKIT_ROOTLESS true")
+			}
+		case "SUMMIT_SOURCE_BROKER_URL":
+			foundBrokerURL = true
+			if env.Value != cfg.SourceBrokerURL {
+				t.Errorf("expected source broker URL %q, got %q", cfg.SourceBrokerURL, env.Value)
 			}
 		case "NODE_ENV":
 			foundNodeEnv = true
@@ -176,6 +181,9 @@ func TestBuildPodManifest_Success(t *testing.T) {
 	}
 	if !foundRootless {
 		t.Errorf("missing BUILDKIT_ROOTLESS env var")
+	}
+	if !foundBrokerURL {
+		t.Errorf("missing SUMMIT_SOURCE_BROKER_URL env var")
 	}
 	if !foundNodeEnv {
 		t.Errorf("missing custom NODE_ENV env var")

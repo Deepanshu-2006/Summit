@@ -5,16 +5,14 @@
 # - summit-system: restricted. The API and orchestrator Deployments in this
 #   directory are non-root, drop ALL capabilities, use RuntimeDefault seccomp and
 #   forbid privilege escalation.
-# - summit-builds: restricted. internal/orchestrator/build/pod.go builds Pods with
-#   runAsNonRoot (uid 1000), allowPrivilegeEscalation=false, capabilities drop
-#   ALL, seccompProfile RuntimeDefault, and only configMap/secret/emptyDir volumes
-#   (no hostPath, no hostNetwork, no privileged). That satisfies the restricted
-#   profile, so no weaker level is needed. The gVisor runtimeClassName is not
-#   inspected by PSA.
-#   CAVEAT: if the builder image later needs seccomp/AppArmor "Unconfined" for
-#   rootless BuildKit, neither baseline nor restricted admits it (both forbid
-#   Unconfined seccomp); the namespace would have to move to "privileged" or use a
-#   PSA exemption. Keep builds on RuntimeDefault while the builder works under it.
+# - summit-builds: privileged admission is required for rootless BuildKit's
+#   newuidmap/newgidmap helpers: the builder pod uses allowPrivilegeEscalation=true
+#   and adds only SETUID/SETGID after dropping all other capabilities. This PSA
+#   label does not make containers privileged. Keep audit/warn at restricted, keep
+#   the builder on gVisor with its explicit non-root/seccomp/capability settings,
+#   and grant pod creation in this namespace only to the orchestrator service
+#   account. Revisit with a narrow PSA exemption or equivalent policy if the
+#   cluster supports one that admits these exact fields.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -36,7 +34,7 @@ metadata:
     app.kubernetes.io/part-of: summit
     app.kubernetes.io/managed-by: summit-orchestrator
     summit.dev/managed-by: summit-orchestrator
-    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce: privileged
     pod-security.kubernetes.io/enforce-version: latest
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/warn: restricted
