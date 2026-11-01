@@ -15,29 +15,49 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/summit/backend/internal/audit"
 	"github.com/summit/backend/internal/authz"
+	"github.com/summit/backend/internal/catalog"
 	"github.com/summit/backend/internal/config"
 	"github.com/summit/backend/internal/githubrepo"
 	"github.com/summit/backend/internal/httpx"
 	"github.com/summit/backend/internal/installstate"
+	"github.com/summit/backend/internal/platformdb"
+	"github.com/summit/backend/internal/registry"
 	"github.com/summit/backend/internal/sourcepath"
 )
 
 // Service encapsulates the business logic for GitHub integration operations.
 type Service struct {
-	pool     Pool
-	ghClient GitHubClient
-	cfg      *config.Config
-	audit    audit.Writer
-	logger   *slog.Logger
+	pool            Pool
+	ghClient        GitHubClient
+	cfg             *config.Config
+	audit           audit.Writer
+	logger          *slog.Logger
+	platformStore   buildlessServiceStore
+	deploymentStore buildlessDeploymentStore
+	resolveImage    func(context.Context, string) (string, error)
+}
+
+type buildlessServiceStore interface {
+	GetServiceForUser(ctx context.Context, userID, serviceID uuid.UUID) (*platformdb.Service, error)
+	GetServiceImageSource(ctx context.Context, userID, serviceID uuid.UUID) (*platformdb.ServiceImageSource, error)
+	GetServiceAddon(ctx context.Context, userID, serviceID uuid.UUID) (*platformdb.ServiceAddon, error)
+}
+
+type buildlessDeploymentStore interface {
+	CreateImageDeployment(ctx context.Context, p platformdb.CreateImageDeploymentParams) (*platformdb.CreateDeploymentResult, error)
+	CreateAddonDeployment(ctx context.Context, p platformdb.CreateAddonDeploymentParams) (*platformdb.CreateDeploymentResult, error)
 }
 
 // Config holds dependencies required to construct a Service.
 type Config struct {
-	Pool     Pool
-	GHClient GitHubClient
-	AppCfg   *config.Config
-	Audit    audit.Writer
-	Logger   *slog.Logger
+	Pool            Pool
+	GHClient        GitHubClient
+	AppCfg          *config.Config
+	Audit           audit.Writer
+	Logger          *slog.Logger
+	PlatformStore   buildlessServiceStore
+	DeploymentStore buildlessDeploymentStore
+	ResolveImage    func(context.Context, string) (string, error)
 }
 
 // NewService creates a new Service instance.
@@ -55,11 +75,14 @@ func NewService(c Config) *Service {
 		auditWriter = audit.NewPgxWriter(c.Pool)
 	}
 	return &Service{
-		pool:     c.Pool,
-		ghClient: c.GHClient,
-		cfg:      appCfg,
-		audit:    auditWriter,
-		logger:   logger,
+		pool:            c.Pool,
+		ghClient:        c.GHClient,
+		cfg:             appCfg,
+		audit:           auditWriter,
+		logger:          logger,
+		platformStore:   c.PlatformStore,
+		deploymentStore: c.DeploymentStore,
+		resolveImage:    c.ResolveImage,
 	}
 }
 
@@ -1266,6 +1289,18 @@ func (s *Service) CreateManualDeployment(ctx context.Context, serviceID, actorUs
 		return nil, httpx.NewAPIError(404, httpx.CodeNotFound, "service not found", nil)
 	}
 
+	// Image and managed addon services do not have a GitHub source or build job.
+	// They enter the same rollout queue at image_ready with an immutable image ref.
+	if s.platformStore != nil && s.deploymentStore != nil {
+		service, err := s.platformStore.GetServiceForUser(ctx, actorUserID, serviceID)
+		if err != nil {
+			return nil, platformStoreAPIError(err)
+		}
+		if service.Type == platformdb.ServiceTypeImage || service.Type == platformdb.ServiceTypePostgres || service.Type == platformdb.ServiceTypeRedis {
+			return s.createBuildlessDeployment(ctx, service.Type, serviceID, actorUserID, idempotencyKey)
+		}
+	}
+
 	// 2. Load connected active service source
 	var sourceInfo struct {
 		SourceID           uuid.UUID
@@ -1369,13 +1404,16 @@ func (s *Service) CreateManualDeployment(ctx context.Context, serviceID, actorUs
 		// Existing deployment found with same idempotency key - return idempotently
 		var buildJobID uuid.UUID
 		_ = s.pool.QueryRow(ctx, `SELECT id FROM build_jobs WHERE deployment_id = $1`, existingDeployment.ID).Scan(&buildJobID)
-		return &ManualDeploymentResponse{
-			ID:         existingDeployment.ID,
-			ServiceID:  serviceID,
-			Status:     existingDeployment.Status,
-			CommitSHA:  existingDeployment.CommitSHA,
-			BuildJobID: buildJobID,
-		}, nil
+		response := &ManualDeploymentResponse{
+			ID:        existingDeployment.ID,
+			ServiceID: serviceID,
+			Status:    existingDeployment.Status,
+			CommitSHA: existingDeployment.CommitSHA,
+		}
+		if buildJobID != uuid.Nil {
+			response.BuildJobID = &buildJobID
+		}
+		return response, nil
 	}
 
 	// 5. Transactional insert: deployments + build_jobs + outbox_events + service_sources update
@@ -1542,6 +1580,74 @@ func (s *Service) CreateManualDeployment(ctx context.Context, serviceID, actorUs
 		ServiceID:  serviceID,
 		Status:     "queued",
 		CommitSHA:  commit.SHA,
-		BuildJobID: buildJobID,
+		BuildJobID: &buildJobID,
 	}, nil
+}
+
+func (s *Service) createBuildlessDeployment(ctx context.Context, serviceType string, serviceID, userID uuid.UUID, idempotencyKey string) (*ManualDeploymentResponse, error) {
+	var result *platformdb.CreateDeploymentResult
+	var err error
+	switch serviceType {
+	case platformdb.ServiceTypeImage:
+		image, getErr := s.platformStore.GetServiceImageSource(ctx, userID, serviceID)
+		if getErr != nil {
+			return nil, platformStoreAPIError(getErr)
+		}
+		resolve := s.resolveImage
+		if resolve == nil {
+			resolve = registry.ResolveDigest
+		}
+		imageRef, resolveErr := resolve(ctx, image.Image)
+		if resolveErr != nil {
+			s.logger.WarnContext(ctx, "failed to resolve image reference", "service_id", serviceID, "error", resolveErr)
+			return nil, httpx.NewAPIError(422, httpx.CodeImageResolveFailed, "could not resolve image to an immutable digest", resolveErr)
+		}
+		result, err = s.deploymentStore.CreateImageDeployment(ctx, platformdb.CreateImageDeploymentParams{
+			UserID: userID, ServiceID: serviceID, IdempotencyKey: idempotencyKey,
+			TriggeredByUserID: &userID, ImageRef: imageRef,
+		})
+	case platformdb.ServiceTypePostgres, platformdb.ServiceTypeRedis:
+		addon, getErr := s.platformStore.GetServiceAddon(ctx, userID, serviceID)
+		if getErr != nil {
+			return nil, platformStoreAPIError(getErr)
+		}
+		pinned, ok := catalog.AddonFor(addon.Engine)
+		if !ok || pinned.Version != addon.Version {
+			return nil, httpx.NewAPIError(500, httpx.CodeInternalError, "managed addon image is not available", nil)
+		}
+		result, err = s.deploymentStore.CreateAddonDeployment(ctx, platformdb.CreateAddonDeploymentParams{
+			UserID: userID, ServiceID: serviceID, IdempotencyKey: idempotencyKey,
+			TriggeredByUserID: &userID, ImageRef: pinned.Image,
+		})
+	default:
+		return nil, httpx.NewAPIError(400, httpx.CodeValidationFailed, "service type does not support buildless deployment", nil)
+	}
+	if err != nil {
+		return nil, platformStoreAPIError(err)
+	}
+	if result == nil {
+		return nil, httpx.NewAPIError(500, httpx.CodeInternalError, "deployment store returned no deployment", nil)
+	}
+	response := &ManualDeploymentResponse{
+		ID: result.Deployment.ID, ServiceID: serviceID, Status: string(result.Deployment.Status),
+		CommitSHA: "",
+	}
+	if result.BuildJob.ID != uuid.Nil {
+		id := result.BuildJob.ID
+		response.BuildJobID = &id
+	}
+	return response, nil
+}
+
+func platformStoreAPIError(err error) error {
+	switch {
+	case errors.Is(err, platformdb.ErrNotFound):
+		return httpx.NewAPIError(404, httpx.CodeNotFound, "service not found", err)
+	case errors.Is(err, platformdb.ErrInvalidArgument):
+		return httpx.NewAPIError(400, httpx.CodeValidationFailed, "invalid deployment request", err)
+	case errors.Is(err, platformdb.ErrConflict):
+		return httpx.NewAPIError(409, httpx.CodeConflict, "deployment conflicts with an existing request", err)
+	default:
+		return httpx.NewAPIError(500, httpx.CodeInternalError, "failed to create deployment", err)
+	}
 }

@@ -2,6 +2,7 @@ package workloads
 
 import (
 	"fmt"
+	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -88,10 +89,8 @@ func BuildDeployment(svc *SummitService) (*appsv1.Deployment, error) {
 					Labels: labels,
 				},
 				Spec: corev1.PodSpec{
-					RestartPolicy: corev1.RestartPolicyAlways,
-					ImagePullSecrets: []corev1.LocalObjectReference{
-						{Name: copySvc.Spec.PullSecretName},
-					},
+					RestartPolicy:    corev1.RestartPolicyAlways,
+					ImagePullSecrets: imagePullSecrets(copySvc.Spec),
 					SecurityContext: &corev1.PodSecurityContext{
 						RunAsNonRoot: boolPtr(true),
 						RunAsUser:    int64Ptr(1000),
@@ -152,6 +151,21 @@ func BuildDeployment(svc *SummitService) (*appsv1.Deployment, error) {
 	}
 
 	return deployment, nil
+}
+
+// imagePullSecrets references the pull secret only when one is configured and
+// the reconciler has not marked it absent. A missing secret must not be named:
+// kubelet refuses to pull a public image when imagePullSecrets points at a
+// secret that does not exist.
+func imagePullSecrets(spec SummitServiceSpec) []corev1.LocalObjectReference {
+	if spec.OmitPullSecret {
+		return nil
+	}
+	name := strings.TrimSpace(spec.PullSecretName)
+	if name == "" {
+		return nil
+	}
+	return []corev1.LocalObjectReference{{Name: name}}
 }
 
 // BuildService constructs an internal ClusterIP Service pointing to the backend Deployment pods.

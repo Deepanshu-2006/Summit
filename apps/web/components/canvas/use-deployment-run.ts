@@ -31,16 +31,28 @@ export function useDeploymentRun(
   accessToken: string | undefined,
   latest: DeploymentSummary | null,
   onSettled?: () => void,
+  options: { streamLogs?: boolean } = {},
 ) {
-  // Resume tracking if the service already has a deployment in flight.
-  const [deploymentId, setDeploymentId] = useState<string | null>(
-    latest && isInFlightStatus(latest.status) ? latest.id : null,
-  );
+  const streamLogs = options.streamLogs !== false;
+  // Follow an in-flight deployment that already exists or that Deploy all just started.
+  const externalInFlightId = latest && isInFlightStatus(latest.status) ? latest.id : null;
+  const [trackedId, setTrackedId] = useState<string | null>(externalInFlightId);
+  const [syncedExternalId, setSyncedExternalId] = useState<string | null>(externalInFlightId);
   const [detail, setDetail] = useState<DeploymentDetail | null>(null);
   const [logs, setLogs] = useState<DeploymentLogEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  if (externalInFlightId !== syncedExternalId) {
+    setSyncedExternalId(externalInFlightId);
+    if (externalInFlightId && externalInFlightId !== trackedId) {
+      setTrackedId(externalInFlightId);
+      setDetail(null);
+      setLogs([]);
+      setError(null);
+    }
+  }
+  const deploymentId = trackedId;
 
   useEffect(() => {
     if (!accessToken || !deploymentId) return;
@@ -67,8 +79,8 @@ export function useDeploymentRun(
         const next = await getDeployment(accessToken, deploymentId);
         if (cancelled) return;
         setDetail(next);
-        // Logs are read after the status so the final lines are never missed.
-        await drainLogs();
+        // Build-less deploys (image, postgres, redis) have no build log stream.
+        if (streamLogs) await drainLogs();
         if (cancelled) return;
         setError(null);
         settled = isSettledStatus(next.status);
@@ -90,13 +102,13 @@ export function useDeploymentRun(
     };
     // `onSettled` is intentionally excluded: a changing callback must not restart polling.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessToken, deploymentId]);
+  }, [accessToken, deploymentId, streamLogs]);
 
   const track = useCallback((id: string) => {
     setDetail(null);
     setLogs([]);
     setError(null);
-    setDeploymentId(id);
+    setTrackedId(id);
   }, []);
 
   const start = useCallback(

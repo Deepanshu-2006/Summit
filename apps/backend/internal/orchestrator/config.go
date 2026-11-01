@@ -68,6 +68,12 @@ type Config struct {
 	NetworkPolicyMode   addons.NetworkPolicyMode
 	EnableIngress       bool
 	EnableESO           bool
+
+	// Public URL recorded on deployments: <scheme>://<host>[:<port>].
+	// ORCHESTRATOR_PUBLIC_URL_SCHEME (http|https, default https) and
+	// ORCHESTRATOR_PUBLIC_URL_PORT (omitted when empty/80/443).
+	PublicURLScheme string
+	PublicURLPort   string
 }
 
 // LoadConfig creates a Config populated from environment variables with safe defaults.
@@ -109,6 +115,11 @@ func LoadConfig() Config {
 	netPolMode := addons.NetworkPolicyMode(getEnv("ORCHESTRATOR_NETWORK_POLICY_MODE", string(addons.NetworkPolicyNative)))
 	enableIngress := parseBool(getEnv("ORCHESTRATOR_ENABLE_INGRESS", "false"), false)
 	enableESO := parseBool(getEnv("ORCHESTRATOR_ENABLE_ESO", "false"), false)
+	publicURLScheme := strings.ToLower(strings.TrimSpace(getEnv("ORCHESTRATOR_PUBLIC_URL_SCHEME", "https")))
+	if publicURLScheme != "http" {
+		publicURLScheme = "https"
+	}
+	publicURLPort := strings.TrimSpace(getEnv("ORCHESTRATOR_PUBLIC_URL_PORT", ""))
 
 	return Config{
 		Environment: env,
@@ -138,6 +149,8 @@ func LoadConfig() Config {
 		NetworkPolicyMode:   netPolMode,
 		EnableIngress:       enableIngress,
 		EnableESO:           enableESO,
+		PublicURLScheme:     publicURLScheme,
+		PublicURLPort:       publicURLPort,
 	}
 }
 

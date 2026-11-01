@@ -60,18 +60,26 @@ export function NewProjectCard({ onCancel }: NewProjectCardProps) {
   >("none");
   const [githubSetupError, setGithubSetupError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const setupStatus = searchParams.get("github_setup");
-    if (!setupStatus) return;
-
+  // Returning from the GitHub App install: reopen the GitHub chooser (with any
+  // error) once per redirect. State is adjusted during render (not in an
+  // effect); the effect below only cleans the query string.
+  const setupStatus = searchParams.get("github_setup");
+  const setupKey = setupStatus ? `${setupStatus}:${searchParams.get("github_error") ?? ""}` : null;
+  const [handledSetupKey, setHandledSetupKey] = useState<string | null>(null);
+  if (setupKey && setupKey !== handledSetupKey) {
+    setHandledSetupKey(setupKey);
     setActiveChooser("github");
     setGithubSetupError(
       setupStatus === "error"
         ? searchParams.get("github_error") || "GITHUB_INSTALLATION_FAILED"
         : null,
     );
+  }
+
+  useEffect(() => {
+    if (!setupKey) return;
     router.replace("/dashboard/project/new", { scroll: false });
-  }, [router, searchParams]);
+  }, [router, setupKey]);
   // Survives a failed repository connection so a retry reuses the same project/service.
   const createdRef = useRef<{ projectId: string; serviceId?: string } | null>(null);
 

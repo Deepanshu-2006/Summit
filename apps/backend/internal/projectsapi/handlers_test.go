@@ -115,7 +115,9 @@ func TestAuthRequired(t *testing.T) {
 	for _, r := range [][2]string{
 		{"GET", "/v1/projects"}, {"POST", "/v1/projects"}, {"GET", "/v1/projects/" + id},
 		{"PATCH", "/v1/projects/" + id}, {"DELETE", "/v1/projects/" + id},
-		{"POST", "/v1/projects/" + id + "/services"}, {"GET", "/v1/projects/" + id + "/deployments"},
+		{"POST", "/v1/projects/" + id + "/services"}, {"POST", "/v1/projects/" + id + "/environments"},
+		{"DELETE", "/v1/services/" + id},
+		{"GET", "/v1/projects/" + id + "/deployments"},
 		{"GET", "/v1/deployments/" + id}, {"POST", "/v1/deployments/" + id + "/cancel"}, {"GET", "/v1/deployments/" + id + "/logs"},
 	} {
 		if code, _ := f.do(t, r[0], r[1], "", nil); code != http.StatusUnauthorized {

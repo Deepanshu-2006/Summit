@@ -1,0 +1,9 @@
+# Traefik's own namespace. Pod Security is left unlabeled: the Deployment runs
+# non-root, but this namespace is not part of the summit-system restricted policy.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: traefik
+  labels:
+    app.kubernetes.io/name: traefik
+    app.kubernetes.io/part-of: summit

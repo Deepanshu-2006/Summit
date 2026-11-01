@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -120,6 +121,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, svc *SummitService) (result 
 		setCondition(&svc.Status, "NamespaceReady", metav1.ConditionTrue, "NamespaceReconciled", "Namespace exists and matches tenancy baseline")
 	}
 
+	if err := r.dropAbsentPullSecret(ctx, svc); err != nil {
+		svc.Status.Phase = PhaseFailed
+		setCondition(&svc.Status, "Reconciled", metav1.ConditionFalse, "PullSecretLookupFailed", err.Error())
+		return nil, err
+	}
+
 	// 2. Reconcile Deployment
 	desiredDep, err := BuildDeployment(svc)
 	if err != nil {
@@ -174,6 +181,26 @@ func (r *Reconciler) Reconcile(ctx context.Context, svc *SummitService) (result 
 	setCondition(&svc.Status, "Reconciled", metav1.ConditionTrue, "ReconcileSuccess", "Workload slice reconciled successfully")
 
 	return result, nil
+}
+
+// dropAbsentPullSecret clears the pull-secret reference when that Secret is not
+// in the namespace. Public images then pull without ghcr-pull. A later reconcile
+// adds the reference once the Secret exists. The CR spec is not rewritten.
+func (r *Reconciler) dropAbsentPullSecret(ctx context.Context, svc *SummitService) error {
+	if r.client == nil || svc.Spec.OmitPullSecret {
+		return nil
+	}
+	name := strings.TrimSpace(svc.Spec.PullSecretName)
+	if name == "" {
+		return nil
+	}
+	_, err := r.client.CoreV1().Secrets(svc.Namespace).Get(ctx, name, metav1.GetOptions{})
+	if apierrors.IsNotFound(err) {
+		svc.Spec.PullSecretName = ""
+		svc.Spec.OmitPullSecret = true
+		return nil
+	}
+	return err
 }
 
 // reconcileNamespace ensures the target namespace exists with safe tenancy labels.

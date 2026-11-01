@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/summit/backend/internal/catalog"
 	"github.com/summit/backend/internal/platformdb"
 )
 
@@ -70,6 +71,20 @@ type DeploymentDetail struct {
 	Events []DeploymentEventView `json:"events"`
 }
 
+// ServiceImage is the user-supplied image ref and the digest from the latest deployment.
+type ServiceImage struct {
+	Image         string  `json:"image"`
+	ResolvedImage *string `json:"resolved_image"`
+}
+
+// ServiceAddon is a managed postgres or redis service. url_env comes from the catalog.
+type ServiceAddon struct {
+	Engine    string `json:"engine"`
+	Version   string `json:"version"`
+	StorageMB int    `json:"storage_mb"`
+	URLEnv    string `json:"url_env"`
+}
+
 // ServiceSummary is a service with its source and latest deployment.
 type ServiceSummary struct {
 	ID               uuid.UUID          `json:"id"`
@@ -80,6 +95,9 @@ type ServiceSummary struct {
 	Type             string             `json:"type"`
 	Source           *ServiceSource     `json:"source"`
 	LatestDeployment *DeploymentSummary `json:"latest_deployment"`
+	Image            *ServiceImage      `json:"image"`
+	Addon            *ServiceAddon      `json:"addon"`
+	Port             *int               `json:"port"`
 	CreatedAt        time.Time          `json:"created_at"`
 	UpdatedAt        time.Time          `json:"updated_at"`
 }
@@ -158,6 +176,14 @@ type CreateServiceRequest struct {
 	Name          string     `json:"name"`
 	Type          string     `json:"type"`
 	EnvironmentID *uuid.UUID `json:"environment_id"`
+	Image         string     `json:"image"`
+	Port          *int       `json:"port"`
+}
+
+// CreateEnvironmentRequest is the body of POST /v1/projects/{project_id}/environments.
+type CreateEnvironmentRequest struct {
+	Name string `json:"name"`
+	Type string `json:"type"`
 }
 
 func toDeploymentSummary(d platformdb.Deployment) DeploymentSummary {
@@ -234,7 +260,7 @@ func toProjectSummary(p platformdb.Project, count int, latest *platformdb.Deploy
 	}
 }
 
-func toServiceSummary(sv platformdb.Service, src *platformdb.ServiceSourceInfo, latest *platformdb.Deployment) ServiceSummary {
+func toServiceSummary(sv platformdb.Service, src *platformdb.ServiceSourceInfo, latest *platformdb.Deployment, image *platformdb.ServiceImageSource, addon *platformdb.ServiceAddon, port *int) ServiceSummary {
 	out := ServiceSummary{
 		ID:               sv.ID,
 		ProjectID:        sv.ProjectID,
@@ -243,6 +269,7 @@ func toServiceSummary(sv platformdb.Service, src *platformdb.ServiceSourceInfo, 
 		Name:             sv.Name,
 		Type:             sv.Type,
 		LatestDeployment: optDeployment(latest),
+		Port:             port,
 		CreatedAt:        sv.CreatedAt.UTC(),
 		UpdatedAt:        sv.UpdatedAt.UTC(),
 	}
@@ -254,6 +281,20 @@ func toServiceSummary(sv platformdb.Service, src *platformdb.ServiceSourceInfo, 
 			SourceStatus:       src.SourceStatus,
 			AutoDeploy:         src.AutoDeploy,
 		}
+	}
+	if image != nil {
+		view := &ServiceImage{Image: image.Image}
+		if latest != nil && latest.ImageRef != nil && *latest.ImageRef != "" {
+			view.ResolvedImage = latest.ImageRef
+		}
+		out.Image = view
+	}
+	if addon != nil {
+		view := &ServiceAddon{Engine: addon.Engine, Version: addon.Version, StorageMB: addon.StorageMB}
+		if cat, ok := catalog.AddonFor(addon.Engine); ok {
+			view.URLEnv = cat.URLEnv
+		}
+		out.Addon = view
 	}
 	return out
 }

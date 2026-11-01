@@ -149,3 +149,91 @@ func (s *Store) ServiceSourcesByService(ctx context.Context, userID uuid.UUID, s
 	}
 	return out, rows.Err()
 }
+
+// ServiceImageSourcesByService returns the image reference of each given image
+// service owned by userID. Services without a service_image_sources row are absent.
+func (s *Store) ServiceImageSourcesByService(ctx context.Context, userID uuid.UUID, serviceIDs []uuid.UUID) (map[uuid.UUID]ServiceImageSource, error) {
+	out := make(map[uuid.UUID]ServiceImageSource, len(serviceIDs))
+	if len(serviceIDs) == 0 {
+		return out, nil
+	}
+	rows, err := s.db.Query(ctx, `
+		SELECT sis.service_id, sis.image, sis.created_at, sis.updated_at
+		FROM service_image_sources sis
+		JOIN services sv ON sv.id = sis.service_id
+		JOIN environments e ON e.id = sv.environment_id
+		JOIN projects p ON p.id = e.project_id
+		WHERE sis.service_id = ANY($1::uuid[]) AND p.user_id = $2
+		  AND sv.deleted_at IS NULL AND e.deleted_at IS NULL AND p.deleted_at IS NULL`, serviceIDs, userID)
+	if err != nil {
+		return nil, fmt.Errorf("platformdb: service image sources: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		row, err := scanImageSource(rows)
+		if err != nil {
+			return nil, fmt.Errorf("platformdb: scan service image source: %w", err)
+		}
+		out[row.ServiceID] = *row
+	}
+	return out, rows.Err()
+}
+
+// ServiceAddonsByService returns the addon spec of each given postgres or redis
+// service owned by userID. Services without a service_addons row are absent.
+func (s *Store) ServiceAddonsByService(ctx context.Context, userID uuid.UUID, serviceIDs []uuid.UUID) (map[uuid.UUID]ServiceAddon, error) {
+	out := make(map[uuid.UUID]ServiceAddon, len(serviceIDs))
+	if len(serviceIDs) == 0 {
+		return out, nil
+	}
+	rows, err := s.db.Query(ctx, `
+		SELECT a.service_id, a.engine, a.version, a.storage_mb, a.created_at, a.updated_at
+		FROM service_addons a
+		JOIN services sv ON sv.id = a.service_id
+		JOIN environments e ON e.id = sv.environment_id
+		JOIN projects p ON p.id = e.project_id
+		WHERE a.service_id = ANY($1::uuid[]) AND p.user_id = $2
+		  AND sv.deleted_at IS NULL AND e.deleted_at IS NULL AND p.deleted_at IS NULL`, serviceIDs, userID)
+	if err != nil {
+		return nil, fmt.Errorf("platformdb: service addons: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		row, err := scanAddon(rows)
+		if err != nil {
+			return nil, fmt.Errorf("platformdb: scan service addon: %w", err)
+		}
+		out[row.ServiceID] = *row
+	}
+	return out, rows.Err()
+}
+
+// ServicePortsByService returns service_resources.port for each given live
+// service owned by userID. Services without a resources row are absent.
+func (s *Store) ServicePortsByService(ctx context.Context, userID uuid.UUID, serviceIDs []uuid.UUID) (map[uuid.UUID]int, error) {
+	out := make(map[uuid.UUID]int, len(serviceIDs))
+	if len(serviceIDs) == 0 {
+		return out, nil
+	}
+	rows, err := s.db.Query(ctx, `
+		SELECT sr.service_id, sr.port
+		FROM service_resources sr
+		JOIN services sv ON sv.id = sr.service_id
+		JOIN environments e ON e.id = sv.environment_id
+		JOIN projects p ON p.id = e.project_id
+		WHERE sr.service_id = ANY($1::uuid[]) AND p.user_id = $2
+		  AND sv.deleted_at IS NULL AND e.deleted_at IS NULL AND p.deleted_at IS NULL`, serviceIDs, userID)
+	if err != nil {
+		return nil, fmt.Errorf("platformdb: service ports: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id uuid.UUID
+		var port int
+		if err := rows.Scan(&id, &port); err != nil {
+			return nil, fmt.Errorf("platformdb: scan service port: %w", err)
+		}
+		out[id] = port
+	}
+	return out, rows.Err()
+}

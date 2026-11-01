@@ -75,3 +75,6 @@ __pycache__/
 *.tsbuildinfo
 next-env.d.ts
 .vercel/
+
+# Local agent/tool caches (sandboxed Go/pnpm caches)
+/.cache/

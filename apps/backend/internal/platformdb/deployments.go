@@ -12,7 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-const deploymentCols = `d.id, d.project_id, d.environment_id, d.service_id, d.service_source_id, d.git_commit_sha, d.git_branch,
+const deploymentCols = `d.id, d.project_id, d.environment_id, d.service_id, d.service_source_id, COALESCE(d.git_commit_sha, ''), COALESCE(d.git_branch, ''),
 	d.ref, d.status, d.trigger_type, d.trigger_event_id, d.triggered_by_user_id, d.idempotency_key, d.error_message,
 	d.status_reason, d.image_ref, d.public_url, d.cancel_requested_at, d.started_at, d.finished_at, d.created_at, d.updated_at`
 

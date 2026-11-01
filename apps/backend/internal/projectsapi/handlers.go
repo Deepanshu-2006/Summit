@@ -48,6 +48,8 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.Handle("PATCH /v1/projects/{project_id}", requireAuth(h.updateProject))
 	mux.Handle("DELETE /v1/projects/{project_id}", requireAuth(h.deleteProject))
 	mux.Handle("POST /v1/projects/{project_id}/services", requireAuth(h.createService))
+	mux.Handle("POST /v1/projects/{project_id}/environments", requireAuth(h.createEnvironment))
+	mux.Handle("DELETE /v1/services/{service_id}", requireAuth(h.deleteService))
 	mux.Handle("GET /v1/projects/{project_id}/deployments", requireAuth(h.listDeployments))
 	mux.Handle("GET /v1/deployments/{deployment_id}", requireAuth(h.getDeployment))
 	mux.Handle("POST /v1/deployments/{deployment_id}/cancel", requireAuth(h.cancelDeployment))
@@ -161,6 +163,43 @@ func (h *Handler) createService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.WriteJSON(w, http.StatusCreated, res)
+}
+
+func (h *Handler) createEnvironment(w http.ResponseWriter, r *http.Request) {
+	userID, ok := principalID(w, r)
+	if !ok {
+		return
+	}
+	id, ok := pathUUID(w, r, "project_id")
+	if !ok {
+		return
+	}
+	var req CreateEnvironmentRequest
+	if !decodeBody(w, r, &req) {
+		return
+	}
+	res, err := h.svc.CreateEnvironment(r.Context(), userID, id, req)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusCreated, res)
+}
+
+func (h *Handler) deleteService(w http.ResponseWriter, r *http.Request) {
+	userID, ok := principalID(w, r)
+	if !ok {
+		return
+	}
+	id, ok := pathUUID(w, r, "service_id")
+	if !ok {
+		return
+	}
+	if err := h.svc.DeleteService(r.Context(), userID, id); err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handler) listDeployments(w http.ResponseWriter, r *http.Request) {

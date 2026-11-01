@@ -2,25 +2,41 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { ChevronDown, Check, LogOut, User as UserIcon } from "lucide-react";
+import { ChevronDown, Check, LogOut, Plus, User as UserIcon } from "lucide-react";
 import { SummitLogo } from "@/components/layout/navbar";
 import { useAuth } from "@/components/auth/auth-context";
-import type { Environment } from "@/lib/canvas/types";
+import { describeApiError, toDnsLabel, type ProjectEnvironmentSummary } from "@/lib/platform-api";
 
 interface CanvasTopBarProps {
   projectName: string;
   onRenameProject: (newName: string) => void;
-  environment: Environment;
-  onChangeEnvironment: (env: Environment) => void;
+  environments: ProjectEnvironmentSummary[];
+  selectedEnvironmentId: string | null;
+  onChangeEnvironment: (environmentId: string) => void;
+  onCreateEnvironment: (input: { name: string; type: "staging" | "preview" }) => Promise<void>;
   isSaving: boolean;
   onDeploy: () => void;
+}
+
+function envDot(type: string): string {
+  if (type === "production") return "bg-emerald-500/80";
+  if (type === "staging") return "bg-amber-500/80";
+  if (type === "preview") return "bg-sky-500/80";
+  return "bg-[#77756F]";
+}
+
+function envLabel(environment: ProjectEnvironmentSummary): string {
+  if (!environment.name) return "Environment";
+  return environment.name.charAt(0).toUpperCase() + environment.name.slice(1);
 }
 
 export function CanvasTopBar({
   projectName,
   onRenameProject,
-  environment,
+  environments,
+  selectedEnvironmentId,
   onChangeEnvironment,
+  onCreateEnvironment,
   isSaving,
   onDeploy,
 }: CanvasTopBarProps) {
@@ -29,6 +45,11 @@ export function CanvasTopBar({
   const [tempName, setTempName] = useState(projectName);
   const [isEnvMenuOpen, setIsEnvMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isCreatingEnv, setIsCreatingEnv] = useState(false);
+  const [envName, setEnvName] = useState("");
+  const [envType, setEnvType] = useState<"staging" | "preview">("staging");
+  const [envError, setEnvError] = useState<string | null>(null);
+  const [isSubmittingEnv, setIsSubmittingEnv] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const envDropdownRef = useRef<HTMLDivElement>(null);
   const userDropdownRef = useRef<HTMLDivElement>(null);
@@ -77,13 +98,30 @@ export function CanvasTopBar({
     }
   };
 
-  const environments: { value: Environment; label: string; dotColor: string }[] = [
-    { value: "production", label: "Production", dotColor: "bg-emerald-500/80" },
-    { value: "staging", label: "Staging", dotColor: "bg-amber-500/80" },
-    { value: "preview", label: "Preview", dotColor: "bg-sky-500/80" },
-  ];
+  const currentEnv =
+    environments.find((item) => item.id === selectedEnvironmentId) ??
+    environments.find((item) => item.type === "production" || item.name === "production") ??
+    environments[0];
+  const normalizedEnvName = toDnsLabel(envName);
 
-  const currentEnv = environments.find((e) => e.value === environment) || environments[0];
+  const submitEnvironment = async () => {
+    if (!normalizedEnvName || isSubmittingEnv) {
+      setEnvError("Use a name of letters, numbers, and hyphens.");
+      return;
+    }
+    setIsSubmittingEnv(true);
+    setEnvError(null);
+    try {
+      await onCreateEnvironment({ name: normalizedEnvName, type: envType });
+      setEnvName("");
+      setIsCreatingEnv(false);
+      setIsEnvMenuOpen(false);
+    } catch (error) {
+      setEnvError(describeApiError(error, "Could not create the environment."));
+    } finally {
+      setIsSubmittingEnv(false);
+    }
+  };
 
   return (
     <header className="h-[48px] w-full bg-[#0E0E0D]/95 backdrop-blur-md border-b border-[#20201E] flex items-center justify-between px-4 z-30 select-none shrink-0 transition-colors">
@@ -161,8 +199,8 @@ export function CanvasTopBar({
             aria-expanded={isEnvMenuOpen}
             aria-label="Select environment"
           >
-            <span className={`w-1.5 h-1.5 rounded-full ${currentEnv.dotColor}`} />
-            <span>{currentEnv.label}</span>
+            <span className={`w-1.5 h-1.5 rounded-full ${envDot(currentEnv?.type ?? "production")}`} />
+            <span>{currentEnv ? envLabel(currentEnv) : "Production"}</span>
             <ChevronDown
               className={`w-3 h-3 text-[#77756F] transition-transform duration-150 ${
                 isEnvMenuOpen ? "rotate-180 text-[#F1F0ED]" : ""
@@ -171,30 +209,97 @@ export function CanvasTopBar({
           </button>
 
           {isEnvMenuOpen && (
-            <div className="absolute right-0 mt-1.5 w-36 bg-[#141413] border border-[#222220] rounded-[7px] shadow-2xl py-1 z-50 animate-in fade-in duration-100">
+            <div className="absolute right-0 mt-1.5 w-60 bg-[#141413] border border-[#222220] rounded-[7px] shadow-2xl py-1 z-50 animate-in fade-in duration-100">
               {environments.map((env) => (
                 <button
-                  key={env.value}
+                  key={env.id}
                   type="button"
                   onClick={() => {
-                    onChangeEnvironment(env.value);
+                    onChangeEnvironment(env.id);
+                    setIsCreatingEnv(false);
                     setIsEnvMenuOpen(false);
                   }}
                   className={`w-full flex items-center justify-between px-3 py-1.5 text-left text-[12px] font-sans transition-colors cursor-pointer ${
-                    environment === env.value
+                    selectedEnvironmentId === env.id
                       ? "text-[#E58B62] bg-[#181817] font-medium"
                       : "text-[#A09E98] hover:text-[#F1F0ED] hover:bg-[#1A1A19]"
                   }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <span className={`w-1.5 h-1.5 rounded-full ${env.dotColor}`} />
-                    <span>{env.label}</span>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${envDot(env.type)}`} />
+                    <span className="truncate">{envLabel(env)}</span>
                   </div>
-                  {environment === env.value && (
-                    <Check className="w-3 h-3 text-[#E58B62]" />
+                  {selectedEnvironmentId === env.id && (
+                    <Check className="w-3 h-3 text-[#E58B62] shrink-0" />
                   )}
                 </button>
               ))}
+              <div className="my-1 border-t border-[#222220]" />
+              {isCreatingEnv ? (
+                <form
+                  className="px-3 py-2 space-y-2"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void submitEnvironment();
+                  }}
+                >
+                  <label className="block font-mono text-[10px] uppercase tracking-wider text-[#77756F]">
+                    New environment
+                  </label>
+                  <input
+                    type="text"
+                    value={envName}
+                    onChange={(event) => {
+                      setEnvName(event.target.value);
+                      setEnvError(null);
+                    }}
+                    placeholder="staging"
+                    className="w-full h-8 px-2 rounded-[5px] bg-[#181817] border border-[#222220] text-[12px] font-mono text-[#F1F0ED] outline-none focus:border-[#E58B62]/70"
+                    autoFocus
+                  />
+                  {normalizedEnvName && normalizedEnvName !== envName.trim().toLowerCase() && (
+                    <p className="font-mono text-[10px] text-[#77756F]">Creates {normalizedEnvName}</p>
+                  )}
+                  <div className="flex gap-1">
+                    {(["staging", "preview"] as const).map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => setEnvType(type)}
+                        className={`flex-1 h-7 rounded-[5px] text-[11px] font-sans capitalize cursor-pointer ${
+                          envType === type
+                            ? "bg-[#201A17] text-[#E58B62] border border-[#E58B62]/40"
+                            : "bg-[#181817] text-[#A09E98] border border-[#222220]"
+                        }`}
+                      >
+                        {type}
+                      </button>
+                    ))}
+                  </div>
+                  {envError && (
+                    <p role="alert" className="text-[11px] text-[#E8B29C]">{envError}</p>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={isSubmittingEnv || !normalizedEnvName}
+                    className="w-full h-7 rounded-[5px] bg-[#E58B62] hover:bg-[#EA9670] disabled:opacity-40 text-[#0B0B0A] text-[12px] font-semibold cursor-pointer"
+                  >
+                    {isSubmittingEnv ? "Creating…" : "Create"}
+                  </button>
+                </form>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCreatingEnv(true);
+                    setEnvError(null);
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-[12px] font-sans text-[#A09E98] hover:text-[#F1F0ED] hover:bg-[#1A1A19] cursor-pointer"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>New environment</span>
+                </button>
+              )}
             </div>
           )}
         </div>
