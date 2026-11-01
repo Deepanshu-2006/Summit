@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   X,
   Trash2,
@@ -57,60 +57,53 @@ function DockerIcon({ className }: { className?: string }) {
   );
 }
 
-function resolveServiceIcon(data: SummitNodeData) {
-  if (data.serviceType === "repository") return GitHubIcon;
-  if (data.subType === "Docker Image") return DockerIcon;
+function ServiceIcon({
+  data,
+  className,
+}: {
+  data: SummitNodeData;
+  className?: string;
+}) {
+  if (data.serviceType === "repository") return <GitHubIcon className={className} />;
+  if (data.subType === "Docker Image") return <DockerIcon className={className} />;
   if (data.serviceType === "database") {
-    if (data.databaseEngine === "mongodb" || data.subType === "MongoDB") return MongoLogo;
-    if (data.databaseEngine === "redis" || data.subType === "Redis") return RedisLogo;
-    if (data.databaseEngine === "mysql" || data.subType === "MySQL") return MySQLLogo;
-    return PostgresLogo;
+    if (data.databaseEngine === "mongodb" || data.subType === "MongoDB") return <MongoLogo className={className} />;
+    if (data.databaseEngine === "redis" || data.subType === "Redis") return <RedisLogo className={className} />;
+    if (data.databaseEngine === "mysql" || data.subType === "MySQL") return <MySQLLogo className={className} />;
+    return <PostgresLogo className={className} />;
   }
-  if (data.serviceType === "cache") return RedisLogo;
-  if (data.serviceType === "worker") return Cpu;
-  return Layout;
+  if (data.serviceType === "cache") return <RedisLogo className={className} />;
+  if (data.serviceType === "worker") return <Cpu className={className} />;
+  return <Layout className={className} />;
 }
 
-export function ConfigInspector({
+export function ConfigInspector(props: ConfigInspectorProps) {
+  if (!props.node) return null;
+
+  return <ConfigInspectorContent key={props.node.id} {...props} node={props.node} />;
+}
+
+function ConfigInspectorContent({
   node,
   onClose,
   onUpdateNode,
   onDeleteNode,
   onDeleteService,
   onConnectRepository,
-}: ConfigInspectorProps) {
-  const [label, setLabel] = useState("");
-  const [buildCommand, setBuildCommand] = useState("");
-  const [startCommand, setStartCommand] = useState("");
-  const [rootDir, setRootDir] = useState("");
-  const [repoUrl, setRepoUrl] = useState("");
-  const [branch, setBranch] = useState("");
-  const [databaseName, setDatabaseName] = useState("");
-  const [port, setPort] = useState<number | undefined>(undefined);
-  const [envVars, setEnvVars] = useState<EnvironmentVariable[]>([]);
+}: Omit<ConfigInspectorProps, "node"> & { node: SummitNode }) {
+  const [label, setLabel] = useState(node.data.label || "");
+  const [buildCommand, setBuildCommand] = useState(node.data.buildCommand || "");
+  const [startCommand, setStartCommand] = useState(node.data.startCommand || "");
+  const [rootDir, setRootDir] = useState(node.data.rootDir || "");
+  const [repoUrl, setRepoUrl] = useState(node.data.repoUrl || "");
+  const [branch, setBranch] = useState(node.data.branch || "");
+  const [databaseName, setDatabaseName] = useState(node.data.databaseName || "");
+  const [port, setPort] = useState<number | undefined>(node.data.port);
+  const [envVars, setEnvVars] = useState<EnvironmentVariable[]>(node.data.envVars || []);
   const [copied, setCopied] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  // Synchronize when selected node changes
-  useEffect(() => {
-    if (!node) return;
-    const d = node.data;
-    setLabel(d.label || "");
-    setBuildCommand(d.buildCommand || "");
-    setStartCommand(d.startCommand || "");
-    setRootDir(d.rootDir || "");
-    setRepoUrl(d.repoUrl || "");
-    setBranch(d.branch || "");
-    setDatabaseName(d.databaseName || "");
-    setPort(d.port);
-    setEnvVars(d.envVars || []);
-    setConfirmDelete(false);
-  }, [node]);
-
-  if (!node) return null;
-
   const data = node.data;
-  const Icon = resolveServiceIcon(data);
 
   const handleUpdate = (fields: Partial<SummitNodeData>) => {
     onUpdateNode(node.id, fields);
@@ -164,7 +157,7 @@ export function ConfigInspector({
       <div className="px-4 py-3.5 border-b border-[#222220] flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2.5 min-w-0 pr-2">
           <div className="w-7 h-7 rounded-[6px] bg-[#181817] border border-[#262522] flex items-center justify-center shrink-0 shadow-inner">
-            <Icon className="w-4 h-4 shrink-0" />
+            <ServiceIcon data={data} className="w-4 h-4 shrink-0" />
           </div>
           <div className="min-w-0">
             <h3 className="font-sans text-[13.5px] font-semibold text-[#F1F0ED] tracking-[-0.015em] truncate leading-tight">

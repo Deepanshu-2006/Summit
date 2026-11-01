@@ -227,16 +227,23 @@ function CanvasContent({
   // below once the backend project has loaded.
   useEffect(() => {
     const arch = loadProjectArchitecture(projectId);
-    setProjectName(arch.name);
-    setNodes(arch.nodes);
-    setEdges(arch.edges);
+    let fitTimer: number | undefined;
+    const frame = window.requestAnimationFrame(() => {
+      setProjectName(arch.name);
+      setNodes(arch.nodes);
+      setEdges(arch.edges);
 
-    if (arch.nodes && arch.nodes.length > 0) {
-      const timer = setTimeout(() => {
-        fitView({ padding: 0.25, maxZoom: 1 });
-      }, 80);
-      return () => clearTimeout(timer);
-    }
+      if (arch.nodes.length > 0) {
+        fitTimer = window.setTimeout(() => {
+          fitView({ padding: 0.25, maxZoom: 1 });
+        }, 80);
+      }
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      if (fitTimer !== undefined) window.clearTimeout(fitTimer);
+    };
   }, [projectId, setNodes, setEdges, fitView]);
 
   // Backend project: real services are the source of truth for service nodes.

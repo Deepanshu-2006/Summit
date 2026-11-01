@@ -55,7 +55,7 @@ function getReducedMotionServerSnapshot() {
  *     3. Station 03: Production (Summit peak destination beacon)
  */
 export function Hero() {
-  const { isComplete, isHeroActive } = usePreloader();
+  const { isHeroActive } = usePreloader();
   const [animPhase, setAnimPhase] = useState<AnimPhase>("source");
   const [buildStep, setBuildStep] = useState<number>(0); // 0: idle, 1: installing, 2: compiling, 3: ready
   const heroRef = useRef<HTMLElement>(null);

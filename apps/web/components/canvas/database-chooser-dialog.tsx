@@ -1,13 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   X,
   Database,
   Check,
   ChevronDown,
   ArrowLeft,
-  Server,
   Layers,
   Globe,
 } from "lucide-react";
@@ -106,15 +105,6 @@ export function DatabaseChooserDialog({
   // Dropdown states
   const [isRegionDropdownOpen, setIsRegionDropdownOpen] = useState(false);
   const [isMemoryDropdownOpen, setIsMemoryDropdownOpen] = useState(false);
-
-  // Reset step on modal open
-  useEffect(() => {
-    if (isOpen) {
-      setStep(1);
-      setIsRegionDropdownOpen(false);
-      setIsMemoryDropdownOpen(false);
-    }
-  }, [isOpen]);
 
   // Keyboard navigation: Escape key
   useEffect(() => {

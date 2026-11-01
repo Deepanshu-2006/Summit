@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useId } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Menu, X, ArrowRight, LogOut, User as UserIcon } from "lucide-react";
+import { ChevronDown, Menu, X, ArrowRight, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { BRAND, NAV_DROPDOWNS, type NavDropdownItem } from "@/lib/brand";
 import { usePreloader } from "@/components/layout/preloader-context";
@@ -304,7 +304,7 @@ function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
  * Boundary-free integration over the mountain backdrop with zero separation line.
  */
 export function Navbar() {
-  const { isComplete, isHeroActive } = usePreloader();
+  const { isHeroActive } = usePreloader();
   const { user, openAuthModal, signOut } = useAuth();
   const router = useRouter();
 

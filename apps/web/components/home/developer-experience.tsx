@@ -74,15 +74,12 @@ export function DeveloperExperience() {
   const [underlineHint, setUnderlineHint] = useState<boolean>(false);
 
   useEffect(() => {
-    if (isReducedMotion) {
-      setIsInView(true);
-      return;
-    }
+    if (isReducedMotion) return;
 
     const targetEl = containerRef.current || sectionRef.current;
     if (!targetEl || typeof IntersectionObserver === "undefined") {
-      setIsInView(true);
-      return;
+      const frame = window.requestAnimationFrame(() => setIsInView(true));
+      return () => window.cancelAnimationFrame(frame);
     }
 
     let startTimer: NodeJS.Timeout;

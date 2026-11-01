@@ -238,8 +238,6 @@ export function FinalCta() {
 
       const subcopyFactor = getFactor(0.68, 0.82);
       const ctaFactor = getFactor(0.74, 0.88);
-      const detailsFactor = getFactor(0.80, 0.92);
-
       const applyStagger = (el: HTMLElement | null, factor: number, distY = 16) => {
         if (!el) return;
         const y = (distY * (1 - factor)).toFixed(2);

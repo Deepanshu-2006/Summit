@@ -173,31 +173,29 @@ export function PreloaderProvider({ children }: { children: React.ReactNode }) {
   }, [clearAllTimers]);
 
   useEffect(() => {
-    // Check if not on homepage (e.g. dashboard workspace routes)
-    if (typeof window !== "undefined" && window.location.pathname !== "/") {
+    const finishPreloader = () => {
       setProgress(100);
       setProgressFloat(100);
       setIsTransitionDone(true);
       setIsHeroActive(true);
       setPhase("complete");
-      return;
-    }
+    };
 
-    // Check prefers-reduced-motion
-    const isReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (isReduced) {
-      setProgress(100);
-      setProgressFloat(100);
-      setIsTransitionDone(true);
-      setIsHeroActive(true);
-      setPhase("complete");
-      return;
+    // Check if not on homepage (e.g. dashboard workspace routes)
+    // Also skip the sequence for users who prefer reduced motion.
+    if (
+      window.location.pathname !== "/" ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      const frame = window.requestAnimationFrame(finishPreloader);
+      return () => window.cancelAnimationFrame(frame);
     }
 
     // Always trigger preloader on reload / fresh load
-    runSequence();
+    const frame = window.requestAnimationFrame(runSequence);
 
     return () => {
+      window.cancelAnimationFrame(frame);
       clearAllTimers();
     };
   }, [runSequence, clearAllTimers]);
