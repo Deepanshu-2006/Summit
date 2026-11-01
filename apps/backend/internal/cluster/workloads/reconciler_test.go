@@ -2,11 +2,12 @@ package workloads
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
@@ -150,7 +151,7 @@ func TestReconciler_UpdateDeploymentAndPreserveClusterIP(t *testing.T) {
 			UID:       types.UID("crd-cat-003"),
 		},
 		Spec: SummitServiceSpec{
-			Image:     "ghcr.io/org/catalog@sha256:7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069",
+			Image:     "ghcr.io/org/cat@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 			Replicas:  &replicas1,
 			Port:      8080,
 			TenantID:  "store",
@@ -164,7 +165,7 @@ func TestReconciler_UpdateDeploymentAndPreserveClusterIP(t *testing.T) {
 		t.Fatalf("initial reconcile failed: %v", err)
 	}
 
-	// Simulate Kubernetes assigning a ClusterIP to the created service
+	// Manually set an allocated ClusterIP on the Service to simulate k8s apiserver behavior
 	existingSvc, err := client.CoreV1().Services("tenant-store").Get(ctx, "catalog-service", metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("failed fetching created service: %v", err)
@@ -172,33 +173,34 @@ func TestReconciler_UpdateDeploymentAndPreserveClusterIP(t *testing.T) {
 	existingSvc.Spec.ClusterIP = "10.96.12.34"
 	_, err = client.CoreV1().Services("tenant-store").Update(ctx, existingSvc, metav1.UpdateOptions{})
 	if err != nil {
-		t.Fatalf("failed updating mock cluster ip: %v", err)
+		t.Fatalf("failed updating clusterIP: %v", err)
 	}
 
-	// Update desired state: bump replicas, change digest, change port
-	replicas2 := int32(4)
+	// Update service spec: new image, new port, replicas 3
+	replicas2 := int32(3)
+	svc.Spec.Image = "ghcr.io/org/cat@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 	svc.Spec.Replicas = &replicas2
-	svc.Spec.Image = "ghcr.io/org/catalog@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	svc.Spec.Port = 9090
 
-	resUpdate, err := reconciler.Reconcile(ctx, svc)
+	res, err := reconciler.Reconcile(ctx, svc)
 	if err != nil {
-		t.Fatalf("update reconcile failed: %v", err)
+		t.Fatalf("second reconcile failed: %v", err)
 	}
-	if !resUpdate.DeploymentUpdated {
+
+	if !res.DeploymentUpdated {
 		t.Errorf("expected DeploymentUpdated=true")
 	}
-	if !resUpdate.ServiceUpdated {
+	if !res.ServiceUpdated {
 		t.Errorf("expected ServiceUpdated=true")
 	}
 
-	// Check updated deployment in fake client
+	// Check updated deployment
 	dep, err := client.AppsV1().Deployments("tenant-store").Get(ctx, "catalog-service", metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("failed fetching updated deployment: %v", err)
 	}
-	if *dep.Spec.Replicas != 4 {
-		t.Errorf("expected 4 replicas, got %d", *dep.Spec.Replicas)
+	if *dep.Spec.Replicas != 3 {
+		t.Errorf("expected 3 replicas, got %d", *dep.Spec.Replicas)
 	}
 	if dep.Spec.Template.Spec.Containers[0].Image != svc.Spec.Image {
 		t.Errorf("expected updated image %s, got %s", svc.Spec.Image, dep.Spec.Template.Spec.Containers[0].Image)
@@ -239,7 +241,7 @@ func TestReconciler_AutoNamespaceDisabled(t *testing.T) {
 
 	// Namespace should NOT have been created
 	_, err = client.CoreV1().Namespaces().Get(ctx, "missing-ns", metav1.GetOptions{})
-	if !apierrors.IsNotFound(err) {
+	if !apierr.IsNotFound(err) {
 		t.Errorf("expected namespace not found when autoNamespace=false, got err: %v", err)
 	}
 }
@@ -288,6 +290,306 @@ func TestReconciler_ValidationError(t *testing.T) {
 	}
 	if svc.Status.Phase != PhaseFailed {
 		t.Errorf("expected phase Failed, got %s", svc.Status.Phase)
+	}
+}
+
+func TestReconciler_Postgres_CreateAll_Success(t *testing.T) {
+	client := fake.NewSimpleClientset()
+	reconciler := NewReconciler(client)
+
+	ctx := context.Background()
+
+	// Create Secret in target namespace
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "db-secret",
+			Namespace: "tenant-tenant123",
+		},
+		Data: map[string][]byte{
+			"password": []byte("secure-pg-pass-123!"),
+		},
+	}
+	if _, err := client.CoreV1().Secrets("tenant-tenant123").Create(ctx, secret, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("failed creating test secret: %v", err)
+	}
+
+	svc := validTestPostgresSummitService()
+
+	result, err := reconciler.Reconcile(ctx, svc)
+	if err != nil {
+		t.Fatalf("unexpected reconcile error: %v", err)
+	}
+
+	if !result.NamespaceCreated {
+		t.Errorf("expected NamespaceCreated=true")
+	}
+	if !result.HeadlessCreated {
+		t.Errorf("expected HeadlessCreated=true")
+	}
+	if !result.StatefulSetCreated {
+		t.Errorf("expected StatefulSetCreated=true")
+	}
+	if !result.ServiceCreated {
+		t.Errorf("expected ServiceCreated=true")
+	}
+	if result.DeploymentCreated {
+		t.Errorf("expected DeploymentCreated=false for postgres workload")
+	}
+
+	// Verify Headless Service in fake client
+	hlSvc, err := client.CoreV1().Services("tenant-tenant123").Get(ctx, "test-db-headless", metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("expected headless service test-db-headless to exist: %v", err)
+	}
+	if hlSvc.Spec.ClusterIP != corev1.ClusterIPNone {
+		t.Errorf("expected ClusterIP None, got %s", hlSvc.Spec.ClusterIP)
+	}
+	if !hlSvc.Spec.PublishNotReadyAddresses {
+		t.Errorf("expected PublishNotReadyAddresses=true on headless service")
+	}
+
+	// Verify Client Service in fake client
+	clientSvc, err := client.CoreV1().Services("tenant-tenant123").Get(ctx, "test-db", metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("expected client service test-db to exist: %v", err)
+	}
+	if clientSvc.Spec.Type != corev1.ServiceTypeClusterIP {
+		t.Errorf("expected ClusterIP on client service, got %s", clientSvc.Spec.Type)
+	}
+	if clientSvc.Spec.Ports[0].Port != 5432 {
+		t.Errorf("expected port 5432, got %d", clientSvc.Spec.Ports[0].Port)
+	}
+
+	// Verify StatefulSet in fake client
+	sts, err := client.AppsV1().StatefulSets("tenant-tenant123").Get(ctx, "test-db", metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("expected statefulset test-db to exist: %v", err)
+	}
+	if *sts.Spec.Replicas != 1 {
+		t.Errorf("expected 1 replica, got %d", *sts.Spec.Replicas)
+	}
+	if sts.Spec.ServiceName != "test-db-headless" {
+		t.Errorf("expected governing service test-db-headless, got %s", sts.Spec.ServiceName)
+	}
+	if len(sts.Spec.VolumeClaimTemplates) != 1 {
+		t.Fatalf("expected 1 VolumeClaimTemplate, got %d", len(sts.Spec.VolumeClaimTemplates))
+	}
+
+	// Verify Status
+	if svc.Status.StatefulSetName != "test-db" {
+		t.Errorf("expected StatefulSetName test-db, got %s", svc.Status.StatefulSetName)
+	}
+	if svc.Status.ServiceName != "test-db" {
+		t.Errorf("expected ServiceName test-db, got %s", svc.Status.ServiceName)
+	}
+	if svc.Status.Phase != PhaseProgressing {
+		t.Errorf("expected Phase Progressing while pods are scheduling, got %s", svc.Status.Phase)
+	}
+}
+
+func TestReconciler_Postgres_Idempotent(t *testing.T) {
+	client := fake.NewSimpleClientset()
+	reconciler := NewReconciler(client)
+
+	ctx := context.Background()
+
+	// Create Secret
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "db-secret",
+			Namespace: "tenant-tenant123",
+		},
+		Data: map[string][]byte{"password": []byte("p@ssword")},
+	}
+	if _, err := client.CoreV1().Secrets("tenant-tenant123").Create(ctx, secret, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("failed creating secret: %v", err)
+	}
+
+	svc := validTestPostgresSummitService()
+
+	// 1st run
+	res1, err := reconciler.Reconcile(ctx, svc)
+	if err != nil {
+		t.Fatalf("1st reconcile failed: %v", err)
+	}
+	if !res1.StatefulSetCreated || !res1.HeadlessCreated || !res1.ServiceCreated || !res1.NetworkPolicyCreated {
+		t.Fatalf("expected create flags on 1st run, got %+v", res1)
+	}
+	if _, err := client.NetworkingV1().NetworkPolicies("tenant-tenant123").Get(ctx, "test-db", metav1.GetOptions{}); err != nil {
+		t.Fatalf("expected postgres NetworkPolicy to exist: %v", err)
+	}
+
+	// 2nd run
+	res2, err := reconciler.Reconcile(ctx, svc)
+	if err != nil {
+		t.Fatalf("2nd reconcile failed: %v", err)
+	}
+	if res2.NamespaceCreated || res2.StatefulSetCreated || res2.StatefulSetUpdated ||
+		res2.HeadlessCreated || res2.HeadlessUpdated || res2.ServiceCreated || res2.ServiceUpdated || res2.NetworkPolicyCreated || res2.NetworkPolicyUpdated {
+		t.Errorf("expected strictly idempotent no-op on 2nd run, got %+v", res2)
+	}
+}
+
+func TestReconciler_Postgres_DoesNotNeedSecretReadPermission(t *testing.T) {
+	client := fake.NewSimpleClientset()
+	reconciler := NewReconciler(client)
+
+	ctx := context.Background()
+	svc := validTestPostgresSummitService()
+	result, err := reconciler.Reconcile(ctx, svc)
+	if err != nil {
+		t.Fatalf("reconcile should only reference tenant Secret and not require secret read permission: %v", err)
+	}
+	if !result.StatefulSetCreated {
+		t.Fatal("expected StatefulSet to be created without controller reading tenant Secret contents")
+	}
+}
+
+func TestReconciler_Postgres_ImmutableFieldErrors_NeverRecreatesState(t *testing.T) {
+	client := fake.NewSimpleClientset()
+	reconciler := NewReconciler(client)
+
+	ctx := context.Background()
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "db-secret",
+			Namespace: "tenant-tenant123",
+		},
+		Data: map[string][]byte{"password": []byte("initial-pw")},
+	}
+	if _, err := client.CoreV1().Secrets("tenant-tenant123").Create(ctx, secret, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("failed creating secret: %v", err)
+	}
+
+	svc := validTestPostgresSummitService()
+	if _, err := reconciler.Reconcile(ctx, svc); err != nil {
+		t.Fatalf("initial reconcile failed: %v", err)
+	}
+
+	// 1. Attempting to change StorageClassName must be rejected with ErrImmutableStorageClass
+	svcModSC := validTestPostgresSummitService()
+	svcModSC.Spec.Postgres.Storage.StorageClassName = "fast-csi-nvme"
+
+	_, err := reconciler.Reconcile(ctx, svcModSC)
+	if !errors.Is(err, ErrImmutableStorageClass) {
+		t.Errorf("expected ErrImmutableStorageClass, got %v", err)
+	}
+	if svcModSC.Status.Phase != PhaseFailed {
+		t.Errorf("expected PhaseFailed on immutable storageClass change, got %s", svcModSC.Status.Phase)
+	}
+
+	// Verify StatefulSet still exists and was NOT deleted or modified
+	sts, err := client.AppsV1().StatefulSets("tenant-tenant123").Get(ctx, "test-db", metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("StatefulSet must NOT be deleted on immutable rejection: %v", err)
+	}
+	if *sts.Spec.VolumeClaimTemplates[0].Spec.StorageClassName != "standard" {
+		t.Errorf("StorageClassName must be unchanged on StatefulSet")
+	}
+
+	// 2. Attempting to change VolumeClaimTemplate size on existing StatefulSet must be rejected
+	svcModSize := validTestPostgresSummitService()
+	svcModSize.Spec.Postgres.Storage.Size = "50Gi"
+
+	_, err = reconciler.Reconcile(ctx, svcModSize)
+	if !errors.Is(err, ErrImmutableVolumeClaim) {
+		t.Errorf("expected ErrImmutableVolumeClaim for storage size modification, got %v", err)
+	}
+	if svcModSize.Status.Phase != PhaseFailed {
+		t.Errorf("expected PhaseFailed on immutable storage size change, got %s", svcModSize.Status.Phase)
+	}
+}
+
+func TestReconciler_Postgres_MutableUpdates(t *testing.T) {
+	client := fake.NewSimpleClientset()
+	reconciler := NewReconciler(client)
+
+	ctx := context.Background()
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "db-secret",
+			Namespace: "tenant-tenant123",
+		},
+		Data: map[string][]byte{"password": []byte("initial-pw")},
+	}
+	if _, err := client.CoreV1().Secrets("tenant-tenant123").Create(ctx, secret, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("failed creating secret: %v", err)
+	}
+
+	svc := validTestPostgresSummitService()
+	if _, err := reconciler.Reconcile(ctx, svc); err != nil {
+		t.Fatalf("initial reconcile failed: %v", err)
+	}
+
+	// Update mutable field: image digest override.
+	updatedImage := "postgres:16.8-alpine@sha256:7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069"
+	svc.Spec.Image = updatedImage
+	svc.Spec.Postgres.Image = updatedImage
+
+	res, err := reconciler.Reconcile(ctx, svc)
+	if err != nil {
+		t.Fatalf("mutable update reconcile failed: %v", err)
+	}
+	if !res.StatefulSetUpdated {
+		t.Errorf("expected StatefulSetUpdated=true on image change")
+	}
+
+	sts, err := client.AppsV1().StatefulSets("tenant-tenant123").Get(ctx, "test-db", metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("failed fetching updated statefulset: %v", err)
+	}
+	if sts.Spec.Template.Spec.Containers[0].Image != updatedImage {
+		t.Errorf("expected updated image %s, got %s", updatedImage, sts.Spec.Template.Spec.Containers[0].Image)
+	}
+}
+
+func TestReconciler_Postgres_PhaseAvailableWhenReady(t *testing.T) {
+	client := fake.NewSimpleClientset()
+	reconciler := NewReconciler(client)
+
+	ctx := context.Background()
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "db-secret",
+			Namespace: "tenant-tenant123",
+		},
+		Data: map[string][]byte{"password": []byte("initial-pw")},
+	}
+	if _, err := client.CoreV1().Secrets("tenant-tenant123").Create(ctx, secret, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("failed creating secret: %v", err)
+	}
+
+	svc := validTestPostgresSummitService()
+	if _, err := reconciler.Reconcile(ctx, svc); err != nil {
+		t.Fatalf("initial reconcile failed: %v", err)
+	}
+
+	// Simulate pod becoming ready in the cluster
+	sts, err := client.AppsV1().StatefulSets("tenant-tenant123").Get(ctx, "test-db", metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("failed fetching statefulset: %v", err)
+	}
+	sts.Status.ReadyReplicas = 1
+	if _, err := client.AppsV1().StatefulSets("tenant-tenant123").UpdateStatus(ctx, sts, metav1.UpdateOptions{}); err != nil {
+		t.Fatalf("failed updating sts status: %v", err)
+	}
+
+	// Reconcile again to observe live replica status
+	res, err := reconciler.Reconcile(ctx, svc)
+	if err != nil {
+		t.Fatalf("second reconcile failed: %v", err)
+	}
+	if res.Phase != PhaseAvailable {
+		t.Errorf("expected Phase Available when readyReplicas=1, got %s", res.Phase)
+	}
+	if svc.Status.Phase != PhaseAvailable {
+		t.Errorf("expected svc.Status.Phase Available, got %s", svc.Status.Phase)
+	}
+	if svc.Status.ReadyReplicas != 1 {
+		t.Errorf("expected svc.Status.ReadyReplicas=1, got %d", svc.Status.ReadyReplicas)
 	}
 }
 

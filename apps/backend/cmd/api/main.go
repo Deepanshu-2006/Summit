@@ -15,6 +15,7 @@ import (
 	"github.com/summit/backend/internal/auth"
 	"github.com/summit/backend/internal/config"
 	"github.com/summit/backend/internal/db"
+	"github.com/summit/backend/internal/githubapi"
 	"github.com/summit/backend/internal/githubapp"
 	"github.com/summit/backend/internal/githubworker"
 	"github.com/summit/backend/internal/secrets"
@@ -93,7 +94,7 @@ func main() {
 	}
 
 	// Initialize GitHub App client if configured
-	var ghClient *githubapp.Client
+	var ghClient githubapi.GitHubClient
 	if cfg.GitHubAppID == 0 || cfg.GitHubAppSlug == "" {
 		logger.Warn("GitHub App integration not configured; GitHub features will be disabled")
 	} else {

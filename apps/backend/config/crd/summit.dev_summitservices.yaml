@@ -26,7 +26,7 @@ spec:
       schema:
         openAPIV3Schema:
           type: object
-          description: SummitService represents a backend service workload desired state in the Summit PaaS.
+          description: SummitService represents a backend service or database workload desired state in the Summit PaaS.
           required:
             - spec
           properties:
@@ -38,10 +38,83 @@ spec:
               type: object
             spec:
               type: object
-              description: SummitServiceSpec defines the desired execution specification for a backend workload.
-              required:
-                - image
+              description: SummitServiceSpec defines the desired execution specification for a backend or database workload.
+              x-kubernetes-validations:
+                - rule: "!has(self.type) || self.type != 'postgres' || (has(self.postgres) && (!has(self.replicas) || self.replicas == 1) && (!has(self.port) || self.port == 5432) && (!has(self.env) || size(self.env) == 0))"
+                  message: "postgres workloads require postgres settings, exactly one replica, port 5432, and no custom env variables"
+                - rule: "!has(self.type) || self.type != 'backend' || !has(self.postgres)"
+                  message: "postgres settings are only valid when type is postgres"
               properties:
+                type:
+                  type: string
+                  description: Architectural workload type ('backend' for stateless service, 'postgres' for database).
+                  enum:
+                    - backend
+                    - postgres
+                  default: backend
+                postgres:
+                  type: object
+                  description: Dedicated PostgreSQL database specification.
+                  required:
+                    - storage
+                    - auth
+                  properties:
+                    version:
+                      type: string
+                      description: Deliberate major PostgreSQL version (must be '16' for MVP).
+                      enum:
+                        - "16"
+                      default: "16"
+                    image:
+                      type: string
+                      description: Immutable OCI image reference pinned by SHA-256 digest.
+                      pattern: '^.+@sha256:[a-fA-F0-9]{64}$'
+                    databaseName:
+                      type: string
+                      pattern: '^[a-z_][a-z0-9_]{0,62}$'
+                      description: Default PostgreSQL database name (defaults to 'summit').
+                      default: summit
+                    username:
+                      type: string
+                      pattern: '^[a-z_][a-z0-9_]{0,62}$'
+                      description: Default PostgreSQL administrative username (defaults to 'postgres').
+                      default: postgres
+                    storage:
+                      type: object
+                      description: Explicit storage configuration. Cluster default StorageClass is strictly prohibited.
+                      required:
+                        - storageClassName
+                        - size
+                      properties:
+                        storageClassName:
+                          type: string
+                          minLength: 1
+                          description: Explicit CSI StorageClass name (e.g. gp3, fast-csi).
+                        size:
+                          type: string
+                          minLength: 1
+                          pattern: '^[0-9]+(\.[0-9]+)?(E|P|T|G|M|k|Ei|Pi|Ti|Gi|Mi|Ki)$'
+                          description: Volume capacity request (e.g. 10Gi, 50Gi).
+                    auth:
+                      type: object
+                      description: Authentication secret reference. Plaintext credentials are strictly forbidden.
+                      required:
+                        - secretRef
+                      properties:
+                        secretRef:
+                          type: object
+                          required:
+                            - name
+                            - key
+                          properties:
+                            name:
+                              type: string
+                              minLength: 1
+                              description: Kubernetes Secret name in the same namespace.
+                            key:
+                              type: string
+                              minLength: 1
+                              description: Secret data key containing the database password.
                 image:
                   type: string
                   description: Immutable OCI image reference pinned by SHA-256 digest (e.g. ghcr.io/org/app@sha256:abc...).
@@ -51,14 +124,13 @@ spec:
                   format: int32
                   minimum: 0
                   default: 1
-                  description: Number of desired pod replicas.
+                  description: Number of desired pod replicas (must be 1 for postgres).
                 port:
                   type: integer
                   format: int32
                   minimum: 1
                   maximum: 65535
-                  default: 8080
-                  description: Internal listening container port and ClusterIP target port.
+                  description: Internal listening container port and ClusterIP target port (defaults to 8080 for backend, 5432 for postgres).
                 pullSecretName:
                   type: string
                   description: Configurable GHCR image pull secret name in the target namespace. Defaults to ghcr-pull.
@@ -112,6 +184,8 @@ spec:
                   type: integer
                   format: int32
                 deploymentName:
+                  type: string
+                statefulSetName:
                   type: string
                 serviceName:
                   type: string
