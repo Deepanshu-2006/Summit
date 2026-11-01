@@ -33,6 +33,12 @@ tags:
     description: Deployable services and manual deploys
   - name: Deployments
     description: Deployment history, status, cancellation and build logs
+  - name: Managed Agents
+    description: Agent definitions and immutable revisions
+  - name: Agent Deployments
+    description: Environment-specific agent deployments
+  - name: Agent Sessions
+    description: Independent agent conversation sessions
 
 paths:
   /v1/auth/profile:
@@ -432,6 +438,348 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
 
+  /api/v1/projects/{slug}/agents:
+    parameters:
+      - $ref: "#/components/parameters/ProjectSlug"
+    post:
+      tags:
+        - Managed Agents
+      summary: Create an agent definition
+      description: >-
+        Atomically creates a project-scoped agent definition and its initial immutable revision.
+        Requires an `Idempotency-Key` header. A replay with the same request hash returns the existing
+        resource; a different request hash returns `409 Conflict`.
+      operationId: createAgent
+      security:
+        - SupabaseBearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAgentRequest"
+      responses:
+        "201":
+          description: Agent created with initial revision.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentDetailResponse"
+        "200":
+          description: Existing agent returned for idempotent replay.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentDetailResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+    get:
+      tags:
+        - Managed Agents
+      summary: List project agents
+      description: Lists caller's agent definitions for the project, newest first.
+      operationId: listAgents
+      security:
+        - SupabaseBearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Page of agent definitions.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/agents/{agent_id}:
+    parameters:
+      - $ref: "#/components/parameters/AgentId"
+    get:
+      tags:
+        - Managed Agents
+      summary: Get agent definition
+      description: Returns agent definition, its current revision, and active deployment summary.
+      operationId: getAgent
+      security:
+        - SupabaseBearerAuth: []
+      responses:
+        "200":
+          description: Agent detail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentDetailResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/agents/{agent_id}/revisions:
+    parameters:
+      - $ref: "#/components/parameters/AgentId"
+    get:
+      tags:
+        - Managed Agents
+      summary: List agent revisions
+      description: Returns immutable revisions for an agent, newest first.
+      operationId: listAgentRevisions
+      security:
+        - SupabaseBearerAuth: []
+      responses:
+        "200":
+          description: Revisions list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RevisionListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags:
+        - Managed Agents
+      summary: Create an immutable revision
+      description: >-
+        Creates a new immutable revision for the agent definition. Requires `Idempotency-Key`.
+        Replay with the same hash returns the existing revision; a different hash returns `409 Conflict`.
+      operationId: createAgentRevision
+      security:
+        - SupabaseBearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRevisionRequest"
+      responses:
+        "201":
+          description: Revision created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentRevision"
+        "200":
+          description: Existing revision returned for idempotent replay.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentRevision"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /api/v1/agents/{agent_id}/deployments:
+    parameters:
+      - $ref: "#/components/parameters/AgentId"
+    post:
+      tags:
+        - Agent Deployments
+      summary: Create an agent deployment
+      description: >-
+        Creates an agent deployment pinned to an immutable revision and environment, and transactionally
+        enqueues an `agent.deployment.provision.requested` outbox event.
+      operationId: createAgentDeployment
+      security:
+        - SupabaseBearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDeploymentRequest"
+      responses:
+        "202":
+          description: Deployment provisioning enqueued.
+          headers:
+            Location:
+              description: URL of the newly created deployment.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentDeployment"
+        "200":
+          description: Existing deployment returned for idempotent replay.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentDeployment"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+    get:
+      tags:
+        - Agent Deployments
+      summary: List deployments for an agent
+      operationId: listAgentDeployments
+      security:
+        - SupabaseBearerAuth: []
+      responses:
+        "200":
+          description: Deployments owned by the authenticated user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeploymentListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/agent-deployments/{deployment_id}:
+    parameters:
+      - $ref: "#/components/parameters/AgentDeploymentId"
+    get:
+      tags:
+        - Agent Deployments
+      summary: Get agent deployment
+      description: Returns persisted deployment lifecycle state and runtime metadata.
+      operationId: getAgentDeployment
+      security:
+        - SupabaseBearerAuth: []
+      responses:
+        "200":
+          description: Deployment metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentDeployment"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/agent-deployments/{deployment_id}/sessions:
+    parameters:
+      - $ref: "#/components/parameters/AgentDeploymentId"
+    get:
+      tags:
+        - Agent Sessions
+      summary: List deployment sessions
+      description: Returns sessions owned by the deployment.
+      operationId: listAgentSessions
+      security:
+        - SupabaseBearerAuth: []
+      responses:
+        "200":
+          description: List of sessions.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags:
+        - Agent Sessions
+      summary: Create an agent session
+      description: >-
+        Creates an independent conversation session within the deployment and transactionally enqueues
+        an `agent.session.ensure.requested` outbox record.
+      operationId: createAgentSession
+      security:
+        - SupabaseBearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSessionRequest"
+      responses:
+        "202":
+          description: Session provisioning enqueued.
+          headers:
+            Location:
+              description: URL of the newly created session.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSession"
+        "200":
+          description: Existing session returned for idempotent replay.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSession"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /api/v1/agent-sessions/{session_id}:
+    parameters:
+      - $ref: "#/components/parameters/AgentSessionId"
+    get:
+      tags:
+        - Agent Sessions
+      summary: Get agent session
+      description: Returns session metadata after user ownership verification.
+      operationId: getAgentSession
+      security:
+        - SupabaseBearerAuth: []
+      responses:
+        "200":
+          description: Session metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSession"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
 components:
   securitySchemes:
     SupabaseBearerAuth:
@@ -470,6 +818,42 @@ components:
       description: Opaque `next_cursor` from a previous page.
       schema:
         type: string
+    ProjectSlug:
+      name: slug
+      in: path
+      required: true
+      description: Project slug or UUID
+      schema:
+        type: string
+    AgentId:
+      name: agent_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    AgentDeploymentId:
+      name: deployment_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    AgentSessionId:
+      name: session_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    IdempotencyKeyHeader:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Idempotency key ensuring at-most-once processing
+      schema:
+        type: string
+        maxLength: 128
 
   responses:
     BadRequest:
@@ -1064,3 +1448,376 @@ components:
         build_job_id:
           type: string
           format: uuid
+
+    AgentDeploymentStatus:
+      type: string
+      enum:
+        - provisioning
+        - active
+        - draining
+        - read_only
+        - failed
+        - terminated
+
+    AgentSessionStatus:
+      type: string
+      enum:
+        - provisioning
+        - active
+        - read_only
+        - purge_pending
+        - purged
+        - failed
+
+    CredentialRefSummary:
+      type: object
+      required:
+        - name
+        - secret_reference_id
+      properties:
+        name:
+          type: string
+        secret_reference_id:
+          type: string
+          format: uuid
+        purpose:
+          type: string
+
+    AgentConfig:
+      type: object
+      required:
+        - model
+        - instructions
+      properties:
+        model:
+          type: string
+        instructions:
+          type: string
+        tools:
+          type: array
+          items:
+            type: string
+        limits:
+          type: object
+          additionalProperties: true
+        credential_references:
+          type: array
+          items:
+            $ref: "#/components/schemas/CredentialRefSummary"
+
+    CreateAgentRequest:
+      type: object
+      required:
+        - name
+        - model
+        - instructions
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+        model:
+          type: string
+        instructions:
+          type: string
+        tools:
+          type: array
+          items:
+            type: string
+        limits:
+          type: object
+        credential_references:
+          type: array
+          items:
+            $ref: "#/components/schemas/CredentialRefSummary"
+
+    CreateRevisionRequest:
+      type: object
+      required:
+        - model
+        - instructions
+      properties:
+        model:
+          type: string
+        instructions:
+          type: string
+        tools:
+          type: array
+          items:
+            type: string
+        limits:
+          type: object
+        credential_references:
+          type: array
+          items:
+            $ref: "#/components/schemas/CredentialRefSummary"
+
+    CreateDeploymentRequest:
+      type: object
+      required:
+        - environment_id
+        - agent_revision_id
+      properties:
+        environment_id:
+          type: string
+          format: uuid
+        agent_revision_id:
+          type: string
+          format: uuid
+        runtime_version:
+          type: string
+          default: v1
+
+    CreateSessionRequest:
+      type: object
+      description: Runtime conversation identity is assigned by Summit's agent runtime.
+
+    AgentResponse:
+      type: object
+      required:
+        - id
+        - project_id
+        - name
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: [string, "null"]
+        current_revision_id:
+          type: [string, "null"]
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    AgentSummaryResponse:
+      type: object
+      required:
+        - id
+        - project_id
+        - name
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: [string, "null"]
+        current_revision_id:
+          type: [string, "null"]
+          format: uuid
+        current_revision_number:
+          type: [integer, "null"]
+        active_deployment_id:
+          type: [string, "null"]
+          format: uuid
+        active_deployment_status:
+          $ref: "#/components/schemas/AgentDeploymentStatus"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    AgentListResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentSummaryResponse"
+        next_cursor:
+          type: [string, "null"]
+
+    AgentRevision:
+      type: object
+      required:
+        - id
+        - agent_id
+        - revision_number
+        - config
+        - config_hash
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        agent_id:
+          type: string
+          format: uuid
+        revision_number:
+          type: integer
+        config:
+          $ref: "#/components/schemas/AgentConfig"
+        config_hash:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    RevisionListResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentRevision"
+
+    AgentDeployment:
+      type: object
+      required:
+        - id
+        - agent_id
+        - agent_revision_id
+        - project_id
+        - environment_id
+        - deployment_number
+        - runtime_version
+        - status
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        agent_id:
+          type: string
+          format: uuid
+        agent_revision_id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        environment_id:
+          type: string
+          format: uuid
+        deployment_number:
+          type: integer
+        supersedes_deployment_id:
+          type: [string, "null"]
+          format: uuid
+        runtime_version:
+          type: string
+        status:
+          $ref: "#/components/schemas/AgentDeploymentStatus"
+        status_reason:
+          type: [string, "null"]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    DeploymentListResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentDeployment"
+
+    AgentSession:
+      type: object
+      required:
+        - id
+        - deployment_id
+        - actor_key_version
+        - status
+        - last_activity_at
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        deployment_id:
+          type: string
+          format: uuid
+        pi_conversation_id:
+          type: [string, "null"]
+        actor_key_version:
+          type: string
+        status:
+          $ref: "#/components/schemas/AgentSessionStatus"
+        status_reason:
+          type: [string, "null"]
+        last_activity_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    SessionListResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentSession"
+
+    AgentDetailResponse:
+      type: object
+      required:
+        - id
+        - project_id
+        - name
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: [string, "null"]
+        current_revision_id:
+          type: [string, "null"]
+          format: uuid
+        current_revision:
+          $ref: "#/components/schemas/AgentRevision"
+        active_deployment:
+          $ref: "#/components/schemas/AgentDeployment"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time

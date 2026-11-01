@@ -15,12 +15,12 @@ BEGIN
     SELECT con.conname INTO cname
     FROM pg_constraint con
     JOIN pg_class rel ON rel.oid = con.conrelid
-    WHERE rel.relname = 'services'
+    WHERE rel.oid = 'services'::regclass
       AND con.contype = 'c'
       AND pg_get_constraintdef(con.oid) ILIKE '%''web''%''worker''%''cron''%'
       AND pg_get_constraintdef(con.oid) NOT ILIKE '%image%';
     IF cname IS NOT NULL THEN
-        EXECUTE format('ALTER TABLE services DROP CONSTRAINT %I', cname);
+        EXECUTE format('ALTER TABLE services DROP CONSTRAINT IF EXISTS %I', cname);
     END IF;
 END $$;
 

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/summit/backend/internal/agentsapi"
 	"github.com/summit/backend/internal/auth"
 	"github.com/summit/backend/internal/config"
 	"github.com/summit/backend/internal/githubapi"
@@ -74,6 +75,7 @@ func New(deps Dependencies) *Server {
 		ghHandler.RegisterRoutes(mux)
 
 		projectsapi.NewHandler(projectsapi.NewService(platformStore), deps.Verifier, deps.Pool, deps.Logger).RegisterRoutes(mux)
+		agentsapi.NewHandler(agentsapi.NewService(platformStore), deps.Verifier, deps.Pool, deps.Logger).RegisterRoutes(mux)
 
 		githubworker.RegisterRoutes(mux, githubworker.Dependencies{
 			Config:   deps.Config,

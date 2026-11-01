@@ -338,3 +338,137 @@ export interface ErrorResponse {
   code?: string;
   errors?: string[];
 }
+
+// ---------------------------------------------------------------------------
+// Managed Agents API (Gate 2 slice). Matches openapi.yaml.
+// ---------------------------------------------------------------------------
+
+export type AgentDeploymentStatus =
+  | "provisioning"
+  | "active"
+  | "draining"
+  | "read_only"
+  | "failed"
+  | "terminated";
+
+export type AgentSessionStatus =
+  | "provisioning"
+  | "active"
+  | "read_only"
+  | "purge_pending"
+  | "purged"
+  | "failed";
+
+export interface CredentialRefSummary {
+  name: string;
+  secret_reference_id: string;
+  purpose?: string;
+}
+
+export interface AgentConfig {
+  model: string;
+  instructions: string;
+  tools?: string[];
+  limits?: Record<string, unknown>;
+  credential_references?: CredentialRefSummary[];
+}
+
+export interface CreateAgentRequest {
+  name: string;
+  description?: string;
+  model: string;
+  instructions: string;
+  tools?: string[];
+  limits?: Record<string, unknown>;
+  credential_references?: CredentialRefSummary[];
+}
+
+export interface CreateRevisionRequest {
+  model: string;
+  instructions: string;
+  tools?: string[];
+  limits?: Record<string, unknown>;
+  credential_references?: CredentialRefSummary[];
+}
+
+export interface CreateDeploymentRequest {
+  environment_id: string;
+  agent_revision_id: string;
+  runtime_version?: string;
+}
+
+export interface CreateSessionRequest {}
+
+export interface AgentResponse {
+  id: string;
+  project_id: string;
+  name: string;
+  description?: string | null;
+  current_revision_id?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AgentSummaryResponse extends AgentResponse {
+  current_revision_number?: number | null;
+  active_deployment_id?: string | null;
+  active_deployment_status?: AgentDeploymentStatus | null;
+}
+
+export interface AgentListResponse {
+  data: AgentSummaryResponse[];
+  next_cursor?: string | null;
+}
+
+export interface AgentRevision {
+  id: string;
+  agent_id: string;
+  revision_number: number;
+  config: AgentConfig;
+  config_hash: string;
+  created_at: string;
+}
+
+export interface RevisionListResponse {
+  data: AgentRevision[];
+}
+
+export interface AgentDeployment {
+  id: string;
+  agent_id: string;
+  agent_revision_id: string;
+  project_id: string;
+  environment_id: string;
+  deployment_number: number;
+  supersedes_deployment_id?: string | null;
+  runtime_version: string;
+  status: AgentDeploymentStatus;
+  status_reason?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DeploymentListResponse {
+  data: AgentDeployment[];
+}
+
+export interface AgentSession {
+  id: string;
+  deployment_id: string;
+  pi_conversation_id?: string | null;
+  actor_key_version: string;
+  status: AgentSessionStatus;
+  status_reason?: string | null;
+  last_activity_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SessionListResponse {
+  data: AgentSession[];
+}
+
+export interface AgentDetailResponse extends AgentResponse {
+  current_revision?: AgentRevision | null;
+  active_deployment?: AgentDeployment | null;
+}
