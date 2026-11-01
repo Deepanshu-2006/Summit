@@ -1,8 +1,7 @@
 # Orchestrator identity and least-privilege RBAC (plan section 11).
 #
 # Differences from the section 11.1 sketch, tightened to what the code uses:
-# - No "*" verbs, no delete on tenant objects, no nodes, no statefulsets/jobs/PVCs
-#   (tenant databases are out of MVP scope).
+# - No "*" verbs, no delete on tenant objects, no nodes/jobs/PVCs.
 # - Secrets/ConfigMaps/Pods(+logs) are NOT cluster-wide: they are granted by a Role
 #   in summit-builds only (per-build Secret, spec ConfigMap, builder Pod, pruner).
 #   The orchestrator can therefore not read tenant Secrets.
@@ -38,9 +37,10 @@ rules:
   - apiGroups: ["networking.k8s.io"]
     resources: ["networkpolicies"]
     verbs: ["get", "list", "watch", "create", "update", "patch"]
-  # Workload primitives produced by the SummitService reconciler.
+  # Workload primitives produced by the SummitService reconciler. StatefulSets
+  # are needed for tenant PostgreSQL; PVCs are created by the StatefulSet controller.
   - apiGroups: ["apps"]
-    resources: ["deployments"]
+    resources: ["deployments", "statefulsets"]
     verbs: ["get", "list", "watch", "create", "update", "patch"]
   - apiGroups: [""]
     resources: ["services"]

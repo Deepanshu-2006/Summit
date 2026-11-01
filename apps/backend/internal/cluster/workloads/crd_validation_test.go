@@ -135,6 +135,7 @@ func TestCRD_SchemaValidation(t *testing.T) {
 		t.Fatalf("expected properties in spec schema")
 	}
 
+	// Validate spec.image pattern
 	imageField, ok := specFields["image"].(map[string]interface{})
 	if !ok {
 		t.Fatalf("expected image property in spec schema")
@@ -158,5 +159,44 @@ func TestCRD_SchemaValidation(t *testing.T) {
 	}
 	if patternRegex.MatchString(invalidTag) {
 		t.Errorf("expected CRD image pattern to reject mutable tag %s", invalidTag)
+	}
+
+	// Validate spec.type enum
+	typeField, ok := specFields["type"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected type property in spec schema")
+	}
+	enums, ok := typeField["enum"].([]interface{})
+	if !ok || len(enums) != 2 {
+		t.Fatalf("expected enum [backend, postgres] on type property, got %v", typeField["enum"])
+	}
+
+	// Validate spec.postgres schema
+	postgresField, ok := specFields["postgres"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected postgres property in spec schema")
+	}
+	pgProps, ok := postgresField["properties"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected properties on postgres field")
+	}
+	if _, ok := pgProps["storage"]; !ok {
+		t.Errorf("expected storage property on postgres field")
+	}
+	if _, ok := pgProps["auth"]; !ok {
+		t.Errorf("expected auth property on postgres field")
+	}
+
+	// Validate status.statefulSetName
+	statusProp, ok := props["status"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected status property in openAPIV3Schema")
+	}
+	statusFields, ok := statusProp["properties"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected properties in status schema")
+	}
+	if _, ok := statusFields["statefulSetName"]; !ok {
+		t.Errorf("expected statefulSetName property in status schema")
 	}
 }

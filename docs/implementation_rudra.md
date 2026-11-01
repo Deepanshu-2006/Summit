@@ -1060,9 +1060,11 @@ Untrusted customer code must never execute on unconstrained host kernels. Integr
 
 ---
 
-### 18.7 `SummitService` Controller / CRD Workflow & Immutable Digest Deployment
+### 18.7 `SummitService` Controller / CRD Workflow & Workload Architecture
 
-Application workload management follows a declarative Kubernetes Operator pattern using the `SummitService` Custom Resource Definition (`summit.dev/v1alpha1`):
+Application and database workload management follows a declarative Kubernetes Operator pattern using the `SummitService` Custom Resource Definition (`summit.dev/v1alpha1`):
+
+#### 18.7.1 Stateless Backend Workloads (`type: backend`)
 
 1. **Declarative Custom Resource:**
    The `SummitService` CRD declared in `apps/backend/config/crd/summit.dev_summitservices.yaml` defines the desired state for a tenant application:
@@ -1078,6 +1080,7 @@ Application workload management follows a declarative Kubernetes Operator patter
        summit.dev/service: "svc-xyz"
        summit.dev/release: "rel-001"
    spec:
+     type: backend
      image: ghcr.io/acme/summit-app-svc-xyz@sha256:7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069
      replicas: 2
      port: 8080
@@ -1088,7 +1091,7 @@ Application workload management follows a declarative Kubernetes Operator patter
    ```
 2. **Reconciliation Loop (`workloads.Controller` & `workloads.Reconciler`):**
    - The polling controller lists `SummitService` custom resources across tenant namespaces.
-   - For each custom resource, the reconciler generates and idempotently applies:
+   - For each backend resource, the reconciler generates and idempotently applies:
      - **Kubernetes Deployment:** Configured with `RollingUpdate` strategy, `runAsNonRoot: true`, non-root UID 1000, and HTTP `/health` readiness/liveness probes.
      - **Kubernetes Service:** ClusterIP service exposing port 8080.
 3. **Mandatory Immutable Digest Enforcement:**
@@ -1096,6 +1099,59 @@ Application workload management follows a declarative Kubernetes Operator patter
    - Pinned references are validated using regex `^[a-zA-Z0-9_.\-/:~]+@sha256:[a-fA-F0-9]{64}$`. Tagged images (`:latest`, `:main`, `:v1.0.0`) are rejected at reconciliation time to guarantee that deployed containers cannot be mutated or spoofed in the registry post-build.
 4. **Status Reflection:**
    - The reconciler monitors deployment rollout status, available replicas, and generation matches, persisting current status back into `SummitService.Status`.
+
+#### 18.7.2 Dedicated Tenant PostgreSQL Workloads (`type: postgres`)
+
+1. **Declarative Specification & Secret Reference:**
+   Tenant database workloads are declared via `spec.type: postgres`. Create the referenced Kubernetes Secret out of band; do not put secret values in committed manifests or in the custom resource. The controller mounts the selected key read-only and passes its file path through `POSTGRES_PASSWORD_FILE`:
+   ```yaml
+   apiVersion: summit.dev/v1alpha1
+   kind: SummitService
+   metadata:
+     name: db-orders
+     namespace: tenant-a1b2c3d4
+     labels:
+       summit.dev/tenant: "a1b2c3d4"
+       summit.dev/project: "prod-proj"
+       summit.dev/service: "db-orders"
+   spec:
+     type: postgres
+     postgres:
+       version: "16" # Major version 16 supported for MVP
+       databaseName: "summit"
+       username: "postgres"
+       storage:
+         storageClassName: "ebs-gp3-sc" # Explicit CSI StorageClass; cluster default prohibited
+         size: "10Gi"
+       auth:
+         secretRef:
+           name: "db-credentials"
+           key: "password"
+   ```
+2. **Reconciled Workload Architecture:**
+   - **One-Replica StatefulSet:** Provisioned with 1 replica, `OrderedReady` pod management, and `RollingUpdate`.
+   - **Dedicated Per-Service PVC:** Exactly one PVC template (`postgres-data`) per service mounted at `/var/lib/postgresql/data` (subpath `pgdata`). PVC templates omit OwnerReferences so deleting the custom resource does not cascade delete the PVC.
+   - **Explicit PVC Retention:** The StatefulSet enforces `persistentVolumeClaimRetentionPolicy` with `whenDeleted: Retain` and `whenScaled: Retain`.
+   - **Governing & Client Services:**
+     - Headless Service (`<name>-headless`): `ClusterIP: None`, `publishNotReadyAddresses: true` for stable pod identity and DNS.
+     - Client Service (`<name>`): Stable internal ClusterIP service on port 5432 for tenant applications.
+   - **Pod Hardening:** Non-root execution (`runAsUser: 70`, `runAsGroup: 70`, `fsGroup: 70`), `seccompProfile: RuntimeDefault`, `drop: ["ALL"]` capabilities, and `readOnlyRootFilesystem: true` with writable `emptyDir` scratch mounts for `/tmp` and `/var/run/postgresql`.
+   - **Probes:** Startup, readiness, and liveness probes configured with `pg_isready`.
+   - **Credentials:** The password is projected as a read-only file; all custom PostgreSQL environment variables are rejected to prevent authentication bypass settings such as `POSTGRES_HOST_AUTH_METHOD=trust`.
+   - **Network Policy:** The reconciler creates a standard Kubernetes NetworkPolicy allowing TCP/5432 only from Summit-managed pods in the same namespace and denying database egress. Enforcement depends on a NetworkPolicy-capable CNI and must be verified in each cluster.
+   - **Immutability Safety:** `storageClassName` and volume claim capacity are strictly immutable. Any modification to volume properties on an existing StatefulSet is rejected with a clear error without deleting or recreating the StatefulSet or destroying tenant data.
+
+3. **Production Prerequisites & Operational Readiness:**
+   > [!WARNING]
+   > **Kind local-path is test-only:** Kind's `rancher.io/local-path` is ephemeral and node-local. This code alone cannot make an unconfigured cluster production ready.
+
+   Before running tenant databases in production, clusters require:
+   - **CSI-Backed Durable Storage:** Cloud CSI driver (e.g. AWS EBS CSI `gp3`, GCP PD CSI, Azure Disk CSI) with durable dynamic provisioning. The current reconciler treats claim size as immutable, so volume expansion is not supported yet.
+   - **Encryption at Rest:** StorageClass configured with KMS customer-managed encryption keys.
+   - **Backup & Restore Testing:** Automated continuous WAL archiving (e.g. `pgBackRest`, `WAL-G`) to object storage (S3/GCS) with verified point-in-time recovery (PITR) RTO/RPO validation.
+   - **Telemetry & Monitoring:** `postgres_exporter` scraping, `pg_stat_statements` query metrics, connection saturation and disk space alerts (>80%), and Loki log forwarding.
+   - **Network Policy Enforcement:** Use a CNI that enforces standard Kubernetes NetworkPolicy and test both permitted and denied traffic. The generated rule currently permits Summit-managed pods in the same namespace; project-level identity and tenant policy enforcement need to be verified against the eventual namespace model.
+   - **Supported Upgrades:** Deliberate major version gating (Postgres 16 for MVP) with validated migration paths for future major versions.
 
 ---
 
@@ -1116,14 +1172,14 @@ To ensure rapid, reliable delivery on the local Kind test environment, platform 
 |   [ ] Verify host gVisor RuntimeClass and builder image before scheduling a real build            |
 |   [ ] Complete callback persistence, then deploy the verified application digest                 |
 |   [x] SummitService CRD/reconciler code exists for stateless Deployment + ClusterIP Service        |
+|   [x] Stateful Postgres Service: Dedicated tenant PostgreSQL instances provisioned as           |
+|       Kubernetes StatefulSets with PersistentVolumeClaims (PVCs) for stateful user workloads     |
 |   [ ] Run the controller against an installed CRD and test cluster                               |
 |   [ ] Confirm namespace ownership/provisioning and add quotas if required for MVP                  |
 |                                                                                                  |
 |   ============================================================================================   |
 |   PHASE 2: SUBSEQUENT SCOPES (POST-MVP PLATFORM EXPANSIONS)                                      |
 |   ============================================================================================   |
-|   [ ] Stateful Postgres Service: Dedicated tenant PostgreSQL instances provisioned as           |
-|       Kubernetes StatefulSets with PersistentVolumeClaims (PVCs) for stateful user workloads     |
 |   [ ] Edge Ingress Routing: Automated Traefik IngressRoute generation with wildcard TLS certs   |
 |   [ ] Zero-Trust Network Lockdown: CiliumNetworkPolicy L3/L4 egress lockdown & tenant isolation  |
 |   [ ] Secrets Operator Integration: External Secrets Operator (ESO) bridging OpenBao / AWS SM    |
@@ -1132,9 +1188,8 @@ To ensure rapid, reliable delivery on the local Kind test environment, platform 
 +--------------------------------------------------------------------------------------------------+
 ```
 
-1. **Immediate MVP Scope (Stateless First):** Focuses exclusively on stateless HTTP applications deployed via `SummitService`. The control loop takes a Git push event from `outbox_events`, executes the build in `summit-builds` inside gVisor, pushes an immutable image to GHCR, and deploys it as a Kubernetes Deployment + Service.
-2. **Stateful Postgres Service Later:** Multi-tenant stateful services (e.g. provisioning dedicated PostgreSQL databases for tenant applications via `StatefulSet` and PVCs) are scheduled as the first backend expansion immediately after the stateless pipeline is validated.
-3. **Subsequent Infrastructure Scopes:**
+1. **Immediate MVP Scope (Stateless & Stateful Services):** Stateless HTTP applications deployed via `SummitService` (Deployment + ClusterIP) and dedicated single-instance tenant PostgreSQL workloads deployed via `SummitService` (StatefulSet + PVC + Headless + ClusterIP Service).
+2. **Subsequent Infrastructure Scopes:**
    - **Ingress Layer:** Automating Traefik `IngressRoute` configuration for custom domains (`<slug>.<tenant>.jetway.app`).
    - **Cilium Network Security:** Enforcing strict L3/L4 zero-trust network policies that isolate tenant namespaces from each other, from the control-plane database, and from cloud metadata IPs (`169.254.169.254`).
    - **Secrets Management via ESO:** Automating `ExternalSecret` custom resources to synchronize credentials from OpenBao directly into tenant Kubernetes `Secrets`.
