@@ -93,6 +93,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	var queueHandler queue.Handler
 	if kubeClient != nil {
 		buildCfg := build.DefaultConfig()
+		buildCfg.SourceBrokerURL = strings.TrimRight(cfg.APIInternalURL, "/") + "/internal/v1/build-requests"
 		if cfg.BuildNamespace != "" {
 			buildCfg.Namespace = cfg.BuildNamespace
 		}

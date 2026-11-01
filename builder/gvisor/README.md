@@ -48,9 +48,12 @@ accepted but mutable).
 ./verify-gvisor.sh --context kind-summit-local
 ```
 
-Kind nodes lack `bzip2`/`zstd`, so the script downloads and verifies on the host and `docker cp`s the binaries into each node.
-It sets `ignore-cgroups = "true"` in `runsc.toml` because runsc runs nested inside the node container; override with
-`RUNSC_CONFIG_LINES=...`. Node changes live in the node container's filesystem: recreating the cluster loses them, so
+Kind nodes lack `bzip2`/`zstd`, so the script downloads and verifies on the host and streams the binaries into each node container.
+It sets `ignore-cgroups = "true"` in `runsc.toml` because runsc runs nested inside the node container. The Kind setup
+script selects `systrap` on non-WSL2 hosts and `ptrace` on WSL2; override with `RUNSC_PLATFORM=systrap` or
+`RUNSC_PLATFORM=ptrace`. You can also set a `platform` line in `RUNSC_CONFIG_LINES`, but do not set both overrides.
+`ptrace` is slower and upstream gVisor no longer supports it, so this automatic WSL2 choice is a local compatibility
+workaround, not a production recommendation. Node changes live in the node container's filesystem: recreating the cluster loses them, so
 re-run the script after `kind create cluster`.
 
 ## BuildKit inside gVisor
@@ -61,15 +64,23 @@ re-run the script after `kind create cluster`.
   shared `/proc`, so mounted credentials become readable). Treat it as a last resort and decide it explicitly.
 - `deployments/buildkitd.toml` uses `snapshotter = "auto"`; force `native` or `overlayfs` with
   `BUILDKITD_FLAGS=--oci-worker-snapshotter=...` after measuring.
-- The image's `newuidmap`/`newgidmap` have file capabilities (`cap_setuid`/`cap_setgid`). With `drop: [ALL]` plus
-  `allowPrivilegeEscalation: false` (what the orchestrator's `pod.go` sets today) rootlesskit fails with
-  `newuidmap ... operation not permitted`. The pod needs `allowPrivilegeEscalation: true` and `add: [SETUID, SETGID]`
-  (reproduced and verified in plain Docker; see `docs/kubernetes-job-spec.md`). A single-UID mapping is not an alternative:
-  it cannot unpack images with files owned by other UIDs.
+- The image's `newuidmap`/`newgidmap` have file capabilities (`cap_setuid`/`cap_setgid`). Rootlesskit needs
+  `allowPrivilegeEscalation: true` and `add: [SETUID, SETGID]` after dropping all other capabilities. PSA `restricted`
+  and `baseline` reject that Pod, so `summit-builds` uses privileged PSA admission with restricted audit/warn; this does
+  not set the container's `privileged` flag. The Pod itself remains non-root and runs under gVisor. A single-UID mapping
+  is not an alternative: it cannot unpack images with files owned by other UIDs.
 
 ## Status of verification
 
-Verified by the author: the scripts' syntax (`bash -n`), the containerd config edit logic on a copy of the Kind node's
-config (v2 layout), a synthetic v3 layout, idempotency, and the "table already present" skip; the release download and
-sha512 verification. **Not verified**: actually installing into a node, a pod starting under `runsc`, and BuildKit
-running inside gVisor. Run `verify-gvisor.sh` and a real build under `gvisor` before relying on it.
+Verified on the local WSL2 Kind cluster: `runsc` with `platform = "ptrace"` starts a gVisor Pod; the rootless builder
+starts BuildKit with its normal process sandbox, checks out a pinned local Git commit, builds a Dockerfile image, pushes
+to GHCR, and verifies the returned SHA-256 manifest digest. The digest-pinned image was then pulled by a workload Pod,
+reconciled through `SummitService`, and reached over its ClusterIP Service.
+
+On this WSL2/Kind host, runsc's default `systrap` platform failed while installing seccomp-notify rules; `ptrace` worked
+as a local compatibility setting. The setup script now selects this based on the host kernel release. This setting is
+slower and is not a general production recommendation. The build
+namespace uses privileged Pod Security Admission enforcement because rootlesskit needs `allowPrivilegeEscalation` and
+SETUID/SETGID; audit/warn remain restricted, and the actual builder Pod remains non-root, gVisor-sandboxed, and drops all
+other capabilities. The production outbox-to-builder path using a real GitHub installation token and successful HTTP
+callbacks still needs an end-to-end test with a configured GitHub App and matching database records.

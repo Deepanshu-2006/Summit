@@ -8,7 +8,7 @@ naming follow `docs/mvp_runtime_contracts.md`.
 
 | Path | Purpose |
 |---|---|
-| `namespaces.yaml` | `summit-system`, `summit-builds` with Pod Security Admission `restricted` |
+| `namespaces.yaml` | `summit-system` restricted; `summit-builds` privileged admission with restricted audit/warn |
 | `crd/summit.dev_summitservices.yaml` | `SummitService` CRD |
 | `rbac/orchestrator.yaml` | orchestrator ServiceAccount, ClusterRole, build/lease Roles (no escalate/bind/impersonate) |
 | `builds/serviceaccount.yaml` | `summit-builder` ServiceAccount used by build Pods |
@@ -76,8 +76,12 @@ The `builds/*network-policy.yaml` files are rendered from the Go generators in
 
 ## Known limits
 
-- PSA `restricted` on `summit-builds` admits the current `build/pod.go` Pod (see comments in `namespaces.yaml`);
-  a builder that needs `Unconfined` seccomp/AppArmor would need a looser namespace level.
+- Rootless BuildKit requires `allowPrivilegeEscalation: true` and `SETUID`/`SETGID` capabilities for its
+  `newuidmap`/`newgidmap` helpers. Pod Security Admission `restricted` (and `baseline`) rejects those fields,
+  so `summit-builds` uses `enforce: privileged` while retaining `audit` and `warn: restricted`. This is an
+  admission-policy exception, not a privileged container: builder Pods still run as UID 1000 under gVisor,
+  drop every other capability, use `RuntimeDefault` seccomp, and receive no service-account token. Keep
+  `summit-builds` pod-create RBAC limited to the orchestrator service account and review audit/warn output.
 - The ClusterRole cannot be namespace-scoped; it intentionally has no delete on tenant objects,
   so tenant teardown (plan section 13.2) needs an RBAC extension when implemented.
 - Orchestrator runs 1 replica: the pruner has no leader election yet.
