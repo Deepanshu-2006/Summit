@@ -10,14 +10,19 @@ export const metadata: Metadata = {
 
 interface PageProps {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ deploy?: string | string[] }>;
 }
 
-async function CanvasWrapper({ params }: { params: Promise<{ id: string }> }) {
+async function CanvasWrapper({
+  params,
+  searchParams,
+}: Pick<PageProps, "params" | "searchParams">) {
   const { id } = await params;
-  return <InfrastructureCanvas projectId={id} />;
+  const { deploy } = await searchParams;
+  return <InfrastructureCanvas projectId={id} autoOpenDeploy={deploy === "1"} />;
 }
 
-export default function ProjectCanvasPage({ params }: PageProps) {
+export default function ProjectCanvasPage({ params, searchParams }: PageProps) {
   return (
     <Suspense
       fallback={
@@ -26,7 +31,7 @@ export default function ProjectCanvasPage({ params }: PageProps) {
         </div>
       }
     >
-      <CanvasWrapper params={params} />
+      <CanvasWrapper params={params} searchParams={searchParams} />
     </Suspense>
   );
 }

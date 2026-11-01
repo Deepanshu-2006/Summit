@@ -143,6 +143,8 @@ export function ConfigInspector({
   const isApp = data.serviceType === "application" || data.serviceType === "worker";
   const isDb = data.serviceType === "database" || data.serviceType === "cache";
   const isRepo = data.serviceType === "repository";
+  // Mirrors a real platform service: backend-owned, so not editable here.
+  const isManaged = Boolean(data.serviceId);
 
   return (
     <aside
@@ -205,6 +207,7 @@ export function ConfigInspector({
                 handleUpdate({ label: e.target.value });
               }}
               placeholder="service-name"
+              readOnly={isManaged}
               className="w-full h-8 px-2.5 rounded-[5px] bg-[#161615] hover:bg-[#181817] focus:bg-[#141413] border border-[#222220] hover:border-[#2C2B28] focus:border-[#E58B62]/80 focus:ring-1 focus:ring-[#E58B62]/20 text-[12px] font-sans text-[#F1F0ED] outline-none transition-all placeholder:text-[#52504B]"
             />
           </div>
@@ -294,8 +297,54 @@ export function ConfigInspector({
           </div>
         )}
 
+        {/* Section: Backend-managed service summary */}
+        {isManaged && (
+          <div className="space-y-3 pt-1">
+            <div className="flex items-center justify-between pb-1 border-b border-[#1E1E1C]">
+              <span className="font-mono text-[10px] font-medium tracking-[0.08em] uppercase text-[#77756F]">
+                Service
+              </span>
+            </div>
+            <div className="rounded-[6px] bg-[#161615] border border-[#222220] p-3 space-y-2 text-[11px]">
+              {(
+                [
+                  ["Environment", data.environmentName],
+                  ["Repository", data.repositoryFullName ?? "Not connected"],
+                  ["Branch", data.branch],
+                  ["Root directory", data.rootDir],
+                  ["Source", data.sourceStatus],
+                  [
+                    "Auto-deploy",
+                    data.autoDeploy === undefined ? undefined : data.autoDeploy ? "On" : "Off",
+                  ],
+                  ["Latest deployment", data.deploymentStatus?.replace(/_/g, " ") ?? "None yet"],
+                  ["Commit", data.commitSha?.slice(0, 7)],
+                ] as const
+              )
+                .filter(([, value]) => value)
+                .map(([name, value]) => (
+                  <div key={name} className="flex items-center justify-between gap-3">
+                    <span className="text-[#77756F] font-sans">{name}</span>
+                    <span className="font-mono text-[#F1F0ED] truncate">{value}</span>
+                  </div>
+                ))}
+            </div>
+            {data.publicUrl && /^https?:\/\//i.test(data.publicUrl) && (
+              <a
+                href={data.publicUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] font-mono text-[#E58B62] hover:underline break-all"
+              >
+                <span>{data.publicUrl}</span>
+                <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+              </a>
+            )}
+          </div>
+        )}
+
         {/* Section: Application / Worker Build Configuration */}
-        {isApp && (
+        {isApp && !isManaged && (
           <div className="space-y-3 pt-1">
             <div className="flex items-center justify-between pb-1 border-b border-[#1E1E1C]">
               <span className="font-mono text-[10px] font-medium tracking-[0.08em] uppercase text-[#77756F]">
@@ -505,7 +554,11 @@ export function ConfigInspector({
 
       {/* ================= Minimal Footer: Delete Service ================= */}
       <div className="p-3 border-t border-[#222220] bg-[#111110] shrink-0">
-        {confirmDelete ? (
+        {isManaged ? (
+          <p className="text-[11px] font-sans text-[#77756F] leading-snug">
+            This service is managed by Summit. Deleting services from the canvas isn&apos;t supported yet.
+          </p>
+        ) : confirmDelete ? (
           <div className="flex items-center gap-2 animate-in fade-in duration-100">
             <button
               type="button"

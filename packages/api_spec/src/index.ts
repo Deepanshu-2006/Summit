@@ -5,9 +5,179 @@
  * This package defines the shared contract between the Go backend (apps/backend)
  * and the Next.js frontend (apps/web).
  *
- * Note: These types represent the API contract specification. Specification
- * of an endpoint or schema does not imply implementation status in the backend.
+ * The platform API types (ProjectSummary ... ManualDeploymentResponse) mirror
+ * routes the Go backend serves under /v1. Types after the "Legacy" banner are
+ * not backed by the Go API.
  */
+
+// ---------------------------------------------------------------------------
+// Platform API (Go backend, served under /v1). Matches openapi.yaml.
+// ---------------------------------------------------------------------------
+
+export type DeploymentStatus =
+  | "queued"
+  | "building"
+  | "image_ready"
+  | "deploying"
+  | "health_checking"
+  | "running"
+  | "superseded"
+  | "failed"
+  | "cancelled"
+  | "pending"
+  | "active";
+
+export interface ApiErrorEnvelope {
+  error: { code: string; message: string; request_id: string };
+}
+
+export interface DeploymentSummary {
+  id: string;
+  project_id: string;
+  environment_id: string;
+  service_id: string | null;
+  status: DeploymentStatus;
+  commit_sha: string;
+  branch: string;
+  trigger_type: string;
+  error_message: string | null;
+  status_reason: string | null;
+  image_ref: string | null;
+  public_url: string | null;
+  cancel_requested_at: string | null;
+  created_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+  updated_at: string;
+}
+
+export interface BuildSummary {
+  id: string;
+  status: "queued" | "dispatched" | "running" | "succeeded" | "failed" | "cancelled";
+  current_stage: string | null;
+  image_repository: string | null;
+  image_tag: string | null;
+  image_digest: string | null;
+  error_message: string | null;
+  requested_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+export interface DeploymentEvent {
+  from_status: DeploymentStatus | null;
+  to_status: DeploymentStatus;
+  reason: string | null;
+  created_at: string;
+}
+
+export interface DeploymentDetail extends DeploymentSummary {
+  build: BuildSummary | null;
+  events: DeploymentEvent[];
+}
+
+export interface DeploymentList {
+  data: DeploymentSummary[];
+  next_cursor: string | null;
+}
+
+export interface ServiceSource {
+  repository_full_name: string;
+  branch: string;
+  root_directory: string;
+  source_status: "active" | "disconnected" | "blocked";
+  auto_deploy: boolean;
+}
+
+export interface ServiceSummary {
+  id: string;
+  project_id: string;
+  environment_id: string;
+  environment_name: string;
+  name: string;
+  type: "web" | "worker" | "cron";
+  source: ServiceSource | null;
+  latest_deployment: DeploymentSummary | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProjectSummary {
+  id: string;
+  slug: string;
+  name: string;
+  git_repository_url: string | null;
+  default_branch: string;
+  services_count: number;
+  latest_deployment: DeploymentSummary | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EnvironmentSummary {
+  id: string;
+  name: string;
+  type: "production" | "staging" | "preview";
+  is_ephemeral: boolean;
+}
+
+export interface ProjectDetail extends ProjectSummary {
+  environments: EnvironmentSummary[];
+  services: ServiceSummary[];
+}
+
+export interface ProjectList {
+  data: ProjectSummary[];
+  next_cursor: string | null;
+}
+
+export interface CreateProjectRequest {
+  name: string;
+  slug?: string;
+}
+
+export interface UpdateProjectRequest {
+  name?: string;
+}
+
+export interface CreateServiceRequest {
+  name: string;
+  type?: "web" | "worker";
+  environment_id?: string | null;
+}
+
+export interface LogLine {
+  id: number;
+  timestamp: string;
+  stream: "stdout" | "stderr" | "system";
+  level: "debug" | "info" | "warn" | "error";
+  stage: string | null;
+  message: string;
+}
+
+export interface LogList {
+  data: LogLine[];
+  next_after: number | null;
+}
+
+export interface ManualDeploymentRequest {
+  source?: { ref?: string };
+  reason?: string;
+}
+
+export interface ManualDeploymentResponse {
+  id: string;
+  service_id: string;
+  status: DeploymentStatus;
+  commit_sha: string;
+  build_job_id: string;
+}
+
+// ---------------------------------------------------------------------------
+// Legacy mock-store types. The Go backend does NOT serve these (no
+// /api/v1/resources, /releases or /observability routes); they remain only so
+// existing apps/web imports keep compiling and can be deleted with the mocks.
+// ---------------------------------------------------------------------------
 
 export interface HealthResponse {
   status: "healthy" | "degraded" | "unhealthy";

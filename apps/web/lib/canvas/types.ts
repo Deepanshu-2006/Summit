@@ -46,6 +46,20 @@ export interface SummitNodeData extends Record<string, unknown> {
   // Environment variables
   envVars?: EnvironmentVariable[];
   updatedAt?: string;
+
+  // Backend-managed service fields (present only on nodes that mirror a real
+  // platform service; populated from the API on every load, never from storage).
+  serviceId?: string;
+  environmentName?: string;
+  repositoryFullName?: string;
+  sourceStatus?: string;
+  autoDeploy?: boolean;
+  deploymentStatus?: string;
+  commitSha?: string;
+  publicUrl?: string;
+  /** One-line summary shown on the node card. */
+  statusText?: string;
+  statusTone?: "ok" | "progress" | "error" | "idle";
 }
 
 export type SummitNode = Node<SummitNodeData, "summitNode">;

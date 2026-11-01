@@ -4,12 +4,13 @@ import React, { useState, useEffect, useRef } from "react";
 import { X, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import type { DashboardProject } from "@/lib/dashboard/types";
+import { describeApiError } from "@/lib/platform-api";
 
 interface RenameProjectDialogProps {
   project: DashboardProject | null;
   isOpen: boolean;
   onClose: () => void;
-  onRename: (projectId: string, newName: string) => void;
+  onRename: (projectId: string, newName: string) => Promise<void>;
 }
 
 export function RenameProjectDialog({
@@ -20,19 +21,31 @@ export function RenameProjectDialog({
 }: RenameProjectDialogProps) {
   const [name, setName] = useState("");
   const [error, setError] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (isOpen && project) {
+  // Reset the form whenever the dialog opens for a project (state adjusted
+  // during render rather than in an effect, per React's guidance).
+  const openKey = isOpen && project ? project.id : null;
+  const [syncedKey, setSyncedKey] = useState<string | null>(null);
+  if (syncedKey !== openKey) {
+    setSyncedKey(openKey);
+    if (project && openKey) {
       setName(project.name);
       setError("");
-      setTimeout(() => {
-        inputRef.current?.focus();
-        inputRef.current?.select();
-      }, 50);
+      setIsSaving(false);
     }
-  }, [isOpen, project]);
+  }
+
+  useEffect(() => {
+    if (!openKey) return;
+    const timer = setTimeout(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [openKey]);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -44,7 +57,7 @@ export function RenameProjectDialog({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = name.trim().toLowerCase().replace(/\s+/g, "-");
 
@@ -66,8 +79,15 @@ export function RenameProjectDialog({
       return;
     }
 
-    onRename(project!.id, trimmed);
-    onClose();
+    if (isSaving || !project) return;
+    setIsSaving(true);
+    try {
+      await onRename(project.id, trimmed);
+      onClose();
+    } catch (err) {
+      setError(describeApiError(err, "Could not rename this project."));
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -154,9 +174,10 @@ export function RenameProjectDialog({
                 </button>
                 <button
                   type="submit"
-                  className="h-9 px-4 rounded-[6px] bg-[#E58B62] hover:bg-[#F29C75] text-[#0C0B0A] text-[13px] font-semibold transition-all shadow-sm active:scale-[0.98] cursor-pointer"
+                  disabled={isSaving}
+                  className="h-9 px-4 rounded-[6px] bg-[#E58B62] hover:bg-[#F29C75] disabled:opacity-60 disabled:cursor-not-allowed text-[#0C0B0A] text-[13px] font-semibold transition-all shadow-sm active:scale-[0.98] cursor-pointer"
                 >
-                  Save changes
+                  {isSaving ? "Saving…" : "Save changes"}
                 </button>
               </div>
             </form>

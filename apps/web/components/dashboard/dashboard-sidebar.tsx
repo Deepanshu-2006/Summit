@@ -7,6 +7,8 @@ import {
   ChevronsUpDown,
 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
+import { useAuth } from "@/components/auth/auth-context";
+import { getUserDisplay } from "@/lib/dashboard/workspace";
 
 interface DashboardSidebarProps {
   activeTab: "projects" | "deployments";
@@ -20,6 +22,8 @@ export function DashboardSidebar({
   projectsCount,
 }: DashboardSidebarProps) {
   const shouldReduceMotion = useReducedMotion();
+  const { user } = useAuth();
+  const userDisplay = getUserDisplay(user);
 
   return (
     <motion.aside
@@ -109,14 +113,14 @@ export function DashboardSidebar({
       >
         <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-[5px] hover:bg-[#141413] transition-colors cursor-pointer">
           <div className="w-6 h-6 rounded-full bg-[#181817] border border-[#262624] flex items-center justify-center text-[10px] font-mono text-[#E58B62] shrink-0">
-            D
+            {userDisplay.initial}
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-[12px] font-medium text-[#FAF8F5] truncate leading-tight">
-              Deepanshu Khatri
+              {userDisplay.name}
             </div>
             <div className="text-[10px] font-mono text-[#55544E] truncate">
-              deepanshu@summit.dev
+              {userDisplay.email ?? "Not signed in"}
             </div>
           </div>
           <ChevronsUpDown className="w-3 h-3 text-[#4A4944] shrink-0" />

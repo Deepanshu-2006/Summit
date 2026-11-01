@@ -1,33 +1,27 @@
 /**
  * Summit Project Dashboard — Type System
- * Minimal, strongly-typed contracts for projects, workspaces, and filter states.
+ * View-model contracts for projects and workspaces. Projects are derived from
+ * the backend `ProjectSummary` by `toDashboardProject` in `lib/platform-api.ts`.
  */
 
-export type ProjectEnvironment = "production" | "staging" | "development" | "preview";
-export type ProjectStatus = "ready" | "active" | "building" | "draft" | "paused";
-export type ViewMode = "grid" | "list";
-export type SortOption = "updated" | "name" | "created";
-export type StatusFilter = "all" | "ready" | "building" | "draft";
+export type ProjectStatus = "running" | "building" | "failed" | "stopped" | "idle";
 
 export interface DashboardProject {
   id: string;
+  slug: string;
   name: string;
-  description: string;
-  environment: ProjectEnvironment;
-  status: ProjectStatus;
-  type: string; // e.g. "Next.js Application", "Go API Service", "Web Application"
-  icon: "layout" | "server" | "database" | "cpu" | "git-branch" | "github" | "docker";
+  /** "owner/repo" when a repository is attached to the project. */
+  repository: string | null;
+  branch: string | null;
   servicesCount: number;
-  owner: string; // e.g. "summit-platform/summit-web"
-  branch: string;
-  commitMessage: string;
-  commitHash: string;
-  commitPath: string;
-  formattedDate: string;
-  region: string;
-  updatedAt: string;
+  status: ProjectStatus;
+  /** Raw deployment status, humanized ("health checking"), or "no deployments". */
+  statusLabel: string;
+  commitSha: string | null;
+  lastDeployedLabel: string | null;
   createdAt: string;
-  template?: "fullstack" | "api" | "empty" | "github" | "database" | "docker";
+  updatedAt: string;
+  updatedLabel: string;
 }
 
 export interface WorkspaceItem {
