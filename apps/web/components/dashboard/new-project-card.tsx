@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Sparkles, ChevronRight, Database, Terminal, X, AlertCircle, Loader2 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import {
@@ -47,6 +47,7 @@ interface NewProjectCardProps {
 
 export function NewProjectCard({ onCancel }: NewProjectCardProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const shouldReduceMotion = useReducedMotion();
   const { session, openAuthModal } = useAuth();
   const accessToken = session?.access_token;
@@ -57,6 +58,20 @@ export function NewProjectCard({ onCancel }: NewProjectCardProps) {
   const [activeChooser, setActiveChooser] = useState<
     "none" | "github" | "application" | "database" | "docker"
   >("none");
+  const [githubSetupError, setGithubSetupError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const setupStatus = searchParams.get("github_setup");
+    if (!setupStatus) return;
+
+    setActiveChooser("github");
+    setGithubSetupError(
+      setupStatus === "error"
+        ? searchParams.get("github_error") || "GITHUB_INSTALLATION_FAILED"
+        : null,
+    );
+    router.replace("/dashboard/project/new", { scroll: false });
+  }, [router, searchParams]);
   // Survives a failed repository connection so a retry reuses the same project/service.
   const createdRef = useRef<{ projectId: string; serviceId?: string } | null>(null);
 
@@ -277,10 +292,14 @@ export function NewProjectCard({ onCancel }: NewProjectCardProps) {
       {/* Chooser Dialogs */}
       <NodeChooserDialogs
         activeChooser={activeChooser}
-        onClose={() => setActiveChooser("none")}
+        onClose={() => {
+          setActiveChooser("none");
+          setGithubSetupError(null);
+        }}
         onConfirm={handleConfirmChooser}
         ensureGitHubService={ensureGitHubService}
         githubTargetDescription="Creates a new project with a web service and connects this repository to it."
+        githubSetupError={githubSetupError}
       />
     </>
   );
