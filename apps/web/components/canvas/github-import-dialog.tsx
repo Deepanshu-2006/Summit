@@ -55,6 +55,31 @@ export interface GitHubImportDialogProps {
   ensureService?: EnsureServiceTarget;
   /** Human-readable note about where the repository will be connected. */
   targetDescription?: string;
+  installationErrorCode?: string | null;
+}
+
+function getInstallationErrorMessage(errorCode: string | null | undefined) {
+  switch (errorCode) {
+    case "GITHUB_INSTALLATION_STATE_INVALID":
+    case "GITHUB_INSTALLATION_STATE_EXPIRED":
+      return "GitHub could not verify this installation. Start the GitHub App installation again.";
+    case "GITHUB_INSTALLATION_ALREADY_LINKED":
+      return "This GitHub App installation is already linked to a different Summit account.";
+    case "GITHUB_INSTALLATION_NOT_FOUND":
+      return "Summit could not find that GitHub App installation. Try installing it again.";
+    case "GITHUB_APP_NOT_CONFIGURED":
+      return "The GitHub App is not fully configured on the Summit backend.";
+    case "GITHUB_API_UNAVAILABLE":
+      return "Summit could not verify the installation with GitHub. Check the backend and try again.";
+    case "GITHUB_INSTALLATION_NOT_ACTIVE":
+      return "This GitHub App installation is not active. Re-enable it in GitHub and retry.";
+    case null:
+    case undefined:
+    case "":
+      return null;
+    default:
+      return "Summit could not complete the GitHub App installation. Check the backend logs and try again.";
+  }
 }
 
 export function GitHubImportDialog({
@@ -64,6 +89,7 @@ export function GitHubImportDialog({
   onShowToast,
   ensureService,
   targetDescription,
+  installationErrorCode,
 }: GitHubImportDialogProps) {
   const { session, isLoading: isAuthLoading, openAuthModal } = useAuth();
   const accessToken = session?.access_token;
@@ -87,6 +113,7 @@ export function GitHubImportDialog({
   const [isConnecting, setIsConnecting] = useState(false);
   const [needsInstallation, setNeedsInstallation] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const installationErrorMessage = getInstallationErrorMessage(installationErrorCode);
 
   const selectedRepo = useMemo(
     () => repositories.find((repo) => repo.id === selectedRepoId) ?? null,
@@ -339,10 +366,10 @@ export function GitHubImportDialog({
                 />
               </div>
 
-              {errorMessage && (
+              {(installationErrorMessage || errorMessage) && (
                 <div className="mb-2 flex items-start gap-2 rounded-[5px] border border-[#4A2B24] bg-[#1A1412] px-3 py-2 text-[11px] text-[#E8B29C]">
                   <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  <span>{errorMessage}</span>
+                  <span>{installationErrorMessage || errorMessage}</span>
                 </div>
               )}
 

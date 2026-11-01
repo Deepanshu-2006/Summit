@@ -32,6 +32,7 @@ export interface NodeChooserDialogsProps {
   /** Resolves the backend service for the GitHub repository flow. */
   ensureGitHubService?: EnsureServiceTarget;
   githubTargetDescription?: string;
+  githubSetupError?: string | null;
 }
 
 export function NodeChooserDialogs({
@@ -41,6 +42,7 @@ export function NodeChooserDialogs({
   onShowToast,
   ensureGitHubService,
   githubTargetDescription,
+  githubSetupError,
 }: NodeChooserDialogsProps) {
   // Docker state
   const [dockerImage, setDockerImage] = useState("");
@@ -80,6 +82,7 @@ export function NodeChooserDialogs({
         onShowToast={onShowToast}
         ensureService={ensureGitHubService}
         targetDescription={githubTargetDescription}
+        installationErrorCode={githubSetupError}
       />
     );
   }
