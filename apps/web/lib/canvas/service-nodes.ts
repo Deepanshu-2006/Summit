@@ -1,10 +1,10 @@
 /**
  * Maps real platform services onto canvas nodes. The backend owns which
- * services exist and their state; localStorage only remembers node positions
- * and UI-only nodes (databases, docker, ...), keyed by project id.
+ * services exist and their state. localStorage only remembers positions
+ * (and purely decorative nodes). Stale service drawings are ignored.
  */
 
-import type { ServiceSummary } from "../platform-api.ts";
+import { safeHttpUrl, type ServiceSummary, type ServiceType } from "../platform-api.ts";
 import type { SummitNode, SummitNodeData } from "./types";
 
 export const NODE_WIDTH = 270;
@@ -33,19 +33,62 @@ function describeStatus(service: ServiceSummary): Pick<SummitNodeData, "statusTe
         return { statusText: `Deployment ${label}`, statusTone: "progress" };
     }
   }
+  if (service.type === "postgres" || service.type === "redis" || service.addon) {
+    return { statusText: "Not provisioned yet", statusTone: "idle" };
+  }
+  if (service.type === "image") return { statusText: "Not deployed yet", statusTone: "idle" };
   if (service.source) return { statusText: "Not deployed yet", statusTone: "idle" };
   return { statusText: "No repository connected", statusTone: "idle" };
+}
+
+function presentation(type: ServiceType): Pick<SummitNodeData, "serviceType" | "subType"> {
+  switch (type) {
+    case "worker":
+      return { serviceType: "worker", subType: "Worker" };
+    case "image":
+      return { serviceType: "application", subType: "Docker Image" };
+    case "postgres":
+      return { serviceType: "database", subType: "PostgreSQL" };
+    case "redis":
+      return { serviceType: "cache", subType: "Redis" };
+    default:
+      return { serviceType: "application", subType: "Web Service" };
+  }
+}
+
+function detailText(service: ServiceSummary): string {
+  if (service.addon?.url_env) return service.addon.url_env;
+  if (service.type === "postgres") return "DATABASE_URL";
+  if (service.type === "redis") return "REDIS_URL";
+  if (service.image?.image) return service.image.image;
+  const source = service.source;
+  if (source) {
+    return `${source.repository_full_name}${source.branch ? `@${source.branch}` : ""}`;
+  }
+  if (service.type === "image") return "Docker image";
+  if (service.type === "worker") return "Worker";
+  return "Web service";
+}
+
+/** Workers and databases are not reachable on a public URL. */
+function publicUrlFor(service: ServiceSummary): string | undefined {
+  if (service.type === "worker" || service.type === "postgres" || service.type === "redis" || service.addon) {
+    return undefined;
+  }
+  return safeHttpUrl(service.latest_deployment?.public_url) ?? undefined;
 }
 
 /** Node data derived entirely from the backend service. */
 export function serviceToNodeData(service: ServiceSummary): SummitNodeData {
   const source = service.source;
   const latest = service.latest_deployment;
+  const type = service.type ?? "web";
   return {
     label: service.name,
-    serviceType: service.type === "worker" ? "worker" : "application",
-    subType: service.type === "worker" ? "Worker" : "Web Service",
+    ...presentation(type),
+    platformType: type,
     serviceId: service.id,
+    environmentId: service.environment_id,
     environmentName: service.environment_name,
     repositoryFullName: source?.repository_full_name,
     repoUrl: source ? `https://github.com/${source.repository_full_name}` : undefined,
@@ -55,7 +98,18 @@ export function serviceToNodeData(service: ServiceSummary): SummitNodeData {
     autoDeploy: source?.auto_deploy,
     deploymentStatus: latest?.status,
     commitSha: latest?.commit_sha ?? undefined,
-    publicUrl: latest?.public_url ?? undefined,
+    publicUrl: publicUrlFor(service),
+    imageRef: service.image?.image,
+    resolvedImage: service.image?.resolved_image ?? undefined,
+    port: service.port ?? undefined,
+    addonEngine: service.addon?.engine,
+    addonVersion: service.addon?.version,
+    storageMb: service.addon?.storage_mb,
+    urlEnv:
+      service.addon?.url_env ??
+      (type === "postgres" ? "DATABASE_URL" : type === "redis" ? "REDIS_URL" : undefined),
+    databaseEngine: type === "postgres" ? "postgresql" : type === "redis" ? "redis" : undefined,
+    detailText: detailText(service),
     ...describeStatus(service),
     updatedAt: service.updated_at,
   };
@@ -82,7 +136,8 @@ function freePosition(existing: SummitNode[]): { x: number; y: number } {
 
 /**
  * Combine stored nodes with the project's real services:
- *  - UI-only stored nodes (no `serviceId`) are kept as-is;
+ *  - stale localStorage service drawings (no `serviceId`) are dropped;
+ *  - decorative nodes are kept;
  *  - stored service nodes keep their position but take fresh data from the API;
  *  - services without a stored node are placed on a free grid slot;
  *  - stored service nodes whose service no longer exists are dropped.
@@ -91,13 +146,13 @@ export function mergeServiceNodes(
   storedNodes: SummitNode[],
   services: ServiceSummary[],
 ): SummitNode[] {
-  const uiOnly = storedNodes.filter((node) => !node.data.serviceId);
+  const decorative = storedNodes.filter((node) => node.data.decorative && !node.data.serviceId);
   const positions = new Map<string, { x: number; y: number }>();
   for (const node of storedNodes) {
     if (node.data.serviceId) positions.set(node.data.serviceId, node.position);
   }
 
-  const result: SummitNode[] = [...uiOnly];
+  const result: SummitNode[] = [...decorative];
   for (const service of services) {
     const position = positions.get(service.id) ?? freePosition(result);
     result.push({

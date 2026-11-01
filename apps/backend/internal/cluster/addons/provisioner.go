@@ -167,8 +167,14 @@ type ExposureParams struct {
 	ServiceName string
 	Port        int32
 	Environment string
-	// Host overrides the generated <service>-<project-slug>.<apps domain> host.
+	// Host overrides the generated <service>-<project>[-<env>].<apps domain> host.
 	Host string
+	// HostLabel is the service's human name used in the public host.
+	// Empty falls back to ServiceName (the Kubernetes object name).
+	HostLabel string
+	// SkipIngress omits the IngressRoute and Middleware and leaves Host empty.
+	// Workers set this: they still have a ClusterIP Service, but no public URL.
+	SkipIngress bool
 	// PodSelector overrides the default workloads selector labels for the service pods.
 	PodSelector map[string]string
 	// SecretName overrides the target Secret name (default app-env-secret).
@@ -199,10 +205,14 @@ func (p *TenantProvisioner) EnsureServiceExposure(ctx context.Context, params Ex
 
 	var objs []*unstructured.Unstructured
 
-	if p.cfg.EnableIngress {
+	if p.cfg.EnableIngress && !params.SkipIngress {
 		host := params.Host
 		if host == "" {
-			if host, err = ServiceHost(params.ServiceName, params.ProjectSlug, p.cfg.AppsDomain); err != nil {
+			label := params.HostLabel
+			if strings.TrimSpace(label) == "" {
+				label = params.ServiceName
+			}
+			if host, err = ServiceHost(label, params.ProjectSlug, params.Environment, p.cfg.AppsDomain); err != nil {
 				return res, err
 			}
 		}

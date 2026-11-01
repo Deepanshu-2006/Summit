@@ -61,16 +61,19 @@ func New(deps Dependencies) *Server {
 
 	var ghSvc *githubapi.Service
 	if deps.Pool != nil {
+		platformStore := platformdb.New(deps.Pool)
 		ghSvc = githubapi.NewService(githubapi.Config{
-			Pool:     deps.Pool,
-			GHClient: deps.GHClient,
-			AppCfg:   deps.Config,
-			Logger:   deps.Logger,
+			Pool:            deps.Pool,
+			GHClient:        deps.GHClient,
+			AppCfg:          deps.Config,
+			Logger:          deps.Logger,
+			PlatformStore:   platformStore,
+			DeploymentStore: platformStore,
 		})
 		ghHandler := githubapi.NewHandler(ghSvc, deps.Verifier, deps.Pool)
 		ghHandler.RegisterRoutes(mux)
 
-		projectsapi.NewHandler(projectsapi.NewService(platformdb.New(deps.Pool)), deps.Verifier, deps.Pool, deps.Logger).RegisterRoutes(mux)
+		projectsapi.NewHandler(projectsapi.NewService(platformStore), deps.Verifier, deps.Pool, deps.Logger).RegisterRoutes(mux)
 
 		githubworker.RegisterRoutes(mux, githubworker.Dependencies{
 			Config:   deps.Config,

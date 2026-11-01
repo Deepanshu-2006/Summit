@@ -50,6 +50,9 @@ export interface SummitNodeData extends Record<string, unknown> {
   // Backend-managed service fields (present only on nodes that mirror a real
   // platform service; populated from the API on every load, never from storage).
   serviceId?: string;
+  /** Backend service type. Drives icons, deploy affordances, and delete copy. */
+  platformType?: "web" | "worker" | "image" | "postgres" | "redis";
+  environmentId?: string;
   environmentName?: string;
   repositoryFullName?: string;
   sourceStatus?: string;
@@ -57,9 +60,20 @@ export interface SummitNodeData extends Record<string, unknown> {
   deploymentStatus?: string;
   commitSha?: string;
   publicUrl?: string;
+  imageRef?: string;
+  resolvedImage?: string;
+  addonEngine?: "postgres" | "redis";
+  addonVersion?: string;
+  storageMb?: number;
+  /** Env var injected into other services, e.g. DATABASE_URL. */
+  urlEnv?: string;
+  /** Secondary line on the node: repo, image reference, or addon env var. */
+  detailText?: string;
   /** One-line summary shown on the node card. */
   statusText?: string;
   statusTone?: "ok" | "progress" | "error" | "idle";
+  /** Kept in localStorage even without a backend service. Service drawings are not. */
+  decorative?: boolean;
 }
 
 export type SummitNode = Node<SummitNodeData, "summitNode">;

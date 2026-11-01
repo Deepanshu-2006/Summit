@@ -189,9 +189,9 @@ type ManualDeploymentRequest struct {
 
 // ManualDeploymentResponse is returned by POST /v1/services/{service_id}/deployments.
 type ManualDeploymentResponse struct {
-	ID         uuid.UUID `json:"id"`
-	ServiceID  uuid.UUID `json:"service_id"`
-	Status     string    `json:"status"`
-	CommitSHA  string    `json:"commit_sha"`
-	BuildJobID uuid.UUID `json:"build_job_id"`
+	ID         uuid.UUID  `json:"id"`
+	ServiceID  uuid.UUID  `json:"service_id"`
+	Status     string     `json:"status"`
+	CommitSHA  string     `json:"commit_sha"`
+	BuildJobID *uuid.UUID `json:"build_job_id"`
 }

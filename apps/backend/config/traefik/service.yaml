@@ -1,0 +1,25 @@
+# NodePorts match apps/backend/config/kind/kind-config.yaml and deploy/local/ports.sh.
+# web :8000 -> 30080, websecure :8443 -> 30443.
+apiVersion: v1
+kind: Service
+metadata:
+  name: traefik
+  namespace: traefik
+  labels:
+    app.kubernetes.io/name: traefik
+    app.kubernetes.io/part-of: summit
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: traefik
+  ports:
+    - name: web
+      port: 8000
+      targetPort: web
+      nodePort: 30080
+      protocol: TCP
+    - name: websecure
+      port: 8443
+      targetPort: websecure
+      nodePort: 30443
+      protocol: TCP

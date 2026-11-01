@@ -2,11 +2,11 @@
 # (contract C7) so two replicas would run duplicate sweeps. The process serves no
 # HTTP port today, so there are no probes.
 #
-# The image is a placeholder: no backend Dockerfile exists in the repo yet. For
-# Kind, build and load it: `kind load docker-image summit-orchestrator:dev`.
+# Image: apps/backend/Dockerfile.orchestrator, loaded with
+# `kind load docker-image summit-orchestrator:dev --name summit-local`.
 #
-# Create Secret summit-orchestrator-env by hand (see config/README.md):
-#   DATABASE_URL, WORKER_JWT_SECRET (>= 32 bytes)
+# Secret summit-orchestrator-env (deploy/local/secrets.sh): DATABASE_URL and
+# WORKER_JWT_SECRET (>= 32 bytes). WORKER_JWT_SECRET matches summit-api-env.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -54,7 +54,8 @@ spec:
               value: info
             - name: ORCHESTRATOR_CLUSTER_TARGET
               value: in-cluster
-            # Used by build Pods to reach the API (contract C4/C6).
+            # Build Pods call this in-cluster address. They must not use
+            # 127.0.0.1:4000 (that is the host forwarder for browsers).
             - name: ORCHESTRATOR_API_INTERNAL_URL
               value: http://summit-api.summit-system.svc.cluster.local:4000
             - name: SUMMIT_BUILD_NAMESPACE
@@ -65,7 +66,8 @@ spec:
               value: gvisor
             - name: ORCHESTRATOR_GHCR_PUSH_SECRET
               value: ghcr-push
-            # Optional add-ons (contract C8). Off by default; flip after the CRDs exist.
+            # Optional add-ons (contract C8). Quotas and ingress are on.
+            # Network policy and ESO stay off until those controllers are installed.
             - name: ORCHESTRATOR_ENABLE_TENANT_QUOTAS
               value: "true"
             - name: ORCHESTRATOR_ENABLE_NETWORK_POLICY
@@ -73,7 +75,10 @@ spec:
             - name: ORCHESTRATOR_NETWORK_POLICY_MODE
               value: native
             - name: ORCHESTRATOR_ENABLE_INGRESS
-              value: "false"
+              value: "true"
+            # Read by the orchestrator once the Go change lands. Ignored until then.
+            - name: ORCHESTRATOR_PUBLIC_URL_SCHEME
+              value: http
             - name: ORCHESTRATOR_ENABLE_ESO
               value: "false"
             - name: ORCHESTRATOR_APPS_DOMAIN
@@ -82,6 +87,8 @@ spec:
               value: summit-system
             - name: ORCHESTRATOR_API_PORT
               value: "4000"
+            - name: SSL_CERT_FILE
+              value: /etc/ssl/certs/ca-certificates.crt
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:

@@ -1,0 +1,26 @@
+# syntax=docker/dockerfile:1
+# Static non-root image for cmd/api. /migrate is included so a Job can apply
+# SQL migrations without a shell.
+#
+#   docker build -f apps/backend/Dockerfile.api -t summit-api:dev apps/backend
+
+ARG GO_IMAGE=golang:1.26.4-alpine@sha256:3ad57304ad93bbec8548a0437ad9e06a455660655d9af011d58b993f6f615648
+ARG DISTROLESS_IMAGE=gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab
+
+FROM ${GO_IMAGE} AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+        go build -trimpath -ldflags="-s -w" -o /out/api ./cmd/api \
+    && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+        go build -trimpath -ldflags="-s -w" -o /out/migrate ./cmd/migrate
+
+FROM ${DISTROLESS_IMAGE}
+COPY --chmod=755 --from=build /out/api /api
+COPY --chmod=755 --from=build /out/migrate /migrate
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+USER 65532:65532
+EXPOSE 4000
+ENTRYPOINT ["/api"]

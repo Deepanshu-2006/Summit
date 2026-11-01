@@ -47,11 +47,19 @@ func dnsLabel(s string) string {
 	return strings.Trim(s, "-")
 }
 
-// ServiceHost returns "<service>-<project-slug>.<appsDomain>". Both name parts
-// are sanitised into DNS-1123 label characters. When the joined label would
-// exceed 63 characters it is truncated and suffixed with an 8-hex-digit hash of
-// the full sanitised value so that distinct inputs stay distinct.
-func ServiceHost(serviceName, projectSlug, appsDomain string) (string, error) {
+// ServiceHost returns the public hostname for a service.
+//
+// Production (environment empty or "production") keeps
+// "<service>-<project>.<appsDomain>". Every other environment uses
+// "<service>-<project>-<env>.<appsDomain>". Each part is sanitised into
+// DNS-1123 label characters. When the joined label would exceed 63 characters
+// it is truncated and suffixed with an 8-hex-digit hash of the full sanitised
+// value so that distinct inputs stay distinct.
+//
+// Kubernetes object names are not derived from this host. Workload objects are
+// svc-<service id> and addon objects are addon-<service id>, so two
+// environments never share an object name.
+func ServiceHost(serviceName, projectSlug, environment, appsDomain string) (string, error) {
 	svc := dnsLabel(serviceName)
 	if svc == "" {
 		return "", fmt.Errorf("%w: service name %q has no usable characters", ErrInvalidName, serviceName)
@@ -64,6 +72,9 @@ func ServiceHost(serviceName, projectSlug, appsDomain string) (string, error) {
 	label := svc
 	if proj := dnsLabel(projectSlug); proj != "" {
 		label = svc + "-" + proj
+	}
+	if env := dnsLabel(environment); env != "" && env != "production" {
+		label = label + "-" + env
 	}
 	if len(label) > 63 {
 		sum := sha256.Sum256([]byte(label))

@@ -30,6 +30,9 @@ interface DeployItem {
   description: string;
   icon: React.ComponentType<{ className?: string }>;
   hasSubmenu?: boolean;
+  comingSoon?: boolean;
+  /** Opens a chooser instead of creating a service immediately. */
+  chooser?: "github" | "docker";
   actionPayload?: {
     optionId: string;
     customData?: Record<string, unknown>;
@@ -43,6 +46,7 @@ const DEPLOY_SERVICES: DeployItem[] = [
     description: "Connect GitHub repository or monorepo branch",
     icon: GitHubLogo,
     hasSubmenu: true,
+    chooser: "github",
   },
   {
     id: "postgres",
@@ -56,41 +60,22 @@ const DEPLOY_SERVICES: DeployItem[] = [
         subType: "PostgreSQL",
         databaseEngine: "postgresql",
         port: 5432,
-        connectionString: "postgresql://summit_user:***@localhost:5432/app",
       },
     },
   },
   {
     id: "database_mysql",
     title: "Deploy MySQL",
-    description: "MySQL 8.4 relational database engine",
+    description: "MySQL is not available yet",
     icon: MySQLLogo,
-    actionPayload: {
-      optionId: "database",
-      customData: {
-        label: "mysql-db",
-        subType: "MySQL",
-        databaseEngine: "mysql",
-        port: 3306,
-        connectionString: "mysql://summit_user:***@localhost:3306/app",
-      },
-    },
+    comingSoon: true,
   },
   {
     id: "database_mongodb",
     title: "Deploy MongoDB",
-    description: "MongoDB 8 document database cluster",
+    description: "MongoDB is not available yet",
     icon: MongoLogo,
-    actionPayload: {
-      optionId: "database",
-      customData: {
-        label: "mongodb",
-        subType: "MongoDB",
-        databaseEngine: "mongodb",
-        port: 27017,
-        connectionString: "mongodb://localhost:27017/app",
-      },
-    },
+    comingSoon: true,
   },
   {
     id: "cache",
@@ -105,7 +90,6 @@ const DEPLOY_SERVICES: DeployItem[] = [
         serviceType: "cache",
         databaseEngine: "redis",
         port: 6379,
-        connectionString: "redis://localhost:6379",
       },
     },
   },
@@ -114,28 +98,16 @@ const DEPLOY_SERVICES: DeployItem[] = [
     title: "Deploy Web Application",
     description: "Next.js, Go API, Node.js, or frontend service",
     icon: NextjsLogo,
-    actionPayload: {
-      optionId: "application",
-      customData: {
-        label: "web-app",
-        subType: "Application",
-        serviceType: "application",
-      },
-    },
+    hasSubmenu: true,
+    chooser: "github",
   },
   {
     id: "docker",
     title: "Deploy Docker Image",
     description: "Containerized image from Docker Hub or GHCR",
     icon: DockerLogo,
-    actionPayload: {
-      optionId: "docker",
-      customData: {
-        label: "docker-service",
-        subType: "Docker Image",
-        serviceType: "application",
-      },
-    },
+    hasSubmenu: true,
+    chooser: "docker",
   },
   {
     id: "worker",
@@ -179,17 +151,19 @@ export function DeployPaletteModal({
 
   // Execute selection
   const executeSelect = (item: DeployItem) => {
-    if (item.id === "github") {
-      // Real repositories come from the GitHub App flow, not a sample list.
-      onSelectOption("github");
+    if (item.comingSoon) return;
+    if (item.chooser) {
+      onSelectOption(item.chooser);
       onClose();
-    } else if (item.actionPayload) {
+      return;
+    }
+    if (item.actionPayload) {
       onSelectOption(item.actionPayload.optionId, item.actionPayload.customData);
       onClose();
-    } else {
-      onSelectOption(item.id);
-      onClose();
+      return;
     }
+    onSelectOption(item.id);
+    onClose();
   };
 
   // Keyboard navigation
@@ -332,10 +306,14 @@ export function DeployPaletteModal({
               return (
                 <div
                   key={item.id}
+                  role="button"
+                  aria-disabled={item.comingSoon || undefined}
                   onClick={() => executeSelect(item)}
                   onMouseEnter={() => setSelectedIndex(index)}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-[8px] cursor-pointer transition-colors duration-150 group ${
-                    isSelected
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-[8px] transition-colors duration-150 group ${
+                    item.comingSoon ? "cursor-not-allowed opacity-55" : "cursor-pointer"
+                  } ${
+                    isSelected && !item.comingSoon
                       ? "bg-[#181817] border border-[#2E2D2A]"
                       : "hover:bg-[#161615] border border-transparent"
                   }`}
@@ -353,7 +331,11 @@ export function DeployPaletteModal({
                       </p>
                     </div>
                   </div>
-                  {item.hasSubmenu ? (
+                  {item.comingSoon ? (
+                    <span className="font-mono text-[10px] uppercase tracking-wider text-[#77756F] shrink-0 ml-2">
+                      Soon
+                    </span>
+                  ) : item.hasSubmenu ? (
                     <ChevronRight className="w-4 h-4 text-[#77756F] group-hover:text-[#F1F0ED] shrink-0 ml-2 transition-colors" />
                   ) : (
                     <Plus className="w-4 h-4 text-[#77756F] group-hover:text-[#E58B62] shrink-0 ml-2 transition-colors" />

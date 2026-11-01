@@ -3,8 +3,10 @@ import { afterEach, describe, it } from "node:test";
 import {
   PlatformApiError,
   cancelDeployment,
+  createEnvironment,
   createProject,
   createService,
+  deleteService,
   deployService,
   describeApiError,
   getDeploymentLogs,
@@ -145,6 +147,45 @@ describe("platform endpoints", () => {
     assert.equal(calls[1].url, "/api/platform/v1/projects/proj%2F1/services");
     assert.deepEqual(calls[1].body, { name: "web-app", type: "web" });
     assert.deepEqual(calls[2].body, { name: "w", type: "worker", environment_id: "env-9" });
+  });
+
+  it("creates image and database services, environments, and deletes a service", async () => {
+    const calls = [];
+    globalThis.fetch = async (input, init) => {
+      calls.push({
+        url: String(input),
+        method: init.method,
+        body: init.body ? JSON.parse(init.body) : null,
+      });
+      return init.method === "DELETE"
+        ? new Response(null, { status: 204 })
+        : Response.json({ id: "created" }, { status: 201 });
+    };
+
+    await createService("jwt", "proj-1", { name: "Nginx", type: "image", image: "nginx:1.27", port: 80, environmentId: "env-1" });
+    await createService("jwt", "proj-1", { name: "main db", type: "postgres", environmentId: "env-1" });
+    await assert.rejects(
+      () => createService("jwt", "proj-1", { name: "edge", type: "image" }),
+      /image reference is required/i,
+    );
+    await createEnvironment("jwt", "proj-1", { name: "Staging Two", type: "staging" });
+    await assert.rejects(
+      () => createEnvironment("jwt", "proj-1", { name: "---", type: "preview" }),
+      /DNS label/,
+    );
+    await deleteService("jwt", "svc/1");
+
+    assert.deepEqual(calls[0].body, {
+      name: "nginx",
+      type: "image",
+      image: "nginx:1.27",
+      port: 80,
+      environment_id: "env-1",
+    });
+    assert.deepEqual(calls[1].body, { name: "main-db", type: "postgres", environment_id: "env-1" });
+    assert.deepEqual(calls[2].body, { name: "staging-two", type: "staging" });
+    assert.equal(calls[2].url, "/api/platform/v1/projects/proj-1/environments");
+    assert.deepEqual(calls[3], { url: "/api/platform/v1/services/svc%2F1", method: "DELETE", body: null });
   });
 
   it("starts deployments with a fresh Idempotency-Key per call", async () => {

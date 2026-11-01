@@ -168,6 +168,8 @@ export type ProjectSummary = {
   updated_at: string;
 };
 
+export type ServiceType = "web" | "worker" | "image" | "postgres" | "redis";
+
 export type ServiceSourceSummary = {
   repository_full_name: string;
   branch: string;
@@ -176,23 +178,42 @@ export type ServiceSourceSummary = {
   auto_deploy: boolean;
 };
 
+/** Present on `image` services. `resolved_image` is the pinned digest after a deploy. */
+export type ServiceImageSummary = {
+  image: string;
+  resolved_image: string | null;
+};
+
+/** Present on managed postgres/redis services. Connection env is injected on the next deploy. */
+export type ServiceAddonSummary = {
+  engine: "postgres" | "redis";
+  version: string;
+  storage_mb: number;
+  url_env: "DATABASE_URL" | "REDIS_URL";
+};
+
 export type ServiceSummary = {
   id: string;
   project_id: string;
   environment_id: string;
   environment_name: string;
   name: string;
-  type: "web" | "worker";
+  type: ServiceType;
   source: ServiceSourceSummary | null;
+  image: ServiceImageSummary | null;
+  addon: ServiceAddonSummary | null;
+  port: number | null;
   latest_deployment: DeploymentSummary | null;
   created_at: string;
   updated_at: string;
 };
 
+export type EnvironmentKind = "production" | "staging" | "preview";
+
 export type ProjectEnvironmentSummary = {
   id: string;
   name: string;
-  type: string;
+  type: EnvironmentKind | string;
   is_ephemeral: boolean;
 };
 
@@ -301,36 +322,83 @@ export async function deleteProject(accessToken: string, projectId: string) {
 }
 
 /**
- * Service names are DNS labels on the backend (1-63 chars of a-z, 0-9, '-',
- * no leading/trailing '-'), so free-form names such as GitHub repo names
- * ("My_App", "Summit.Web") must be normalised before they are sent.
+ * DNS label: 1-63 chars of a-z, 0-9 and '-', no leading or trailing '-'.
+ * Returns "" when the input has no usable characters.
  */
-export function toServiceName(raw: string): string {
-  const name = raw
+export function toDnsLabel(raw: string): string {
+  return raw
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 63)
     .replace(/-+$/g, "");
-  return name || "web";
 }
 
-export function createService(
-  accessToken: string,
-  projectId: string,
-  input: { name: string; type?: "web" | "worker"; environmentId?: string },
-) {
+/**
+ * Service names are DNS labels on the backend, so free-form names such as
+ * GitHub repo names ("My_App", "Summit.Web") must be normalised before they
+ * are sent. Empty input falls back to "web".
+ */
+export function toServiceName(raw: string): string {
+  return toDnsLabel(raw) || "web";
+}
+
+export type CreateServiceInput = {
+  name: string;
+  type?: ServiceType;
+  environmentId?: string;
+  /** Required when type is "image". Example: "nginx:1.27" or "ghcr.io/org/app:tag". */
+  image?: string;
+  /** Used for image and web services. */
+  port?: number;
+};
+
+export async function createService(accessToken: string, projectId: string, input: CreateServiceInput) {
+  const type = input.type ?? "web";
+  const body: Record<string, unknown> = {
+    name: toServiceName(input.name),
+    type,
+  };
+  if (input.environmentId) body.environment_id = input.environmentId;
+  if (type === "image") {
+    const image = input.image?.trim();
+    if (!image) throw new Error("An image reference is required.");
+    body.image = image;
+  }
+  if ((type === "image" || type === "web") && typeof input.port === "number") {
+    body.port = input.port;
+  }
   return platformRequest<ServiceSummary>(
     `/v1/projects/${encodeURIComponent(projectId)}/services`,
     accessToken,
-    {
-      method: "POST",
-      body: JSON.stringify({
-        name: toServiceName(input.name),
-        type: input.type ?? "web",
-        ...(input.environmentId ? { environment_id: input.environmentId } : {}),
-      }),
-    },
+    { method: "POST", body: JSON.stringify(body) },
+  );
+}
+
+/** Stops the workload. For postgres and redis this also deletes the data. */
+export async function deleteService(accessToken: string, serviceId: string) {
+  await platformRequest<null>(`/v1/services/${encodeURIComponent(serviceId)}`, accessToken, {
+    method: "DELETE",
+  });
+}
+
+export type CreateEnvironmentInput = {
+  name: string;
+  type: "staging" | "preview";
+};
+
+/** Production exists by default; only staging and preview can be created. */
+export async function createEnvironment(
+  accessToken: string,
+  projectId: string,
+  input: CreateEnvironmentInput,
+) {
+  const name = toDnsLabel(input.name);
+  if (!name) throw new Error("Environment name must be a DNS label (letters, numbers, hyphens).");
+  return platformRequest<ProjectEnvironmentSummary>(
+    `/v1/projects/${encodeURIComponent(projectId)}/environments`,
+    accessToken,
+    { method: "POST", body: JSON.stringify({ name, type: input.type }) },
   );
 }
 

@@ -7,7 +7,9 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/summit/backend/internal/catalog"
 	"github.com/summit/backend/internal/platformdb"
+	"github.com/summit/backend/internal/registry"
 )
 
 // Store is the slice of platformdb the service depends on. *platformdb.Store
@@ -19,13 +21,19 @@ type Store interface {
 	UpdateProject(ctx context.Context, userID, projectID uuid.UUID, u platformdb.UpdateProjectParams) (*platformdb.Project, error)
 	SoftDeleteProject(ctx context.Context, userID, projectID uuid.UUID) error
 	ListEnvironments(ctx context.Context, userID, projectID uuid.UUID) ([]platformdb.Environment, error)
+	CreateEnvironment(ctx context.Context, userID, projectID uuid.UUID, name, envType string) (*platformdb.Environment, error)
 	CreateService(ctx context.Context, userID, environmentID uuid.UUID, name, serviceType string) (*platformdb.Service, error)
+	CreateTypedService(ctx context.Context, userID, environmentID uuid.UUID, spec platformdb.ServiceCreate) (*platformdb.Service, error)
 	ListServicesByProject(ctx context.Context, userID, projectID uuid.UUID) ([]platformdb.Service, error)
+	SoftDeleteService(ctx context.Context, userID, serviceID uuid.UUID) (*platformdb.Service, error)
 
 	CountServicesByProject(ctx context.Context, userID uuid.UUID, projectIDs []uuid.UUID) (map[uuid.UUID]int, error)
 	LatestDeploymentsByProject(ctx context.Context, userID uuid.UUID, projectIDs []uuid.UUID) (map[uuid.UUID]platformdb.Deployment, error)
 	LatestDeploymentsByService(ctx context.Context, userID uuid.UUID, serviceIDs []uuid.UUID) (map[uuid.UUID]platformdb.Deployment, error)
 	ServiceSourcesByService(ctx context.Context, userID uuid.UUID, serviceIDs []uuid.UUID) (map[uuid.UUID]platformdb.ServiceSourceInfo, error)
+	ServiceImageSourcesByService(ctx context.Context, userID uuid.UUID, serviceIDs []uuid.UUID) (map[uuid.UUID]platformdb.ServiceImageSource, error)
+	ServiceAddonsByService(ctx context.Context, userID uuid.UUID, serviceIDs []uuid.UUID) (map[uuid.UUID]platformdb.ServiceAddon, error)
+	ServicePortsByService(ctx context.Context, userID uuid.UUID, serviceIDs []uuid.UUID) (map[uuid.UUID]int, error)
 
 	ListDeploymentsForProject(ctx context.Context, userID, projectID uuid.UUID, lp platformdb.ListParams) (platformdb.Page[platformdb.Deployment], error)
 	GetDeploymentForUser(ctx context.Context, userID, deploymentID uuid.UUID) (*platformdb.DeploymentDetail, error)
@@ -191,6 +199,18 @@ func (s *Service) summarizeServices(ctx context.Context, userID uuid.UUID, svcs 
 	if err != nil {
 		return nil, err
 	}
+	images, err := s.store.ServiceImageSourcesByService(ctx, userID, ids)
+	if err != nil {
+		return nil, err
+	}
+	addons, err := s.store.ServiceAddonsByService(ctx, userID, ids)
+	if err != nil {
+		return nil, err
+	}
+	ports, err := s.store.ServicePortsByService(ctx, userID, ids)
+	if err != nil {
+		return nil, err
+	}
 	for _, sv := range svcs {
 		var ld *platformdb.Deployment
 		if d, ok := latest[sv.ID]; ok {
@@ -202,7 +222,22 @@ func (s *Service) summarizeServices(ctx context.Context, userID uuid.UUID, svcs 
 			si := si
 			src = &si
 		}
-		out = append(out, toServiceSummary(sv, src, ld))
+		var image *platformdb.ServiceImageSource
+		if im, ok := images[sv.ID]; ok {
+			im := im
+			image = &im
+		}
+		var addon *platformdb.ServiceAddon
+		if ad, ok := addons[sv.ID]; ok {
+			ad := ad
+			addon = &ad
+		}
+		var port *int
+		if p, ok := ports[sv.ID]; ok {
+			p := p
+			port = &p
+		}
+		out = append(out, toServiceSummary(sv, src, ld, image, addon, port))
 	}
 	return out, nil
 }
@@ -225,19 +260,57 @@ func (s *Service) DeleteProject(ctx context.Context, userID, projectID uuid.UUID
 	return s.store.SoftDeleteProject(ctx, userID, projectID)
 }
 
-// CreateService creates a web or worker service in the project's production
-// environment, or in the given environment if it belongs to the project.
+// DeleteService soft-deletes one service owned by userID.
+func (s *Service) DeleteService(ctx context.Context, userID, serviceID uuid.UUID) error {
+	_, err := s.store.SoftDeleteService(ctx, userID, serviceID)
+	return err
+}
+
+// CreateEnvironment adds a staging or preview environment to a project.
+func (s *Service) CreateEnvironment(ctx context.Context, userID, projectID uuid.UUID, req CreateEnvironmentRequest) (*EnvironmentView, error) {
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		return nil, invalid("name is required")
+	}
+	env, err := s.store.CreateEnvironment(ctx, userID, projectID, name, strings.TrimSpace(req.Type))
+	if err != nil {
+		return nil, err
+	}
+	return &EnvironmentView{ID: env.ID, Name: env.Name, Type: env.Type, IsEphemeral: env.IsEphemeral}, nil
+}
+
+// CreateService creates a web, worker, image, postgres, or redis service.
+// The environment defaults to production. environment_id must belong to this project.
 func (s *Service) CreateService(ctx context.Context, userID, projectID uuid.UUID, req CreateServiceRequest) (*ServiceSummary, error) {
-	svcType := req.Type
+	svcType := strings.TrimSpace(req.Type)
 	if svcType == "" {
 		svcType = platformdb.ServiceTypeWeb
 	}
-	if svcType != platformdb.ServiceTypeWeb && svcType != platformdb.ServiceTypeWorker {
-		return nil, invalid("type must be web or worker")
+	switch svcType {
+	case platformdb.ServiceTypeWeb, platformdb.ServiceTypeWorker, platformdb.ServiceTypeImage, platformdb.ServiceTypePostgres, platformdb.ServiceTypeRedis:
+	default:
+		return nil, invalid("type must be web, worker, image, postgres or redis")
 	}
 	name := strings.TrimSpace(req.Name)
 	if name == "" {
 		return nil, invalid("name is required")
+	}
+	image := strings.TrimSpace(req.Image)
+	if svcType == platformdb.ServiceTypeImage {
+		if image == "" {
+			return nil, invalid("image is required for type image")
+		}
+		if err := registry.ValidateRef(image); err != nil {
+			return nil, invalid("invalid image reference")
+		}
+	} else if image != "" {
+		return nil, invalid("image is only valid for image services")
+	}
+	if req.Port != nil && svcType != platformdb.ServiceTypeWeb && svcType != platformdb.ServiceTypeImage {
+		return nil, invalid("port is only valid for web and image services")
+	}
+	if req.Port != nil && (*req.Port < 1 || *req.Port > 65535) {
+		return nil, invalid("port must be 1-65535")
 	}
 
 	envs, err := s.store.ListEnvironments(ctx, userID, projectID)
@@ -266,12 +339,25 @@ func (s *Service) CreateService(ctx context.Context, userID, projectID uuid.UUID
 		envID = id
 	}
 
-	sv, err := s.store.CreateService(ctx, userID, envID, name, svcType)
+	spec := platformdb.ServiceCreate{Name: name, Type: svcType, Image: image, Port: req.Port}
+	if svcType == platformdb.ServiceTypePostgres || svcType == platformdb.ServiceTypeRedis {
+		addon, ok := catalog.AddonFor(svcType)
+		if !ok {
+			return nil, invalid("unknown addon engine")
+		}
+		spec.AddonEngine = addon.Engine
+		spec.AddonVersion = addon.Version
+		spec.StorageMB = catalog.DefaultStorageMB
+	}
+	sv, err := s.store.CreateTypedService(ctx, userID, envID, spec)
 	if err != nil {
 		return nil, err
 	}
-	sum := toServiceSummary(*sv, nil, nil)
-	return &sum, nil
+	sums, err := s.summarizeServices(ctx, userID, []platformdb.Service{*sv})
+	if err != nil {
+		return nil, err
+	}
+	return &sums[0], nil
 }
 
 func productionEnvironment(envs []platformdb.Environment) (uuid.UUID, bool) {

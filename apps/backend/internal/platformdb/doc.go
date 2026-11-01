@@ -65,8 +65,11 @@
 //	UpdateProject(ctx, userID, projectID, UpdateProjectParams) (*Project, error)      // name, default branch
 //	SoftDeleteProject(ctx, userID, projectID) error                                   // also soft-deletes envs and services; slug stays reserved
 //	ListEnvironments(ctx, userID, projectID) ([]Environment, error)
-//	CreateService(ctx, userID, environmentID, name, type) (*Service, error)           // + default service_resources row
+//	CreateEnvironment(ctx, userID, projectID, name, type) (*Environment, error)       // staging|preview; preview is ephemeral
+//	CreateService(ctx, userID, environmentID, name, type) (*Service, error)           // web|worker|cron + default resources
+//	CreateTypedService(ctx, userID, environmentID, ServiceCreate) (*Service, error)   // image, postgres, redis, and the git kinds
 //	ListServicesByProject(ctx, userID, projectID) ([]Service, error)
+//	SoftDeleteService(ctx, userID, serviceID) (*Service, error)                       // disconnect source, cancel in-flight, service.deleted
 //	GetServiceForUser(ctx, userID, serviceID) (*Service, error)
 //	GetServiceResources / UpsertServiceResources(ctx, userID, serviceID[, res])
 //	ListSecretReferences / CreateSecretReference / DeleteSecretReference              // pointers only: provider + vault path + optional version
@@ -74,6 +77,7 @@
 // Deployments (DeploymentStore):
 //
 //	CreateDeploymentWithOutbox(ctx, CreateDeploymentParams) (*CreateDeploymentResult, error)
+//	CreateImageDeployment / CreateAddonDeployment(ctx, params) (*CreateDeploymentResult, error) // status image_ready, no build job, no build outbox
 //	GetDeploymentForUser(ctx, userID, deploymentID) (*DeploymentDetail, error)        // deployment + build job + events (oldest first)
 //	ListDeploymentsForProject(ctx, userID, projectID, ListParams) (Page[Deployment], error)
 //	RequestCancel(ctx, userID, deploymentID) (*Deployment, error)                     // sets cancel_requested_at on in-flight deployments only
@@ -99,15 +103,30 @@
 //
 // RolloutStore (internal; orchestrator):
 //
-//	ListActiveDeployments(ctx, limit) ([]ActiveDeployment, error)  // in-flight only, oldest first; deployment + build job + user/project/env/service/repo owner + resources
+//	ListActiveDeployments(ctx, limit) ([]ActiveDeployment, error)  // in-flight only; LEFT JOIN build job (zero when absent). Use ServiceType, EnvironmentName, Resources.Port, Deployment.ImageRef
 //	GetDeployment(ctx, id) (*Deployment, error)
 //	TransitionDeployment(ctx, id, from []DeploymentStatus, to DeploymentStatus, reason string, opts ...TransitionOption) (*Deployment, error)
 //	PromoteRelease(ctx, deploymentID, configSnapshot) (*PromoteResult, error)
 //
+// EnvironmentAddonStore (internal; orchestrator, not part of RolloutStore):
+//
+//	ListEnvironmentAddons(ctx, environmentID) ([]EnvironmentAddon, error)  // live postgres|redis; port, engine, version
+//
 // Pinger: (*Store).Ping(ctx). The pool-level helper is db.Ping(ctx, pool, timeout).
+//
+// service.deleted outbox (aggregate_type "service", event_type "service.deleted")
+// is written by SoftDeleteService and SoftDeleteProject. The payload is
+// ServiceDeletedEvent: event_id, service_id, service_name, service_type,
+// user_id, project_id, project_slug, environment_id, environment_name.
+// event_id is not the outbox row id. There is no backup API.
 //
 // # Idempotency and concurrency guarantees
 //
+//   - CreateImageDeployment and CreateAddonDeployment are idempotent on
+//     (project_id, IdempotencyKey) via ON CONFLICT ON CONSTRAINT
+//     uq_project_idempotency. A repeat returns Created=false and a zero BuildJob.
+//     The same key for a different service is ErrConflict. git_commit_sha and
+//     git_branch are NULL. No deployment.build.requested event is written.
 //   - CreateDeploymentWithOutbox is idempotent on (project_id, IdempotencyKey)
 //     and, for webhook triggers, on (TriggerEventID, service): a repeat returns
 //     the original deployment and build job with Created=false and writes

@@ -179,7 +179,9 @@ func (s *Store) UpdateProject(ctx context.Context, userID, projectID uuid.UUID, 
 }
 
 // SoftDeleteProject marks the project and all of its environments and services
-// deleted. Rows are kept (deployments reference them); the slug stays reserved.
+// deleted. Each live service also gets a service.deleted outbox event, a
+// disconnected source, and cancel requests on in-flight deployments. Rows are
+// kept (deployments reference them); the slug stays reserved.
 func (s *Store) SoftDeleteProject(ctx context.Context, userID, projectID uuid.UUID) error {
 	return s.WithTx(ctx, func(tx *Store) error {
 		tag, err := tx.db.Exec(ctx, `
@@ -191,11 +193,8 @@ func (s *Store) SoftDeleteProject(ctx context.Context, userID, projectID uuid.UU
 		if tag.RowsAffected() == 0 {
 			return ErrNotFound
 		}
-		if _, err := tx.db.Exec(ctx, `
-			UPDATE services SET deleted_at = now()
-			WHERE deleted_at IS NULL
-			  AND environment_id IN (SELECT id FROM environments WHERE project_id = $1)`, projectID); err != nil {
-			return fmt.Errorf("platformdb: soft delete services: %w", err)
+		if err := tx.deleteLiveProjectServices(ctx, projectID); err != nil {
+			return err
 		}
 		if _, err := tx.db.Exec(ctx, `
 			UPDATE environments SET deleted_at = now()
@@ -256,48 +255,16 @@ func scanService(row pgx.Row) (*Service, error) {
 }
 
 // CreateService creates a service (web|worker|cron) in an environment owned by
-// userID, plus its default service_resources row. A duplicate name within the
-// environment returns ErrConflict.
+// userID, plus its default service_resources row (port 8080). A duplicate name
+// within the environment returns ErrConflict. Image, postgres, and redis
+// services go through CreateTypedService.
 func (s *Store) CreateService(ctx context.Context, userID, environmentID uuid.UUID, name, serviceType string) (*Service, error) {
-	name = strings.TrimSpace(name)
-	if !slugRe.MatchString(name) {
-		return nil, invalidArg("service name must be 1-63 chars of a-z, 0-9 and '-', not starting or ending with '-'")
-	}
 	switch serviceType {
 	case ServiceTypeWeb, ServiceTypeWorker, ServiceTypeCron:
 	default:
 		return nil, invalidArg("service type must be web, worker or cron")
 	}
-	var out *Service
-	err := s.WithTx(ctx, func(tx *Store) error {
-		// Lock + verify the environment is owned and live.
-		var envID uuid.UUID
-		err := tx.db.QueryRow(ctx, `
-			SELECT e.id FROM environments e JOIN projects p ON p.id = e.project_id
-			WHERE e.id = $1 AND p.user_id = $2 AND e.deleted_at IS NULL AND p.deleted_at IS NULL
-			FOR SHARE OF e`, environmentID, userID).Scan(&envID)
-		if err != nil {
-			return notFoundIfNoRows(err)
-		}
-		var id uuid.UUID
-		if err := tx.db.QueryRow(ctx, `
-			INSERT INTO services (environment_id, name, type) VALUES ($1, $2, $3) RETURNING id`,
-			environmentID, name, serviceType).Scan(&id); err != nil {
-			if isUniqueViolation(err) {
-				return fmt.Errorf("%w: service %q already exists in environment", ErrConflict, name)
-			}
-			return fmt.Errorf("platformdb: insert service: %w", err)
-		}
-		if _, err := tx.db.Exec(ctx, `INSERT INTO service_resources (service_id) VALUES ($1)`, id); err != nil {
-			return fmt.Errorf("platformdb: insert service resources: %w", err)
-		}
-		out, err = scanService(tx.db.QueryRow(ctx, `SELECT `+serviceCols+` FROM `+serviceFrom+` WHERE sv.id = $1`, id))
-		return err
-	})
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
+	return s.CreateTypedService(ctx, userID, environmentID, ServiceCreate{Name: name, Type: serviceType})
 }
 
 // ListServicesByProject returns the non-deleted services across all live

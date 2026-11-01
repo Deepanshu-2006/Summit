@@ -1,0 +1,10 @@
+# Build context is apps/backend. Never send local secrets or cluster manifests.
+.env
+.env.*
+**/.env
+config
+**/*.md
+**/*_test.go
+Dockerfile*
+.dockerignore
+.git

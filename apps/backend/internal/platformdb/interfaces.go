@@ -24,8 +24,11 @@ type ProjectStore interface {
 	UpdateProject(ctx context.Context, userID, projectID uuid.UUID, u UpdateProjectParams) (*Project, error)
 	SoftDeleteProject(ctx context.Context, userID, projectID uuid.UUID) error
 	ListEnvironments(ctx context.Context, userID, projectID uuid.UUID) ([]Environment, error)
+	CreateEnvironment(ctx context.Context, userID, projectID uuid.UUID, name, envType string) (*Environment, error)
 	CreateService(ctx context.Context, userID, environmentID uuid.UUID, name, serviceType string) (*Service, error)
+	CreateTypedService(ctx context.Context, userID, environmentID uuid.UUID, spec ServiceCreate) (*Service, error)
 	ListServicesByProject(ctx context.Context, userID, projectID uuid.UUID) ([]Service, error)
+	SoftDeleteService(ctx context.Context, userID, serviceID uuid.UUID) (*Service, error)
 	GetServiceForUser(ctx context.Context, userID, serviceID uuid.UUID) (*Service, error)
 	GetServiceResources(ctx context.Context, userID, serviceID uuid.UUID) (*ServiceResources, error)
 	UpsertServiceResources(ctx context.Context, userID, serviceID uuid.UUID, res ServiceResources) (*ServiceResources, error)
@@ -37,6 +40,8 @@ type ProjectStore interface {
 // DeploymentStore is the API-facing deployment surface. Scoped to userID.
 type DeploymentStore interface {
 	CreateDeploymentWithOutbox(ctx context.Context, p CreateDeploymentParams) (*CreateDeploymentResult, error)
+	CreateImageDeployment(ctx context.Context, p CreateImageDeploymentParams) (*CreateDeploymentResult, error)
+	CreateAddonDeployment(ctx context.Context, p CreateAddonDeploymentParams) (*CreateDeploymentResult, error)
 	GetDeploymentForUser(ctx context.Context, userID, deploymentID uuid.UUID) (*DeploymentDetail, error)
 	ListDeploymentsForProject(ctx context.Context, userID, projectID uuid.UUID, lp ListParams) (Page[Deployment], error)
 	RequestCancel(ctx context.Context, userID, deploymentID uuid.UUID) (*Deployment, error)
@@ -59,6 +64,7 @@ type BuildStore interface {
 }
 
 // RolloutStore is the orchestrator's deployment-driving surface (trusted, not user-scoped).
+// ListEnvironmentAddons is intentionally not here: monitor tests fake exactly this set.
 type RolloutStore interface {
 	ListActiveDeployments(ctx context.Context, limit int) ([]ActiveDeployment, error)
 	GetDeployment(ctx context.Context, id uuid.UUID) (*Deployment, error)
@@ -66,10 +72,17 @@ type RolloutStore interface {
 	PromoteRelease(ctx context.Context, deploymentID uuid.UUID, configSnapshot json.RawMessage) (*PromoteResult, error)
 }
 
+// EnvironmentAddonStore lists live postgres and redis services for one environment.
+// The orchestrator uses it to inject connection URLs. It is not user-scoped.
+type EnvironmentAddonStore interface {
+	ListEnvironmentAddons(ctx context.Context, environmentID uuid.UUID) ([]EnvironmentAddon, error)
+}
+
 var (
-	_ Pinger          = (*Store)(nil)
-	_ ProjectStore    = (*Store)(nil)
-	_ DeploymentStore = (*Store)(nil)
-	_ BuildStore      = (*Store)(nil)
-	_ RolloutStore    = (*Store)(nil)
+	_ Pinger                = (*Store)(nil)
+	_ ProjectStore          = (*Store)(nil)
+	_ DeploymentStore       = (*Store)(nil)
+	_ BuildStore            = (*Store)(nil)
+	_ RolloutStore          = (*Store)(nil)
+	_ EnvironmentAddonStore = (*Store)(nil)
 )

@@ -104,23 +104,37 @@ func TestTenantNamespaceName(t *testing.T) {
 }
 
 func TestServiceHost(t *testing.T) {
-	cases := []struct{ svc, proj, domain, want string }{
-		{"api", "my-project", "localtest.me", "api-my-project.localtest.me"},
-		{"My_API", "Shop 2.0", "Apps.Example.com.", "my-api-shop-2-0.apps.example.com"},
-		{"api", "", "localtest.me", "api.localtest.me"},
+	cases := []struct{ svc, proj, env, domain, want string }{
+		{"api", "my-project", "", "localtest.me", "api-my-project.localtest.me"},
+		{"api", "my-project", "production", "localtest.me", "api-my-project.localtest.me"},
+		{"api", "my-project", "Production", "localtest.me", "api-my-project.localtest.me"},
+		{"api", "my-project", "staging", "localtest.me", "api-my-project-staging.localtest.me"},
+		{"My_API", "Shop 2.0", "Feature/One", "Apps.Example.com.", "my-api-shop-2-0-feature-one.apps.example.com"},
+		{"api", "", "preview", "localtest.me", "api-preview.localtest.me"},
 	}
 	for _, c := range cases {
-		got, err := ServiceHost(c.svc, c.proj, c.domain)
+		got, err := ServiceHost(c.svc, c.proj, c.env, c.domain)
 		if err != nil || got != c.want {
-			t.Errorf("ServiceHost(%q,%q,%q)=%q,%v want %q", c.svc, c.proj, c.domain, got, err, c.want)
+			t.Errorf("ServiceHost(%q,%q,%q,%q)=%q,%v want %q", c.svc, c.proj, c.env, c.domain, got, err, c.want)
 		}
 	}
-
-	long1, err := ServiceHost("svc-"+strings.Repeat("a", 40), "project-"+strings.Repeat("b", 40), "localtest.me")
+	prod, err := ServiceHost("api", "shop", "production", "localtest.me")
 	if err != nil {
 		t.Fatal(err)
 	}
-	long2, _ := ServiceHost("svc-"+strings.Repeat("a", 40), "project-"+strings.Repeat("b", 39)+"c", "localtest.me")
+	stage, err := ServiceHost("api", "shop", "staging", "localtest.me")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if prod == stage {
+		t.Fatalf("production and staging hosts collided: %s", prod)
+	}
+
+	long1, err := ServiceHost("svc-"+strings.Repeat("a", 40), "project-"+strings.Repeat("b", 40), "", "localtest.me")
+	if err != nil {
+		t.Fatal(err)
+	}
+	long2, _ := ServiceHost("svc-"+strings.Repeat("a", 40), "project-"+strings.Repeat("b", 39)+"c", "staging", "localtest.me")
 	label := strings.SplitN(long1, ".", 2)[0]
 	if len(label) > 63 || len(validation.IsDNS1123Label(label)) > 0 {
 		t.Errorf("invalid long label %q (%d)", label, len(label))
@@ -129,8 +143,8 @@ func TestServiceHost(t *testing.T) {
 		t.Error("distinct long inputs collided")
 	}
 
-	for _, bad := range [][3]string{{"", "p", "localtest.me"}, {"!!!", "p", "localtest.me"}, {"a", "p", ""}, {"a", "p", "bad_domain"}} {
-		if _, err := ServiceHost(bad[0], bad[1], bad[2]); err == nil {
+	for _, bad := range [][4]string{{"", "p", "", "localtest.me"}, {"!!!", "p", "", "localtest.me"}, {"a", "p", "", ""}, {"a", "p", "", "bad_domain"}} {
+		if _, err := ServiceHost(bad[0], bad[1], bad[2], bad[3]); err == nil {
 			t.Errorf("%v accepted", bad)
 		}
 	}

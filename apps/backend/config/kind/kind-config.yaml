@@ -2,9 +2,15 @@
 #   kind create cluster --name summit-local --config apps/backend/config/kind/kind-config.yaml
 # Do not run against an existing cluster you want to keep: it is creation input only.
 #
-# - 80/443 on the node are published to the host so a Traefik Service of type
-#   NodePort (30080/30443) or hostPort install is reachable at
-#   http://<service>-<project>.localtest.me (localtest.me resolves to 127.0.0.1).
+# - 80/443/4000 on the node are published to the host:
+#     30080 -> 80    Traefik web
+#     30443 -> 443   Traefik websecure
+#     30400 -> 4000  summit-api (GitHub App callback is registered at
+#                    http://127.0.0.1:4000)
+#   localtest.me resolves to loopback, so
+#   http://<service>-<project>.localtest.me reaches Traefik.
+#   A cluster created without these mappings (kind-summit-local today) must use
+#   deploy/local/ports.sh. Do not recreate that cluster to pick this file up.
 # - kindnet in recent Kind releases enforces networking.k8s.io/v1 NetworkPolicy, so
 #   ORCHESTRATOR_NETWORK_POLICY_MODE=native works without installing Cilium. To use
 #   Cilium instead, set disableDefaultCNI: true and install Cilium before workloads.
@@ -28,4 +34,7 @@ nodes:
         protocol: TCP
       - containerPort: 30443   # Traefik websecure NodePort
         hostPort: 443
+        protocol: TCP
+      - containerPort: 30400   # summit-api NodePort
+        hostPort: 4000
         protocol: TCP

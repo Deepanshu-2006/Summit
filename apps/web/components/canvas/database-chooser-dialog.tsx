@@ -23,6 +23,7 @@ interface EngineOption {
   metadata: string;
   port: number;
   infoRow: string;
+  available: boolean;
   Icon: React.ComponentType<{ className?: string }>;
 }
 
@@ -33,7 +34,8 @@ const DATABASE_OPTIONS: EngineOption[] = [
     description: "Relational database",
     metadata: "SQL · Port 5432",
     port: 5432,
-    infoRow: "PostgreSQL 16 · Default port 5432",
+    infoRow: "PostgreSQL · connection injected as DATABASE_URL",
+    available: true,
     Icon: PostgresLogo,
   },
   {
@@ -42,7 +44,8 @@ const DATABASE_OPTIONS: EngineOption[] = [
     description: "Document database",
     metadata: "NoSQL · Port 27017",
     port: 27017,
-    infoRow: "MongoDB 8 · Default port 27017",
+    infoRow: "Coming soon",
+    available: false,
     Icon: MongoLogo,
   },
   {
@@ -51,7 +54,8 @@ const DATABASE_OPTIONS: EngineOption[] = [
     description: "In-memory data store",
     metadata: "Key-value · Port 6379",
     port: 6379,
-    infoRow: "Redis 8 · Default port 6379",
+    infoRow: "Redis · connection injected as REDIS_URL",
+    available: true,
     Icon: RedisLogo,
   },
 ];
@@ -143,37 +147,26 @@ export function DatabaseChooserDialog({
   const isMongoValid = mongoServiceName.trim().length > 0 && mongoDbName.trim().length > 0;
   const isRedisValid = redisServiceName.trim().length > 0;
 
-  const isFormValid =
-    selectedEngine === "postgres"
+  const isFormValid = !currentOption.available
+    ? false
+    : selectedEngine === "postgres"
       ? isPgValid
       : selectedEngine === "mongodb"
-      ? isMongoValid
-      : isRedisValid;
+        ? isMongoValid
+        : isRedisValid;
 
   // Handle final node addition to canvas
   const handleAddToCanvas = () => {
     if (!isFormValid) return;
+
+    if (!currentOption.available) return;
 
     if (selectedEngine === "postgres") {
       onConfirm("database", {
         label: pgDbName.trim(),
         subType: "PostgreSQL",
         databaseEngine: "postgresql",
-        databaseName: pgInitialDb.trim(),
-        username: pgUsername.trim(),
-        region: pgRegion,
         port: 5432,
-        connectionString: `postgresql://${pgUsername.trim()}:***@localhost:5432/${pgInitialDb.trim()}`,
-      });
-    } else if (selectedEngine === "mongodb") {
-      onConfirm("database", {
-        label: mongoServiceName.trim(),
-        subType: "MongoDB",
-        databaseEngine: "mongodb",
-        databaseName: mongoDbName.trim(),
-        region: mongoRegion,
-        port: 27017,
-        connectionString: `mongodb://localhost:27017/${mongoDbName.trim()}`,
       });
     } else if (selectedEngine === "redis") {
       onConfirm("database", {
@@ -181,10 +174,7 @@ export function DatabaseChooserDialog({
         subType: "Redis",
         serviceType: "cache",
         databaseEngine: "redis",
-        memorySize: redisMemory,
-        region: redisRegion,
         port: 6379,
-        connectionString: "redis://localhost:6379",
       });
     }
 
@@ -249,16 +239,24 @@ export function DatabaseChooserDialog({
             <div className="px-5 pt-2 pb-3 flex flex-col flex-1">
               <div className="space-y-1">
                 {DATABASE_OPTIONS.map((option) => {
-                  const isSelected = selectedEngine === option.id;
+                  const isSelected = option.available && selectedEngine === option.id;
                   const { Icon } = option;
                   return (
                     <div
                       key={option.id}
-                      onClick={() => setSelectedEngine(option.id)}
-                      className={`group relative flex items-center justify-between px-3.5 py-3 rounded-[5px] transition-colors duration-150 cursor-pointer ${
+                      role="button"
+                      aria-disabled={!option.available}
+                      onClick={() => {
+                        if (option.available) setSelectedEngine(option.id);
+                      }}
+                      className={`group relative flex items-center justify-between px-3.5 py-3 rounded-[5px] transition-colors duration-150 ${
+                        option.available ? "cursor-pointer" : "cursor-not-allowed opacity-55"
+                      } ${
                         isSelected
                           ? "bg-[#181817] text-[#F1F0ED]"
-                          : "bg-transparent hover:bg-[#181817]/60 text-[#DCDAD5]"
+                          : option.available
+                            ? "bg-transparent hover:bg-[#181817]/60 text-[#DCDAD5]"
+                            : "bg-transparent text-[#8E8C86]"
                       }`}
                     >
                       {/* Left: Compact Icon + Name & Description */}
@@ -283,7 +281,7 @@ export function DatabaseChooserDialog({
                       {/* Right: Technical Metadata Label & Selection Indicator */}
                       <div className="flex items-center gap-2.5 shrink-0">
                         <span className="font-mono text-[10.5px] text-[#77756F] group-hover:text-[#A09E98]">
-                          {option.metadata}
+                          {option.available ? option.metadata : "Coming soon"}
                         </span>
 
                         <div className="w-3.5 h-3.5 flex items-center justify-center">
@@ -321,8 +319,10 @@ export function DatabaseChooserDialog({
                 </button>
                 <button
                   type="button"
-                  disabled={!selectedEngine}
-                  onClick={() => setStep(2)}
+                  disabled={!currentOption.available}
+                  onClick={() => {
+                    if (currentOption.available) setStep(2);
+                  }}
                   className="px-3.5 py-1.5 rounded-[5px] bg-[#E58B62] hover:bg-[#F0A17B] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#E58B62] text-[#0B0B0A] font-sans font-medium text-[12px] transition-colors cursor-pointer"
                 >
                   Continue
