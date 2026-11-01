@@ -53,9 +53,18 @@ spec:
     - matchName: crates.io
     - matchName: static.crates.io
     - matchName: index.crates.io
+    - matchName: deb.debian.org
+    - matchName: security.debian.org
     toPorts:
     - ports:
       - port: "443"
+        protocol: TCP
+  - toFQDNs:
+    - matchName: deb.debian.org
+    - matchName: security.debian.org
+    toPorts:
+    - ports:
+      - port: "80"
         protocol: TCP
   endpointSelector:
     matchLabels:

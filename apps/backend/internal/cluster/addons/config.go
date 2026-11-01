@@ -149,6 +149,7 @@ func DefaultBuildAllowedFQDNs() []string {
 		"registry-1.docker.io", "auth.docker.io", "production.cloudflare.docker.com",
 		"registry.npmjs.org", "pypi.org", "files.pythonhosted.org",
 		"proxy.golang.org", "sum.golang.org", "crates.io", "static.crates.io", "index.crates.io",
+		"deb.debian.org", "security.debian.org",
 	}
 }
 

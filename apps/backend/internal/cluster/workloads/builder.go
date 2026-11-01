@@ -134,7 +134,7 @@ func BuildDeployment(svc *SummitService) (*appsv1.Deployment, error) {
 									Protocol:      corev1.ProtocolTCP,
 								},
 							},
-							Env:       copySvc.Spec.Env,
+							Env:       withPortEnv(copySvc.Spec.Env, copySvc.Spec.Port),
 							Resources: resources,
 							LivenessProbe: &corev1.Probe{
 								ProbeHandler: corev1.ProbeHandler{
@@ -394,6 +394,20 @@ func BuildPostgresStatefulSet(svc *SummitService) (*appsv1.StatefulSet, error) {
 // the reconciler has not marked it absent. A missing secret must not be named:
 // kubelet refuses to pull a public image when imagePullSecrets points at a
 // secret that does not exist.
+// withPortEnv returns env with PORT set to the service port unless the user already set PORT.
+// Most frameworks (Next.js, Express, Rails, ...) bind to $PORT, so this keeps the app listening
+// on the port the probes and Service target. The input slice is never mutated.
+func withPortEnv(env []corev1.EnvVar, port int32) []corev1.EnvVar {
+	for _, e := range env {
+		if e.Name == "PORT" {
+			return env
+		}
+	}
+	out := make([]corev1.EnvVar, 0, len(env)+1)
+	out = append(out, env...)
+	return append(out, corev1.EnvVar{Name: "PORT", Value: fmt.Sprintf("%d", port)})
+}
+
 func imagePullSecrets(spec SummitServiceSpec) []corev1.LocalObjectReference {
 	if spec.OmitPullSecret {
 		return nil

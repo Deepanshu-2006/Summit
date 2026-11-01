@@ -406,3 +406,17 @@ func TestBuildPostgresNetworkPolicy(t *testing.T) {
 		t.Fatalf("expected egress denied, got %+v", policy.Spec.Egress)
 	}
 }
+
+func TestWithPortEnv(t *testing.T) {
+	got := withPortEnv([]corev1.EnvVar{{Name: "NODE_ENV", Value: "production"}}, 8080)
+	if len(got) != 2 || got[1].Name != "PORT" || got[1].Value != "8080" {
+		t.Fatalf("PORT not injected: %+v", got)
+	}
+	user := []corev1.EnvVar{{Name: "PORT", Value: "3000"}}
+	if got := withPortEnv(user, 8080); len(got) != 1 || got[0].Value != "3000" {
+		t.Fatalf("user PORT overridden: %+v", got)
+	}
+	if got := withPortEnv(nil, 9000); len(got) != 1 || got[0].Value != "9000" {
+		t.Fatalf("PORT not injected into empty env: %+v", got)
+	}
+}

@@ -156,8 +156,8 @@ func TenantNetworkPolicies(namespace string, cfg Config, appPort int32, owner Ow
 }
 
 // BuilderNetworkPolicy locks down builder pods in the build namespace: no ingress; egress only to
-// DNS, HTTPS (443) on the internet excluding private/link-local/service ranges, and the
-// control-plane API pods (callback + source-token broker).
+// DNS, HTTP/HTTPS (80/443) on the public internet excluding private/link-local/service ranges, and
+// the control-plane API pods (callback + source-token broker). HTTP is needed for Debian APT mirrors.
 func BuilderNetworkPolicy(n NetworkConfig) *networkingv1.NetworkPolicy {
 	np := netpol(n.BuildNamespace, PolicyBuilderEgress, podSelector(n.BuilderPodLabels),
 		networkingv1.PolicyTypeIngress, networkingv1.PolicyTypeEgress)
@@ -169,7 +169,7 @@ func BuilderNetworkPolicy(n NetworkConfig) *networkingv1.NetworkPolicy {
 				CIDR:   "0.0.0.0/0",
 				Except: ExceptCIDRs(n.ServiceCIDR),
 			}}},
-			Ports: []networkingv1.NetworkPolicyPort{tcp(443)},
+			Ports: []networkingv1.NetworkPolicyPort{tcp(80), tcp(443)},
 		},
 		{
 			To: []networkingv1.NetworkPolicyPeer{{
