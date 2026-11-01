@@ -1,7 +1,11 @@
 packages:
   - "apps/*"
   - "packages/*"
+  - "poc-managed-agents"
 
 allowBuilds:
   unrs-resolver: true
   esbuild: true
+  '@google/genai': false
+  cbor-extract: false
+  protobufjs: false

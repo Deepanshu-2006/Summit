@@ -29,6 +29,10 @@ coverage/
 coverage.out
 *.test
 *.prof
+.local/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
 
 # Environment Variables & Secrets
 .env
