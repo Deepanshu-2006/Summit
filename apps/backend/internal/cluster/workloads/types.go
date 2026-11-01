@@ -164,8 +164,14 @@ type SummitServiceSpec struct {
 	// Port is the internal listening port for the container and ClusterIP service. Defaults to 8080 (backend) or 5432 (postgres).
 	Port int32 `json:"port,omitempty"`
 
-	// PullSecretName is the name of the GHCR image pull secret within the target namespace. Defaults to ghcr-pull.
+	// PullSecretName is the name of the image pull secret within the target namespace.
+	// Empty defaults to ghcr-pull unless OmitPullSecret is set.
 	PullSecretName string `json:"pullSecretName,omitempty"`
+
+	// OmitPullSecret tells the reconciler to leave imagePullSecrets empty.
+	// It is set when the named secret does not exist, so public images can be
+	// pulled without a ghcr-pull secret. It is not persisted on the CRD.
+	OmitPullSecret bool `json:"-"`
 
 	// TenantID is the platform tenant identifier for multi-tenant isolation and labeling.
 	TenantID string `json:"tenantId,omitempty"`
@@ -227,7 +233,6 @@ func (s *SummitService) SetDefaults() {
 	if s.TypeMeta.Kind == "" {
 		s.TypeMeta.Kind = KindSummitService
 	}
-
 	if s.IsPostgres() {
 		s.Spec.Type = WorkloadTypePostgres
 		if s.Spec.Postgres == nil {
@@ -269,7 +274,7 @@ func (s *SummitService) SetDefaults() {
 			rep := DefaultReplicas
 			s.Spec.Replicas = &rep
 		}
-		if strings.TrimSpace(s.Spec.PullSecretName) == "" {
+		if strings.TrimSpace(s.Spec.PullSecretName) == "" && !s.Spec.OmitPullSecret {
 			s.Spec.PullSecretName = DefaultPullSecretName
 		}
 	}

@@ -1,10 +1,18 @@
 # Orchestrator identity and least-privilege RBAC (plan section 11).
 #
 # Differences from the section 11.1 sketch, tightened to what the code uses:
-# - No "*" verbs, no delete on tenant objects, no nodes/jobs/PVCs.
-# - Secrets/ConfigMaps/Pods(+logs) are NOT cluster-wide: they are granted by a Role
-#   in summit-builds only (per-build Secret, spec ConfigMap, builder Pod, pruner).
-#   The orchestrator can therefore not read tenant Secrets.
+# - No "*" verbs, no nodes, no jobs.
+# - Delete on tenant objects is granted only for what service.deleted cleanup
+#   removes (SummitService, Deployment, Service, NetworkPolicy, Traefik routes,
+#   and for managed postgres/redis the StatefulSet, Secret and PVC). PVC delete
+#   is intentional: a deleted database service deletes its data (no backups).
+# - Tenant Secrets: managed postgres/redis keep their generated credentials in a
+#   Secret in the tenant namespace, so secrets get/create/update/delete is
+#   cluster-wide (tenant namespaces are dynamic, so a namespaced Role cannot
+#   cover them). Postgres workload credentials are referenced by name and key;
+#   the orchestrator does not read their contents. There is no list/watch on
+#   secrets cluster-wide.
+# - ConfigMaps/Pods(+logs) for builds are granted by a Role in summit-builds only.
 # - Leases are granted by a Role in summit-system only.
 # - No escalate, bind, impersonate, or RBAC write permissions anywhere.
 # - Kubernetes RBAC cannot restrict by namespace in a ClusterRole; kube-system,
@@ -36,15 +44,25 @@ rules:
     verbs: ["get", "list", "watch", "create", "update", "patch"]
   - apiGroups: ["networking.k8s.io"]
     resources: ["networkpolicies"]
-    verbs: ["get", "list", "watch", "create", "update", "patch"]
-  # Workload primitives produced by the SummitService reconciler. StatefulSets
-  # are needed for tenant PostgreSQL; PVCs are created by the StatefulSet controller.
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # Workload primitives produced by the SummitService reconciler and the
+  # managed addon provisioner (postgres/redis StatefulSets). Delete supports
+  # service.deleted cleanup; StatefulSet PVC retention is controlled separately.
   - apiGroups: ["apps"]
     resources: ["deployments", "statefulsets"]
-    verbs: ["get", "list", "watch", "create", "update", "patch"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
   - apiGroups: [""]
     resources: ["services"]
-    verbs: ["get", "list", "watch", "create", "update", "patch"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # Managed addon credentials (Secret addon-<service_id>) in tenant namespaces.
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "create", "update", "patch", "delete"]
+  # Managed addon data volumes (created by the StatefulSet controller; listed
+  # and deleted by service.deleted cleanup).
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "delete"]
   # Read-only workload observation for health checking.
   - apiGroups: [""]
     resources: ["pods", "endpoints", "events"]
@@ -62,7 +80,7 @@ rules:
   # Optional add-ons (C8). Rules for absent CRDs are harmless.
   - apiGroups: ["traefik.io"]
     resources: ["ingressroutes", "middlewares"]
-    verbs: ["get", "list", "watch", "create", "update", "patch"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
   - apiGroups: ["cilium.io"]
     resources: ["ciliumnetworkpolicies"]
     verbs: ["get", "list", "watch", "create", "update", "patch"]

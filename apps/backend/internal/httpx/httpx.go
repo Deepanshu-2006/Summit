@@ -83,6 +83,7 @@ const (
 	CodeGitHubWebhookDeliveryDuplicate  = "GITHUB_WEBHOOK_DELIVERY_DUPLICATE"
 	CodeGitHubAPIRateLimited            = "GITHUB_API_RATE_LIMITED"
 	CodeGitHubAPIUnavailable            = "GITHUB_API_UNAVAILABLE"
+	CodeImageResolveFailed              = "IMAGE_RESOLVE_FAILED"
 	CodeServiceSourceNotFound           = "SERVICE_SOURCE_NOT_FOUND"
 	CodeServiceSourceInvalidPath        = "SERVICE_SOURCE_INVALID_PATH"
 	CodeBuildRequestNotFound            = "BUILD_REQUEST_NOT_FOUND"

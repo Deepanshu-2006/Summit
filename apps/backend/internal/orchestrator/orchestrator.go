@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/summit/backend/internal/cluster"
 	"github.com/summit/backend/internal/cluster/addons"
+	"github.com/summit/backend/internal/cluster/managed"
 	"github.com/summit/backend/internal/cluster/workloads"
 	"github.com/summit/backend/internal/db"
 	"github.com/summit/backend/internal/orchestrator/build"
@@ -206,6 +207,12 @@ func New(deps Dependencies) (*App, error) {
 		mCfg.Interval = deps.Config.MonitorPollInterval
 		mCfg.AppsDomain = deps.Config.AppsDomain
 		mCfg.WorkloadPullSecret = deps.Config.WorkloadPullSecret
+		mCfg.PublicURLScheme = deps.Config.PublicURLScheme
+		mCfg.PublicURLPort = deps.Config.PublicURLPort
+		monitorOpts := []monitor.Option{monitor.WithAddonLister(storeAddonLister{store: store})}
+		if kubeClient != nil {
+			monitorOpts = append(monitorOpts, monitor.WithManagedAddon(managed.NewProvisioner(kubeClient, pinnedCatalog{})))
+		}
 		var err error
 		monitorInst, err = monitor.New(
 			store,
@@ -216,6 +223,7 @@ func New(deps Dependencies) (*App, error) {
 			provisioner,
 			mCfg,
 			logger,
+			monitorOpts...,
 		)
 		if err != nil {
 			logger.Warn("unable to initialize deployment monitor", "error", err)

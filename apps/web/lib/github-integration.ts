@@ -1,3 +1,5 @@
+import { platformRequest as request } from "./platform-api.ts";
+
 export type GitHubInstallation = {
   id: string;
   github_account: { login: string; type: string };
@@ -42,32 +44,6 @@ export type ServiceSource = {
 };
 
 type ListResponse<T> = { data: T[]; next_cursor?: string | null };
-
-async function request<T>(
-  path: string,
-  accessToken: string,
-  init: RequestInit = {},
-): Promise<T> {
-  const response = await fetch(`/api/platform${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      ...(init.body ? { "Content-Type": "application/json" } : {}),
-      ...init.headers,
-    },
-    cache: "no-store",
-  });
-  const body = await response.json().catch(() => null);
-  if (!response.ok) {
-    const error = new Error(
-      body?.message || body?.error || `Backend request failed (${response.status})`,
-    ) as Error & { status: number; code?: string };
-    error.status = response.status;
-    error.code = body?.code;
-    throw error;
-  }
-  return body as T;
-}
 
 export function listSourceBuildServices(accessToken: string) {
   return request<ListResponse<SourceBuildService>>("/v1/services", accessToken);

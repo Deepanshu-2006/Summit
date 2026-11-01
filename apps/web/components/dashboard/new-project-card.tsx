@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Sparkles, ChevronRight, Database, Terminal, X } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Sparkles, ChevronRight, Database, Terminal, X, AlertCircle, Loader2 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import {
   saveProjectArchitecture,
@@ -10,8 +10,16 @@ import {
   createNodeByOptionId,
 } from "@/lib/canvas/initial-graph";
 import { NodeChooserDialogs } from "@/components/canvas/node-chooser-dialogs";
-import { getStoredProjects, saveStoredProjects } from "@/lib/dashboard/mock-data";
-import type { DashboardProject } from "@/lib/dashboard/types";
+import type { EnsureServiceTarget } from "@/components/canvas/github-import-dialog";
+import { useAuth } from "@/components/auth/auth-context";
+import { createProject, createService, describeApiError } from "@/lib/platform-api";
+
+/** Free-text input doubles as a repo-link box; only use it as a name when it is not a URL. */
+function projectNameFromInput(input: string, fallback: string): string {
+  const trimmed = input.trim();
+  if (!trimmed || /^(https?:\/\/|git@)/i.test(trimmed)) return fallback;
+  return trimmed.slice(0, 63);
+}
 
 function GitHubIcon({ className }: { className?: string }) {
   return (
@@ -39,50 +47,62 @@ interface NewProjectCardProps {
 
 export function NewProjectCard({ onCancel }: NewProjectCardProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const shouldReduceMotion = useReducedMotion();
+  const { session, openAuthModal } = useAuth();
+  const accessToken = session?.access_token;
 
   const [inputValue, setInputValue] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const [activeChooser, setActiveChooser] = useState<
     "none" | "github" | "application" | "database" | "docker"
   >("none");
+  const [githubSetupError, setGithubSetupError] = useState<string | null>(null);
 
-  const generateProjectId = () => {
-    return `proj_${Math.random().toString(36).substring(2, 9)}`;
+  // Returning from the GitHub App install: reopen the GitHub chooser (with any
+  // error) once per redirect. State is adjusted during render (not in an
+  // effect); the effect below only cleans the query string.
+  const setupStatus = searchParams.get("github_setup");
+  const setupKey = setupStatus ? `${setupStatus}:${searchParams.get("github_error") ?? ""}` : null;
+  const [handledSetupKey, setHandledSetupKey] = useState<string | null>(null);
+  if (setupKey && setupKey !== handledSetupKey) {
+    setHandledSetupKey(setupKey);
+    setActiveChooser("github");
+    setGithubSetupError(
+      setupStatus === "error"
+        ? searchParams.get("github_error") || "GITHUB_INSTALLATION_FAILED"
+        : null,
+    );
+  }
+
+  useEffect(() => {
+    if (!setupKey) return;
+    router.replace("/dashboard/project/new", { scroll: false });
+  }, [router, setupKey]);
+  // Survives a failed repository connection so a retry reuses the same project/service.
+  const createdRef = useRef<{ projectId: string; serviceId?: string } | null>(null);
+
+  const requireSignIn = () => {
+    if (accessToken) return accessToken;
+    openAuthModal({ mode: "signin" });
+    return null;
   };
 
-  const handleSelectEmptyProject = () => {
-    const projectId = generateProjectId();
-    const emptyArch = getEmptyArchitecture(projectId);
-    emptyArch.name = "Empty Architecture";
-    saveProjectArchitecture(emptyArch);
-
-    const newProject: DashboardProject = {
-      id: projectId,
-      name: "untitled-project",
-      description: "Visual cloud infrastructure canvas architecture",
-      environment: "production",
-      status: "ready",
-      type: "Clean Canvas",
-      icon: "layout",
-      servicesCount: 1,
-      owner: "summit-platform/untitled-project",
-      branch: "main",
-      commitMessage: "Initial canvas architecture",
-      commitHash: "initial",
-      commitPath: "apps/web",
-      formattedDate: "Just now",
-      region: "us-east-1",
-      updatedAt: "just now",
-      createdAt: new Date().toISOString(),
-      template: "empty",
-    };
-
+  const handleSelectEmptyProject = async () => {
+    const token = requireSignIn();
+    if (!token || isCreating) return;
+    setIsCreating(true);
+    setCreateError(null);
     try {
-      const stored = getStoredProjects();
-      saveStoredProjects([newProject, ...stored]);
-    } catch {}
-
-    router.push(`/dashboard/project/${projectId}`);
+      const project = await createProject(token, {
+        name: projectNameFromInput(inputValue, "untitled-project"),
+      });
+      router.push(`/dashboard/project/${project.id}`);
+    } catch (error) {
+      setCreateError(describeApiError(error, "Could not create the project."));
+      setIsCreating(false);
+    }
   };
 
   const handleInputSubmit = (e: React.FormEvent) => {
@@ -92,81 +112,64 @@ export function NewProjectCard({ onCancel }: NewProjectCardProps) {
     setActiveChooser("github");
   };
 
-  const handleConfirmChooser = (
+  // GitHub flow: create the project, then a `web` service named after the
+  // repository; the import dialog then connects the repository to that service.
+  const ensureGitHubService: EnsureServiceTarget = async (repository) => {
+    const token = requireSignIn();
+    if (!token) throw new Error("Sign in to create a project.");
+    let created = createdRef.current;
+    if (!created) {
+      const project = await createProject(token, {
+        name: projectNameFromInput(inputValue, repository.name),
+      });
+      created = { projectId: project.id };
+      createdRef.current = created;
+    }
+    if (!created.serviceId) {
+      const service = await createService(token, created.projectId, {
+        name: repository.name,
+        type: "web",
+      });
+      created.serviceId = service.id;
+    }
+    return { serviceId: created.serviceId };
+  };
+
+  const handleConfirmChooser = async (
     optionId: string,
     customData?: Record<string, unknown>
   ) => {
-    const projectId = generateProjectId();
-    const initialNode = createNodeByOptionId(
-      optionId,
-      { x: 300, y: 200 },
-      customData
-    );
+    if (optionId === "github") {
+      const created = createdRef.current;
+      setActiveChooser("none");
+      if (created) router.push(`/dashboard/project/${created.projectId}?deploy=1`);
+      return;
+    }
 
-    const projectName =
+    // Databases / Docker / application templates have no backend resource yet:
+    // create the project for real and keep the node as a UI-only canvas node.
+    const token = requireSignIn();
+    if (!token) return;
+    const label =
       (customData?.label as string) ||
       (customData?.name as string) ||
-      (optionId === "github" ? "web-repo" : `${optionId}-service`);
-
-    const arch = getEmptyArchitecture(projectId);
-    arch.name = projectName;
-    arch.nodes = [initialNode];
-    saveProjectArchitecture(arch);
-
-    const newProject: DashboardProject = {
-      id: projectId,
-      name: projectName,
-      description:
-        (customData?.description as string) ||
-        (optionId === "github"
-          ? `Production web service connected to ${customData?.branch || "main"}`
-          : optionId === "database"
-          ? `High-availability managed ${customData?.subType || "database"}`
-          : `Containerized deployment`),
-      environment: "production",
-      status: "ready",
-      type:
-        (customData?.subType as string) ||
-        (optionId === "github"
-          ? "GitHub Repository"
-          : optionId === "database"
-          ? "Database"
-          : "Docker Image"),
-      icon:
-        optionId === "github"
-          ? "github"
-          : optionId === "database"
-          ? "database"
-          : optionId === "docker"
-          ? "docker"
-          : "layout",
-      servicesCount: 1,
-      owner: `summit-platform/${projectName}`,
-      branch: (customData?.branch as string) || "main",
-      commitMessage: `feat(init): connect ${projectName}`,
-      commitHash: "0a1b2c3",
-      commitPath: "apps/web",
-      formattedDate: "Just now",
-      region: (customData?.region as string) || "us-east-1",
-      updatedAt: "just now",
-      createdAt: new Date().toISOString(),
-      template:
-        optionId === "github"
-          ? "github"
-          : optionId === "database"
-          ? "database"
-          : optionId === "docker"
-          ? "docker"
-          : "empty",
-    };
-
-    try {
-      const stored = getStoredProjects();
-      saveStoredProjects([newProject, ...stored]);
-    } catch {}
-
+      `${optionId}-service`;
     setActiveChooser("none");
-    router.push(`/dashboard/project/${projectId}`);
+    setIsCreating(true);
+    setCreateError(null);
+    try {
+      const project = await createProject(token, {
+        name: projectNameFromInput(inputValue, label),
+      });
+      const arch = getEmptyArchitecture(project.id);
+      arch.name = project.name;
+      arch.nodes = [createNodeByOptionId(optionId, { x: 300, y: 200 }, customData)];
+      saveProjectArchitecture(arch);
+      router.push(`/dashboard/project/${project.id}`);
+    } catch (error) {
+      setCreateError(describeApiError(error, "Could not create the project."));
+      setIsCreating(false);
+    }
   };
 
   return (
@@ -207,6 +210,19 @@ export function NewProjectCard({ onCancel }: NewProjectCardProps) {
 
         {/* Thin Divider */}
         <div className="my-1.5 border-t border-[#20201E]" />
+
+        {createError && (
+          <p role="alert" className="mx-3 mb-1.5 flex items-start gap-1.5 text-[11.5px] font-sans text-[#D77D7D]">
+            <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-px" />
+            <span>{createError}</span>
+          </p>
+        )}
+        {isCreating && (
+          <p role="status" className="mx-3 mb-1.5 flex items-center gap-1.5 text-[11.5px] font-mono text-[#8E8C86]">
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-[#E58B62]" />
+            <span>Creating project…</span>
+          </p>
+        )}
 
         {/* Exactly Four Stacked Options */}
         <div className="space-y-0.5">
@@ -265,6 +281,7 @@ export function NewProjectCard({ onCancel }: NewProjectCardProps) {
           <button
             type="button"
             onClick={handleSelectEmptyProject}
+            disabled={isCreating}
             className="w-full flex items-center justify-between px-3 py-2.5 rounded-[7px] text-left transition-colors hover:bg-[#1E1E1C] active:bg-[#232320] group cursor-pointer"
           >
             <div className="flex items-center gap-3">
@@ -283,8 +300,14 @@ export function NewProjectCard({ onCancel }: NewProjectCardProps) {
       {/* Chooser Dialogs */}
       <NodeChooserDialogs
         activeChooser={activeChooser}
-        onClose={() => setActiveChooser("none")}
+        onClose={() => {
+          setActiveChooser("none");
+          setGithubSetupError(null);
+        }}
         onConfirm={handleConfirmChooser}
+        ensureGitHubService={ensureGitHubService}
+        githubTargetDescription="Creates a new project with a web service and connects this repository to it."
+        githubSetupError={githubSetupError}
       />
     </>
   );

@@ -11,16 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/summit/backend/internal/cluster/addons"
-	"github.com/summit/backend/internal/cluster/workloads"
 	"github.com/summit/backend/internal/orchestrator/build"
 	"github.com/summit/backend/internal/platformdb"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 )
@@ -33,6 +26,10 @@ type Config struct {
 	AppsDomain         string
 	BuildTimeoutBuffer time.Duration
 	RolloutTimeout     time.Duration
+	// PublicURLScheme is http or https. Empty defaults to https.
+	PublicURLScheme string
+	// PublicURLPort is included in public_url. Empty, 80, and 443 are omitted.
+	PublicURLPort string
 }
 
 // DefaultConfig returns documented defaults for the deployment monitor.
@@ -44,6 +41,7 @@ func DefaultConfig() Config {
 		AppsDomain:         "localtest.me",
 		BuildTimeoutBuffer: 30 * time.Second,
 		RolloutTimeout:     10 * time.Minute,
+		PublicURLScheme:    "https",
 	}
 }
 
@@ -67,7 +65,10 @@ type Monitor struct {
 	kubeClient   kubernetes.Interface
 	dynClient    dynamic.Interface
 	adapter      build.LifecycleAdapter
-	provisioner  *addons.TenantProvisioner
+	provisioner  ServiceExposure
+	managedAddon addonRuntime
+	addons       AddonLister
+	volumes      VolumeSizer
 	cfg          Config
 	logger       *slog.Logger
 	now          func() time.Time
@@ -80,7 +81,7 @@ func New(
 	kubeClient kubernetes.Interface,
 	dynClient dynamic.Interface,
 	adapter build.LifecycleAdapter,
-	provisioner *addons.TenantProvisioner,
+	provisioner ServiceExposure,
 	cfg Config,
 	logger *slog.Logger,
 	opts ...Option,
@@ -102,6 +103,9 @@ func New(
 	}
 	if cfg.RolloutTimeout <= 0 {
 		cfg.RolloutTimeout = 10 * time.Minute
+	}
+	if strings.TrimSpace(cfg.PublicURLScheme) == "" {
+		cfg.PublicURLScheme = "https"
 	}
 
 	m := &Monitor{
@@ -171,15 +175,17 @@ func (m *Monitor) reconcileDeployment(ctx context.Context, active *platformdb.Ac
 	// 1. User cancellation check
 	if active.Deployment.CancelRequestedAt != nil {
 		if !active.Deployment.Status.IsTerminal() {
-			attemptID := ""
-			if active.BuildJob.AttemptID != nil {
-				attemptID = active.BuildJob.AttemptID.String()
-			}
-			if m.adapter != nil && attemptID != "" {
-				_ = m.adapter.DeleteBuildPod(ctx, active.BuildJob.ID.String(), attemptID)
-			}
-			if m.buildStore != nil {
-				_, _, _ = m.buildStore.MarkBuildJobTerminal(ctx, active.BuildJob.ID, platformdb.BuildCancelled, "deployment cancelled by user")
+			if hasBuildJob(active) {
+				attemptID := ""
+				if active.BuildJob.AttemptID != nil {
+					attemptID = active.BuildJob.AttemptID.String()
+				}
+				if m.adapter != nil && attemptID != "" {
+					_ = m.adapter.DeleteBuildPod(ctx, active.BuildJob.ID.String(), attemptID)
+				}
+				if m.buildStore != nil {
+					_, _, _ = m.buildStore.MarkBuildJobTerminal(ctx, active.BuildJob.ID, platformdb.BuildCancelled, "deployment cancelled by user")
+				}
 			}
 			_, err := m.rolloutStore.TransitionDeployment(ctx, active.Deployment.ID, []platformdb.DeploymentStatus{active.Deployment.Status}, platformdb.DeploymentCancelled, "deployment cancelled by user")
 			return err
@@ -197,6 +203,10 @@ func (m *Monitor) reconcileDeployment(ctx context.Context, active *platformdb.Ac
 		return nil
 
 	case platformdb.DeploymentBuilding:
+		// Image and addon deployments are inserted at image_ready and have no build job.
+		if !hasBuildJob(active) {
+			return nil
+		}
 		// Check build result persisted on build_jobs
 		switch active.BuildJob.Status {
 		case platformdb.BuildSucceeded:
@@ -267,157 +277,13 @@ func (m *Monitor) reconcileDeployment(ctx context.Context, active *platformdb.Ac
 		}
 
 	case platformdb.DeploymentImageReady:
-		// Deploy immutable digest to SummitService
-		imageRef := deref(active.Deployment.ImageRef)
-		if imageRef == "" && active.BuildJob.ImageRepository != nil && active.BuildJob.ImageDigest != nil {
-			imageRef = fmt.Sprintf("%s@%s", *active.BuildJob.ImageRepository, *active.BuildJob.ImageDigest)
-		}
-		if imageRef == "" {
-			return fmt.Errorf("deployment %s has no image reference", active.Deployment.ID)
-		}
-
-		serviceName := fmt.Sprintf("svc-%s", active.ServiceID.String())
-		namespace := fmt.Sprintf("tenant-%s", active.UserID.String())
-		port := int32(active.Resources.Port)
-		if port <= 0 {
-			port = workloads.DefaultPort
-		}
-		replicas := int32(active.Resources.MinReplicas)
-		if replicas <= 0 {
-			replicas = workloads.DefaultReplicas
-		}
-
-		pullSecret := m.cfg.WorkloadPullSecret
-		if strings.TrimSpace(pullSecret) == "" {
-			pullSecret = workloads.DefaultPullSecretName
-		}
-
-		cpuReq := resource.MustParse(fmt.Sprintf("%dm", active.Resources.CPURequestMillicores))
-		cpuLim := resource.MustParse(fmt.Sprintf("%dm", active.Resources.CPULimitMillicores))
-		memReq := resource.MustParse(fmt.Sprintf("%dMi", active.Resources.MemoryRequestMB))
-		memLim := resource.MustParse(fmt.Sprintf("%dMi", active.Resources.MemoryLimitMB))
-
-		summitSvc := &workloads.SummitService{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: workloads.SchemeGroupVersion.String(),
-				Kind:       workloads.KindSummitService,
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      serviceName,
-				Namespace: namespace,
-			},
-			Spec: workloads.SummitServiceSpec{
-				Image:          imageRef,
-				Replicas:       &replicas,
-				Port:           port,
-				PullSecretName: pullSecret,
-				TenantID:       active.UserID.String(),
-				ProjectID:      active.ProjectID.String(),
-				ServiceID:      active.ServiceID.String(),
-				ReleaseID:      active.Deployment.ID.String(),
-				Resources: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{
-						corev1.ResourceCPU:    cpuReq,
-						corev1.ResourceMemory: memReq,
-					},
-					Limits: corev1.ResourceList{
-						corev1.ResourceCPU:    cpuLim,
-						corev1.ResourceMemory: memLim,
-					},
-				},
-			},
-		}
-		summitSvc.SetDefaults()
-
-		if m.dynClient != nil {
-			gvr := workloads.SchemeGroupVersion.WithResource("summitservices")
-			unstrMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(summitSvc)
-			if err != nil {
-				return fmt.Errorf("converting SummitService: %w", err)
-			}
-			unstr := &unstructured.Unstructured{Object: unstrMap}
-			unstr.SetLabels(summitSvc.SafeLabels())
-
-			existing, err := m.dynClient.Resource(gvr).Namespace(namespace).Get(ctx, serviceName, metav1.GetOptions{})
-			if apierrors.IsNotFound(err) {
-				_, err = m.dynClient.Resource(gvr).Namespace(namespace).Create(ctx, unstr, metav1.CreateOptions{})
-			} else if err == nil {
-				existing.Object["spec"] = unstr.Object["spec"]
-				existing.SetLabels(summitSvc.SafeLabels())
-				_, err = m.dynClient.Resource(gvr).Namespace(namespace).Update(ctx, existing, metav1.UpdateOptions{})
-			}
-			if err != nil {
-				return fmt.Errorf("applying SummitService resource: %w", err)
-			}
-		}
-
-		var publicURL string
-		if m.provisioner != nil {
-			_, _ = m.provisioner.EnsureTenant(ctx, active.UserID.String())
-			expRes, err := m.provisioner.EnsureServiceExposure(ctx, addons.ExposureParams{
-				UserID:      active.UserID.String(),
-				ProjectID:   active.ProjectID.String(),
-				ProjectSlug: active.ProjectSlug,
-				ServiceID:   active.ServiceID.String(),
-				ServiceName: serviceName,
-				Port:        port,
-				Environment: active.EnvironmentName,
-			})
-			if err == nil && expRes.Host != "" {
-				publicURL = fmt.Sprintf("https://%s", expRes.Host)
-			}
-		}
-
-		opts := []platformdb.TransitionOption{platformdb.WithImageRef(imageRef)}
-		if publicURL != "" {
-			opts = append(opts, platformdb.WithPublicURL(publicURL))
-		}
-		_, err := m.rolloutStore.TransitionDeployment(ctx, active.Deployment.ID, []platformdb.DeploymentStatus{platformdb.DeploymentImageReady}, platformdb.DeploymentDeploying, "SummitService applied", opts...)
-		return err
+		return m.reconcileImageReady(ctx, active)
 
 	case platformdb.DeploymentDeploying:
-		serviceName := fmt.Sprintf("svc-%s", active.ServiceID.String())
-		namespace := fmt.Sprintf("tenant-%s", active.UserID.String())
-		if m.kubeClient != nil {
-			dep, err := m.kubeClient.AppsV1().Deployments(namespace).Get(ctx, serviceName, metav1.GetOptions{})
-			if err == nil && dep != nil {
-				_, err = m.rolloutStore.TransitionDeployment(ctx, active.Deployment.ID, []platformdb.DeploymentStatus{platformdb.DeploymentDeploying}, platformdb.DeploymentHealthChecking, "workload deployment created; awaiting readiness")
-				return err
-			}
-		}
-		return nil
+		return m.reconcileDeploying(ctx, active)
 
 	case platformdb.DeploymentHealthChecking:
-		serviceName := fmt.Sprintf("svc-%s", active.ServiceID.String())
-		namespace := fmt.Sprintf("tenant-%s", active.UserID.String())
-		if m.kubeClient != nil {
-			dep, err := m.kubeClient.AppsV1().Deployments(namespace).Get(ctx, serviceName, metav1.GetOptions{})
-			if err == nil && dep != nil {
-				replicas := int32(1)
-				if dep.Spec.Replicas != nil {
-					replicas = *dep.Spec.Replicas
-				}
-				if dep.Status.AvailableReplicas >= replicas && dep.Status.UpdatedReplicas >= replicas {
-					_, err = m.rolloutStore.TransitionDeployment(ctx, active.Deployment.ID, []platformdb.DeploymentStatus{platformdb.DeploymentHealthChecking}, platformdb.DeploymentRunning, "workload healthy and available")
-					if err != nil {
-						return err
-					}
-					promRes, promErr := m.rolloutStore.PromoteRelease(ctx, active.Deployment.ID, nil)
-					if promErr != nil {
-						m.logger.Warn("failed to promote release after reaching running", "deployment_id", active.Deployment.ID, "error", promErr)
-					} else {
-						m.logger.Info("promoted active release", "deployment_id", active.Deployment.ID, "release_number", promRes.Release.ReleaseNumber, "superseded", len(promRes.SupersededDeploymentIDs))
-					}
-					return nil
-				}
-				if active.Deployment.StartedAt != nil && m.now().Sub(*active.Deployment.StartedAt) > m.cfg.RolloutTimeout {
-					msg := "deployment timed out awaiting available replicas"
-					_, err = m.rolloutStore.TransitionDeployment(ctx, active.Deployment.ID, []platformdb.DeploymentStatus{platformdb.DeploymentHealthChecking}, platformdb.DeploymentFailed, msg, platformdb.WithErrorMessage(msg))
-					return err
-				}
-			}
-		}
-		return nil
+		return m.reconcileHealth(ctx, active)
 	}
 
 	return nil

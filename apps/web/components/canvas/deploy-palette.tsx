@@ -5,7 +5,6 @@ import {
   X,
   Search,
   ChevronRight,
-  ArrowLeft,
   Plus,
 } from "lucide-react";
 import {
@@ -31,6 +30,9 @@ interface DeployItem {
   description: string;
   icon: React.ComponentType<{ className?: string }>;
   hasSubmenu?: boolean;
+  comingSoon?: boolean;
+  /** Opens a chooser instead of creating a service immediately. */
+  chooser?: "github" | "docker";
   actionPayload?: {
     optionId: string;
     customData?: Record<string, unknown>;
@@ -44,6 +46,7 @@ const DEPLOY_SERVICES: DeployItem[] = [
     description: "Connect GitHub repository or monorepo branch",
     icon: GitHubLogo,
     hasSubmenu: true,
+    chooser: "github",
   },
   {
     id: "postgres",
@@ -57,41 +60,22 @@ const DEPLOY_SERVICES: DeployItem[] = [
         subType: "PostgreSQL",
         databaseEngine: "postgresql",
         port: 5432,
-        connectionString: "postgresql://summit_user:***@localhost:5432/app",
       },
     },
   },
   {
     id: "database_mysql",
     title: "Deploy MySQL",
-    description: "MySQL 8.4 relational database engine",
+    description: "MySQL is not available yet",
     icon: MySQLLogo,
-    actionPayload: {
-      optionId: "database",
-      customData: {
-        label: "mysql-db",
-        subType: "MySQL",
-        databaseEngine: "mysql",
-        port: 3306,
-        connectionString: "mysql://summit_user:***@localhost:3306/app",
-      },
-    },
+    comingSoon: true,
   },
   {
     id: "database_mongodb",
     title: "Deploy MongoDB",
-    description: "MongoDB 8 document database cluster",
+    description: "MongoDB is not available yet",
     icon: MongoLogo,
-    actionPayload: {
-      optionId: "database",
-      customData: {
-        label: "mongodb",
-        subType: "MongoDB",
-        databaseEngine: "mongodb",
-        port: 27017,
-        connectionString: "mongodb://localhost:27017/app",
-      },
-    },
+    comingSoon: true,
   },
   {
     id: "cache",
@@ -106,7 +90,6 @@ const DEPLOY_SERVICES: DeployItem[] = [
         serviceType: "cache",
         databaseEngine: "redis",
         port: 6379,
-        connectionString: "redis://localhost:6379",
       },
     },
   },
@@ -115,28 +98,16 @@ const DEPLOY_SERVICES: DeployItem[] = [
     title: "Deploy Web Application",
     description: "Next.js, Go API, Node.js, or frontend service",
     icon: NextjsLogo,
-    actionPayload: {
-      optionId: "application",
-      customData: {
-        label: "web-app",
-        subType: "Application",
-        serviceType: "application",
-      },
-    },
+    hasSubmenu: true,
+    chooser: "github",
   },
   {
     id: "docker",
     title: "Deploy Docker Image",
     description: "Containerized image from Docker Hub or GHCR",
     icon: DockerLogo,
-    actionPayload: {
-      optionId: "docker",
-      customData: {
-        label: "docker-service",
-        subType: "Docker Image",
-        serviceType: "application",
-      },
-    },
+    hasSubmenu: true,
+    chooser: "docker",
   },
   {
     id: "worker",
@@ -154,14 +125,6 @@ const DEPLOY_SERVICES: DeployItem[] = [
   },
 ];
 
-const SAMPLE_GITHUB_REPOS = [
-  { name: "summit / backend", branch: "main", desc: "Go 1.23 REST Engine & WebSocket Server" },
-  { name: "summit / web", branch: "main", desc: "Next.js 16 App Router & Interactive Canvas" },
-  { name: "summit / api-gateway", branch: "main", desc: "Reverse Proxy & Edge Rate Limiting" },
-  { name: "summit / worker-queue", branch: "main", desc: "Temporal & Redis Stream Queue Worker" },
-  { name: "deepanshu / meridian", branch: "main", desc: "Cloud deployment template" },
-];
-
 export function DeployPaletteModal({
   isOpen,
   onClose,
@@ -169,19 +132,14 @@ export function DeployPaletteModal({
 }: DeployPaletteProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [currentView, setCurrentView] = useState<"menu" | "github">("menu");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-focus input on open
+  // Auto-focus input on open (the palette is mounted fresh each time it opens)
   useEffect(() => {
-    if (isOpen) {
-      setSearchQuery("");
-      setIsSearchFocused(false);
-      setCurrentView("menu");
-      setSelectedIndex(0);
-      setTimeout(() => inputRef.current?.focus(), 80);
-    }
+    if (!isOpen) return;
+    const timer = setTimeout(() => inputRef.current?.focus(), 80);
+    return () => clearTimeout(timer);
   }, [isOpen]);
 
   // Filter items
@@ -191,34 +149,20 @@ export function DeployPaletteModal({
       item.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredRepos = SAMPLE_GITHUB_REPOS.filter(
-    (repo) =>
-      repo.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      repo.desc.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
   // Execute selection
   const executeSelect = (item: DeployItem) => {
-    if (item.hasSubmenu) {
-      setCurrentView("github");
-      setSearchQuery("");
-      setSelectedIndex(0);
-      setTimeout(() => inputRef.current?.focus(), 50);
-    } else if (item.actionPayload) {
+    if (item.comingSoon) return;
+    if (item.chooser) {
+      onSelectOption(item.chooser);
+      onClose();
+      return;
+    }
+    if (item.actionPayload) {
       onSelectOption(item.actionPayload.optionId, item.actionPayload.customData);
       onClose();
-    } else {
-      onSelectOption(item.id);
-      onClose();
+      return;
     }
-  };
-
-  const executeSelectRepo = (repo: typeof SAMPLE_GITHUB_REPOS[0]) => {
-    onSelectOption("github", {
-      label: repo.name.split("/").pop()?.trim() || "repo",
-      repoUrl: `https://github.com/${repo.name.replace(/\s+/g, "")}`,
-      branch: repo.branch,
-    });
+    onSelectOption(item.id);
     onClose();
   };
 
@@ -229,19 +173,11 @@ export function DeployPaletteModal({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        if (currentView === "github") {
-          setCurrentView("menu");
-          setSearchQuery("");
-          setSelectedIndex(0);
-          setTimeout(() => inputRef.current?.focus(), 50);
-        } else {
-          onClose();
-        }
+        onClose();
         return;
       }
 
-      const listLength =
-        currentView === "menu" ? filteredServices.length : filteredRepos.length;
+      const listLength = filteredServices.length;
 
       if (e.key === "ArrowDown") {
         e.preventDefault();
@@ -251,19 +187,14 @@ export function DeployPaletteModal({
         setSelectedIndex((prev) => (prev - 1 + listLength) % Math.max(1, listLength));
       } else if (e.key === "Enter") {
         e.preventDefault();
-        if (currentView === "menu") {
-          const selected = filteredServices[selectedIndex];
-          if (selected) executeSelect(selected);
-        } else {
-          const selected = filteredRepos[selectedIndex];
-          if (selected) executeSelectRepo(selected);
-        }
+        const selected = filteredServices[selectedIndex];
+        if (selected) executeSelect(selected);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, currentView, filteredServices, filteredRepos, selectedIndex, onClose, onSelectOption]);
+  }, [isOpen, filteredServices, selectedIndex, onClose, onSelectOption]);
 
   if (!isOpen) return null;
 
@@ -292,42 +223,24 @@ export function DeployPaletteModal({
 
         {/* Header Icon & Title */}
         <div className="flex flex-col items-center text-center pt-1 pb-1">
-          {currentView === "menu" ? (
-            <div className="w-8 h-8 rounded-[7px] bg-[#181817] border border-[#262522] flex items-center justify-center text-[#E58B62] mb-2.5 shadow-inner">
-              {/* 4-squares Grid Icon */}
-              <div className="grid grid-cols-2 gap-1 w-3.5 h-3.5">
-                <span className="w-1.5 h-1.5 rounded-sm bg-[#A09E98]" />
-                <span className="w-1.5 h-1.5 rounded-sm bg-[#A09E98]" />
-                <span className="w-1.5 h-1.5 rounded-sm bg-[#A09E98]" />
-                <span className="w-1.5 h-1.5 rounded-sm bg-[#E58B62]" />
-              </div>
+          <div className="w-8 h-8 rounded-[7px] bg-[#181817] border border-[#262522] flex items-center justify-center text-[#E58B62] mb-2.5 shadow-inner">
+            {/* 4-squares Grid Icon */}
+            <div className="grid grid-cols-2 gap-1 w-3.5 h-3.5">
+              <span className="w-1.5 h-1.5 rounded-sm bg-[#A09E98]" />
+              <span className="w-1.5 h-1.5 rounded-sm bg-[#A09E98]" />
+              <span className="w-1.5 h-1.5 rounded-sm bg-[#A09E98]" />
+              <span className="w-1.5 h-1.5 rounded-sm bg-[#E58B62]" />
             </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                setCurrentView("menu");
-                setSearchQuery("");
-                setSelectedIndex(0);
-                setTimeout(() => inputRef.current?.focus(), 50);
-              }}
-              className="flex items-center gap-1.5 text-[12px] font-sans text-[#A09E98] hover:text-[#F1F0ED] mb-2 self-start transition-colors cursor-pointer"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back to services</span>
-            </button>
-          )}
+          </div>
 
           <h2
             id="deploy-palette-title"
             className="font-sans text-[18px] font-semibold text-[#F1F0ED] tracking-[-0.02em] leading-tight"
           >
-            {currentView === "menu" ? "New Service" : "Deploy GitHub Repo"}
+            New Service
           </h2>
           <p className="font-sans text-[12.5px] text-[#77756F] mt-1">
-            {currentView === "menu"
-              ? "Deploy your app to production effortlessly"
-              : "Select a repository to deploy to your canvas"}
+            Deploy your app to production effortlessly
           </p>
         </div>
 
@@ -349,11 +262,7 @@ export function DeployPaletteModal({
               }}
               onFocus={() => setIsSearchFocused(true)}
               onBlur={() => setIsSearchFocused(false)}
-              placeholder={
-                currentView === "menu"
-                  ? "What are we going to deploy today?"
-                  : "Search repositories…"
-              }
+              placeholder="What are we going to deploy today?"
               className="w-full bg-transparent text-[13px] font-sans text-[#F1F0ED] placeholder:text-[#55534E] p-0 border-none !outline-none focus:!outline-none focus-visible:!outline-none focus:!ring-0 focus-visible:!ring-0 focus-visible:[outline:none!important] [outline:none!important] [box-shadow:none!important]"
               style={{ outline: "none", boxShadow: "none", border: "none" }}
             />
@@ -386,87 +295,54 @@ export function DeployPaletteModal({
 
         {/* ================= Options List with Natural Brand Logos ================= */}
         <div className="mt-2 max-h-[300px] overflow-y-auto no-scrollbar space-y-1">
-          {currentView === "menu" ? (
-            filteredServices.length === 0 ? (
-              <div className="py-8 text-center text-[12px] font-sans text-[#77756F]">
-                No services matching &ldquo;{searchQuery}&rdquo;
-              </div>
-            ) : (
-              filteredServices.map((item, index) => {
-                const Icon = item.icon;
-                const isSelected = index === selectedIndex;
-                return (
-                  <div
-                    key={item.id}
-                    onClick={() => executeSelect(item)}
-                    onMouseEnter={() => setSelectedIndex(index)}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-[8px] cursor-pointer transition-colors duration-150 group ${
-                      isSelected
-                        ? "bg-[#181817] border border-[#2E2D2A]"
-                        : "hover:bg-[#161615] border border-transparent"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-[7px] bg-[#181817] border border-[#262522] flex items-center justify-center shrink-0 shadow-inner">
-                        <Icon className="w-4 h-4 shrink-0" />
-                      </div>
-                      <div className="min-w-0 text-left">
-                        <h4 className="font-sans text-[13px] font-medium text-[#F1F0ED] tracking-[-0.01em] truncate leading-tight">
-                          {item.title}
-                        </h4>
-                        <p className="font-sans text-[11.5px] text-[#A09E98] truncate mt-0.5">
-                          {item.description}
-                        </p>
-                      </div>
-                    </div>
-                    {item.hasSubmenu ? (
-                      <ChevronRight className="w-4 h-4 text-[#77756F] group-hover:text-[#F1F0ED] shrink-0 ml-2 transition-colors" />
-                    ) : (
-                      <Plus className="w-4 h-4 text-[#77756F] group-hover:text-[#E58B62] shrink-0 ml-2 transition-colors" />
-                    )}
-                  </div>
-                );
-              })
-            )
+          {filteredServices.length === 0 ? (
+            <div className="py-8 text-center text-[12px] font-sans text-[#77756F]">
+              No services matching &ldquo;{searchQuery}&rdquo;
+            </div>
           ) : (
-            filteredRepos.length === 0 ? (
-              <div className="py-8 text-center text-[12px] font-sans text-[#77756F]">
-                No repositories matching &ldquo;{searchQuery}&rdquo;
-              </div>
-            ) : (
-              filteredRepos.map((repo, index) => {
-                const isSelected = index === selectedIndex;
-                return (
-                  <div
-                    key={repo.name}
-                    onClick={() => executeSelectRepo(repo)}
-                    onMouseEnter={() => setSelectedIndex(index)}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-[8px] cursor-pointer transition-colors duration-150 ${
-                      isSelected
-                        ? "bg-[#181817] border border-[#2E2D2A]"
-                        : "hover:bg-[#161615] border border-transparent"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-[7px] bg-[#181817] border border-[#262522] flex items-center justify-center shrink-0 shadow-inner">
-                        <GitHubLogo className="w-4 h-4 shrink-0" />
-                      </div>
-                      <div className="min-w-0 text-left">
-                        <h4 className="font-mono text-[12.5px] font-medium text-[#F1F0ED] truncate leading-tight">
-                          {repo.name}
-                        </h4>
-                        <p className="font-sans text-[11.5px] text-[#A09E98] truncate mt-0.5">
-                          {repo.desc}
-                        </p>
-                      </div>
+            filteredServices.map((item, index) => {
+              const Icon = item.icon;
+              const isSelected = index === selectedIndex;
+              return (
+                <div
+                  key={item.id}
+                  role="button"
+                  aria-disabled={item.comingSoon || undefined}
+                  onClick={() => executeSelect(item)}
+                  onMouseEnter={() => setSelectedIndex(index)}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-[8px] transition-colors duration-150 group ${
+                    item.comingSoon ? "cursor-not-allowed opacity-55" : "cursor-pointer"
+                  } ${
+                    isSelected && !item.comingSoon
+                      ? "bg-[#181817] border border-[#2E2D2A]"
+                      : "hover:bg-[#161615] border border-transparent"
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-[7px] bg-[#181817] border border-[#262522] flex items-center justify-center shrink-0 shadow-inner">
+                      <Icon className="w-4 h-4 shrink-0" />
                     </div>
-                    <span className="text-[10.5px] font-mono text-[#A09E98] bg-[#181817] border border-[#262522] px-2 py-0.5 rounded-[4px] shrink-0 ml-2">
-                      {repo.branch}
-                    </span>
+                    <div className="min-w-0 text-left">
+                      <h4 className="font-sans text-[13px] font-medium text-[#F1F0ED] tracking-[-0.01em] truncate leading-tight">
+                        {item.title}
+                      </h4>
+                      <p className="font-sans text-[11.5px] text-[#A09E98] truncate mt-0.5">
+                        {item.description}
+                      </p>
+                    </div>
                   </div>
-                );
-              })
-            )
+                  {item.comingSoon ? (
+                    <span className="font-mono text-[10px] uppercase tracking-wider text-[#77756F] shrink-0 ml-2">
+                      Soon
+                    </span>
+                  ) : item.hasSubmenu ? (
+                    <ChevronRight className="w-4 h-4 text-[#77756F] group-hover:text-[#F1F0ED] shrink-0 ml-2 transition-colors" />
+                  ) : (
+                    <Plus className="w-4 h-4 text-[#77756F] group-hover:text-[#E58B62] shrink-0 ml-2 transition-colors" />
+                  )}
+                </div>
+              );
+            })
           )}
         </div>
 

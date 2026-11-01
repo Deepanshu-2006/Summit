@@ -11,8 +11,9 @@ import {
   Check,
   AlertCircle,
 } from "lucide-react";
-import { GitHubImportDialog } from "./github-import-dialog";
+import { GitHubImportDialog, type EnsureServiceTarget } from "./github-import-dialog";
 import { DatabaseChooserDialog } from "./database-chooser-dialog";
+import { parseImageReference, parseServicePort, serviceNameFromImage } from "@/lib/canvas/service-draft";
 
 // Authentic Docker Container Whale Icon
 function DockerIcon({ className }: { className?: string }) {
@@ -29,6 +30,10 @@ export interface NodeChooserDialogsProps {
   onClose: () => void;
   onConfirm: (optionId: string, customData?: Record<string, unknown>) => void;
   onShowToast?: (message: string) => void;
+  /** Resolves the backend service for the GitHub repository flow. */
+  ensureGitHubService?: EnsureServiceTarget;
+  githubTargetDescription?: string;
+  githubSetupError?: string | null;
 }
 
 export function NodeChooserDialogs({
@@ -36,6 +41,9 @@ export function NodeChooserDialogs({
   onClose,
   onConfirm,
   onShowToast,
+  ensureGitHubService,
+  githubTargetDescription,
+  githubSetupError,
 }: NodeChooserDialogsProps) {
   // Docker state
   const [dockerImage, setDockerImage] = useState("");
@@ -43,6 +51,27 @@ export function NodeChooserDialogs({
   const [dockerError, setDockerError] = useState("");
 
   const dockerInputRef = useRef<HTMLInputElement>(null);
+
+  const submitDocker = () => {
+    const image = parseImageReference(dockerImage);
+    if (!image) {
+      setDockerError("Enter an image like nginx:1.27 or ghcr.io/org/app:tag.");
+      return;
+    }
+    const port = parseServicePort(dockerPort, 80);
+    if (port === null) {
+      setDockerError("Port must be a number from 1 to 65535.");
+      return;
+    }
+    onConfirm("docker", {
+      label: serviceNameFromImage(image),
+      image,
+      port,
+      subType: "Docker Image",
+      platformType: "image",
+    });
+    onClose();
+  };
 
   useEffect(() => {
     if (activeChooser === "docker") {
@@ -73,6 +102,9 @@ export function NodeChooserDialogs({
         onClose={onClose}
         onConfirm={onConfirm}
         onShowToast={onShowToast}
+        ensureService={ensureGitHubService}
+        targetDescription={githubTargetDescription}
+        installationErrorCode={githubSetupError}
       />
     );
   }
@@ -244,22 +276,7 @@ export function NodeChooserDialogs({
                   className="w-full h-9 px-3 bg-transparent text-[12px] font-mono text-[#F2F0EC] placeholder:text-[#77746F] outline-none border-none focus:outline-none focus:ring-0 focus-visible:outline-none"
                   style={{ outline: "none", boxShadow: "none", border: "none" }}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      const trimmed = dockerImage.trim();
-                      if (!trimmed) {
-                        setDockerError("Please enter a valid Docker image reference");
-                        return;
-                      }
-                      const containerName =
-                        trimmed.split("/").pop()?.split(":")[0] || "docker-service";
-                      onConfirm("docker", {
-                        label: containerName,
-                        subType: "Docker Container",
-                        port: parseInt(dockerPort, 10) || 80,
-                        startCommand: `docker run -p ${dockerPort}:${dockerPort} ${trimmed}`,
-                      });
-                      onClose();
-                    }
+                    if (e.key === "Enter") submitDocker();
                   }}
                 />
                 <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#E79570] scale-x-0 group-focus-within:scale-x-100 transition-transform duration-200 ease-out origin-left pointer-events-none" />
@@ -300,21 +317,10 @@ export function NodeChooserDialogs({
             </button>
             <button
               type="button"
-              onClick={() => {
-                const trimmed = dockerImage.trim() || "nginx:alpine";
-                const containerName =
-                  trimmed.split("/").pop()?.split(":")[0] || "docker-service";
-                onConfirm("docker", {
-                  label: containerName,
-                  subType: "Docker Container",
-                  port: parseInt(dockerPort, 10) || 80,
-                  startCommand: `docker run -p ${dockerPort}:${dockerPort} ${trimmed}`,
-                });
-                onClose();
-              }}
+              onClick={submitDocker}
               className="px-4 py-1.5 rounded-[7px] bg-[#E79570] hover:bg-[#F0A17B] text-[#0D0D0D] text-[12.5px] font-medium transition-colors cursor-pointer"
             >
-              Deploy to Canvas
+              Add image
             </button>
           </div>
         </div>

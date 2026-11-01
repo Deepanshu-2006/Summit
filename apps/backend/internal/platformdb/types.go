@@ -99,15 +99,24 @@ func (s BuildJobStatus) IsTerminal() bool {
 
 // Service types and environment types accepted by the schema.
 const (
-	ServiceTypeWeb    = "web"
-	ServiceTypeWorker = "worker"
-	ServiceTypeCron   = "cron"
+	ServiceTypeWeb      = "web"
+	ServiceTypeWorker   = "worker"
+	ServiceTypeCron     = "cron"
+	ServiceTypeImage    = "image"
+	ServiceTypePostgres = "postgres"
+	ServiceTypeRedis    = "redis"
+
+	EnvTypeProduction = "production"
+	EnvTypeStaging    = "staging"
+	EnvTypePreview    = "preview"
 )
 
 // Event names and aggregate type written to outbox_events.
 const (
 	OutboxAggregateDeployment         = "deployment"
 	OutboxEventDeploymentBuildRequest = "deployment.build.requested"
+	OutboxAggregateService            = "service"
+	OutboxEventServiceDeleted         = "service.deleted"
 )
 
 // Trigger types written to deployments.trigger_type.

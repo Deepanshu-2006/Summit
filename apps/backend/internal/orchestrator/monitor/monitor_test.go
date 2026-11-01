@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
@@ -28,10 +29,12 @@ type mockRolloutStore struct {
 }
 
 type transitionRecord struct {
-	id     uuid.UUID
-	from   []platformdb.DeploymentStatus
-	to     platformdb.DeploymentStatus
-	reason string
+	id        uuid.UUID
+	from      []platformdb.DeploymentStatus
+	to        platformdb.DeploymentStatus
+	reason    string
+	imageRef  string
+	publicURL string
 }
 
 func (m *mockRolloutStore) ListActiveDeployments(ctx context.Context, limit int) ([]platformdb.ActiveDeployment, error) {
@@ -45,8 +48,32 @@ func (m *mockRolloutStore) GetDeployment(ctx context.Context, id uuid.UUID) (*pl
 	return nil, errors.New("not implemented")
 }
 
+func readTransitionOpts(opts []platformdb.TransitionOption) (imageRef, publicURL string) {
+	if len(opts) == 0 {
+		return "", ""
+	}
+	optType := reflect.TypeOf(opts[0])
+	if optType.Kind() != reflect.Func || optType.NumIn() != 1 {
+		return "", ""
+	}
+	ptr := reflect.New(optType.In(0).Elem())
+	for _, opt := range opts {
+		reflect.ValueOf(opt).Call([]reflect.Value{ptr})
+	}
+	v := ptr.Elem()
+	read := func(name string) string {
+		f := v.FieldByName(name)
+		if !f.IsValid() || f.Kind() != reflect.Pointer || f.IsNil() {
+			return ""
+		}
+		return f.Elem().String()
+	}
+	return read("imageRef"), read("publicURL")
+}
+
 func (m *mockRolloutStore) TransitionDeployment(ctx context.Context, id uuid.UUID, from []platformdb.DeploymentStatus, to platformdb.DeploymentStatus, reason string, opts ...platformdb.TransitionOption) (*platformdb.Deployment, error) {
-	m.transitions = append(m.transitions, transitionRecord{id: id, from: from, to: to, reason: reason})
+	imageRef, publicURL := readTransitionOpts(opts)
+	m.transitions = append(m.transitions, transitionRecord{id: id, from: from, to: to, reason: reason, imageRef: imageRef, publicURL: publicURL})
 	for i := range m.activeDeployments {
 		if m.activeDeployments[i].Deployment.ID == id {
 			m.activeDeployments[i].Deployment.Status = to

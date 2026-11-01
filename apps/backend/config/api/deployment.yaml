@@ -1,13 +1,17 @@
-# Summit control-plane API. PORT defaults to 4000 (internal/config/config.go), so the
-# in-cluster URL builders use is http://summit-api.summit-system.svc.cluster.local:4000.
-# The Service port equals the container port to keep that URL short and the build
-# network policy (ORCHESTRATOR_API_PORT) aligned with the pod port.
+# Summit control-plane API. PORT defaults to 4000 (internal/config/config.go).
+# Builders call http://summit-api.summit-system.svc.cluster.local:4000
+# (ORCHESTRATOR_API_INTERNAL_URL). Browsers and the GitHub App callback use
+# http://127.0.0.1:4000, which is this Service's NodePort 30400 published by
+# deploy/local/ports.sh (or by kind extraPortMappings on a fresh cluster).
+# A NodePort Service still has a cluster IP, so the DNS name above keeps working.
 #
-# The image is a placeholder: no backend Dockerfile exists in the repo yet. For Kind:
-# `kind load docker-image summit-api:dev`.
+# Image: apps/backend/Dockerfile.api, loaded with
+# `kind load docker-image summit-api:dev --name summit-local`.
 #
-# Create Secret summit-api-env by hand (see config/README.md); every key becomes an
-# environment variable (DATABASE_URL, WORKER_JWT_SECRET, SUPABASE_*, GITHUB_* ...).
+# Secret summit-api-env is created by deploy/local/secrets.sh (never commit it).
+# envFrom supplies DATABASE_URL, SUPABASE_URL / NEXT_PUBLIC_SUPABASE_URL (JWKS
+# is derived in config.Load), GitHub App id/slug/private key, and WORKER_JWT_SECRET.
+# Explicit env below wins over the secret for the public URLs.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -55,6 +59,12 @@ spec:
               value: "4000"
             - name: ENVIRONMENT
               value: development
+            - name: PLATFORM_FRONTEND_BASE_URL
+              value: http://localhost:3000
+            - name: PLATFORM_PUBLIC_API_BASE_URL
+              value: http://127.0.0.1:4000
+            - name: SSL_CERT_FILE
+              value: /etc/ssl/certs/ca-certificates.crt
           envFrom:
             - secretRef:
                 name: summit-api-env
@@ -98,11 +108,12 @@ metadata:
     app.kubernetes.io/name: summit-api
     app.kubernetes.io/part-of: summit
 spec:
-  type: ClusterIP
+  type: NodePort
   selector:
     app.kubernetes.io/name: summit-api
   ports:
     - name: http
       port: 4000
       targetPort: http
+      nodePort: 30400
       protocol: TCP

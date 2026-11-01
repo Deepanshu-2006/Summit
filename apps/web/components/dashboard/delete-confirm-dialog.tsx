@@ -1,15 +1,16 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
-import { X, AlertTriangle } from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { X, AlertTriangle, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import type { DashboardProject } from "@/lib/dashboard/types";
+import { describeApiError } from "@/lib/platform-api";
 
 interface DeleteConfirmDialogProps {
   project: DashboardProject | null;
   isOpen: boolean;
   onClose: () => void;
-  onConfirmDelete: (projectId: string) => void;
+  onConfirmDelete: (projectId: string) => Promise<void>;
 }
 
 export function DeleteConfirmDialog({
@@ -20,6 +21,15 @@ export function DeleteConfirmDialog({
 }: DeleteConfirmDialogProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const deleteBtnRef = useRef<HTMLButtonElement>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Every close path resets the transient state, so the dialog opens fresh.
+  const close = useCallback(() => {
+    setIsDeleting(false);
+    setError(null);
+    onClose();
+  }, [onClose]);
 
   useEffect(() => {
     if (isOpen) {
@@ -30,12 +40,12 @@ export function DeleteConfirmDialog({
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape" && isOpen) {
-        onClose();
+        close();
       }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, close]);
 
   return (
     <AnimatePresence>
@@ -48,7 +58,7 @@ export function DeleteConfirmDialog({
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm select-none"
           onClick={(e) => {
             if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
-              onClose();
+              close();
             }
           }}
         >
@@ -66,7 +76,7 @@ export function DeleteConfirmDialog({
               </div>
               <button
                 type="button"
-                onClick={onClose}
+                onClick={close}
                 className="w-7 h-7 rounded-[5px] flex items-center justify-center text-[#75736D] hover:text-[#FAF8F5] hover:bg-[#1E1E1C] transition-colors cursor-pointer"
                 title="Close dialog"
               >
@@ -79,14 +89,21 @@ export function DeleteConfirmDialog({
                 Delete project?
               </h2>
               <p className="text-[13px] text-[#8E8C86] leading-relaxed mt-1.5">
-                Are you sure you want to delete <span className="font-mono text-[#FAF8F5] font-semibold">{project.name}</span>? This will permanently remove its architecture blueprint and saved canvas nodes.
+                Are you sure you want to delete <span className="font-mono text-[#FAF8F5] font-semibold">{project.name}</span>? This will permanently remove the project and its services.
               </p>
             </div>
+
+            {error && (
+              <p role="alert" className="flex items-start gap-1.5 text-[12px] text-[#D77D7D] mt-3 font-mono">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                <span>{error}</span>
+              </p>
+            )}
 
             <div className="pt-5 mt-5 border-t border-[#222220] flex items-center justify-end gap-2.5">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={close}
                 className="h-9 px-4 rounded-[6px] text-[13px] text-[#A6A4A0] hover:text-[#FAF8F5] hover:bg-[#1E1E1C] transition-colors cursor-pointer"
               >
                 Cancel
@@ -94,13 +111,21 @@ export function DeleteConfirmDialog({
               <button
                 ref={deleteBtnRef}
                 type="button"
-                onClick={() => {
-                  onConfirmDelete(project.id);
-                  onClose();
+                disabled={isDeleting}
+                onClick={async () => {
+                  setIsDeleting(true);
+                  setError(null);
+                  try {
+                    await onConfirmDelete(project.id);
+                    close();
+                  } catch (err) {
+                    setError(describeApiError(err, "Could not delete this project."));
+                    setIsDeleting(false);
+                  }
                 }}
-                className="h-9 px-4 rounded-[6px] bg-[#D77D7D] hover:bg-[#E58888] text-[#141413] text-[13px] font-semibold transition-all shadow-sm active:scale-[0.98] cursor-pointer"
+                className="h-9 px-4 rounded-[6px] bg-[#D77D7D] hover:bg-[#E58888] disabled:opacity-60 disabled:cursor-not-allowed text-[#141413] text-[13px] font-semibold transition-all shadow-sm active:scale-[0.98] cursor-pointer"
               >
-                Delete project
+                {isDeleting ? "Deleting…" : "Delete project"}
               </button>
             </div>
           </motion.div>

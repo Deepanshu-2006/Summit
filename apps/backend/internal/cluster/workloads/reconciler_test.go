@@ -14,7 +14,9 @@ import (
 )
 
 func TestReconciler_CreateAll_Success(t *testing.T) {
-	client := fake.NewSimpleClientset()
+	client := fake.NewSimpleClientset(&corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "platform-pull-secret", Namespace: "tenant-ecommerce"},
+	})
 	reconciler := NewReconciler(client, WithDefaultPullSecret("platform-pull-secret"))
 
 	replicas := int32(2)
@@ -588,5 +590,37 @@ func TestReconciler_Postgres_PhaseAvailableWhenReady(t *testing.T) {
 	}
 	if svc.Status.ReadyReplicas != 1 {
 		t.Errorf("expected svc.Status.ReadyReplicas=1, got %d", svc.Status.ReadyReplicas)
+	}
+}
+
+func TestReconciler_OmitsMissingPullSecret(t *testing.T) {
+	client := fake.NewSimpleClientset()
+	reconciler := NewReconciler(client, WithDefaultPullSecret("ghcr-pull"))
+	replicas := int32(1)
+	svc := &SummitService{
+		ObjectMeta: metav1.ObjectMeta{Name: "public-api", Namespace: "tenant-pub", UID: types.UID("crd-pub")},
+		Spec: SummitServiceSpec{
+			Image:          "ghcr.io/org/public@sha256:7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069",
+			Replicas:       &replicas,
+			Port:           8080,
+			PullSecretName: "ghcr-pull",
+		},
+	}
+	if _, err := reconciler.Reconcile(context.Background(), svc); err != nil {
+		t.Fatal(err)
+	}
+	dep, err := client.AppsV1().Deployments("tenant-pub").Get(context.Background(), "public-api", metav1.GetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(dep.Spec.Template.Spec.ImagePullSecrets) != 0 {
+		t.Fatalf("missing ghcr-pull must not be referenced, got %+v", dep.Spec.Template.Spec.ImagePullSecrets)
+	}
+	k8sSvc, err := client.CoreV1().Services("tenant-pub").Get(context.Background(), "public-api", metav1.GetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if k8sSvc.Spec.Type != corev1.ServiceTypeClusterIP || len(k8sSvc.Spec.Ports) != 1 {
+		t.Fatalf("expected ClusterIP with a port, got %#v", k8sSvc.Spec)
 	}
 }

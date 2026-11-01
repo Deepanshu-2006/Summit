@@ -1,0 +1,13 @@
+# Traefik Proxy v3.7.17, installed without Helm.
+# CRDs: https://github.com/traefik/traefik/blob/v3.7.17/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml
+# Apply with server-side apply (see deploy/local/up.sh). The CRD document is
+# large enough that a client-side last-applied annotation can exceed 256Ki.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - crds.yaml
+  - rbac.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingressclass.yaml

@@ -1,0 +1,95 @@
+# Traefik Proxy v3.7.17. Image digest observed 2026-11-01 for the official
+# docker.io/library/traefik:v3.7.17 tag.
+# Helm is not required. The binary is /usr/local/bin/traefik (the image
+# entrypoint is a shell wrapper; we exec the binary directly).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traefik
+  namespace: traefik
+  labels:
+    app.kubernetes.io/name: traefik
+    app.kubernetes.io/part-of: summit
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: traefik
+  template:
+    metadata:
+      labels:
+        # Orchestrator network policy selects app.kubernetes.io/name=traefik.
+        app.kubernetes.io/name: traefik
+        app.kubernetes.io/part-of: summit
+    spec:
+      serviceAccountName: traefik
+      automountServiceAccountToken: true
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: traefik
+          image: traefik:v3.7.17@sha256:30ff62491aacdb862ceb8c9edcf2627da638d7deafdd4b6dab32fe34f8aa3e90
+          imagePullPolicy: IfNotPresent
+          command: ["/usr/local/bin/traefik"]
+          args:
+            - --entrypoints.web.address=:8000
+            - --entrypoints.websecure.address=:8443
+            - --entrypoints.ping.address=:8082
+            - --ping=true
+            - --ping.entrypoint=ping
+            - --providers.kubernetescrd=true
+            - --providers.kubernetescrd.allowcrossnamespace=false
+            - --providers.kubernetesingress=true
+            - --providers.kubernetesingress.ingressclass=traefik
+            - --api.dashboard=false
+            - --api.insecure=false
+            - --log.level=INFO
+          ports:
+            - name: web
+              containerPort: 8000
+              protocol: TCP
+            - name: websecure
+              containerPort: 8443
+              protocol: TCP
+            - name: ping
+              containerPort: 8082
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: ping
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: ping
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: "1"
+              memory: 256Mi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 16Mi

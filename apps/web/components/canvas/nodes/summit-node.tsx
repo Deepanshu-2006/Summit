@@ -11,6 +11,7 @@ import {
   Database,
 } from "lucide-react";
 import type { SummitNode, NodeType } from "@/lib/canvas/types";
+import { safeHttpUrl } from "@/lib/platform-api";
 import {
   PostgresLogo,
   MongoLogo,
@@ -43,7 +44,41 @@ function DockerWhaleIcon({ className }: { className?: string }) {
 /**
  * Resolves exact Railway-style icon, status description, and volume tag
  */
+const TONE_COLOR = {
+  ok: "text-[#72B69A]",
+  progress: "text-[#E5B462] animate-pulse",
+  error: "text-[#D77D7D]",
+  idle: "text-[#77746F]",
+} as const;
+
+function managedIcon(data: SummitNode["data"]) {
+  if (data.platformType === "image" || data.subType === "Docker Image") {
+    return { Icon: DockerWhaleIcon, iconColor: "text-[#60A5FA]", isDatabase: false };
+  }
+  if (data.platformType === "postgres" || data.serviceType === "database") {
+    return { Icon: PostgresLogo, iconColor: "", isDatabase: true };
+  }
+  if (data.platformType === "redis" || data.serviceType === "cache") {
+    return { Icon: RedisLogo, iconColor: "", isDatabase: true };
+  }
+  if (data.platformType === "worker" || data.serviceType === "worker") {
+    return { Icon: Cpu, iconColor: "text-[#CCA7E8]", isDatabase: false };
+  }
+  return { Icon: Layout, iconColor: "text-[#93DDA7]", isDatabase: false };
+}
+
 function getRailwayNodeDetails(data: SummitNode["data"]) {
+  // Real platform services: status, icon and source come from the backend.
+  if (data.serviceId) {
+    return {
+      ...managedIcon(data),
+      statusText: data.statusText ?? "Service",
+      volumeTag: data.detailText
+        ?? (data.repositoryFullName
+          ? `${data.repositoryFullName}${data.branch ? `@${data.branch}` : ""}`
+          : data.subType || "service"),
+    };
+  }
   if (data.subType === "Docker Image") {
     return {
       Icon: DockerWhaleIcon,
@@ -146,6 +181,7 @@ export const SummitNodeComponent = memo(function SummitNodeComponent({
 }: NodeProps<SummitNode>) {
   const { Icon, iconColor, statusText, volumeTag, isDatabase } =
     getRailwayNodeDetails(data);
+  const publicHref = data.serviceId ? safeHttpUrl(data.publicUrl) : null;
 
   // Connection Animation Feedback
   const [isConnectionTarget, setIsConnectionTarget] = useState(false);
@@ -257,15 +293,24 @@ export const SummitNodeComponent = memo(function SummitNodeComponent({
             </h4>
           </div>
 
-          {/* Railway 'New' Status Pill Badge */}
-          {isDatabase ? (
+          {/* Railway 'New' Status Pill Badge — real services use their deployment tone. */}
+          {data.serviceId ? (
+            <span
+              className={`w-1.5 h-1.5 rounded-full shrink-0 mr-1 ${TONE_COLOR[data.statusTone ?? "idle"].split(" ")[0]} bg-current`}
+              title={data.statusText}
+            />
+          ) : isDatabase ? (
             <span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full bg-[#17261F] text-[#72B69A] border border-[#264535] shrink-0">
               New
             </span>
           ) : (
             <span
-              className="w-1.5 h-1.5 rounded-full bg-[#72B69A] shrink-0 mr-1"
-              title="Configured"
+              className={`w-1.5 h-1.5 rounded-full shrink-0 mr-1 ${
+                data.serviceId
+                  ? "bg-current " + TONE_COLOR[data.statusTone ?? "idle"]
+                  : "bg-[#72B69A]"
+              }`}
+              title={data.serviceId ? data.statusText : "Configured"}
             />
           )}
         </div>
@@ -273,7 +318,9 @@ export const SummitNodeComponent = memo(function SummitNodeComponent({
         {/* Middle Row: Green Checkmark Circle + Deployment Status */}
         <div className="flex items-center gap-1.5 mt-2.5 text-[12px] text-[#8F8C86] font-sans">
           <svg
-            className="w-3.5 h-3.5 text-[#72B69A] shrink-0"
+            className={`w-3.5 h-3.5 shrink-0 ${
+              data.serviceId ? TONE_COLOR[data.statusTone ?? "idle"] : "text-[#72B69A]"
+            }`}
             viewBox="0 0 16 16"
             fill="currentColor"
           >
@@ -285,10 +332,25 @@ export const SummitNodeComponent = memo(function SummitNodeComponent({
           <span className="truncate">{statusText}</span>
         </div>
 
-        {/* Bottom Row: Volume / Storage / Branch compartment */}
+        {/* Bottom Row: public URL, addon env var, image, or repository */}
         <div className="mt-2.5 pt-2 border-t border-[#242424] flex items-center gap-1.5 text-[11px] font-mono text-[#77746F]">
-          <HardDrive className="w-3 h-3 text-[#77746F] shrink-0" />
-          <span className="truncate">{volumeTag}</span>
+          {publicHref ? (
+            <a
+              href={publicHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(event) => event.stopPropagation()}
+              className="truncate text-[#E58B62] hover:underline"
+              title={publicHref}
+            >
+              {publicHref.replace(/^https?:\/\//, "")}
+            </a>
+          ) : (
+            <>
+              <HardDrive className="w-3 h-3 text-[#77746F] shrink-0" />
+              <span className="truncate">{volumeTag}</span>
+            </>
+          )}
         </div>
       </div>
     </div>

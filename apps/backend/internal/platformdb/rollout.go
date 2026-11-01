@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -38,10 +39,15 @@ type ActiveDeployment struct {
 
 // ListActiveDeployments returns in-flight deployments (queued, building,
 // image_ready, deploying, health_checking), oldest first, joined with their
-// build job, service, project, environment, repository owner and resources.
-// Deployments without a service or build job are skipped (they cannot be
-// driven). Soft-deleted projects are included so the orchestrator can clean
-// them up. limit <= 0 means DefaultActiveLimit; capped at MaxActiveLimit.
+// service, project, environment, repository owner and resources. The build job
+// is a LEFT JOIN: image and addon deployments have none, and BuildJob is the
+// zero value (ID == uuid.Nil) for those. Deployments without a service are
+// skipped. Soft-deleted projects and services are included so the orchestrator
+// can observe cancel_requested_at. limit <= 0 means DefaultActiveLimit; capped
+// at MaxActiveLimit.
+//
+// ServiceType, EnvironmentName, and Resources.Port are populated for every row
+// so the orchestrator can branch on web/worker versus image/postgres/redis.
 func (s *Store) ListActiveDeployments(ctx context.Context, limit int) ([]ActiveDeployment, error) {
 	switch {
 	case limit <= 0:
@@ -51,14 +57,16 @@ func (s *Store) ListActiveDeployments(ctx context.Context, limit int) ([]ActiveD
 	}
 	rows, err := s.db.Query(ctx, `
 		SELECT `+deploymentCols+`,
-		       `+buildJobCols+`,
+		       b.id, b.deployment_id, b.service_source_id, b.repository_id, b.commit_sha, b.ref, b.status, b.builder_type,
+		       b.attempt_id, b.pod_name, b.image_repository, b.image_tag, b.oci_image_digest, b.current_stage, b.error_message,
+		       b.timeout_seconds, b.requested_at, b.dispatched_at, b.started_at, b.completed_at, b.last_heartbeat_at, b.created_at, b.updated_at,
 		       p.user_id, p.id, p.slug, e.id, e.name, sv.id, sv.name, sv.type,
 		       COALESCE(r.full_name, ''), COALESCE(r.owner_login, ''),
 		       COALESCE(sr.cpu_request_millicores, 100), COALESCE(sr.cpu_limit_millicores, 500),
 		       COALESCE(sr.memory_request_mb, 128), COALESCE(sr.memory_limit_mb, 512),
 		       COALESCE(sr.min_replicas, 1), COALESCE(sr.max_replicas, 5), COALESCE(sr.port, 8080)
 		FROM deployments d
-		JOIN build_jobs b ON b.deployment_id = d.id
+		LEFT JOIN build_jobs b ON b.deployment_id = d.id
 		JOIN services sv ON sv.id = d.service_id
 		JOIN environments e ON e.id = sv.environment_id
 		JOIN projects p ON p.id = e.project_id
@@ -74,21 +82,39 @@ func (s *Store) ListActiveDeployments(ctx context.Context, limit int) ([]ActiveD
 	var out []ActiveDeployment
 	for rows.Next() {
 		var a ActiveDeployment
-		d, b := &a.Deployment, &a.BuildJob
+		d := &a.Deployment
 		r := &a.Resources
+		var (
+			bID, bDep, bSrc, bRepo, bAttempt               *uuid.UUID
+			bCommit, bRef, bStatus, bBuilder               *string
+			bPod, bImgRepo, bImgTag, bDigest, bStage, bErr *string
+			bTimeout                                       *int
+			bRequested, bDispatched, bStarted              *time.Time
+			bCompleted, bHeartbeat, bCreated, bUpdated     *time.Time
+		)
 		if err := rows.Scan(
 			&d.ID, &d.ProjectID, &d.EnvironmentID, &d.ServiceID, &d.ServiceSourceID, &d.CommitSHA, &d.Branch,
 			&d.Ref, &d.Status, &d.TriggerType, &d.TriggerEventID, &d.TriggeredByUserID, &d.IdempotencyKey, &d.ErrorMessage,
 			&d.StatusReason, &d.ImageRef, &d.PublicURL, &d.CancelRequestedAt, &d.StartedAt, &d.FinishedAt, &d.CreatedAt, &d.UpdatedAt,
-			&b.ID, &b.DeploymentID, &b.ServiceSourceID, &b.RepositoryID, &b.CommitSHA, &b.Ref, &b.Status, &b.BuilderType,
-			&b.AttemptID, &b.PodName, &b.ImageRepository, &b.ImageTag, &b.ImageDigest, &b.CurrentStage, &b.ErrorMessage,
-			&b.TimeoutSeconds, &b.RequestedAt, &b.DispatchedAt, &b.StartedAt, &b.CompletedAt, &b.LastHeartbeatAt, &b.CreatedAt, &b.UpdatedAt,
+			&bID, &bDep, &bSrc, &bRepo, &bCommit, &bRef, &bStatus, &bBuilder,
+			&bAttempt, &bPod, &bImgRepo, &bImgTag, &bDigest, &bStage, &bErr,
+			&bTimeout, &bRequested, &bDispatched, &bStarted, &bCompleted, &bHeartbeat, &bCreated, &bUpdated,
 			&a.UserID, &a.ProjectID, &a.ProjectSlug, &a.EnvironmentID, &a.EnvironmentName, &a.ServiceID, &a.ServiceName, &a.ServiceType,
 			&a.RepoFullName, &a.RepoOwnerLogin,
 			&r.CPURequestMillicores, &r.CPULimitMillicores, &r.MemoryRequestMB, &r.MemoryLimitMB,
 			&r.MinReplicas, &r.MaxReplicas, &r.Port,
 		); err != nil {
 			return nil, fmt.Errorf("platformdb: scan active deployment: %w", err)
+		}
+		if bID != nil {
+			a.BuildJob = BuildJob{
+				ID: *bID, DeploymentID: deref(bDep), ServiceSourceID: bSrc, RepositoryID: bRepo,
+				CommitSHA: bCommit, Ref: bRef, Status: BuildJobStatus(deref(bStatus)), BuilderType: deref(bBuilder),
+				AttemptID: bAttempt, PodName: bPod, ImageRepository: bImgRepo, ImageTag: bImgTag, ImageDigest: bDigest,
+				CurrentStage: bStage, ErrorMessage: bErr, TimeoutSeconds: bTimeout,
+				RequestedAt: deref(bRequested), DispatchedAt: bDispatched, StartedAt: bStarted, CompletedAt: bCompleted,
+				LastHeartbeatAt: bHeartbeat, CreatedAt: deref(bCreated), UpdatedAt: deref(bUpdated),
+			}
 		}
 		r.ServiceID = a.ServiceID
 		out = append(out, a)

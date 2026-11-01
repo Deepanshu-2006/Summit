@@ -114,3 +114,18 @@ func NewBuildRequestedEvent(in BuildRequestedInput) BuildRequestedEvent {
 func NewBuildRequestedPayload(in BuildRequestedInput) ([]byte, error) {
 	return json.Marshal(NewBuildRequestedEvent(in))
 }
+
+// ServiceDeletedEvent is the outbox payload for event_type "service.deleted"
+// and aggregate_type "service". event_id is generated for the payload and is
+// not the outbox_events.id (same as deployment.build.requested).
+type ServiceDeletedEvent struct {
+	EventID         string `json:"event_id"`
+	ServiceID       string `json:"service_id"`
+	ServiceName     string `json:"service_name"`
+	ServiceType     string `json:"service_type"`
+	UserID          string `json:"user_id"`
+	ProjectID       string `json:"project_id"`
+	ProjectSlug     string `json:"project_slug"`
+	EnvironmentID   string `json:"environment_id"`
+	EnvironmentName string `json:"environment_name"`
+}

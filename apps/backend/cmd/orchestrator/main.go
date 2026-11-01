@@ -12,12 +12,14 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/summit/backend/internal/cluster"
 	"github.com/summit/backend/internal/db"
 	"github.com/summit/backend/internal/orchestrator"
 	"github.com/summit/backend/internal/orchestrator/build"
+	"github.com/summit/backend/internal/orchestrator/events"
 	"github.com/summit/backend/internal/orchestrator/queue"
 	"github.com/summit/backend/internal/orchestrator/worker"
 	"github.com/summit/backend/internal/platformdb"
@@ -119,7 +121,20 @@ func run(ctx context.Context, logger *slog.Logger) error {
 				Resolver:    resolver,
 				Deployments: store,
 			}
-			queueHandler = buildHandler.Handle
+			handlers := map[string]queue.Handler{
+				events.EventTypeDeploymentBuildRequested: buildHandler.Handle,
+			}
+			// service.deleted cleanup needs the dynamic client for the
+			// SummitService and Traefik CRDs; typed deletes still run without it.
+			var dynClient dynamic.Interface
+			if dc, err := cluster.NewDynamicClient(cfg.Cluster); err != nil {
+				logger.Warn("dynamic client unavailable for service.deleted cleanup", "error", err)
+			} else {
+				dynClient = dc
+			}
+			deletedHandler := &worker.ServiceDeletedHandler{Kube: kubeClient, Dyn: dynClient, Logger: logger}
+			handlers[worker.EventTypeServiceDeleted] = deletedHandler.Handle
+			queueHandler = worker.Dispatcher(handlers)
 		}
 	}
 

@@ -17,12 +17,11 @@ import { useAuth } from "@/components/auth/auth-context";
 import {
   connectServiceRepository,
   listGitHubInstallations,
-  listSourceBuildServices,
   startGitHubInstallation,
   syncInstallationRepositories,
   type GitHubRepository,
-  type SourceBuildService,
 } from "@/lib/github-integration";
+import { describeApiError } from "@/lib/platform-api";
 
 /**
  * Authentic Minimal GitHub Logo
@@ -39,11 +38,48 @@ function GitHubIcon({ className }: { className?: string }) {
   );
 }
 
+/**
+ * Resolves the backend service a repository gets connected to. Callers either
+ * return an existing service or create one (e.g. a `web` service named after the
+ * repository) — the dialog never lists services from other projects.
+ */
+export type EnsureServiceTarget = (
+  repository: GitHubRepository,
+) => Promise<{ serviceId: string }>;
+
 export interface GitHubImportDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: (optionId: string, customData?: Record<string, unknown>) => void;
   onShowToast?: (message: string) => void;
+  ensureService?: EnsureServiceTarget;
+  /** Human-readable note about where the repository will be connected. */
+  targetDescription?: string;
+  installationErrorCode?: string | null;
+}
+
+function getInstallationErrorMessage(errorCode: string | null | undefined) {
+  switch (errorCode) {
+    case "GITHUB_INSTALLATION_STATE_INVALID":
+    case "GITHUB_INSTALLATION_STATE_EXPIRED":
+      return "GitHub could not verify this installation. Start the GitHub App installation again.";
+    case "GITHUB_INSTALLATION_ALREADY_LINKED":
+      return "This GitHub App installation is already linked to a different Summit account.";
+    case "GITHUB_INSTALLATION_NOT_FOUND":
+      return "Summit could not find that GitHub App installation. Try installing it again.";
+    case "GITHUB_APP_NOT_CONFIGURED":
+      return "The GitHub App is not fully configured on the Summit backend.";
+    case "GITHUB_API_UNAVAILABLE":
+      return "Summit could not verify the installation with GitHub. Check the backend and try again.";
+    case "GITHUB_INSTALLATION_NOT_ACTIVE":
+      return "This GitHub App installation is not active. Re-enable it in GitHub and retry.";
+    case null:
+    case undefined:
+    case "":
+      return null;
+    default:
+      return "Summit could not complete the GitHub App installation. Check the backend logs and try again.";
+  }
 }
 
 export function GitHubImportDialog({
@@ -51,6 +87,9 @@ export function GitHubImportDialog({
   onClose,
   onConfirm,
   onShowToast,
+  ensureService,
+  targetDescription,
+  installationErrorCode,
 }: GitHubImportDialogProps) {
   const { session, isLoading: isAuthLoading, openAuthModal } = useAuth();
   const accessToken = session?.access_token;
@@ -64,9 +103,7 @@ export function GitHubImportDialog({
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const [repositories, setRepositories] = useState<GitHubRepository[]>([]);
-  const [services, setServices] = useState<SourceBuildService[]>([]);
   const [selectedRepoId, setSelectedRepoId] = useState("");
-  const [selectedServiceId, setSelectedServiceId] = useState("");
   const [selectedBranch, setSelectedBranch] = useState("");
   const [rootDirectory, setRootDirectory] = useState(".");
   const [dockerfilePath, setDockerfilePath] = useState("");
@@ -76,6 +113,7 @@ export function GitHubImportDialog({
   const [isConnecting, setIsConnecting] = useState(false);
   const [needsInstallation, setNeedsInstallation] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const installationErrorMessage = getInstallationErrorMessage(installationErrorCode);
 
   const selectedRepo = useMemo(
     () => repositories.find((repo) => repo.id === selectedRepoId) ?? null,
@@ -89,7 +127,6 @@ export function GitHubImportDialog({
         return;
       }
       setRepositories([]);
-      setServices([]);
       setNeedsInstallation(false);
       setErrorMessage("Sign in to connect a GitHub repository.");
       setIsLoading(false);
@@ -99,18 +136,9 @@ export function GitHubImportDialog({
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const [installationResult, serviceResult] = await Promise.all([
-        listGitHubInstallations(accessToken),
-        listSourceBuildServices(accessToken),
-      ]);
+      const installationResult = await listGitHubInstallations(accessToken);
       const activeInstallation = installationResult.data.find(
         (item) => item.status === "active",
-      );
-      setServices(serviceResult.data);
-      setSelectedServiceId((current) =>
-        serviceResult.data.some((service) => service.id === current)
-          ? current
-          : serviceResult.data[0]?.id ?? "",
       );
       setNeedsInstallation(!activeInstallation);
 
@@ -133,9 +161,7 @@ export function GitHubImportDialog({
           : synced.repositories[0]?.id ?? "",
       );
     } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "Could not load GitHub repositories.",
-      );
+      setErrorMessage(describeApiError(error, "Could not load GitHub repositories."));
     } finally {
       setIsLoading(false);
     }
@@ -195,9 +221,7 @@ export function GitHubImportDialog({
       const result = await startGitHubInstallation(accessToken);
       window.location.assign(result.installation_url);
     } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "Could not start GitHub App installation.",
-      );
+      setErrorMessage(describeApiError(error, "Could not start GitHub App installation."));
       setIsConnecting(false);
     }
   };
@@ -207,12 +231,13 @@ export function GitHubImportDialog({
       openAuthModal({ mode: "signin" });
       return;
     }
-    if (!selectedRepo || !selectedServiceId || !selectedBranch.trim()) return;
+    if (!selectedRepo || !ensureService || !selectedBranch.trim()) return;
 
     setIsConnecting(true);
     setErrorMessage(null);
     try {
-      await connectServiceRepository(accessToken, selectedServiceId, {
+      const { serviceId } = await ensureService(selectedRepo);
+      await connectServiceRepository(accessToken, serviceId, {
         repositoryId: selectedRepo.id,
         branch: selectedBranch.trim(),
         rootDirectory,
@@ -229,13 +254,13 @@ export function GitHubImportDialog({
         repoUrl,
         branch: selectedBranch.trim(),
         repositoryId: selectedRepo.id,
-        serviceId: selectedServiceId,
+        serviceId,
         rootDir: rootDirectory,
         buildCommand,
       });
 
       if (onShowToast) {
-        onShowToast(`Connected ${selectedRepo.full_name} to the selected service`);
+        onShowToast(`Connected ${selectedRepo.full_name}`);
       } else if (typeof window !== "undefined") {
         window.dispatchEvent(
           new CustomEvent("summit:toast", {
@@ -245,9 +270,7 @@ export function GitHubImportDialog({
       }
       onClose();
     } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "Could not connect this repository.",
-      );
+      setErrorMessage(describeApiError(error, "Could not connect this repository."));
     } finally {
       setIsConnecting(false);
     }
@@ -343,10 +366,10 @@ export function GitHubImportDialog({
                 />
               </div>
 
-              {errorMessage && (
+              {(installationErrorMessage || errorMessage) && (
                 <div className="mb-2 flex items-start gap-2 rounded-[5px] border border-[#4A2B24] bg-[#1A1412] px-3 py-2 text-[11px] text-[#E8B29C]">
                   <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  <span>{errorMessage}</span>
+                  <span>{installationErrorMessage || errorMessage}</span>
                 </div>
               )}
 
@@ -554,34 +577,6 @@ export function GitHubImportDialog({
                 </div>
               </div>
 
-              {/* The backend owns the service and repository records. */}
-              <div className="space-y-1.5">
-                <label
-                  htmlFor="summit-source-service"
-                  className="block font-mono text-[10.5px] text-[#77756F] uppercase tracking-wider"
-                >
-                  Summit Service
-                </label>
-                {services.length > 0 ? (
-                  <select
-                    id="summit-source-service"
-                    value={selectedServiceId}
-                    onChange={(event) => setSelectedServiceId(event.target.value)}
-                    className="w-full rounded-[5px] border border-[#242424] bg-[#181817] px-3 py-2 text-[12px] text-[#F1F0ED] outline-none focus:border-[#E58B62]"
-                  >
-                    {services.map((service) => (
-                      <option key={service.id} value={service.id}>
-                        {service.project_name} / {service.name} ({service.type})
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <p className="rounded-[5px] border border-[#292825] bg-[#161615] px-3 py-2 text-[11px] text-[#A09E98]">
-                    No web or worker services are available for this account.
-                  </p>
-                )}
-              </div>
-
               {/* Branch and supported source build settings */}
               <div className="space-y-1.5 pt-1">
                 <label
@@ -651,7 +646,8 @@ export function GitHubImportDialog({
 
               {/* Minimal Explanation Note */}
               <p className="font-sans text-[11.5px] text-[#77756F] leading-normal pt-1">
-                This saves the repository in Summit and connects it to the selected service.
+                {targetDescription ??
+                  "This saves the repository in Summit and connects it to a service in this project."}
               </p>
             </div>
 
@@ -676,7 +672,7 @@ export function GitHubImportDialog({
                 </button>
                 <button
                   type="button"
-                  disabled={isConnecting || !selectedServiceId || !selectedBranch.trim()}
+                  disabled={isConnecting || !ensureService || !selectedBranch.trim()}
                   onClick={handleAddToCanvas}
                   className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-[5px] bg-[#E58B62] hover:bg-[#F0A17B] disabled:opacity-40 disabled:cursor-not-allowed text-[#0B0B0A] font-sans font-medium text-[12px] transition-colors cursor-pointer"
                 >

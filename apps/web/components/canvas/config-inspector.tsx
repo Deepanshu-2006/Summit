@@ -17,6 +17,7 @@ import type {
   SummitNodeData,
   EnvironmentVariable,
 } from "@/lib/canvas/types";
+import { safeHttpUrl } from "@/lib/platform-api";
 import {
   PostgresLogo,
   MongoLogo,
@@ -29,6 +30,9 @@ interface ConfigInspectorProps {
   onClose: () => void;
   onUpdateNode: (nodeId: string, updatedData: Partial<SummitNodeData>) => void;
   onDeleteNode: (nodeId: string) => void;
+  /** Real services confirm in a dialog that calls the platform API. */
+  onDeleteService?: (node: SummitNode) => void;
+  onConnectRepository?: (serviceId: string) => void;
 }
 
 // Authentic GitHub Brand Vector
@@ -72,6 +76,8 @@ export function ConfigInspector({
   onClose,
   onUpdateNode,
   onDeleteNode,
+  onDeleteService,
+  onConnectRepository,
 }: ConfigInspectorProps) {
   const [label, setLabel] = useState("");
   const [buildCommand, setBuildCommand] = useState("");
@@ -143,6 +149,11 @@ export function ConfigInspector({
   const isApp = data.serviceType === "application" || data.serviceType === "worker";
   const isDb = data.serviceType === "database" || data.serviceType === "cache";
   const isRepo = data.serviceType === "repository";
+  // Mirrors a real platform service: backend-owned, so not editable here.
+  const isManaged = Boolean(data.serviceId);
+  const isRepoService = data.platformType === "web" || data.platformType === "worker";
+  const publicHref =
+    data.platformType === "worker" || data.urlEnv ? null : safeHttpUrl(data.publicUrl);
 
   return (
     <aside
@@ -205,6 +216,7 @@ export function ConfigInspector({
                 handleUpdate({ label: e.target.value });
               }}
               placeholder="service-name"
+              readOnly={isManaged}
               className="w-full h-8 px-2.5 rounded-[5px] bg-[#161615] hover:bg-[#181817] focus:bg-[#141413] border border-[#222220] hover:border-[#2C2B28] focus:border-[#E58B62]/80 focus:ring-1 focus:ring-[#E58B62]/20 text-[12px] font-sans text-[#F1F0ED] outline-none transition-all placeholder:text-[#52504B]"
             />
           </div>
@@ -294,8 +306,75 @@ export function ConfigInspector({
           </div>
         )}
 
+        {/* Section: Backend-managed service summary */}
+        {isManaged && (
+          <div className="space-y-3 pt-1">
+            <div className="flex items-center justify-between pb-1 border-b border-[#1E1E1C]">
+              <span className="font-mono text-[10px] font-medium tracking-[0.08em] uppercase text-[#77756F]">
+                Service
+              </span>
+            </div>
+            <div className="rounded-[6px] bg-[#161615] border border-[#222220] p-3 space-y-2 text-[11px]">
+              {(
+                [
+                  ["Environment", data.environmentName],
+                  ["Repository", data.repositoryFullName ?? "Not connected"],
+                  ["Branch", data.branch],
+                  ["Root directory", data.rootDir],
+                  ["Source", data.sourceStatus],
+                  [
+                    "Auto-deploy",
+                    data.autoDeploy === undefined ? undefined : data.autoDeploy ? "On" : "Off",
+                  ],
+                  ["Latest deployment", data.deploymentStatus?.replace(/_/g, " ") ?? "None yet"],
+                  ["Commit", data.commitSha?.slice(0, 7)],
+                  ["Image", data.imageRef],
+                  ["Resolved image", data.resolvedImage],
+                  ["Port", data.port ? String(data.port) : undefined],
+                  ["Engine", data.addonEngine],
+                  ["Version", data.addonVersion],
+                  ["Storage", data.storageMb ? `${data.storageMb} MB` : undefined],
+                  ["Connection", data.urlEnv],
+                ] as const
+              )
+                .filter(([, value]) => value)
+                .map(([name, value]) => (
+                  <div key={name} className="flex items-center justify-between gap-3">
+                    <span className="text-[#77756F] font-sans">{name}</span>
+                    <span className="font-mono text-[#F1F0ED] truncate">{value}</span>
+                  </div>
+                ))}
+            </div>
+            {data.urlEnv && (
+              <p className="text-[11.5px] text-[#A09E98] leading-relaxed">
+                Connection injected as {data.urlEnv} into services in this environment.
+              </p>
+            )}
+            {publicHref && (
+              <a
+                href={publicHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] font-mono text-[#E58B62] hover:underline break-all"
+              >
+                <span>{publicHref}</span>
+                <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+              </a>
+            )}
+            {isRepoService && onConnectRepository && data.serviceId && (
+              <button
+                type="button"
+                onClick={() => data.serviceId && onConnectRepository(data.serviceId)}
+                className="h-8 px-3 rounded-[5px] border border-[#2C2B28] bg-[#1A1A19] hover:bg-[#202020] text-[#F1F0ED] text-[12px] font-sans cursor-pointer"
+              >
+                {data.repositoryFullName ? "Reconnect repository" : "Connect repository"}
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Section: Application / Worker Build Configuration */}
-        {isApp && (
+        {isApp && !isManaged && (
           <div className="space-y-3 pt-1">
             <div className="flex items-center justify-between pb-1 border-b border-[#1E1E1C]">
               <span className="font-mono text-[10px] font-medium tracking-[0.08em] uppercase text-[#77756F]">
@@ -410,7 +489,7 @@ export function ConfigInspector({
         )}
 
         {/* Section: Database & Cache Configuration */}
-        {isDb && (
+        {isDb && !isManaged && (
           <div className="space-y-3 pt-1">
             <div className="flex items-center justify-between pb-1 border-b border-[#1E1E1C]">
               <span className="font-mono text-[10px] font-medium tracking-[0.08em] uppercase text-[#77756F]">
@@ -505,7 +584,16 @@ export function ConfigInspector({
 
       {/* ================= Minimal Footer: Delete Service ================= */}
       <div className="p-3 border-t border-[#222220] bg-[#111110] shrink-0">
-        {confirmDelete ? (
+        {isManaged ? (
+          <button
+            type="button"
+            onClick={() => onDeleteService?.(node)}
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-[5px] text-[#77756F] hover:text-[#EF4444] hover:bg-[#1E1414] border border-transparent hover:border-[#381F1F] text-[11.5px] font-sans transition-all cursor-pointer"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Delete service</span>
+          </button>
+        ) : confirmDelete ? (
           <div className="flex items-center gap-2 animate-in fade-in duration-100">
             <button
               type="button"
