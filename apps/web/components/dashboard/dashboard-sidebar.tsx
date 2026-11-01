@@ -13,13 +13,11 @@ import { getUserDisplay } from "@/lib/dashboard/workspace";
 interface DashboardSidebarProps {
   activeTab: "projects" | "deployments";
   onTabChange: (tab: "projects" | "deployments") => void;
-  projectsCount: number;
 }
 
 export function DashboardSidebar({
   activeTab,
   onTabChange,
-  projectsCount,
 }: DashboardSidebarProps) {
   const shouldReduceMotion = useReducedMotion();
   const { user } = useAuth();

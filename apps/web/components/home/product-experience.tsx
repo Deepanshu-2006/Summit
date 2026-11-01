@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useCallback, useSyncExternalStore } from "react";
+import React, { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 
@@ -52,20 +52,20 @@ export function ProductExperience() {
     isReducedMotion ? "working" : "dormant"
   );
   const [telemetryStep, setTelemetryStep] = useState<number>(isReducedMotion ? 3 : 0);
+  const visibleAnimStage = isReducedMotion ? "working" : animStage;
+  const visibleTelemetryStep = isReducedMotion ? 3 : telemetryStep;
 
   // Trigger assembly on scroll into view with deliberate delay once diagram is comfortably visible
   useEffect(() => {
-    if (isReducedMotion) {
-      setAnimStage("working");
-      setTelemetryStep(3);
-      return;
-    }
+    if (isReducedMotion) return;
 
     const diagram = diagramRef.current || sectionRef.current;
     if (!diagram || typeof IntersectionObserver === "undefined") {
-      setAnimStage("working");
-      setTelemetryStep(3);
-      return;
+      const frame = window.requestAnimationFrame(() => {
+        setAnimStage("working");
+        setTelemetryStep(3);
+      });
+      return () => window.cancelAnimationFrame(frame);
     }
 
     let t0: NodeJS.Timeout;
@@ -136,9 +136,9 @@ export function ProductExperience() {
     };
   }, [isReducedMotion]);
 
-  const isAssembled = isReducedMotion || animStage !== "dormant";
-  const isConnected = isReducedMotion || animStage === "connected" || animStage === "working";
-  const isWorking = isReducedMotion || animStage === "working";
+  const isAssembled = visibleAnimStage !== "dormant";
+  const isConnected = visibleAnimStage === "connected" || visibleAnimStage === "working";
+  const isWorking = visibleAnimStage === "working";
 
   return (
     <section
@@ -618,7 +618,7 @@ export function ProductExperience() {
                   <g
                     style={{
                       transform: isAssembled ? "translate(0, 0)" : "translate(0, 12px)",
-                      opacity: telemetryStep >= 1 ? 1 : 0.35,
+                      opacity: visibleTelemetryStep >= 1 ? 1 : 0.35,
                       transition: "transform 400ms ease-out, opacity 400ms ease-out",
                     }}
                   >
@@ -626,14 +626,14 @@ export function ProductExperience() {
                       cx="450"
                       cy="471"
                       r="3"
-                      fill={telemetryStep >= 1 ? "#83B69A" : "#121416"}
+                      fill={visibleTelemetryStep >= 1 ? "#83B69A" : "#121416"}
                       stroke="#83B69A"
                       strokeWidth="1.6"
                     />
                     <text x="466" y="475" fontFamily="var(--font-geist-mono), monospace" fontSize="12" fill="#F1F0EC">
                       Dependencies resolved
                     </text>
-                    <text x="730" y="475" textAnchor="end" fontFamily="var(--font-geist-mono), monospace" fontSize="12" fill={telemetryStep >= 1 ? "#F1F0EC" : "#777D7D"}>
+                    <text x="730" y="475" textAnchor="end" fontFamily="var(--font-geist-mono), monospace" fontSize="12" fill={visibleTelemetryStep >= 1 ? "#F1F0EC" : "#777D7D"}>
                       1.1s
                     </text>
                   </g>
@@ -642,7 +642,7 @@ export function ProductExperience() {
                   <g
                     style={{
                       transform: isAssembled ? "translate(0, 0)" : "translate(0, 12px)",
-                      opacity: telemetryStep >= 2 ? 1 : 0.35,
+                      opacity: visibleTelemetryStep >= 2 ? 1 : 0.35,
                       transition: "transform 400ms ease-out 100ms, opacity 400ms ease-out 100ms",
                     }}
                   >
@@ -650,14 +650,14 @@ export function ProductExperience() {
                       cx="450"
                       cy="498"
                       r="3"
-                      fill={telemetryStep >= 2 ? "#D88762" : "#121416"}
+                      fill={visibleTelemetryStep >= 2 ? "#D88762" : "#121416"}
                       stroke="#D88762"
                       strokeWidth="1.6"
                     />
                     <text x="466" y="502" fontFamily="var(--font-geist-mono), monospace" fontSize="12" fill="#F1F0EC">
                       Application compiled
                     </text>
-                    <text x="730" y="502" textAnchor="end" fontFamily="var(--font-geist-mono), monospace" fontSize="12" fill={telemetryStep >= 2 ? "#D88762" : "#777D7D"}>
+                    <text x="730" y="502" textAnchor="end" fontFamily="var(--font-geist-mono), monospace" fontSize="12" fill={visibleTelemetryStep >= 2 ? "#D88762" : "#777D7D"}>
                       2.4s
                     </text>
                   </g>
@@ -666,7 +666,7 @@ export function ProductExperience() {
                   <g
                     style={{
                       transform: isAssembled ? "translate(0, 0)" : "translate(0, 12px)",
-                      opacity: telemetryStep >= 3 ? 1 : 0.35,
+                      opacity: visibleTelemetryStep >= 3 ? 1 : 0.35,
                       transition: "transform 400ms ease-out 200ms, opacity 400ms ease-out 200ms",
                     }}
                   >
@@ -674,14 +674,14 @@ export function ProductExperience() {
                       cx="450"
                       cy="525"
                       r="3"
-                      fill={telemetryStep >= 3 ? "#83B69A" : "#121416"}
+                      fill={visibleTelemetryStep >= 3 ? "#83B69A" : "#121416"}
                       stroke="#83B69A"
                       strokeWidth="1.6"
                     />
                     <text x="466" y="529" fontFamily="var(--font-geist-mono), monospace" fontSize="12" fill="#F1F0EC">
                       Release prepared
                     </text>
-                    <text x="730" y="529" textAnchor="end" fontFamily="var(--font-geist-mono), monospace" fontSize="12" fill={telemetryStep >= 3 ? "#F1F0EC" : "#777D7D"}>
+                    <text x="730" y="529" textAnchor="end" fontFamily="var(--font-geist-mono), monospace" fontSize="12" fill={visibleTelemetryStep >= 3 ? "#F1F0EC" : "#777D7D"}>
                       0.6s
                     </text>
                   </g>

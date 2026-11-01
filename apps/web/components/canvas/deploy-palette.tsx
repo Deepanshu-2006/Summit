@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   X,
   Search,
@@ -150,7 +150,7 @@ export function DeployPaletteModal({
   );
 
   // Execute selection
-  const executeSelect = (item: DeployItem) => {
+  const executeSelect = useCallback((item: DeployItem) => {
     if (item.comingSoon) return;
     if (item.chooser) {
       onSelectOption(item.chooser);
@@ -164,7 +164,7 @@ export function DeployPaletteModal({
     }
     onSelectOption(item.id);
     onClose();
-  };
+  }, [onClose, onSelectOption]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -194,7 +194,7 @@ export function DeployPaletteModal({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, filteredServices, selectedIndex, onClose, onSelectOption]);
+  }, [isOpen, filteredServices, selectedIndex, onClose, onSelectOption, executeSelect]);
 
   if (!isOpen) return null;
 

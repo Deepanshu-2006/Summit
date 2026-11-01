@@ -337,7 +337,6 @@ export function MountainTrail() {
       const deployEl = document.getElementById("deployment-experience");
       const productEl = document.getElementById("product-experience");
       const stackEl = document.getElementById("platform-stack");
-      const benefitsEl = document.getElementById("platform-benefits");
       const devexEl = document.getElementById("developer-experience");
 
       const isMobile = mainWidth < 768;

@@ -101,7 +101,7 @@ function HeroMountainPreloaderCounter() {
           CALIBRATING TOPOGRAPHY
         </span>
         <span className="font-mono text-[10.5px] sm:text-[11.5px] text-[#666460] hidden xs:inline">
-          // ELEV 3,428M
+          {"// ELEV 3,428M"}
         </span>
       </div>
 

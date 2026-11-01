@@ -31,6 +31,8 @@ tags:
     description: Projects, their environments and services
   - name: Services
     description: Deployable services and manual deploys
+  - name: GitHub
+    description: GitHub App installations, repositories, and service source configuration
   - name: Deployments
     description: Deployment history, status, cancellation and build logs
 
@@ -69,6 +71,36 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthResponse"
+    head:
+      tags: [System]
+      summary: Health probe headers
+      operationId: headHealth
+      security: []
+      responses:
+        "200":
+          description: The service is healthy; response body is omitted for HEAD.
+
+  /health:
+    get:
+      tags: [System]
+      summary: Health probe alias
+      operationId: getHealthAlias
+      security: []
+      responses:
+        "200":
+          description: Service health, uptime, and edge routing region.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+    head:
+      tags: [System]
+      summary: Health probe alias headers
+      operationId: headHealthAlias
+      security: []
+      responses:
+        "200":
+          description: The service is healthy; response body is omitted for HEAD.
 
   /v1/projects:
     get:
@@ -230,6 +262,37 @@ paths:
         "409":
           $ref: "#/components/responses/Conflict"
 
+  /v1/projects/{project_id}/environments:
+    post:
+      tags: [Projects]
+      summary: Create a project environment
+      operationId: createProjectEnvironment
+      security:
+        - SupabaseBearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEnvironmentRequest"
+      responses:
+        "201":
+          description: Environment created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Environment"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
   /v1/projects/{project_id}/deployments:
     parameters:
       - $ref: "#/components/parameters/ProjectId"
@@ -377,6 +440,265 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /v1/github/installations:
+    get:
+      tags: [GitHub]
+      summary: List GitHub App installations
+      operationId: listGitHubInstallations
+      security:
+        - SupabaseBearerAuth: []
+      responses:
+        "200":
+          description: Installations owned by the caller.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GitHubInstallationList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [GitHub]
+      summary: Start GitHub App installation
+      operationId: startGitHubInstallation
+      security:
+        - SupabaseBearerAuth: []
+      responses:
+        "201":
+          description: GitHub installation URL and short-lived state expiry.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GitHubInstallationStart"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/integrations/github/callback:
+    get:
+      tags: [GitHub]
+      summary: Complete GitHub App installation callback
+      description: Browser redirect callback. State is validated by the backend; this route does not use bearer authentication.
+      operationId: completeGitHubInstallation
+      security: []
+      parameters:
+        - name: installation_id
+          in: query
+          required: true
+          schema: { type: string }
+        - name: state
+          in: query
+          required: true
+          schema: { type: string }
+        - name: setup_action
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "302":
+          description: Redirects the browser to the configured dashboard result URL.
+
+  /v1/github/installations/{installation_id}:
+    parameters:
+      - $ref: "#/components/parameters/GitHubInstallationId"
+    get:
+      tags: [GitHub]
+      summary: Get a GitHub App installation
+      operationId: getGitHubInstallation
+      security:
+        - SupabaseBearerAuth: []
+      responses:
+        "200":
+          description: Installation details.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GitHubInstallationDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [GitHub]
+      summary: Disconnect a GitHub App installation
+      operationId: disconnectGitHubInstallation
+      security:
+        - SupabaseBearerAuth: []
+      responses:
+        "200":
+          description: Installation disconnect status.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, status]
+                properties:
+                  id: { type: string, format: uuid }
+                  status: { type: string }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/github/installations/{installation_id}/repositories:
+    get:
+      tags: [GitHub]
+      summary: List repositories for an installation
+      operationId: listGitHubInstallationRepositories
+      security:
+        - SupabaseBearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GitHubInstallationId"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: One page of synchronized repositories.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GitHubRepositoryList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/github/installations/{installation_id}/sync:
+    post:
+      tags: [GitHub]
+      summary: Synchronize installation repositories
+      operationId: syncGitHubInstallation
+      security:
+        - SupabaseBearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GitHubInstallationId"
+      responses:
+        "200":
+          description: Repository synchronization result.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sync_id, status, repositories_synced]
+                properties:
+                  sync_id: { type: string, format: uuid }
+                  status: { type: string }
+                  repositories_synced: { type: integer }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/services/{service_id}:
+    delete:
+      tags: [Services]
+      summary: Delete a service
+      description: Soft-deletes the caller-owned service and queues runtime cleanup.
+      operationId: deleteService
+      security:
+        - SupabaseBearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ServiceId"
+      responses:
+        "204":
+          description: Service deleted.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/services/{service_id}/source:
+    parameters:
+      - $ref: "#/components/parameters/ServiceId"
+    get:
+      tags: [GitHub, Services]
+      summary: Get a service's GitHub source configuration
+      operationId: getServiceSource
+      security:
+        - SupabaseBearerAuth: []
+      responses:
+        "200":
+          description: Source configuration.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceSourceConfiguration"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [GitHub, Services]
+      summary: Connect a GitHub repository to a service
+      operationId: putServiceSource
+      security:
+        - SupabaseBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PutServiceSourceRequest"
+      responses:
+        "200":
+          description: Connected source configuration.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceSourceConfiguration"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [GitHub, Services]
+      summary: Update a service's GitHub source configuration
+      operationId: patchServiceSource
+      security:
+        - SupabaseBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchServiceSourceRequest"
+      responses:
+        "200":
+          description: Updated source configuration.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceSourceConfiguration"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [GitHub, Services]
+      summary: Disconnect a service's GitHub source
+      operationId: disconnectServiceSource
+      security:
+        - SupabaseBearerAuth: []
+      responses:
+        "200":
+          description: Source disconnect status.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, service_id, source_status, disconnect_reason]
+                properties:
+                  id: { type: string, format: uuid }
+                  service_id: { type: string, format: uuid }
+                  source_status: { type: string }
+                  disconnect_reason: { type: string }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /v1/services/{service_id}/deployments:
     parameters:
       - name: service_id
@@ -432,6 +754,47 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
 
+  /v1/webhooks/github:
+    post:
+      tags: [GitHub]
+      summary: Receive GitHub App webhook events
+      description: Verifies GitHub's webhook signature and queues supported events. Authentication uses the GitHub signature headers, not a bearer token.
+      operationId: receiveGitHubWebhook
+      security: []
+      parameters:
+        - name: X-Hub-Signature-256
+          in: header
+          required: true
+          schema: { type: string }
+        - name: X-GitHub-Event
+          in: header
+          required: true
+          schema: { type: string }
+        - name: X-GitHub-Delivery
+          in: header
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Event delivery was recognized as a duplicate.
+        "202":
+          description: New event was durably accepted for processing.
+        "400":
+          description: Missing or invalid event headers or payload.
+        "401":
+          description: Webhook signature is invalid.
+        "413":
+          description: Payload exceeds the configured maximum size.
+        "503":
+          description: Database is unavailable.
+
 components:
   securitySchemes:
     SupabaseBearerAuth:
@@ -454,11 +817,26 @@ components:
       schema:
         type: string
         format: uuid
+    ServiceId:
+      name: service_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    GitHubInstallationId:
+      name: installation_id
+      in: path
+      required: true
+      description: Internal installation UUID, not the numeric GitHub installation ID.
+      schema:
+        type: string
+        format: uuid
     Limit:
       name: limit
       in: query
       required: false
-      description: Page size. Defaults to 20, capped at 100.
+      description: Page size. Default and maximum are endpoint-specific.
       schema:
         type: integer
         minimum: 0
@@ -498,6 +876,132 @@ components:
             $ref: "#/components/schemas/ErrorEnvelope"
 
   schemas:
+    GitHubAccount:
+      type: object
+      required: [login, type]
+      properties:
+        login: { type: string }
+        type: { type: string }
+    GitHubInstallationStart:
+      type: object
+      required: [installation_url, state_expires_at]
+      properties:
+        installation_url: { type: string, format: uri }
+        state_expires_at: { type: string }
+    GitHubInstallation:
+      type: object
+      required: [id, github_installation_id, github_account, status, repository_selection, repository_count, last_synced_at, installed_at, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        github_installation_id: { type: integer, format: int64 }
+        github_account: { $ref: "#/components/schemas/GitHubAccount" }
+        status: { type: string }
+        repository_selection: { type: string }
+        repository_count: { type: integer }
+        last_synced_at: { type: [string, "null"], format: date-time }
+        installed_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    GitHubInstallationList:
+      type: object
+      required: [data, next_cursor]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/GitHubInstallation" }
+        next_cursor: { type: [string, "null"] }
+    GitHubInstallationDetail:
+      allOf:
+        - $ref: "#/components/schemas/GitHubInstallation"
+        - type: object
+          required: [account_id, permissions, suspended_at, suspended_by_github]
+          properties:
+            account_id: { type: integer, format: int64 }
+            permissions:
+              type: object
+              additionalProperties: { type: string }
+            suspended_at: { type: [string, "null"], format: date-time }
+            suspended_by_github: { type: boolean }
+    GitHubRepository:
+      type: object
+      required: [id, github_repository_id, owner, name, full_name, default_branch, private, archived, html_url]
+      properties:
+        id: { type: string, format: uuid }
+        github_repository_id: { type: integer, format: int64 }
+        owner: { type: string }
+        name: { type: string }
+        full_name: { type: string }
+        default_branch: { type: string }
+        private: { type: boolean }
+        archived: { type: boolean }
+        html_url: { type: string, format: uri }
+    GitHubRepositoryList:
+      type: object
+      required: [data, next_cursor]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/GitHubRepository" }
+        next_cursor: { type: [string, "null"] }
+    ServiceSourceConfiguration:
+      type: object
+      required: [id, service_id, repository, branch, root_directory, dockerfile_path, build_configuration, auto_deploy, source_status, last_seen_commit_sha]
+      properties:
+        id: { type: string, format: uuid }
+        service_id: { type: string, format: uuid }
+        repository:
+          type: object
+          required: [id, full_name]
+          properties:
+            id: { type: string, format: uuid }
+            full_name: { type: string }
+        branch: { type: string }
+        root_directory: { type: string }
+        dockerfile_path: { type: [string, "null"] }
+        build_configuration:
+          type: object
+          additionalProperties: true
+        auto_deploy: { type: boolean }
+        source_status: { type: string }
+        disconnect_reason: { type: [string, "null"] }
+        last_seen_commit_sha: { type: [string, "null"] }
+        last_deployment_id: { type: [string, "null"], format: uuid }
+    PutServiceSourceRequest:
+      type: object
+      required: [repository_id, branch, root_directory, dockerfile_path, build_configuration]
+      properties:
+        repository_id: { type: string, format: uuid }
+        branch: { type: string }
+        root_directory: { type: string }
+        dockerfile_path: { type: [string, "null"] }
+        build_configuration:
+          type: object
+          additionalProperties: true
+        auto_deploy: { type: boolean, default: true }
+    PatchServiceSourceRequest:
+      type: object
+      properties:
+        branch: { type: string }
+        root_directory: { type: string }
+        dockerfile_path: { type: [string, "null"] }
+        build_configuration:
+          type: object
+          additionalProperties: true
+        auto_deploy: { type: boolean }
+    CreateEnvironmentRequest:
+      type: object
+      required: [name, type]
+      properties:
+        name: { type: string }
+        type: { type: string }
+    Environment:
+      type: object
+      required: [id, name, type, is_ephemeral]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        type: { type: string }
+        is_ephemeral: { type: boolean }
     HealthResponse:
       type: object
       description: Service health status and routing telemetry.

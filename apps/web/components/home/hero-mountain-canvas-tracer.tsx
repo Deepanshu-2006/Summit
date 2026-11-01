@@ -45,7 +45,7 @@ function loadContourData(): Promise<ContourLine[]> {
  */
 export function HeroMountainCanvasTracer() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { subscribeProgress, isComplete } = usePreloader();
+  const { subscribeProgress } = usePreloader();
 
   useEffect(() => {
     let active = true;

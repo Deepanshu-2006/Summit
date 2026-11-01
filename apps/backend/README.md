@@ -93,7 +93,7 @@ cd apps/backend
 go run ./cmd/orchestrator
 ```
 
-The `cmd/orchestrator` entrypoint currently only checks Kubernetes API reachability through the read-only discovery endpoint, logs the server version, and waits for shutdown. The queue, build dispatch, and workload controller are implemented as independently testable packages but are not started by this command yet. The build-spec resolver and callback/status integration depend on the teammate-owned API/database handoff. Set `ORCHESTRATOR_CLUSTER_TARGET=in-cluster` when running inside Kubernetes, or `ORCHESTRATOR_CLUSTER_TARGET=kubeconfig` to explicitly select kubeconfig mode. `ORCHESTRATOR_KUBE_CONTEXT` can select a context.
+The `cmd/orchestrator` entrypoint wires the outbox build dispatcher and `SummitService` workload reconciler. The dispatcher is active when both the database and Kubernetes client are configured; the workload reconciler requires Kubernetes. Set `ORCHESTRATOR_CLUSTER_TARGET=in-cluster` when running inside Kubernetes, or `ORCHESTRATOR_CLUSTER_TARGET=kubeconfig` to explicitly select kubeconfig mode. `ORCHESTRATOR_KUBE_CONTEXT` can select a context.
 
 The current Rudra-owned component slices are:
 
@@ -104,7 +104,7 @@ The current Rudra-owned component slices are:
 
 The MVP dispatcher uses `build_jobs.id` as `BuildExecutionSpec.build.id` and uses the same UUID as `attempt_id` (attempt number `1`). This gives an outbox replay a stable Pod identity without adding an attempt-history table. Build credential Secret references resolve to read-only projected files: source and reporting secrets need a `token` key, while the GHCR push secret needs a `.dockerconfigjson` key projected as `config.json`. Files are mounted read-only with mode `0440` and pod `fsGroup: 1000` so the non-root builder can read them. Priyanshu's builder image must consume the matching file-path environment variables.
 
-The builder image, host gVisor setup, API callbacks, and enriched build-spec data remain integration dependencies owned by Priyanshu and Arpit. PostgreSQL/Redis workloads are deferred.
+The builder image, host gVisor setup, registry credentials, and full GitHub-to-deployed-service flow still require target-cluster validation. Managed PostgreSQL and Redis addon reconciliation is implemented.
 
 Run database migrations:
 

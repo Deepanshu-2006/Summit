@@ -322,8 +322,6 @@ export function ApplicationStack() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const [benefitsInView, setBenefitsInView] = useState<boolean>(false);
-  const [transitionDirection, setTransitionDirection] = useState<"forward" | "backward">("forward");
-  const prevIndexRef = useRef<number>(0);
 
   const isReducedMotion = useSyncExternalStore(
     subscribeReducedMotion,
@@ -605,9 +603,6 @@ export function ApplicationStack() {
       }
 
       if (stageIdx !== activeIndexRef.current) {
-        const dir = stageIdx >= activeIndexRef.current ? "forward" : "backward";
-        setTransitionDirection(dir);
-        prevIndexRef.current = stageIdx;
         activeIndexRef.current = stageIdx;
         setActiveIndex(stageIdx);
         setSelectedId(SERVICE_KEYS[stageIdx]);
@@ -673,9 +668,6 @@ export function ApplicationStack() {
         stageIdx = 3;
       }
       if (stageIdx !== activeIndexRef.current) {
-        const dir = stageIdx >= activeIndexRef.current ? "forward" : "backward";
-        setTransitionDirection(dir);
-        prevIndexRef.current = stageIdx;
         activeIndexRef.current = stageIdx;
         setActiveIndex(stageIdx);
         setSelectedId(SERVICE_KEYS[stageIdx]);
@@ -742,9 +734,6 @@ export function ApplicationStack() {
   const handleStageClick = (idx: number) => {
     if (!sectionRef.current) return;
 
-    const dir = idx >= activeIndexRef.current ? "forward" : "backward";
-    setTransitionDirection(dir);
-    prevIndexRef.current = idx;
     setSelectedId(SERVICE_KEYS[idx]);
     setActiveIndex(idx);
     activeIndexRef.current = idx;

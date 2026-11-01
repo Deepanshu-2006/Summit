@@ -1,6 +1,5 @@
 import * as THREE from "three";
 import {
-  ConstructionComponentDef,
   ConstructionStagePreset,
   RegisteredComponent,
 } from "./types";

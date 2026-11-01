@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import Image from "next/image";
 import { Plus, Search, X, AlertCircle, RotateCw } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { DashboardTopNav } from "./dashboard-top-nav";
@@ -227,7 +228,6 @@ export function DashboardScreen({ initialNewProject = false }: DashboardScreenPr
               <DashboardSidebar
                 activeTab={activeTab}
                 onTabChange={setActiveTab}
-                projectsCount={projects.length}
               />
             </motion.div>
           )}
@@ -244,9 +244,12 @@ export function DashboardScreen({ initialNewProject = false }: DashboardScreenPr
           {/* Full-bleed Alpine Dither Background with reduced opacity for high text legibility */}
           {(isProjectsEmpty || isCreatingProject) && activeTab === "projects" && (
             <div className="absolute inset-0 pointer-events-none select-none overflow-hidden z-0 bg-[#0A0A09]">
-              <img
+              <Image
                 src="/images/dashboard-empty-bg.png"
-                alt="Summit Alpine Background"
+                alt=""
+                aria-hidden="true"
+                fill
+                sizes="100vw"
                 className="w-full h-full object-cover object-bottom select-none pointer-events-none opacity-[0.18]"
               />
             </div>

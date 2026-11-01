@@ -110,16 +110,16 @@ Summit Monorepo (Turborepo 2.11+)
 
 | Subsystem | Area | Current State | Target Owner | References |
 |---|---|---|---|---|
-| **Monorepo** | Turborepo Pipeline | **Complete** (build, test, lint, dev, typecheck) | Team | [`turbo.json`](../turbo.json) |
+| **Monorepo** | Turborepo Pipeline | **Complete** (forced production build, lint, typecheck, and backend tests passed in this review) | Team | [`turbo.json`](../turbo.json) |
 | **API** | Health Probes | **Complete** (`/api/v1/health`, `/health`) | Priyanshu | [`internal/health`](../apps/backend/internal/health) |
 | **API / Auth** | Supabase JWT & RBAC | **Complete** (JWKS caching, algorithm allowlists, RBAC) | Priyanshu | [`internal/auth`](../apps/backend/internal/auth) |
 | **API / GitHub** | Installations & Repos | **Complete** (OAuth callback, repo sync, sources, deploys) | Priyanshu | [`internal/githubapi`](../apps/backend/internal/githubapi) |
 | **Webhooks** | Ingestion & Queue | **Complete** (Raw HMAC, deduplication, `SKIP LOCKED` worker) | Priyanshu | [`internal/githubworker`](../apps/backend/internal/githubworker) |
 | **Security** | Secrets Management | **Complete** (OpenBao AppRole, dev fallback controls) | Priyanshu / Arpit | [`internal/secrets`](../apps/backend/internal/secrets) |
-| **Database** | Migrations & Pool | **Implemented** (migrations `0001`–`0004`, pgxpool, advisory-locked migration runner) | Arpit | [`internal/db`](../apps/backend/internal/db) |
-| **Orchestrator** | Worker Broker | **Complete** (Job-scoped JWT authentication on broker endpoint) | Priyanshu / Rudra | [`internal/githubworker`](../apps/backend/internal/githubworker) |
-| **Orchestrator** | Outbox Reconciler | **Implemented for deployment/build events; managed-agent event handling and adapter delivery remain** | Rudra | [`docs/implementation_rudra.md`](./implementation_rudra.md), [`docs/managed-agents-spec.md`](./managed-agents-spec.md) |
-| **Builder / Orchestrator** | gVisor Build Workloads | **Core code present; host runtime and end-to-end cluster validation remain** (Priyanshu owns gVisor + builder; Rudra owns pod scheduling and lifecycle) | Priyanshu / Rudra | [`docs/implementation_priyanshu.md`](./implementation_priyanshu.md), [`docs/implementation_rudra.md`](./implementation_rudra.md) |
-| **Registry** | OCI image storage | **Proposed MVP direction: GHCR** (source-repository owner resolution decided; visibility and push-auth contract pending) | Rudra / Priyanshu | [`ghcr_mvp_setup.md`](./ghcr_mvp_setup.md) |
-| **Managed Agents** | Agent Runtime | **Local Rivet/Pi Durable PoC verified; multi-worker storage, recovery, and security gates remain** | API / Database / Orchestrator | [`docs/managed-agents-spec.md`](./managed-agents-spec.md), [`poc-managed-agents`](../poc-managed-agents/README.md) |
-| **Frontend** | Console Dashboard | **Prototype / In-Memory Mock** | UI Developer | [`apps/web`](../apps/web) |
+| **Security** | Kubernetes NetworkPolicy | **Standard NetworkPolicy enforcement verified on the local Kind 1.37 kindnet cluster** (denied ingress blocked; explicit source allow succeeded) | Rudra | [`internal/cluster/addons`](../apps/backend/internal/cluster/addons), [`mvp_runtime_contracts.md`](./mvp_runtime_contracts.md) |
+| **Database** | Migrations & Pool | **Implemented** (migrations `0001`–`0005`, pgxpool, advisory-locked migration runner) | Arpit | [`internal/db`](../apps/backend/internal/db) |
+| **Orchestrator** | Worker Broker | **Implemented** (Job-scoped JWT authentication on broker endpoint) | Priyanshu / Rudra | [`internal/githubworker`](../apps/backend/internal/githubworker) |
+| **Orchestrator** | Outbox Reconciler | **Implemented** for build/deployment events; verify behavior with configured callbacks and the target cluster | Rudra | [`docs/implementation_rudra.md`](./implementation_rudra.md) |
+| **Builder / Orchestrator** | gVisor Build Workloads | **Implemented; live GitHub-to-GHCR build and digest deployment flow remains to be demonstrated** | Priyanshu / Rudra | [`docs/implementation_priyanshu.md`](./implementation_priyanshu.md), [`docs/implementation_rudra.md`](./implementation_rudra.md) |
+| **Registry** | OCI image storage | **GHCR is wired as the MVP registry target; authenticated push and digest deployment remain unverified end to end** | Rudra / Priyanshu | [`ghcr_mvp_setup.md`](./ghcr_mvp_setup.md) |
+| **Frontend** | Console Dashboard | **Integrated with backend project, deployment, and source APIs; workspace quality checks are tracked by their command results** | UI Developer | [`apps/web`](../apps/web) |

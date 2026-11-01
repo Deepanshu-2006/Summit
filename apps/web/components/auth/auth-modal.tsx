@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { X, AlertCircle, Loader2, CheckCircle2 } from "lucide-react";
 import { SummitLogo } from "@/components/layout/navbar";
@@ -20,10 +20,18 @@ function GitHubIcon({ className }: { className?: string }) {
 }
 
 export function AuthModal() {
-  const router = useRouter();
-  const { isAuthModalOpen, closeAuthModal, authModalMode, redirectTo } = useAuth();
+  const { isAuthModalOpen, authModalMode } = useAuth();
 
-  const [mode, setMode] = useState<"signin" | "signup">(authModalMode);
+  if (!isAuthModalOpen) return null;
+
+  return <AuthModalContent key={authModalMode} initialMode={authModalMode} />;
+}
+
+function AuthModalContent({ initialMode }: { initialMode: "signin" | "signup" }) {
+  const router = useRouter();
+  const { closeAuthModal, redirectTo } = useAuth();
+
+  const [mode, setMode] = useState<"signin" | "signup">(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -31,14 +39,6 @@ export function AuthModal() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const supabase = createClient();
-
-  useEffect(() => {
-    setMode(authModalMode);
-    setError(null);
-    setSuccessMsg(null);
-  }, [authModalMode, isAuthModalOpen]);
-
-  if (!isAuthModalOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

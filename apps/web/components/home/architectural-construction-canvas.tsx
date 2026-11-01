@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { ConstructionController } from "./construction-system/controller";
 import { ConstructionStagePreset } from "./construction-system/types";
-import { ConstructionTimelineManager, CONSTRUCTION_MILESTONES } from "./construction-system/timeline";
+import { ConstructionTimelineManager } from "./construction-system/timeline";
 import { useLenis } from "@/components/layout/smooth-scroll-provider";
 
 interface ArchitecturalConstructionCanvasProps {
@@ -46,9 +46,12 @@ export function ArchitecturalConstructionCanvas({
 }: ArchitecturalConstructionCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<number>(progress);
-  progressRef.current = progress;
   const scrollYRef = useRef<number>(0);
   const [webGLError, setWebGLError] = useState<boolean>(false);
+
+  useEffect(() => {
+    progressRef.current = progress;
+  }, [progress]);
 
   // Synchronize directly with Lenis smooth scroll tick
   useLenis((lenis) => {
@@ -60,8 +63,8 @@ export function ArchitecturalConstructionCanvas({
     if (!container) return;
 
     if (!checkWebGLSupport()) {
-      setWebGLError(true);
-      return;
+      const frame = window.requestAnimationFrame(() => setWebGLError(true));
+      return () => window.cancelAnimationFrame(frame);
     }
 
     let renderer: THREE.WebGLRenderer;
@@ -74,8 +77,8 @@ export function ArchitecturalConstructionCanvas({
       });
     } catch (e) {
       console.warn("WebGLRenderer initialization failed, switching to graceful fallback:", e);
-      setWebGLError(true);
-      return;
+      const frame = window.requestAnimationFrame(() => setWebGLError(true));
+      return () => window.cancelAnimationFrame(frame);
     }
 
     // 1. Scene, Camera & Atmospheric Setup
@@ -236,7 +239,7 @@ export function ArchitecturalConstructionCanvas({
       const gx = gPos.getX(i);
       const gz = gPos.getZ(i);
       const distFromCenter = Math.sqrt(gx * gx + gz * gz);
-      let h = (Math.sin(gx * 0.09) * 0.75 + Math.cos(gz * 0.11) * 0.65) *
+      const h = (Math.sin(gx * 0.09) * 0.75 + Math.cos(gz * 0.11) * 0.65) *
         Math.min(1.0, Math.max(0, (distFromCenter - 13) / 14));
       gPos.setY(i, h);
     }
@@ -531,13 +534,6 @@ export function ArchitecturalConstructionCanvas({
       roughness: 0.46,
       metalness: 0.10,
       envMapIntensity: 0.80,
-    });
-
-    const gravelMat = new THREE.MeshStandardMaterial({
-      color: 0x242220,
-      roughness: 0.94,
-      metalness: 0.04,
-      envMapIntensity: 0.40,
     });
 
     const blueprintMat = new THREE.LineBasicMaterial({

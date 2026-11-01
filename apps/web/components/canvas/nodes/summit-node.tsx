@@ -5,12 +5,9 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 import {
   Layout,
   Cpu,
-  Box,
   HardDrive,
-  CheckCircle2,
-  Database,
 } from "lucide-react";
-import type { SummitNode, NodeType } from "@/lib/canvas/types";
+import type { SummitNode } from "@/lib/canvas/types";
 import { safeHttpUrl } from "@/lib/platform-api";
 import {
   PostgresLogo,

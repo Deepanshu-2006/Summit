@@ -1,14 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useCallback, useState, useEffect, useRef } from "react";
 import {
   X,
   ChevronRight,
-  Database,
   Layout,
-  Server,
-  ArrowRight,
-  Check,
   AlertCircle,
 } from "lucide-react";
 import { GitHubImportDialog, type EnsureServiceTarget } from "./github-import-dialog";
@@ -52,6 +48,13 @@ export function NodeChooserDialogs({
 
   const dockerInputRef = useRef<HTMLInputElement>(null);
 
+  const closeChooser = useCallback(() => {
+    setDockerImage("");
+    setDockerPort("80");
+    setDockerError("");
+    onClose();
+  }, [onClose]);
+
   const submitDocker = () => {
     const image = parseImageReference(dockerImage);
     if (!image) {
@@ -70,15 +73,13 @@ export function NodeChooserDialogs({
       subType: "Docker Image",
       platformType: "image",
     });
-    onClose();
+    closeChooser();
   };
 
   useEffect(() => {
     if (activeChooser === "docker") {
-      setDockerImage("");
-      setDockerPort("80");
-      setDockerError("");
-      setTimeout(() => dockerInputRef.current?.focus(), 50);
+      const timer = window.setTimeout(() => dockerInputRef.current?.focus(), 50);
+      return () => window.clearTimeout(timer);
     }
   }, [activeChooser]);
 
@@ -86,12 +87,12 @@ export function NodeChooserDialogs({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && activeChooser !== "none") {
-        onClose();
+        closeChooser();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeChooser, onClose]);
+  }, [activeChooser, closeChooser]);
 
   if (activeChooser === "none") return null;
 
@@ -99,7 +100,7 @@ export function NodeChooserDialogs({
     return (
       <GitHubImportDialog
         isOpen={true}
-        onClose={onClose}
+        onClose={closeChooser}
         onConfirm={onConfirm}
         onShowToast={onShowToast}
         ensureService={ensureGitHubService}
@@ -113,7 +114,7 @@ export function NodeChooserDialogs({
     return (
       <DatabaseChooserDialog
         isOpen={true}
-        onClose={onClose}
+        onClose={closeChooser}
         onConfirm={onConfirm}
         onShowToast={onShowToast}
       />
@@ -123,7 +124,7 @@ export function NodeChooserDialogs({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-[3px] animate-in fade-in duration-150 select-none"
-      onClick={onClose}
+      onClick={closeChooser}
     >
 
       {/* ---------------- 3. Application Template Chooser ---------------- */}
@@ -143,7 +144,7 @@ export function NodeChooserDialogs({
             </div>
             <button
               type="button"
-              onClick={onClose}
+              onClick={closeChooser}
               className="text-[#A09D98] hover:text-[#F2F0EC] p-1 rounded hover:bg-[#202020] transition-colors cursor-pointer"
               title="Close (Esc)"
             >
@@ -163,7 +164,7 @@ export function NodeChooserDialogs({
                   startCommand: "pnpm start",
                   port: 3000,
                 });
-                onClose();
+                closeChooser();
               }}
               className="w-full flex items-center justify-between p-3.5 rounded-[9px] bg-[#191919] hover:bg-[#202020] border border-[#242424] hover:border-[#72B69A]/50 text-left transition-all group cursor-pointer"
             >
@@ -189,7 +190,7 @@ export function NodeChooserDialogs({
                   startCommand: "./bin/api",
                   port: 4000,
                 });
-                onClose();
+                closeChooser();
               }}
               className="w-full flex items-center justify-between p-3.5 rounded-[9px] bg-[#191919] hover:bg-[#202020] border border-[#242424] hover:border-[#72B69A]/50 text-left transition-all group cursor-pointer"
             >
@@ -215,7 +216,7 @@ export function NodeChooserDialogs({
                   startCommand: "node dist/index.js",
                   port: 8080,
                 });
-                onClose();
+                closeChooser();
               }}
               className="w-full flex items-center justify-between p-3.5 rounded-[9px] bg-[#191919] hover:bg-[#202020] border border-[#242424] hover:border-[#72B69A]/50 text-left transition-all group cursor-pointer"
             >
@@ -250,7 +251,7 @@ export function NodeChooserDialogs({
             </div>
             <button
               type="button"
-              onClick={onClose}
+              onClick={closeChooser}
               className="text-[#A09D98] hover:text-[#F2F0EC] p-1 rounded hover:bg-[#202020] transition-colors cursor-pointer"
               title="Close (Esc)"
             >
@@ -310,7 +311,7 @@ export function NodeChooserDialogs({
           <div className="mt-5 flex items-center justify-end gap-2.5 pt-3 border-t border-[#242424]">
             <button
               type="button"
-              onClick={onClose}
+              onClick={closeChooser}
               className="px-3.5 py-1.5 rounded-[6px] text-[#A09D98] hover:text-[#F2F0EC] text-[12px] font-sans hover:bg-[#202020] transition-colors cursor-pointer"
             >
               Cancel
