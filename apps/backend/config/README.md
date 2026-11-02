@@ -50,9 +50,10 @@ The `builds/*network-policy.yaml` files are rendered from the Go generators in
    kubectl -n summit-builds create secret docker-registry ghcr-push \
      --docker-server=ghcr.io --docker-username=<user> --docker-password=<PAT with write:packages>
 
-   # Image pull credential for tenant workloads, one per tenant namespace
-   # (the orchestrator does not copy it yet): ghcr-pull in tenant-<user_id>.
-   kubectl -n tenant-<user_id> create secret docker-registry ghcr-pull \
+   # Image pull credential for tenant workloads. Create it once in summit-system; the
+   # orchestrator copies it into each tenant-<user_id> namespace before every web rollout and
+   # re-syncs it when it changes (ORCHESTRATOR_PULL_SECRET_SOURCE_NAMESPACE, default summit-system).
+   kubectl -n summit-system create secret docker-registry ghcr-pull \
      --docker-server=ghcr.io --docker-username=<user> --docker-password=<PAT with read:packages>
    ```
 
@@ -71,7 +72,7 @@ The `builds/*network-policy.yaml` files are rendered from the Go generators in
 
 ## What must be created by hand
 
-- Secrets: `summit-orchestrator-env`, `summit-api-env`, `ghcr-push` (summit-builds), `ghcr-pull` (per tenant namespace).
+- Secrets: `summit-orchestrator-env`, `summit-api-env`, `ghcr-push` (summit-builds), `ghcr-pull` (summit-system; copied into tenant namespaces automatically).
 - The `gvisor` RuntimeClass and builder image (Priyanshu / `builder/`).
 - Traefik, Cilium, External Secrets Operator and OpenBao installs if you enable those add-ons.
 - Backend container images.

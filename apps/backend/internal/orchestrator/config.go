@@ -50,6 +50,10 @@ type Config struct {
 	// WorkloadPullSecret is the fallback secret name for tenant image pulling (default: ghcr-pull).
 	WorkloadPullSecret string
 
+	// PullSecretSourceNamespace holds the source copy of WorkloadPullSecret; the orchestrator
+	// copies it into each tenant namespace before rollout (default: summit-system). Empty disables.
+	PullSecretSourceNamespace string
+
 	// AppsDomain is the base domain for tenant routes (e.g. localtest.me).
 	AppsDomain string
 
@@ -103,6 +107,7 @@ func LoadConfig() Config {
 	builderRuntimeClass := getEnv("SUMMIT_BUILDER_RUNTIME_CLASS", "gvisor")
 	ghcrPushSecret := getEnv("ORCHESTRATOR_GHCR_PUSH_SECRET", "ghcr-push")
 	workloadPullSecret := getEnv("ORCHESTRATOR_WORKLOAD_PULL_SECRET", "ghcr-pull")
+	pullSecretSourceNS := getEnv("ORCHESTRATOR_PULL_SECRET_SOURCE_NAMESPACE", "summit-system")
 	appsDomain := getEnv("ORCHESTRATOR_APPS_DOMAIN", "localtest.me")
 
 	workers, _ := strconv.Atoi(getEnv("ORCHESTRATOR_WORKERS", "4"))
@@ -129,28 +134,29 @@ func LoadConfig() Config {
 			ContextName:    contextName,
 			ProbeTimeout:   time.Duration(probeSeconds) * time.Second,
 		},
-		LogLevel:            logLevel,
-		DatabaseURL:         databaseURL,
-		WorkerJWTSecret:     workerJWTSecret,
-		APIInternalURL:      apiInternalURL,
-		BuildNamespace:      buildNamespace,
-		BuilderImage:        builderImage,
-		BuilderRuntimeClass: builderRuntimeClass,
-		GHCRPushSecret:      ghcrPushSecret,
-		WorkloadPullSecret:  workloadPullSecret,
-		AppsDomain:          appsDomain,
-		WorkerConcurrency:   workers,
-		OutboxPollInterval:  1 * time.Second,
-		MonitorPollInterval: 3 * time.Second,
-		ReconcilerInterval:  5 * time.Second,
-		PrunerInterval:      10 * time.Minute,
-		EnableTenantQuotas:  enableQuotas,
-		EnableNetworkPolicy: enableNetPol,
-		NetworkPolicyMode:   netPolMode,
-		EnableIngress:       enableIngress,
-		EnableESO:           enableESO,
-		PublicURLScheme:     publicURLScheme,
-		PublicURLPort:       publicURLPort,
+		LogLevel:                  logLevel,
+		DatabaseURL:               databaseURL,
+		WorkerJWTSecret:           workerJWTSecret,
+		APIInternalURL:            apiInternalURL,
+		BuildNamespace:            buildNamespace,
+		BuilderImage:              builderImage,
+		BuilderRuntimeClass:       builderRuntimeClass,
+		GHCRPushSecret:            ghcrPushSecret,
+		WorkloadPullSecret:        workloadPullSecret,
+		PullSecretSourceNamespace: pullSecretSourceNS,
+		AppsDomain:                appsDomain,
+		WorkerConcurrency:         workers,
+		OutboxPollInterval:        1 * time.Second,
+		MonitorPollInterval:       3 * time.Second,
+		ReconcilerInterval:        5 * time.Second,
+		PrunerInterval:            10 * time.Minute,
+		EnableTenantQuotas:        enableQuotas,
+		EnableNetworkPolicy:       enableNetPol,
+		NetworkPolicyMode:         netPolMode,
+		EnableIngress:             enableIngress,
+		EnableESO:                 enableESO,
+		PublicURLScheme:           publicURLScheme,
+		PublicURLPort:             publicURLPort,
 	}
 }
 

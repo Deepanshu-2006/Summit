@@ -111,11 +111,9 @@ func New(deps Dependencies) (*App, error) {
 		defer poolCancel()
 		pool, err := db.Open(poolCtx, deps.Config.DatabaseURL)
 		if err != nil {
-			if deps.Config.IsDevelopment() {
-				logger.Warn("database connection failed; continuing in degraded development mode", "error", err)
-			} else {
-				return nil, fmt.Errorf("failed to connect to platform database: %w", err)
-			}
+			// A configured but unreachable database is fatal in every environment: running
+			// without it leaves deploys stuck in "queued".
+			return nil, fmt.Errorf("failed to connect to platform database: %w", err)
 		} else {
 			dbPool = pool
 			ownedPool = true
@@ -207,6 +205,7 @@ func New(deps Dependencies) (*App, error) {
 		mCfg.Interval = deps.Config.MonitorPollInterval
 		mCfg.AppsDomain = deps.Config.AppsDomain
 		mCfg.WorkloadPullSecret = deps.Config.WorkloadPullSecret
+		mCfg.PullSecretSourceNamespace = deps.Config.PullSecretSourceNamespace
 		mCfg.PublicURLScheme = deps.Config.PublicURLScheme
 		mCfg.PublicURLPort = deps.Config.PublicURLPort
 		monitorOpts := []monitor.Option{monitor.WithAddonLister(storeAddonLister{store: store})}

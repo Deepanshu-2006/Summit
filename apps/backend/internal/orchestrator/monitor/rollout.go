@@ -193,6 +193,9 @@ func (m *Monitor) reconcileWorkloadReady(ctx context.Context, active *platformdb
 			return fmt.Errorf("ensure tenant namespace: %w", err)
 		}
 	}
+	if err := m.ensurePullSecret(ctx, namespace, pullSecret); err != nil {
+		return err
+	}
 
 	if m.dynClient != nil {
 		if err := m.applySummitService(ctx, summitSvc); err != nil {

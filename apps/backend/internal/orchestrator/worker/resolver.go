@@ -24,7 +24,7 @@ import (
 // BuildKit cache emptyDir counts toward ephemeral storage, so storage must cover base images,
 // toolchains and node_modules; 2Gi gets the pod evicted while unpacking Railpack's builder image.
 const (
-	builderCPUMillicores       = 2000
+	builderCPUMillicores       = 8000
 	builderMemoryMiB           = 4096
 	builderEphemeralStorageMiB = 10240
 )
