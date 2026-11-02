@@ -23,9 +23,12 @@ type Config struct {
 	Interval           time.Duration
 	BatchSize          int
 	WorkloadPullSecret string
-	AppsDomain         string
-	BuildTimeoutBuffer time.Duration
-	RolloutTimeout     time.Duration
+	// PullSecretSourceNamespace holds the source WorkloadPullSecret copied into tenant
+	// namespaces before rollout. Empty disables copying.
+	PullSecretSourceNamespace string
+	AppsDomain                string
+	BuildTimeoutBuffer        time.Duration
+	RolloutTimeout            time.Duration
 	// PublicURLScheme is http or https. Empty defaults to https.
 	PublicURLScheme string
 	// PublicURLPort is included in public_url. Empty, 80, and 443 are omitted.

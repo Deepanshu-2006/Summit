@@ -19,7 +19,7 @@ const (
 	DefaultServiceAccountName = "summit-builder"
 	DefaultTimeoutSeconds     = 1800 // 30 minutes
 	DefaultCPURequest         = "500m"
-	DefaultCPULimit           = "2000m"
+	DefaultCPULimit           = "8000m"
 	DefaultMemoryRequest      = "1Gi"
 	DefaultMemoryLimit        = "4Gi"
 	DefaultStorageRequest     = "2Gi"

@@ -60,20 +60,20 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	// 1. Platform Database Connection Pool
 	var dbPool *pgxpool.Pool
 	var store *platformdb.Store
+	// A configured database is required in every environment: without it the queue worker never
+	// starts and deploys sit in "queued" forever. Retry through slow starts (e.g. a serverless
+	// database waking up), then exit non-zero so Kubernetes restarts the pod.
 	if strings.TrimSpace(cfg.DatabaseURL) != "" {
-		poolCtx, poolCancel := context.WithTimeout(ctx, 10*time.Second)
-		defer poolCancel()
-		pool, err := db.Open(poolCtx, cfg.DatabaseURL)
+		pool, err := db.OpenWithRetry(ctx, cfg.DatabaseURL, 60*time.Second, 10*time.Second, func(attempt int, err error) {
+			logger.Warn("platform database not reachable yet; retrying", "attempt", attempt, "error", err)
+		})
 		if err != nil {
-			if !cfg.IsDevelopment() {
-				return fmt.Errorf("failed to connect to platform database: %w", err)
-			}
-			logger.Warn("database connection failed; continuing in degraded mode", "error", err)
-		} else {
-			dbPool = pool
-			defer dbPool.Close()
-			store = platformdb.New(dbPool)
+			return fmt.Errorf("failed to connect to platform database: %w", err)
 		}
+		dbPool = pool
+		defer dbPool.Close()
+		store = platformdb.New(dbPool)
+		logger.Info("connected to platform database")
 	}
 
 	// 2. Kubernetes Typed & Dynamic Clients
